@@ -1,6 +1,7 @@
 import uproot4
 import awkward1 as ak
 import numpy as np
+import coffea
 import coffea.hist as hist
 from copy import deepcopy
 import matplotlib.pyplot as plt
@@ -86,3 +87,5 @@ for i in range(len(ptbins) - 1):
 
 plt.savefig("AK15TriggerEfficiencies.pdf")
 plt.show()
+
+coffea.util.save(effs, "../data/AK15JetHTTriggerEfficiency_2017.coffea")
