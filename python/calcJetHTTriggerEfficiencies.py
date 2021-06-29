@@ -20,11 +20,14 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         self.triggers = {
             2017:   [
                         'HLT_PFJet500',
+                        'HLT_AK8PFJet400',
                         'HLT_AK8PFJet500',
                         'HLT_AK8PFJet360_TrimMass30',
                         'HLT_AK8PFJet380_TrimMass30',
                         'HLT_AK8PFJet400_TrimMass30',
+                        'HLT_AK8PFHT750_TrimMass50',
                         'HLT_AK8PFHT800_TrimMass50',
+                        'HLT_PFHT1050',
                         # 'HLT_AK8PFJet330_PFAK8BTagCSV_p17'
                     ]
         }
@@ -38,9 +41,6 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
     def process(self, events):
         """ Returns pre- (den) and post- (num) trigger 2D (pT, msd) histograms from input NanoAOD events """
-	
-        print(f"\n\n\n\n Events {events} \n\n\n\n")
-        print(events.fields)
 
         jet_pts = ak.pad_none(events['FatJetAK15_pt'], 2, axis=1)
         jet_msds = ak.pad_none(events['FatJetAK15_msoftdrop'], 2, axis=1)
@@ -57,7 +57,6 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
             .Var(self.msdbins, name='msd', label="MassSD (GeV)")
             .Double()
         ).fill(pt=ak.to_numpy(fatjet1pt[fatjet1bool]), msd=ak.to_numpy(fatjet1msd[fatjet1bool]))
-
 
         # numerator
         triggered = events[self.triggers[2017][0]]
