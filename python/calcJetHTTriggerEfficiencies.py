@@ -14,6 +14,8 @@ plt.style.use(hep.style.CMS)
 
 
 class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
+    """ Accumulates two 2D (pT, msd) histograms from all input events: 1) before triggers, and 2) after triggers """
+
     def __init__(self):
         super(JetHTTriggerEfficienciesProcessor, self).__init__()
         self.triggers = {
@@ -36,6 +38,8 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         # self.msdbins = [i for i in range(0, 241, 20)]
 
     def process(self, events):
+        """ Returns pre- (den) and post- (num) trigger 2D (pT, msd) histograms from input NanoAOD events """
+
         jet_pts = ak.pad_none(events['FatJetAK15_pt'], 2, axis=1)
         jet_msds = ak.pad_none(events['FatJetAK15_msoftdrop'], 2, axis=1)
 
@@ -86,20 +90,25 @@ out = processor.run_uproot_job(
     executor_args={'schema': BaseSchema}
 )
 
-out
+out['num'].view(flow=True)
+out['den'].view(flow=True)
 
-out['num'].values(flow=True)
 
-out['den'].values(flow=True)
+# eff = num / den
 
 effs = out['den'].copy()
 effs[:, :] = out['num'].view(flow=True) / out['den'].view(flow=True)
-
 effs.view()
+
+
+# save effs (currently according to Henry the best way to save a hist object is via pickling)
 
 filehandler = open('data/AK15JetHTTriggerEfficiency_2017.hist', 'wb')
 pickle.dump(effs, filehandler)
 filehandler.close()
+
+
+# plot
 
 w, ptbins, msdbins = effs.to_numpy()
 
