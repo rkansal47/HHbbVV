@@ -1,4 +1,7 @@
+*
 */*
-.DS_Store
+!data
+!python
 !data/*
 !python/*.py
+!python/*.pdf
