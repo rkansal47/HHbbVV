@@ -1,8 +1,7 @@
-import uproot4
 import awkward as ak
 import coffea
 from coffea import processor
-from coffea.nanoevents import NanoEventsFactory, BaseSchema
+from coffea.nanoevents import NanoEventsFactory, BaseSchema, NanoAODSchema
 from hist import Hist
 import matplotlib.pyplot as plt
 import mplhep as hep
@@ -30,15 +29,18 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
                     ]
         }
 
-        self.ptbins = [250, 300, 350, 400, 550, 1000]
-        self.msdbins = [0, 20, 40, 60, 100, 250, 500]
+        # self.ptbins = [250, 300, 350, 400, 550, 1000]
+        # self.msdbins = [0, 20, 40, 60, 100, 250, 500]
 
         # 4b bins
-        # self.ptbins = [i for i in range(250, 401, 25)] + [450, 500, 600, 700]
-        # self.msdbins = [i for i in range(0, 241, 20)]
+        self.ptbins = [i for i in range(250, 401, 25)] + [450, 500, 600, 700]
+        self.msdbins = [i for i in range(0, 241, 20)]
 
     def process(self, events):
         """ Returns pre- (den) and post- (num) trigger 2D (pT, msd) histograms from input NanoAOD events """
+	
+        print(f"\n\n\n\n Events {events} \n\n\n\n")
+        print(events.fields)
 
         jet_pts = ak.pad_none(events['FatJetAK15_pt'], 2, axis=1)
         jet_msds = ak.pad_none(events['FatJetAK15_msoftdrop'], 2, axis=1)
@@ -79,20 +81,46 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
     def postprocess(self, accumulator):
         return accumulator
 
+import time
+from distributed import Client
+from lpcjobqueue import LPCCondorCluster
 
-fileset = {'2017': glob('python/data/SingleMuon/Run2017*/21*/0000/nano_data2017_1.root')}
+tic = time.time()
+cluster = LPCCondorCluster()
+# minimum > 0: https://github.com/CoffeaTeam/coffea/issues/465
+cluster.adapt(minimum=1, maximum=3000000)
+client = Client(cluster)
 
-out = processor.run_uproot_job(
+exe_args = {
+    "client": client,
+    "savemetrics": True,
+    "schema": BaseSchema,
+    "align_clusters": True,
+}
+
+with open('filelist.txt', 'r') as file:
+    filelist = [f[:-1] for f in file.readlines()]
+
+fileset = {'2017': filelist}
+
+print("Waiting for at least one worker...")
+client.wait_for_workers(1)
+out, metrics = processor.run_uproot_job(
     fileset,
     treename="Events",
     processor_instance=JetHTTriggerEfficienciesProcessor(),
-    executor=processor.iterative_executor,
-    executor_args={'schema': BaseSchema}
+    executor=processor.dask_executor,
+    executor_args=exe_args,
+    maxchunks=10
 )
 
-out['num'].view(flow=True)
-out['den'].view(flow=True)
+elapsed = time.time() - tic
 
+print(f"num: {out['num'].view(flow=True)}")
+print(f"den: {out['den'].view(flow=True)}")
+
+print(f"Metrics: {metrics}")
+print(f"Finished in {elapsed:.1f}s")
 
 # eff = num / den
 
@@ -103,7 +131,7 @@ effs.view()
 
 # save effs (currently according to Henry the best way to save a hist object is via pickling)
 
-filehandler = open('data/AK15JetHTTriggerEfficiency_2017.hist', 'wb')
+filehandler = open('../data/AK15JetHTTriggerEfficiency_2017.hist', 'wb')
 pickle.dump(effs, filehandler)
 filehandler.close()
 
@@ -120,5 +148,5 @@ for i in range(len(ptbins) - 1):
 ax.set_xlabel('MassSD (GeV)')
 ax.set_ylabel('$p_T$ (GeV)')
 fig.colorbar(mesh)
-plt.savefig("python/AK15TriggerEfficiencies.pdf")
+plt.savefig("AK15TriggerEfficiencies.pdf")
 plt.show()
