@@ -110,7 +110,7 @@ out, metrics = processor.run_uproot_job(
     processor_instance=JetHTTriggerEfficienciesProcessor(),
     executor=processor.dask_executor,
     executor_args=exe_args,
-    maxchunks=10
+#    maxchunks=10
 )
 
 elapsed = time.time() - tic
