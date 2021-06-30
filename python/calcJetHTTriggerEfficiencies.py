@@ -87,7 +87,7 @@ from lpcjobqueue import LPCCondorCluster
 tic = time.time()
 cluster = LPCCondorCluster()
 # minimum > 0: https://github.com/CoffeaTeam/coffea/issues/465
-cluster.adapt(minimum=1, maximum=3000000)
+cluster.adapt(minimum=1, maximum=100)
 client = Client(cluster)
 
 exe_args = {
@@ -110,7 +110,7 @@ out, metrics = processor.run_uproot_job(
     processor_instance=JetHTTriggerEfficienciesProcessor(),
     executor=processor.dask_executor,
     executor_args=exe_args,
-    maxchunks=10
+#    maxchunks=10
 )
 
 elapsed = time.time() - tic
@@ -137,13 +137,14 @@ filehandler.close()
 
 # plot
 
+import math
 w, ptbins, msdbins = effs.to_numpy()
 
 fig, ax = plt.subplots(figsize=(14, 14))
 mesh = ax.pcolormesh(msdbins, ptbins, w, cmap="jet")
 for i in range(len(ptbins) - 1):
     for j in range(len(msdbins) - 1):
-        ax.text((msdbins[j] + msdbins[j + 1]) / 2, (ptbins[i] + ptbins[i + 1]) / 2, w[i, j].round(2), color="black", ha="center", va="center", fontsize=12)
+        if not math.isnan(w[i, j]): ax.text((msdbins[j] + msdbins[j + 1]) / 2, (ptbins[i] + ptbins[i + 1]) / 2, w[i, j].round(2), color="black", ha="center", va="center", fontsize=12)
 ax.set_xlabel('MassSD (GeV)')
 ax.set_ylabel('$p_T$ (GeV)')
 fig.colorbar(mesh)
