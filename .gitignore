@@ -5,3 +5,4 @@
 !data/*
 !python/*.py
 !python/*.pdf
+!python/*.txt
