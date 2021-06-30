@@ -17,6 +17,13 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
     def __init__(self):
         super(JetHTTriggerEfficienciesProcessor, self).__init__()
+        self.muon_triggers = {
+            2017:   [
+                        'HLT_IsoMu27',
+                        'HLT_Mu50'
+                    ]
+        }
+
         self.triggers = {
             2017:   [
                         'HLT_PFJet500',
@@ -50,20 +57,24 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
         fatjet1bool = ~ak.to_numpy(fatjet1pt).mask * ~ak.to_numpy(fatjet1msd).mask  # events with at least one fat jet
 
+        # passing single-muon control region triggers
+        muon_triggered = events[self.muon_triggers[2017][0]]
+        for i in range(1, len(self.muon_triggers[2017])): muon_triggered = muon_triggered + events[self.muon_triggers[2017][i]]
+
         # denominator
         den = (
             Hist.new
             .Var(self.ptbins, name='pt', label="$p_T$ (GeV)")
             .Var(self.msdbins, name='msd', label="MassSD (GeV)")
             .Double()
-        ).fill(pt=ak.to_numpy(fatjet1pt[fatjet1bool]), msd=ak.to_numpy(fatjet1msd[fatjet1bool]))
+        ).fill(pt=ak.to_numpy(fatjet1pt[fatjet1bool * muon_triggered]), msd=ak.to_numpy(fatjet1msd[fatjet1bool * muon_triggered]))
 
         # numerator
         triggered = events[self.triggers[2017][0]]
         for i in range(1, len(self.triggers[2017])): triggered = triggered + events[self.triggers[2017][i]]
 
-        fatjet1pt_triggered = jet_pts[:, 0][triggered * fatjet1bool]
-        fatjet1msd_triggered = jet_msds[:, 0][triggered * fatjet1bool]
+        fatjet1pt_triggered = jet_pts[:, 0][triggered * fatjet1bool * muon_triggered]
+        fatjet1msd_triggered = jet_msds[:, 0][triggered * fatjet1bool * muon_triggered]
 
         num = (
             Hist.new
