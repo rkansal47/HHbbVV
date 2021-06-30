@@ -43,8 +43,8 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         # self.msdbins = [0, 20, 40, 60, 100, 250, 500]
 
         # 4b bins
-        self.ptbins = [i for i in range(250, 401, 25)] + [450, 500, 600, 700]
-        self.msdbins = [i for i in range(0, 241, 20)]
+#        self.ptbins = [i for i in range(250, 401, 25)] + [450, 500, 600, 700]
+#        self.msdbins = [i for i in range(0, 241, 20)]
 
     def process(self, events):
         """ Returns pre- (den) and post- (num) trigger 2D (pT, msd) histograms from input NanoAOD events """
@@ -64,8 +64,8 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         # denominator
         den = (
             Hist.new
-            .Var(self.ptbins, name='pt', label="$p_T$ (GeV)")
-            .Var(self.msdbins, name='msd', label="MassSD (GeV)")
+            .Reg(50, 0, 1000, name='pt', label="$p_T (GeV)$")
+            .Reg(15, 0, 300, name='msd', label="MassSD (GeV)")
             .Double()
         ).fill(pt=ak.to_numpy(fatjet1pt[fatjet1bool * muon_triggered]), msd=ak.to_numpy(fatjet1msd[fatjet1bool * muon_triggered]))
 
@@ -78,8 +78,8 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
         num = (
             Hist.new
-            .Var(self.ptbins, name='pt', label="$p_T (GeV)$")
-            .Var(self.msdbins, name='msd', label="MassSD (GeV)")
+            .Reg(50, 0, 1000, name='pt', label="$p_T (GeV)$")
+            .Reg(15, 0, 300, name='msd', label="MassSD (GeV)")
             .Double()
         ).fill(pt=ak.to_numpy(fatjet1pt_triggered), msd=ak.to_numpy(fatjet1msd_triggered))
 
@@ -98,7 +98,7 @@ from lpcjobqueue import LPCCondorCluster
 tic = time.time()
 cluster = LPCCondorCluster()
 # minimum > 0: https://github.com/CoffeaTeam/coffea/issues/465
-cluster.adapt(minimum=1, maximum=3000000)
+cluster.adapt(minimum=1, maximum=100)
 client = Client(cluster)
 
 exe_args = {
@@ -121,7 +121,7 @@ out, metrics = processor.run_uproot_job(
     processor_instance=JetHTTriggerEfficienciesProcessor(),
     executor=processor.dask_executor,
     executor_args=exe_args,
-    maxchunks=10
+#    maxchunks=10
 )
 
 elapsed = time.time() - tic
@@ -148,15 +148,16 @@ filehandler.close()
 
 # plot
 
+import math
 w, ptbins, msdbins = effs.to_numpy()
 
 fig, ax = plt.subplots(figsize=(14, 14))
 mesh = ax.pcolormesh(msdbins, ptbins, w, cmap="jet")
 for i in range(len(ptbins) - 1):
     for j in range(len(msdbins) - 1):
-        ax.text((msdbins[j] + msdbins[j + 1]) / 2, (ptbins[i] + ptbins[i + 1]) / 2, w[i, j].round(2), color="black", ha="center", va="center", fontsize=12)
+        if not math.isnan(w[i, j]): ax.text((msdbins[j] + msdbins[j + 1]) / 2, (ptbins[i] + ptbins[i + 1]) / 2, w[i, j].round(2), color="black", ha="center", va="center", fontsize=12)
 ax.set_xlabel('MassSD (GeV)')
 ax.set_ylabel('$p_T$ (GeV)')
 fig.colorbar(mesh)
 plt.savefig("AK15TriggerEfficiencies.pdf")
-plt.show()
+# plt.show()
