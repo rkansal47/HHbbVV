@@ -59,7 +59,7 @@ fileset = {'2017': filelist}
 prefix = label
 
 # make local directory
-logdir = 'logs/' + locdir
+logdir = locdir + '/logs'
 os.system('mkdir -p  %s' % logdir)
 
 # and condor directory
