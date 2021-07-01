@@ -96,9 +96,10 @@ from distributed import Client
 from lpcjobqueue import LPCCondorCluster
 
 tic = time.time()
-cluster = LPCCondorCluster()
+cluster = LPCCondorCluster(scheduler_options={"dashboard_address": ":22478"})
 # minimum > 0: https://github.com/CoffeaTeam/coffea/issues/465
-cluster.adapt(minimum=1, maximum=100)
+cluster.adapt(minimum=1, maximum=200)
+# cluster.scale(jobs=200)
 client = Client(cluster)
 
 exe_args = {
