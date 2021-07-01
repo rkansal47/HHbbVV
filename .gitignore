@@ -5,4 +5,5 @@
 !condor
 !condor/*
 !data
+!data/*.txt
 .DS_Store
