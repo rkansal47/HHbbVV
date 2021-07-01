@@ -32,8 +32,8 @@ script = args.settings[1]  # should be run.py
 files_per_job = int(args.settings[2])
 
 loc_base = os.environ['PWD']
-logdir = label
-homedir = '/store/user/rkansal/bbVV/' + logdir + '/'
+locdir = label
+homedir = '/store/user/rkansal/bbVV/' + locdir + '/'
 outdir = homedir + '/outfiles/'
 
 # list of samples to run
@@ -59,8 +59,8 @@ fileset = {'2017': filelist}
 prefix = label
 
 # make local directory
-locdir = 'logs/' + logdir
-os.system('mkdir -p  %s' %locdir)
+logdir = 'logs/' + locdir
+os.system('mkdir -p  %s' % logdir)
 
 # and condor directory
 print('CONDOR work dir: ' + outdir)
@@ -74,30 +74,30 @@ for sample in samplelist:
     prefix = sample + '_2017'
     print('Submitting '+ prefix)
 
-    njobs = int(fileset['2017'] / files_per_job) + 1
-    remainder = fileset['2017'] - int(files_per_job * (njobs - 1))
+    njobs = int(len(fileset['2017']) / files_per_job) + 1
+    remainder = len(fileset['2017']) - int(files_per_job * (njobs - 1))
 
     for j in range(njobs):
 
         condor_templ_file = open(loc_base + "/submit.templ.jdl")
         sh_templ_file     = open(loc_base + "/submit.templ.sh")
 
-        localcondor = locdir + '/' + prefix + "_" + str(j) + ".jdl"
-        condor_file = open(localcondor,"w")
+        localcondor = f'{locdir}/{prefix}_{j}.jdl'
+        condor_file = open(localcondor, "w")
         for line in condor_templ_file:
-            line=line.replace('DIRECTORY',locdir)
-            line=line.replace('PREFIX',prefix)
-            line=line.replace('JOBID',str(j))
+            line = line.replace('DIRECTORY', locdir)
+            line = line.replace('PREFIX', prefix)
+            line = line.replace('JOBID', str(j))
             condor_file.write(line)
         condor_file.close()
 
-        localsh = locdir + '/' + prefix + "_" + str(j) + ".sh"
-        eosoutput = "root://cmseos.fnal.gov/" + outdir + "/" + prefix + '_' + str(j) + '.hist'
+        localsh = f'{locdir}/{prefix}_{j}.sh'
+        eosoutput = f'root://cmseos.fnal.gov/{outdir}/{prefix}_{j}.hist'
         sh_file = open(localsh, "w")
         for line in sh_templ_file:
             line = line.replace('SCRIPTNAME', script)
             line = line.replace('FILENUM', str(j))
-            line = line.replace('YEAR', samplelist[sample])
+            line = line.replace('YEAR', '2017')
             line = line.replace('SAMPLE', sample)
             line = line.replace('STARTNUM', str(j * files_per_job))
             line = line.replace('ENDNUM', str((j + 1) * files_per_job))
@@ -105,7 +105,7 @@ for sample in samplelist:
             sh_file.write(line)
         sh_file.close()
 
-        os.system('chmod u+x ' + locdir + '/' + prefix + '_' + str(j) + '.sh')
+        os.system(f'chmod u+x {localsh}')
         if (os.path.exists('%s.log' % localcondor)):
             os.system('rm %s.log' % localcondor)
         condor_templ_file.close()
@@ -116,4 +116,4 @@ for sample in samplelist:
 
         nsubmit = nsubmit + 1
 
-print(nsubmit,"jobs submitted.")
+# print(nsubmit,"jobs submitted.")
