@@ -51,8 +51,8 @@ outdir = homedir + '/outfiles/'
 samplelist = {
     'SingleMuon'
 }
-with open('data/filelist.txt', 'r') as file:
-    filelist = [f[:-1] for f in file.readlines()]
+with open('../data/filelist.txt', 'r') as file:
+    filelist = [f[:-1] for f in file.readlines()[:10]]
 fileset = {'2017': filelist}
 
 # name to give your output files
@@ -92,7 +92,7 @@ for sample in samplelist:
         condor_file.close()
 
         localsh = locdir + '/' + prefix + "_" + str(j) + ".sh"
-        eosoutput = "root://cmseos.fnal.gov/" + outdir + "/" + prefix + '_' + str(j) + '.coffea'
+        eosoutput = "root://cmseos.fnal.gov/" + outdir + "/" + prefix + '_' + str(j) + '.hist'
         sh_file = open(localsh, "w")
         for line in sh_templ_file:
             line = line.replace('SCRIPTNAME', script)
@@ -111,7 +111,7 @@ for sample in samplelist:
         condor_templ_file.close()
         sh_templ_file.close()
 
-        print('To submit ',localcondor)
+        print('To submit ', localcondor)
         # os.system('condor_submit %s' % localcondor)
 
         nsubmit = nsubmit + 1

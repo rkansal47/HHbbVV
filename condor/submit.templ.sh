@@ -10,4 +10,4 @@ mkdir outfiles
 python SCRIPTNAME --year YEAR --starti STARTNUM --endi ENDNUM --samples SAMPLE --processor PROCESSOR --condor
 
 #move output to eos
-xrdcp -f outfiles/*.coffea EOSOUT
+xrdcp -f outfiles/*.hist EOSOUT
