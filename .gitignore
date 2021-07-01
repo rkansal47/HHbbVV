@@ -1,8 +1,6 @@
 *
 */*
-!data
-!python
-!data/*
-!python/*.py
-!python/*.pdf
-!python/*.txt
+data
+*.pdf
+*.txt
+*~
