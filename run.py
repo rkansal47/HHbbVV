@@ -86,17 +86,15 @@ def main(args):
                     #'schema':NanoAODSchema, 
                     'retries': 1}
         
-        for filename in infiles:
-            print(filename)
-            out, metrics = processor.run_uproot_job(
-                str(filename), 'Events', p, processor.futures_executor, args, chunksize=10000)
-            )
+        out, metrics = processor.run_uproot_job(
+            fileset, 'Events', p, processor.futures_executor, args, chunksize=10000)
+        )
             
-            print(f"Output: {out}")
-            print(f"Metrics: {metrics}")
-
-            outfile = 'outfiles/'+str(args.year)+'_'+str(args.index)+'.coffea'
-            util.save(out, outfile)
+        print(f"Output: {out}")
+        print(f"Metrics: {metrics}")
+        
+        outfile = 'outfiles/%s_%i-%i.coffea'%(args.year,args.starti,args.endi)
+        util.save(out, outfile)
         
     return
 
