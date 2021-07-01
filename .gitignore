@@ -1,8 +1,8 @@
-*
 */*
+*/*/**
+!*.py
+!processors
+!condor
+!condor/*
 !data
-!python
-!data/*
-!python/*.py
-!python/*.pdf
-!python/*.txt
+.DS_Store
