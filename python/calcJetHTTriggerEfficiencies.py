@@ -92,22 +92,24 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         return accumulator
 
 import time
+
+
+tic = time.time()
+
+# for Nebraska T2
+
 from dask.distributed import Client
 client = Client("tls://localhost:8786")
 
-tic = time.time()
-<<<<<<< HEAD
+# for LPC
+
+# from lpcjobqueue import LPCCondorCluster
+# from distributed import Client
 # cluster = LPCCondorCluster()
 # # minimum > 0: https://github.com/CoffeaTeam/coffea/issues/465
 # cluster.adapt(minimum=1, maximum=100)
 # client = Client(cluster)
-=======
-cluster = LPCCondorCluster(scheduler_options={"dashboard_address": ":22478"})
-# minimum > 0: https://github.com/CoffeaTeam/coffea/issues/465
-cluster.adapt(minimum=1, maximum=200)
-# cluster.scale(jobs=200)
-client = Client(cluster)
->>>>>>> eac0c205de7294f6a49bc98419d8bdd9e6f972cc
+
 
 exe_args = {
     "client": client,
