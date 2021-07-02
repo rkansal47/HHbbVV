@@ -32,7 +32,7 @@ script = args.settings[1]  # should be run.py
 files_per_job = int(args.settings[2])
 
 loc_base = os.environ['PWD']
-locdir = label
+locdir = 'condor/' + label
 homedir = '/store/user/rkansal/bbVV/' + locdir + '/'
 outdir = homedir + '/outfiles/'
 
@@ -51,8 +51,9 @@ outdir = homedir + '/outfiles/'
 samplelist = {
     'SingleMuon'
 }
-with open('../data/filelist.txt', 'r') as file:
-    filelist = [f[:-1] for f in file.readlines()[:10]]
+
+with open('data/filelist.txt', 'r') as file:
+    filelist = [f[:-1] for f in file.readlines()[:30]]
 fileset = {'2017': filelist}
 
 # name to give your output files
@@ -79,8 +80,8 @@ for sample in samplelist:
 
     for j in range(njobs):
 
-        condor_templ_file = open(loc_base + "/submit.templ.jdl")
-        sh_templ_file     = open(loc_base + "/submit.templ.sh")
+        condor_templ_file = open(loc_base + "/condor/submit.templ.jdl")
+        sh_templ_file     = open(loc_base + "/condor/submit.templ.sh")
 
         localcondor = f'{locdir}/{prefix}_{j}.jdl'
         condor_file = open(localcondor, "w")

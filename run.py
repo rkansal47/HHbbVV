@@ -27,7 +27,7 @@ def main(args):
 
     # define processor
     if args.processor == "trigger":
-        from ..processors import JetHTTriggerEfficienciesProcessor
+        from processors import JetHTTriggerEfficienciesProcessor
         # TODO: add year as argument to processor
         p = JetHTTriggerEfficienciesProcessor()
     else:
