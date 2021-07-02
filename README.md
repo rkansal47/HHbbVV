@@ -10,3 +10,5 @@ git checkout condor
 python condor/submit.py Jul1 run.py 20  # will need python3
 for i in condor/Jul1/*.jdl; do condor_submit $i; done
 ```
+
+TODO: instructions for lpcjobqueue and coffea-casa
