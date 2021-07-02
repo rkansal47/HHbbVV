@@ -33,8 +33,9 @@ files_per_job = int(args.settings[2])
 
 loc_base = os.environ['PWD']
 locdir = 'condor/' + label
-homedir = '/store/user/rkansal/bbVV/' + locdir + '/'
-outdir = homedir + '/outfiles/'
+# homedir = '/store/user/rkansal/bbVV/' + locdir + '/'
+outdir = '/eos/uscms/store/user/rkansal/bbVV/trigEffs/' + label + '/outfiles/'
+os.system('mkdir -p  %s' % outdir)
 
 # list of samples to run
 # TODO
@@ -93,7 +94,7 @@ for sample in samplelist:
         condor_file.close()
 
         localsh = f'{locdir}/{prefix}_{j}.sh'
-        eosoutput = f'root://cmseos.fnal.gov/{outdir}/{prefix}_{j}.hist'
+        # eosoutput = f'root://cmseos.fnal.gov/{outdir}/{prefix}_{j}.hist'
         sh_file = open(localsh, "w")
         for line in sh_templ_file:
             line = line.replace('SCRIPTNAME', script)
@@ -102,7 +103,8 @@ for sample in samplelist:
             line = line.replace('SAMPLE', sample)
             line = line.replace('STARTNUM', str(j * files_per_job))
             line = line.replace('ENDNUM', str((j + 1) * files_per_job))
-            line = line.replace('EOSOUT', eosoutput)
+            # line = line.replace('EOSOUT', eosoutput)
+            line = line.replace('OUTDIR', outdir)
             sh_file.write(line)
         sh_file.close()
 

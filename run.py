@@ -87,13 +87,19 @@ def main(args):
                     'retries': 1}
 
         out, metrics = processor.run_uproot_job(
-            fileset, 'Events', p, processor.futures_executor, args, chunksize=10000
+            fileset,
+            'Events',
+            p,
+            processor.futures_executor,
+            exe_args,
+            # chunksize=10000,
+            maxchunks=10
         )
 
         print(f"Output: {out}")
         print(f"Metrics: {metrics}")
 
-        filehandler = open(f'outfiles/{args.year}_{args.starti}-{args.endi}.hist', 'wb')
+        filehandler = open(f'{args.outdir}/{args.year}_{args.starti}-{args.endi}.hist', 'wb')
         pickle.dump(out, filehandler)
         filehandler.close()
 
@@ -110,10 +116,11 @@ if __name__ == "__main__":
     parser.add_argument('--year',       dest='year',       default='2017',       help="year", type=str)
     parser.add_argument('--starti',     dest='starti',     default=0,            help="start index of files", type=int)
     parser.add_argument('--endi',       dest='endi',       default=-1,           help="end index of files", type=int)
+    parser.add_argument('--outdir',     dest='outdir',     default='outfiles',   help="directory for output files", type=str)
     parser.add_argument("--processor",  dest="processor",  default="trigger",    help="Trigger processor", type=str)
     parser.add_argument("--dask",       dest="dask",       action="store_true",  default=False, help="Run with dask")
     parser.add_argument("--condor",     dest="condor",     action="store_true",  default=True,  help="Run with condor")
     parser.add_argument('--samples',    dest='samples',    default=[],           help='samples',     nargs='*')
     args = parser.parse_args()
 
-    main(args.year)
+    main(args)
