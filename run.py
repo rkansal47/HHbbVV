@@ -96,7 +96,8 @@ def main(args):
             maxchunks=10
         )
 
-        print(f"Output: {out}")
+        print(f"num: {out['num'].view(flow=True)}")
+        print(f"den: {out['den'].view(flow=True)}")
         print(f"Metrics: {metrics}")
 
         filehandler = open(f'{args.outdir}/{args.year}_{args.starti}-{args.endi}.hist', 'wb')
