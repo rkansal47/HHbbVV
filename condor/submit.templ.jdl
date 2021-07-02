@@ -6,7 +6,7 @@ transfer_input_files    = processors,run.py,data
 when_to_transfer_output = ON_EXIT_OR_EVICT
 request_memory          = 4500
 use_x509userproxy       = true
-x509userproxy           = /uscms/home/rkansal/x509up_u46881
+x509userproxy           = /uscms/home/rkansal/x509up_u57474
 
 output                  = DIRECTORY/logs/PREFIX_JOBID.out
 error                   = DIRECTORY/logs/PREFIX_JOBID.err

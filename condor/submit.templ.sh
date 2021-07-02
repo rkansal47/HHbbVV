@@ -7,7 +7,7 @@
 mkdir outfiles
 
 # run code
-python SCRIPTNAME --year YEAR --starti STARTNUM --endi ENDNUM --samples SAMPLE --processor PROCESSOR --condor
+python SCRIPTNAME --year YEAR --starti STARTNUM --endi ENDNUM --samples SAMPLE --processor PROCESSOR --condor --outdir OUTDIR
 
 #move output to eos
-xrdcp -f outfiles/*.hist EOSOUT
+# xrdcp -f outfiles/*.hist EOSOUT
