@@ -8,4 +8,7 @@
 !condor/*
 !data
 !data/*.txt
+!corrections
+!corrections/*
+!corrections/*/**
 .DS_Store
