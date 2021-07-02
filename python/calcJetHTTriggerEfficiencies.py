@@ -92,15 +92,22 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         return accumulator
 
 import time
-from distributed import Client
-from lpcjobqueue import LPCCondorCluster
+from dask.distributed import Client
+client = Client("tls://localhost:8786")
 
 tic = time.time()
+<<<<<<< HEAD
+# cluster = LPCCondorCluster()
+# # minimum > 0: https://github.com/CoffeaTeam/coffea/issues/465
+# cluster.adapt(minimum=1, maximum=100)
+# client = Client(cluster)
+=======
 cluster = LPCCondorCluster(scheduler_options={"dashboard_address": ":22478"})
 # minimum > 0: https://github.com/CoffeaTeam/coffea/issues/465
 cluster.adapt(minimum=1, maximum=200)
 # cluster.scale(jobs=200)
 client = Client(cluster)
+>>>>>>> eac0c205de7294f6a49bc98419d8bdd9e6f972cc
 
 exe_args = {
     "client": client,
@@ -110,7 +117,7 @@ exe_args = {
 }
 
 with open('filelist.txt', 'r') as file:
-    filelist = [f[:-1] for f in file.readlines()]
+    filelist = [f[:-1].replace('redirector.t2.ucsd.edu', 'xcache') for f in file.readlines()]
 
 fileset = {'2017': filelist}
 
