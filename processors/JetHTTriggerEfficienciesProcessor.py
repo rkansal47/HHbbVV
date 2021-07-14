@@ -82,7 +82,7 @@ class JetHT3DTriggerEfficienciesProcessor(processor.ProcessorABC):
     """ Accumulates two 2D (pT, msd) histograms from all input events: 1) before triggers, and 2) after triggers """
 
     def __init__(self):
-        super(JetHTTriggerEfficienciesProcessor, self).__init__()
+        super(JetHT3DTriggerEfficienciesProcessor, self).__init__()
 
         self.muon_HLTs = {
             2017:   [
