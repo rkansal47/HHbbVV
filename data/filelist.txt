@@ -1485,7 +1485,6 @@ root://redirector.t2.ucsd.edu//store/user/rkansal/PFNano/SingleMuon/Run2017D-31M
 root://redirector.t2.ucsd.edu//store/user/rkansal/PFNano/SingleMuon/Run2017D-31Mar2018-v1_25Jun2021/210625_214001/0000/nano_data2017_501.root
 root://redirector.t2.ucsd.edu//store/user/rkansal/PFNano/SingleMuon/Run2017D-31Mar2018-v1_25Jun2021/210625_214001/0000/nano_data2017_502.root
 root://redirector.t2.ucsd.edu//store/user/rkansal/PFNano/SingleMuon/Run2017D-31Mar2018-v1_25Jun2021/210625_214001/0000/nano_data2017_503.root
-root://redirector.t2.ucsd.edu//store/user/rkansal/PFNano/SingleMuon/Run2017D-31Mar2018-v1_25Jun2021/210625_214001/0000/nano_data2017_504.root
 root://redirector.t2.ucsd.edu//store/user/rkansal/PFNano/SingleMuon/Run2017D-31Mar2018-v1_25Jun2021/210625_214001/0000/nano_data2017_505.root
 root://redirector.t2.ucsd.edu//store/user/rkansal/PFNano/SingleMuon/Run2017D-31Mar2018-v1_25Jun2021/210625_214001/0000/nano_data2017_506.root
 root://redirector.t2.ucsd.edu//store/user/rkansal/PFNano/SingleMuon/Run2017D-31Mar2018-v1_25Jun2021/210625_214001/0000/nano_data2017_507.root
