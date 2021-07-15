@@ -3,6 +3,8 @@
 */*
 */*/**
 !*.py
+!*.ipynb
+!*.pickle
 !processors
 !condor
 !condor/*
