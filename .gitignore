@@ -1,4 +1,14 @@
+*
+!*.py
 */*
-*.pdf
-*.txt
-*~
+*/*/**
+!*.py
+!processors
+!condor
+!condor/*
+!data
+!data/*.txt
+!corrections
+!corrections/*
+!corrections/*/**
+.DS_Store
