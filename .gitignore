@@ -10,6 +10,8 @@
 !condor/*
 !binder
 !binder/*.ipynb
+!outPickles
+!outPickles/*.pickle
 !data
 !data/*.txt
 !corrections
