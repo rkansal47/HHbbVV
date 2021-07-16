@@ -1,5 +1,12 @@
 # HHbbVV
 
+For [coffea-casa](https://coffea-casa.readthedocs.io/en/latest/cc_user.html):
+
+1. open `runCoffeaCasa.ipynb` 
+2. import your desired processor, specify it in the `run_uproot_job` function, and specify your filelist
+3. run the first three cells
+
+
 To submit with normal condor:
 
 ```
@@ -11,4 +18,7 @@ python condor/submit.py Jul1 run.py 20  # will need python3
 for i in condor/Jul1/*.jdl; do condor_submit $i; done
 ```
 
-TODO: instructions for lpcjobqueue and coffea-casa
+
+
+
+TODO: instructions for lpcjobqueue (currently quite buggy)
