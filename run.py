@@ -77,7 +77,6 @@ def main(args):
         pickle.dump(out, filehandler)
         filehandler.close()
 
-
     if args.condor:
         uproot.open.defaults['xrootd_handler'] = uproot.source.xrootd.MultithreadedXRootDSource
 
@@ -103,13 +102,9 @@ def main(args):
         filehandler = open(f'outfiles/{args.year}_{args.starti}-{args.endi}.hist', 'wb')
         pickle.dump(out, filehandler)
         filehandler.close()
-
-
-    return
-
-
+        
 if __name__ == "__main__":
-    # e.g.
+    # e.g. 
     # inside a condor job: python run.py --year 2017 --processor trigger --condor --starti 0 --endi 1
     # inside a dask job:  python run.py --year 2017 --processor trigger --dask
 
