@@ -1,8 +1,6 @@
 # HHbbVV
 
-For [coffea-casa](https://coffea-casa.readthedocs.io/en/latest/cc_user.html):
-
-From the coffea-casa binder:
+For [coffea-casa](https://coffea-casa.readthedocs.io/en/latest/cc_user.html) (from the coffea-casa binder):
 1. open `runCoffeaCasa.ipynb` 
 2. import your desired processor, specify it in the `run_uproot_job` function, and specify your filelist
 3. run the first three cells
