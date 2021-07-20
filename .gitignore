@@ -8,6 +8,8 @@
 !processors
 !condor
 !condor/*
+!binder
+!binder/*.ipynb
 !data
 !data/*.txt
 !corrections

@@ -120,9 +120,11 @@ class JetHT3DTriggerEfficienciesProcessor(processor.ProcessorABC):
         den_selection = fatjet1bool * muon_triggered
 
         # denominator
+        jet2varbins = [0, 250, 300, 350, 400, 500, 750, 1000]
+
         den = (
             Hist.new
-            .Reg(4, 0, 1000, name='jet2pt', label="AK15 Fat Jet 2 $p_T$ (GeV)")
+            .Var(jet2varbins, name='jet2pt', label="AK15 Fat Jet 2 $p_T$ (GeV)")
             .Reg(50, 0, 1000, name='jet1pt', label="AK15 Fat Jet 1 $p_T$ (GeV)")
             .Reg(15, 0, 300, name='jet1msd', label="AK15 Fat Jet 1 MassSD (GeV)")
             .Double()
@@ -140,7 +142,7 @@ class JetHT3DTriggerEfficienciesProcessor(processor.ProcessorABC):
 
         num = (
             Hist.new
-            .Reg(4, 0, 1000, name='jet2pt', label="AK15 Fat Jet 2 $p_T$ (GeV)")
+            .Var(jet2varbins, name='jet2pt', label="AK15 Fat Jet 2 $p_T$ (GeV)")
             .Reg(50, 0, 1000, name='jet1pt', label="AK15 Fat Jet 1 $p_T$ (GeV)")
             .Reg(15, 0, 300, name='jet1msd', label="AK15 Fat Jet 1 MassSD (GeV)")
             .Double()
@@ -148,7 +150,7 @@ class JetHT3DTriggerEfficienciesProcessor(processor.ProcessorABC):
                 jet1msd=events.FatJetAK15.msoftdrop[num_selection][:, 0].to_numpy(),
                 jet2pt=ak.fill_none(ak.pad_none(events.FatJetAK15.pt[num_selection][:, 1:2], 1, axis=1), 0).to_numpy()[:, 0],  # putting events with no fat jet 2 in the low pT bin
               )
-
+              
         return {
             'den': den,
             'num': num

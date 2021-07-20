@@ -1,11 +1,21 @@
+"""
+
+This is outdated - use processors/JetHTTriggerEfficienciesProcessor instead
+
+"""
+
+
+
+
+
 import awkward as ak
-import coffea
+import uproot3
+import numpy as np
 from coffea import processor
 from coffea.nanoevents import NanoEventsFactory, BaseSchema, NanoAODSchema
 from hist import Hist
 import matplotlib.pyplot as plt
 import mplhep as hep
-from glob import glob
 import pickle
 
 plt.rcParams.update({'font.size': 16})
@@ -151,9 +161,16 @@ effs.view()
 
 # save effs (currently according to Henry the best way to save a hist object is via pickling)
 
-filehandler = open('../data/AK15JetHTTriggerEfficiency_2017.hist', 'wb')
+filehandler = open('../corrections/AK15JetHTTriggerEfficiency_2017.hist', 'wb')
 pickle.dump(effs, filehandler)
 filehandler.close()
+
+
+# also saving as .root file...
+
+ak15_trig_effs = uproot3.recreate('corrections/AK15JetHTTriggerEfficiency_2017.root')
+ak15_trig_effs['efficiency_ptmass'] = tuple([x.astype(np.float32) for x in effs.to_numpy(flow=True)])  # convert to float (double check if we should be doing this...)
+ak15_trig_effs['efficiency_ptmass']
 
 
 # plot
