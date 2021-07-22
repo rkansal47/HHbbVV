@@ -9,25 +9,26 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
     def __init__(self, ak15=True):
         super(JetHTTriggerEfficienciesProcessor, self).__init__()
-        self.muon_triggers = {
+        
+        self.muon_HLTs = {
             2017:   [
-                        'HLT_IsoMu27',
-                        'HLT_Mu50'
+                        'IsoMu27',
+                        'Mu50'
                     ]
         }
 
-        self.triggers = {
+        self.HLTs = {
             2017:   [
-                        'HLT_PFJet500',
-                        'HLT_AK8PFJet400',
-                        'HLT_AK8PFJet500',
-                        'HLT_AK8PFJet360_TrimMass30',
-                        'HLT_AK8PFJet380_TrimMass30',
-                        'HLT_AK8PFJet400_TrimMass30',
-                        'HLT_AK8PFHT750_TrimMass50',
-                        'HLT_AK8PFHT800_TrimMass50',
-                        'HLT_PFHT1050',
-                        # 'HLT_AK8PFJet330_PFAK8BTagCSV_p17'
+                        'PFJet500',
+                        'AK8PFJet400',
+                        'AK8PFJet500',
+                        'AK8PFJet360_TrimMass30',
+                        'AK8PFJet380_TrimMass30',
+                        'AK8PFJet400_TrimMass30',
+                        'AK8PFHT750_TrimMass50',
+                        'AK8PFHT800_TrimMass50',
+                        'PFHT1050',
+                        # 'AK8PFJet330_PFAK8BTagCSV_p17'
                     ]
         }
 
@@ -50,8 +51,8 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         # denominator
         den = (
             Hist.new
-            .Reg(50, 0, 1000, name='pt', label="$p_T (GeV)$")
-            .Reg(15, 0, 300, name='msd', label="MassSD (GeV)")
+            .Reg(50, 0, 1000, name='jet1pt', label="$p_T (GeV)$")
+            .Reg(15, 0, 300, name='jet1msd', label="MassSD (GeV)")
             .Double()
         ).fill( jet1pt=fatjets.pt[den_selection][:, 0].to_numpy(),
                 jet1msd=fatjets.msoftdrop[den_selection][:, 0].to_numpy()
@@ -66,8 +67,8 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
         num = (
             Hist.new
-            .Reg(50, 0, 1000, name='pt', label="$p_T (GeV)$")
-            .Reg(15, 0, 300, name='msd', label="MassSD (GeV)")
+            .Reg(50, 0, 1000, name='jet1pt', label="$p_T (GeV)$")
+            .Reg(15, 0, 300, name='jet1msd', label="MassSD (GeV)")
             .Double()
         ).fill( jet1pt=fatjets.pt[num_selection][:, 0].to_numpy(),
                 jet1msd=fatjets.msoftdrop[num_selection][:, 0].to_numpy(),
@@ -80,7 +81,6 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
     def postprocess(self, accumulator):
         return accumulator
-
 
 
 class JetHT3DTriggerEfficienciesProcessor(processor.ProcessorABC):
