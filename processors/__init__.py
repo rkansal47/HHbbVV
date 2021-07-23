@@ -1,1 +1,1 @@
-from .JetHTTriggerEfficienciesProcessor import JetHTTriggerEfficienciesProcessor
+from .JetHTTriggerEfficienciesProcessor import *
