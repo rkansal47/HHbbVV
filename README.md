@@ -1,12 +1,13 @@
 # HHbbVV
 
-For [coffea-casa](https://coffea-casa.readthedocs.io/en/latest/cc_user.html) (from the coffea-casa binder):
-1. open `runCoffeaCasa.ipynb` 
-2. import your desired processor, specify it in the `run_uproot_job` function, and specify your filelist
-3. run the first three cells
+#### For [coffea-casa](https://coffea-casa.readthedocs.io/en/latest/cc_user.html):
+1. follow instructions ^ to open the coffea-casa GUI 
+2. open `runCoffeaCasa.ipynb` 
+3. import your desired processor, specify it in the `run_uproot_job` function, and specify your filelist
+4. run the first three cells
 
 
-To submit with normal condor:
+#### To submit with normal condor:
 
 ```
 git clone https://github.com/rkansal47/HHbbVV/
@@ -20,4 +21,4 @@ for i in condor/Jul1/*.jdl; do condor_submit $i; done
 
 
 
-TODO: instructions for lpcjobqueue (currently quite buggy)
+#### TODO: instructions for lpcjobqueue (currently quite buggy)
