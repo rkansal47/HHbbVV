@@ -121,6 +121,7 @@ class bbVVSkimmer(ProcessorABC):
 
         # TODO: trigger SFs
 
+        
 
         # select vars
 
@@ -143,6 +144,10 @@ class bbVVSkimmer(ProcessorABC):
         # calc weights
 
         skimmed_events['weight'] = np.ones(n_events) if isData else (events.genWeight * self.pileupweight_lookup(events.Pileup.nPU)).to_numpy()
+
+        # add tagger preselection cuts
+
+
 
         # apply selections
 

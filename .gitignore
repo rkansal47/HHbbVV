@@ -6,6 +6,8 @@
 !*.ipynb
 !*.pickle
 !processors
+!processors/*.py
+!processors/*.pkl
 !condor
 !condor/*
 !binder
@@ -19,5 +21,7 @@
 !corrections
 !corrections/*
 !corrections/*/**
+!plots
+!plots/**
 **/.ipynb_checkpoints
 .DS_Store
