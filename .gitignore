@@ -16,6 +16,8 @@
 !outPickles/*.pickle
 !data
 !data/*.txt
+!data/**
+!data/**/*.txt
 !corrections
 !corrections/*
 !corrections/*/**
