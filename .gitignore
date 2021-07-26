@@ -19,4 +19,5 @@
 !corrections
 !corrections/*
 !corrections/*/**
+**/.ipynb_checkpoints
 .DS_Store
