@@ -24,9 +24,14 @@ Trigger scale factor measurements:
 
 4) Porting the cutting and plotting from this nightmare https://github.com/rkansal47/boostedhiggs/blob/master/binder/plot_test.py into something that is readable by humans
 
-5) Requesting UL samples
+
+#### Samples
+
+1) Requesting UL samples
     - Requesting HH signal samples ggF and VBF for bbWW all-hadronic
     - TODO: Request UL ggH signal samples for HtoWW inclusive (should be a small background but we should still do it)
+
+2) Need to use `RunIISummer20UL17` in PFNano for next production
 
 
 ### TODO:
