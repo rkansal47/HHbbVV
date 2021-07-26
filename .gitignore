@@ -6,6 +6,8 @@
 !*.ipynb
 !*.pickle
 !processors
+!processors/*.py
+!processors/*.pkl
 !condor
 !condor/*
 !binder
@@ -17,4 +19,6 @@
 !corrections
 !corrections/*
 !corrections/*/**
+!plots
+!plots/**
 .DS_Store
