@@ -1,7 +1,7 @@
 # HHbbVV
 
 #### For [coffea-casa](https://coffea-casa.readthedocs.io/en/latest/cc_user.html):
-1. follow instructions ^ to open the coffea-casa GUI 
+1. after following instructions ^ set up an account, open the coffea-casa GUI (https://cmsaf-jh.unl.edu) and create an image
 2. open `runCoffeaCasa.ipynb` 
 3. import your desired processor, specify it in the `run_uproot_job` function, and specify your filelist
 4. run the first three cells
