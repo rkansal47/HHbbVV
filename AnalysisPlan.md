@@ -27,11 +27,21 @@ Trigger scale factor measurements:
 
 #### Samples
 
-1) Requesting UL samples
-    - Requesting HH signal samples ggF and VBF for bbWW all-hadronic
-    - TODO: Request UL ggH signal samples for HtoWW inclusive (should be a small background but we should still do it)
+Currently have for UL 2017:
 
-2) Need to use `RunIISummer20UL17` in PFNano for next production
+ - Data: JetHT RunB-F
+ - QCD HT 300-inf
+ - TT hadronic, TT semileptonic, T Mtt
+ - ST s-channel leptonic, ST t-channel, Inclusive, ST tW top + antitop no fully hadronic
+ - ggF HWW inclusive
+
+1) Now producing VV, V+jets
+
+2) Requesting UL samples
+    - Requesting HH signal samples ggF and VBF for bbWW all-hadronic
+    - TODO: Request UL ggH (and VBF?) signal samples for HtoWW inclusive
+
+3) Need to use `RunIISummer20UL17` in PFNano for next production
 
 
 ### TODO:
