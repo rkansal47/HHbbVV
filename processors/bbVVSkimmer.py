@@ -127,11 +127,11 @@ class bbVVSkimmer(ProcessorABC):
         ak15FatJetVars = {f'ak15FatJet{key}': pad_val(events.FatJetAK15[var], 2, -1, axis=1) for (var, key) in self.skim_vars['FatJetAK15'].items()}
         otherVars = {key: events[var.split('_')[0]]["_".join(var.split('_')[1:])].to_numpy() for (var, key) in self.skim_vars['other'].items()}
         
-        skimmed_events = {**ak8FatJetVars, **ak15FatJetVars, **otherVars}
+#         skimmed_events = {**ak8FatJetVars, **ak15FatJetVars, **otherVars}
         
-#         import sys
-#         if sys.version_info[1] < 9: skimmed_events = {**ak8FatJetVars, **ak15FatJetVars, **otherVars}
-#         else: skimmed_events = ak8FatJetVars | ak15FatJetVars | otherVars  # this is fancier
+        import sys
+        if sys.version_info[1] < 9: skimmed_events = {**ak8FatJetVars, **ak15FatJetVars, **otherVars}
+        else: skimmed_events = ak8FatJetVars | ak15FatJetVars | otherVars  # this is fancier
             
         # particlenet h4q vs qcd, xbb vs qcd
 
@@ -178,4 +178,4 @@ class bbVVSkimmer(ProcessorABC):
                         weight *= self.LUMI[year] * self.XSECS[dataset]
                     output['skimmed_events']['weight'] *= weight
 
-        return accumulator
+        return accumulator  
