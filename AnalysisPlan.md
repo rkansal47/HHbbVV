@@ -21,7 +21,7 @@ Trigger scale factor measurements:
 2) AN write-up https://gitlab.cern.ch/tdr/notes/AN-21-126
 
 3) Processor for skimming nano files
- - draft of skimmer https://github.com/rkansal47/HHbbVV/blob/main/processors/bbVVSkimmer.py
+ - draft of skimmer https://github.com/rkansal47/HHbbVV/blob/main/processors/bbVVSkimmer.py, issues right now running on coffea-casa
  - TODOs:
    - UL pileup weight calculation
    - apply trigger SFs 
