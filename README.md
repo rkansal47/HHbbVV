@@ -9,6 +9,8 @@
 
 #### To submit with normal condor:
 
+TODO: These are not up to date!
+
 ```
 git clone https://github.com/rkansal47/HHbbVV/
 cd HHbbVV
