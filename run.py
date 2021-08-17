@@ -9,25 +9,26 @@ import argparse
 import warnings
 
 
-def get_fileset(ptype):
+def get_fileset(ptype, samples, starti, endi):
     if ptype == 'trigger':
         with open('data/SingleMuon_2017.txt', 'r') as file:
             filelist = [f[:-1] for f in file.readlines()]
 
         files = {'2017': filelist}
-        fileset = {k: files[k][args.starti:args.endi] for k in files.keys()}
+        fileset = {k: files[k][starti:endi] for k in files.keys()}
         return fileset
 
     elif ptype == 'skimmer':
         from os import listdir
 
-        # TODO: replace with UL sample once we have it
-        with open('data/2017_preUL_nano/HHToBBVVToBBQQQQ_cHHH1.txt', 'r') as file:
-            filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]   # need to use xcache redirector at Nebraksa coffea-casa
+        fileset = {}
 
-        fileset = {
-            '2017_HHToBBVVToBBQQQQ_cHHH1': filelist
-        }
+        if '2017_HHToBBVVToBBQQQQ_cHHH1' in samples:
+            # TODO: replace with UL sample once we have it
+            with open('data/2017_preUL_nano/HHToBBVVToBBQQQQ_cHHH1.txt', 'r') as file:
+                filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]   # need to use xcache redirector at Nebraksa coffea-casa
+
+            fileset['2017_HHToBBVVToBBQQQQ_cHHH1'] = filelist[starti:endi]
 
         # extra samples in the folder we don't need for this analysis - TODO: should instead have a list of all samples we need
         ignore_samples = ['GluGluHToTauTau_M125_TuneCP5_13TeV-powheg-pythia8',
@@ -37,11 +38,12 @@ def get_fileset(ptype):
 
         for sample in listdir('data/2017_UL_nano/'):
             if sample[-4:] == '.txt' and sample[:-4] not in ignore_samples:
-                with open(f'data/2017_UL_nano/{sample}', 'r') as file:
-                    if 'JetHT' in sample: filelist = [f[:-1].replace('/hadoop/cms/', 'root://redirector.t2.ucsd.edu//') for f in file.readlines()]
-                    else: filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]
+                if sample[:-4].split('_TuneCP5')[0] in samples:
+                    with open(f'data/2017_UL_nano/{sample}', 'r') as file:
+                        if 'JetHT' in sample: filelist = [f[:-1].replace('/hadoop/cms/', 'root://redirector.t2.ucsd.edu//') for f in file.readlines()]
+                        else: filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]
 
-                fileset['2017_' + sample[:-4].split('_TuneCP5')[0]] = filelist
+                    fileset['2017_' + sample[:-4].split('_TuneCP5')[0]] = filelist[starti:endi]
 
 
 def get_xsecs():
@@ -87,7 +89,7 @@ def main(args):
             executor=processor.futures_executor,
             executor_args=exe_args,
             chunksize=10000,
-            maxchunks=1
+            maxchunks=2
         )
 
         filehandler = open(f'outfiles/{args.starti}-{args.endi}.pkl', 'wb')
