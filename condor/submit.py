@@ -2,122 +2,123 @@
 
 import argparse
 import os
-import re
-import fileinput
+from math import ceil
 
-import json
-import glob
-import sys
 
-'''
- Submit condor jobs of processor
- Run as e.g.: python submit.py Jul1 run.py 20
- Arguments:
-  = [0]: tag of jobs and output dir in eos e.g. Jul1
-  - [1]: script to run e.g. run.py (needs to be included in transfer_files in templ.jdl)
-  - [2]: number of files per job e.g. 20
-'''
-# Note: change username in `cmantill` in this script
+def get_fileset(ptype):
+    if ptype == 'trigger':
+        with open('data/SingleMuon_2017.txt', 'r') as file:
+            filelist = [f[:-1] for f in file.readlines()]
 
-parser = argparse.ArgumentParser(description='Process some integers.')
-parser.add_argument('settings', metavar='S', type=str, nargs='+', help='label scriptname (re-tar)')
-args = parser.parse_args()
+        files = {'2017': filelist}
+        fileset = {k: files[k][args.starti:args.endi] for k in files.keys()}
+        return fileset
 
-if (not ((len(args.settings) == 3) or (len(args.settings) == 4))):
-    print("Wrong number of arguments (must be 3 or 4, found", len(args.settings), ")")
-    sys.exit()
+    elif ptype == 'skimmer':
+        from os import listdir
 
-label = args.settings[0]
-script = args.settings[1]  # should be run.py
-files_per_job = int(args.settings[2])
+        # TODO: replace with UL sample once we have it
+        with open('data/2017_preUL_nano/HHToBBVVToBBQQQQ_cHHH1.txt', 'r') as file:
+            filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]   # need to use xcache redirector at Nebraksa coffea-casa
 
-loc_base = os.environ['PWD']
-locdir = 'condor/' + label
-homedir = '/store/user/rkansal/bbVV/trigEffs/'
-outdir = homedir + label + '/outfiles/'
-os.system('mkdir -p  %s' % outdir)
+        fileset = {
+            '2017_HHToBBVVToBBQQQQ_cHHH1': filelist
+        }
 
-# list of samples to run
-# TODO
-# totfiles = {}
-# with open('../data/fileset_2017preUL.json', 'r') as f:
-#     newfiles = json.load(f)
-#     totfiles.update(newfiles)
-# with open('../data/fileset_2017UL.json', 'r') as f:
-#     newfiles = json.load(f)
-#     totfiles.update(newfiles)
-# for sample in samplelist:
-#     totfiles[sample] = len(totfiles[sample])
+        # extra samples in the folder we don't need for this analysis - TODO: should instead have a list of all samples we need
+        ignore_samples = ['GluGluHToTauTau_M125_TuneCP5_13TeV-powheg-pythia8',
+                          'GluGluHToWWToLNuQQ_M125_TuneCP5_PSweight_13TeV-powheg2-jhugen727-pythia8',
+                          'ST_tW_antitop_5f_DS_NoFullyHadronicDecays_TuneCP5_13TeV-powheg-pythia8',
+                          'ST_tW_top_5f_DS_NoFullyHadronicDecays_TuneCP5_13TeV-powheg-pythia8']
 
-samplelist = {
-    'SingleMuon'
-}
+        for sample in listdir('data/2017_UL_nano/'):
+            if sample[-4:] == '.txt' and sample[:-4] not in ignore_samples:
+                with open(f'data/2017_UL_nano/{sample}', 'r') as file:
+                    if 'JetHT' in sample: filelist = [f[:-1].replace('/hadoop/cms/', 'root://redirector.t2.ucsd.edu//') for f in file.readlines()]
+                    else: filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]
 
-with open('data/filelist.txt', 'r') as file:
-    filelist = [f[:-1] for f in file.readlines()]
-fileset = {'2017': filelist}
+                fileset['2017_' + sample[:-4].split('_TuneCP5')[0]] = filelist
 
-# name to give your output files
-prefix = label
 
-# make local directory
-logdir = locdir + '/logs'
-os.system('mkdir -p  %s' % logdir)
+def main(args):
+    locdir = 'condor/' + args.tag
+    homedir = f'/store/user/rkansal/bbVV/{args.processor}/'
+    outdir = homedir + args.tag + '/outfiles/'
 
-# and condor directory
-print('CONDOR work dir: ' + outdir)
-os.system('mkdir -p /eos/uscms' + outdir)
+    # make local directory
+    logdir = locdir + '/logs'
+    os.system(f'mkdir -p {logdir}')
 
-# submit jobs
-nsubmit = 0
-for sample in samplelist:
+    # and condor directory
+    print('CONDOR work dir: ' + outdir)
+    os.system(f'mkdir -p /eos/uscms/{outdir}')
 
-    ## FIXME!
-    prefix = sample + '_2017'
-    print('Submitting '+ prefix)
+    fileset = get_fileset(args.processor)
 
-    njobs = int(len(fileset['2017']) / files_per_job) + 1
-    remainder = len(fileset['2017']) - int(files_per_job * (njobs - 1))
+    # directories for every sample
+    for sample in fileset:
+        os.system(f'mkdir -p /eos/uscms/{outdir}/{sample}')
 
-    for j in range(njobs):
+    # submit jobs
+    nsubmit = 0
+    for sample in fileset:
+        print('Submitting ' + sample)
 
-        condor_templ_file = open(loc_base + "/condor/submit.templ.jdl")
-        sh_templ_file     = open(loc_base + "/condor/submit.templ.sh")
+        tot_files = len(fileset[sample])
+        njobs = ceil(tot_files / args.files_per_job)
 
-        localcondor = f'{locdir}/{prefix}_{j}.jdl'
-        condor_file = open(localcondor, "w")
-        for line in condor_templ_file:
-            line = line.replace('DIRECTORY', locdir)
-            line = line.replace('PREFIX', prefix)
-            line = line.replace('JOBID', str(j))
-            condor_file.write(line)
-        condor_file.close()
+        for j in range(njobs):
+            condor_templ_file = open("condor/submit.templ.jdl")
 
-        localsh = f'{locdir}/{prefix}_{j}.sh'
-        eosoutput = f'root://cmseos.fnal.gov/{outdir}/{prefix}_{j}.hist'
-        sh_file = open(localsh, "w")
-        for line in sh_templ_file:
-            line = line.replace('SCRIPTNAME', script)
-            line = line.replace('FILENUM', str(j))
-            line = line.replace('YEAR', '2017')
-            line = line.replace('SAMPLE', sample)
-            line = line.replace('PROCESSOR', 'trigger')
-            line = line.replace('STARTNUM', str(j * files_per_job))
-            line = line.replace('ENDNUM', str((j + 1) * files_per_job))
-            line = line.replace('EOSOUT', eosoutput)
-            line = line.replace('OUTDIR', outdir)
-            sh_file.write(line)
-        sh_file.close()
+            localcondor = f'{locdir}/{sample}_{j}.jdl'
+            condor_file = open(localcondor, "w")
+            for line in condor_templ_file:
+                line = line.replace('DIRECTORY', locdir)
+                line = line.replace('PREFIX', sample)
+                line = line.replace('JOBID', str(j))
+                condor_file.write(line)
 
-        os.system(f'chmod u+x {localsh}')
-        if (os.path.exists('%s.log' % localcondor)):
-            os.system('rm %s.log' % localcondor)
-        condor_templ_file.close()
-        sh_templ_file.close()
+            condor_file.close()
+            condor_templ_file.close()
 
-        print('To submit ', localcondor)
-        # os.system('condor_submit %s' % localcondor)
 
-        nsubmit = nsubmit + 1
+            sh_templ_file = open("condor/submit.templ.sh")
 
-# print(nsubmit,"jobs submitted.")
+            localsh = f'{locdir}/{sample}_{j}.sh'
+            eosoutput = f'root://cmseos.fnal.gov/{outdir}/{sample}/out_{j}.pkl'
+            sh_file = open(localsh, "w")
+            for line in sh_templ_file:
+                line = line.replace('SCRIPTNAME', args.script)
+                line = line.replace('YEAR', args.year)
+                line = line.replace('SAMPLE', sample)
+                line = line.replace('PROCESSOR', args.processor)
+                line = line.replace('STARTNUM', str(j * args.files_per_job))
+                line = line.replace('ENDNUM', str((j + 1) * args.files_per_job))
+                line = line.replace('EOSOUT', eosoutput)
+                sh_file.write(line)
+            sh_file.close()
+            sh_templ_file.close()
+
+            os.system(f'chmod u+x {localsh}')
+            if (os.path.exists('%s.log' % localcondor)):
+                os.system('rm %s.log' % localcondor)
+
+            print('To submit ', localcondor)
+            # os.system('condor_submit %s' % localcondor)
+
+            nsubmit = nsubmit + 1
+
+    print(f"Total {nsubmit} jobs")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--script',       default='run.py',       help="script to run",                       type=str)
+    parser.add_argument('--year',       dest='year',       default='2017',       help="year",                       type=str)
+    parser.add_argument('--tag',        dest='tag',        default='Test',       help="process tag",                type=str)
+    parser.add_argument('--outdir',     dest='outdir',     default='outfiles',   help="directory for output files", type=str)
+    parser.add_argument("--processor",  dest="processor",  default="trigger",    help="Trigger processor",          type=str, choices=['trigger', 'skimmer'])
+    parser.add_argument("--files-per-job", default=20,    help="# files per condor job",          type=int)
+    args = parser.parse_args()
+
+    main(args)
