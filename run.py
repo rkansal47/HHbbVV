@@ -1,8 +1,7 @@
 #!/usr/bin/python
 
-import json
 import uproot
-from coffea.nanoevents import NanoEventsFactory, NanoAODSchema, BaseSchema
+from coffea.nanoevents import NanoAODSchema, BaseSchema
 from coffea import processor
 import pickle
 
@@ -45,6 +44,18 @@ def get_fileset(ptype):
                 fileset['2017_' + sample[:-4].split('_TuneCP5')[0]] = filelist
 
 
+def get_xsecs():
+    import json
+    with open('data/xsecs.json') as f:
+        xsecs = json.load(f)
+
+    for key, value in xsecs.items():
+        if type(value) == str:
+            xsecs[key] = eval(value)
+
+    return xsecs
+
+
 def main(args):
 
     # define processor
@@ -53,7 +64,8 @@ def main(args):
         p = JetHTTriggerEfficienciesProcessor()
     elif args.processor == 'skimmer':
         from processors import bbVVSkimmer
-        p = bbVVSkimmer(condor=args.condor)
+        xsecs = get_xsecs()
+        p = bbVVSkimmer(xsecs=xsecs, condor=args.condor)
     else:
         warnings.warn('Warning: no processor declared')
         return
@@ -69,16 +81,16 @@ def main(args):
                     'retries': 1}
 
         out, metrics = processor.run_uproot_job(
-            fileset,
+            {key: fileset[key] for key in args.samples},
             treename='Events',
             processor_instance=p,
             executor=processor.futures_executor,
             executor_args=exe_args,
             chunksize=10000,
-    #        maxchunks=1
+            maxchunks=1
         )
 
-        filehandler = open(f'outfiles/{args.year}_{args.starti}-{args.endi}.hist', 'wb')
+        filehandler = open(f'outfiles/{args.starti}-{args.endi}.pkl', 'wb')
         pickle.dump(out, filehandler)
         filehandler.close()
 

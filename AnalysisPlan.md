@@ -20,7 +20,12 @@ Trigger scale factor measurements:
 
 2) AN write-up https://gitlab.cern.ch/tdr/notes/AN-21-126
 
-3) Processors for skimming nano files
+3) Processor for skimming nano files
+ - draft of skimmer https://github.com/rkansal47/HHbbVV/blob/main/processors/bbVVSkimmer.py, issues right now running on coffea-casa
+ - TODOs:
+   - UL pileup weight calculation
+   - apply trigger SFs 
+   - hybrid case sorting
 
 4) Porting the cutting and plotting from this nightmare https://github.com/rkansal47/boostedhiggs/blob/master/binder/plot_test.py into something that is readable by humans
 
@@ -34,14 +39,13 @@ Currently have for UL 2017:
  - TT hadronic, TT semileptonic, T Mtt
  - ST s-channel leptonic, ST t-channel, Inclusive, ST tW top + antitop no fully hadronic
  - ggF HWW inclusive
+ - VV, V+jets
 
-1) Now producing VV, V+jets
-
-2) Requesting UL samples
+1) Requesting UL samples
     - Requesting HH signal samples ggF and VBF for bbWW all-hadronic
     - TODO: Request UL ggH (and VBF?) signal samples for HtoWW inclusive
 
-3) Need to use `RunIISummer20UL17` in PFNano for next production
+2) Need to use `RunIISummer20UL17` in PFNano for next production
 
 
 ### TODO:

@@ -14,6 +14,7 @@
 !binder/*.ipynb
 !outPickles
 !outPickles/*.pickle
+outPickles/*skimmed*
 !data
 !data/*.txt
 !data/**
@@ -23,4 +24,5 @@
 !corrections/*/**
 !plots
 !plots/**
+**/.ipynb_checkpoints
 .DS_Store
