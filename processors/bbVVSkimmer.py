@@ -6,10 +6,15 @@ import pickle
 
 
 class bbVVSkimmer(ProcessorABC):
-    """ Skims nanoaod files, saving selected branches and events passing preselection cuts (and triggers for data), for preliminary cut-based analysis and BDT studies """
+    """
+    Skims nanoaod files, saving selected branches and events passing preselection cuts (and triggers for data), for preliminary cut-based analysis and BDT studies
+
+    Args:
+        condor (bool, optional): using normal condor or not - if not, post processing will not divide by n_events
+    """
     # TODO: do ak8, ak15 sorting for hybrid case
 
-    def __init__(self):
+    def __init__(self, condor: bool = False):
         super(bbVVSkimmer, self).__init__()
 
         # in pb^-1
@@ -82,7 +87,7 @@ class bbVVSkimmer(ProcessorABC):
 
         self.preselection_cut_vals = {'pt': 250, 'msd': 20}
 
-        with open('../processors/2017_pileupweight.pkl', 'rb') as filehandler:
+        with open('2017_pileupweight.pkl', 'rb') as filehandler:
             self.pileupweight_lookup = pickle.load(filehandler)
 
 
@@ -115,13 +120,12 @@ class bbVVSkimmer(ProcessorABC):
         # ORing ak8 and ak15 cuts
 
         preselection_cut = np.logical_or(   np.prod(pad_val((events.FatJet.pt > self.preselection_cut_vals['pt']) * (events.FatJet.msoftdrop > self.preselection_cut_vals['msd']), 2, False, axis=1), axis=1),
-                                            np.prod(pad_val((events.FatJetAK15.pt > self.preselection_cut_vals['pt']) * (events.FatJetAK15.msoftdrop > self.preselection_cut_vals['msd']), 2, False, axis=1)
-                                            , axis=1))
+                                            np.prod(pad_val((events.FatJetAK15.pt > self.preselection_cut_vals['pt']) * (events.FatJetAK15.msoftdrop > self.preselection_cut_vals['msd']), 2, False, axis=1), axis=1))
         selection.add('preselection', preselection_cut)
 
         # TODO: trigger SFs
 
-        
+
 
         # select vars
 
@@ -134,11 +138,11 @@ class bbVVSkimmer(ProcessorABC):
         skimmed_events['ak8FatJetParticleNetMD_Txbb'] =  pad_val(events.FatJet.particleNetMD_Xbb / (events.FatJet.particleNetMD_QCD + events.FatJet.particleNetMD_Xbb), 2, -1, axis=1)
         skimmed_events['ak15FatJetParticleNetMD_Txbb'] = pad_val(events.FatJetAK15.ParticleNetMD_probXbb / (events.FatJetAK15.ParticleNetMD_probQCD + events.FatJetAK15.ParticleNetMD_probXbb), 2, -1, axis=1)
         skimmed_events['ak15FatJetParticleNet_Th4q'] = pad_val(events.FatJetAK15.ParticleNet_probHqqqq / (  events.FatJetAK15.ParticleNet_probHqqqq +
-                                                                                                    events.FatJetAK15.ParticleNet_probQCDb +
-                                                                                                    events.FatJetAK15.ParticleNet_probQCDbb +
-                                                                                                    events.FatJetAK15.ParticleNet_probQCDc +
-                                                                                                    events.FatJetAK15.ParticleNet_probQCDcc +
-                                                                                                    events.FatJetAK15.ParticleNet_probQCDothers
+                                                                                                    events.FatJetAK15.ParticleNet_probQCDb
+                                                                                                    + events.FatJetAK15.ParticleNet_probQCDbb
+                                                                                                    + events.FatJetAK15.ParticleNet_probQCDc
+                                                                                                    + events.FatJetAK15.ParticleNet_probQCDcc
+                                                                                                    + events.FatJetAK15.ParticleNet_probQCDothers
                                                                                                     ), 2, -1, axis=1)
 
         # calc weights
@@ -160,8 +164,8 @@ class bbVVSkimmer(ProcessorABC):
                 dataset: {
                         'nevents': n_events,
                         'skimmed_events': skimmed_events,
-                    }
                 }
+            }
         }
 
 
