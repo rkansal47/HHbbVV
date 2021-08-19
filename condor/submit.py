@@ -121,7 +121,7 @@ if __name__ == "__main__":
     parser.add_argument('--year',       dest='year',       default='2017',       help="year",                       type=str)
     parser.add_argument('--tag',        dest='tag',        default='Test',       help="process tag",                type=str)
     parser.add_argument('--outdir',     dest='outdir',     default='outfiles',   help="directory for output files", type=str)
-    parser.add_argument("--processor",  dest="processor",  default="trigger",    help="Trigger processor",          type=str, choices=['trigger', 'skimmer'])
+    parser.add_argument("--processor",  dest="processor",  default="trigger",    help="which processor",          type=str, choices=['trigger', 'skimmer'])
     parser.add_argument("--files-per-job", default=20,    help="# files per condor job",          type=int)
     args = parser.parse_args()
 
