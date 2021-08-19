@@ -38,7 +38,7 @@ def get_fileset(ptype, samples, starti, endi):
 
         for sample in listdir('data/2017_UL_nano/'):
             if sample[-4:] == '.txt' and sample[:-4] not in ignore_samples:
-                if sample[:-4].split('_TuneCP5')[0] in samples:
+                if '2017_' + sample[:-4].split('_TuneCP5')[0] in samples:
                     with open(f'data/2017_UL_nano/{sample}', 'r') as file:
                         if 'JetHT' in sample: filelist = [f[:-1].replace('/hadoop/cms/', 'root://redirector.t2.ucsd.edu//') for f in file.readlines()]
                         else: filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]
