@@ -22,9 +22,12 @@ Pickle files will be saved in eos directory of specified user at path `~/eos/bbV
 
 After jobs finish, they can be combined (and normalized by total events in the case of MC) via
 ```
-python condor/combine_pickles.py --indir /eos/uscms/store/user/rkansal/bbVV/skimmer/$TAG/outfiles/ --r True --norm True --name ""
+python condor/combine_pickles.py --year 2017 --indir /eos/uscms/store/user/rkansal/bbVV/skimmer/$TAG/outfiles/ --r True --norm True --combine-further True
 ```
-which will also convert the `column_accumulators` to regular numpy arrays. 
+
+The `--combine-further` argument combines them into broader categories as well, saved in the `<indir>/<year>_combined/` directory.
+
+
 
 Check out more args for both scripts with the `--help` arg (e.g. `python condor/submit.py --help`)
 
