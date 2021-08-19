@@ -6,12 +6,13 @@ from math import ceil
 
 
 def get_fileset(ptype):
+    print(ptype)
     if ptype == 'trigger':
         with open('data/SingleMuon_2017.txt', 'r') as file:
             filelist = [f[:-1] for f in file.readlines()]
 
         files = {'2017': filelist}
-        fileset = {k: files[k][args.starti:args.endi] for k in files.keys()}
+        fileset = {k: files[k] for k in files.keys()}
         return fileset
 
     elif ptype == 'skimmer':
@@ -38,6 +39,8 @@ def get_fileset(ptype):
                     else: filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]
 
                 fileset['2017_' + sample[:-4].split('_TuneCP5')[0]] = filelist
+
+        return fileset
 
 
 def main(args):
