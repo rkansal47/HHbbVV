@@ -71,7 +71,6 @@ def main(args):
         njobs = ceil(tot_files / args.files_per_job)
 
         for j in range(njobs):
-            if j == 3: break
             condor_templ_file = open("condor/submit.templ.jdl")
 
             localcondor = f'{locdir}/{sample}_{j}.jdl'
