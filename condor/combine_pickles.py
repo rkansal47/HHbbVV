@@ -24,12 +24,14 @@ def accumulate_files(files: list, norm: bool = False):
             outt = pickle.load(file)
             out = accumulate([out, outt])
 
-    out['skimmed_events'] = {
-        key: value.value for (key, value) in out['skimmed_events'].items()
-    }
+    for year, datasets in out.items():
+        for dataset, output in datasets.items():
+            output['skimmed_events'] = {
+                key: value.value for (key, value) in output['skimmed_events'].items()
+            }
 
-    if norm:  # and 'JetHT' not in sample:
-        out['skimmed_events']['weight'] /= out['nevents']
+            if norm:  # and 'JetHT' not in sample:
+                output['skimmed_events']['weight'] /= output['nevents']
 
     return out
 
