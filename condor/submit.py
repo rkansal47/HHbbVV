@@ -1,12 +1,17 @@
 #!/usr/bin/python
 
+"""
+Splits the total fileset and creates condor job submission files for the specified run script.
+
+Author(s): Cristina Mantill, Raghav Kansal
+"""
+
 import argparse
 import os
 from math import ceil
 
 
 def get_fileset(ptype):
-    print(ptype)
     if ptype == 'trigger':
         with open('data/SingleMuon_2017.txt', 'r') as file:
             filelist = [f[:-1] for f in file.readlines()]
