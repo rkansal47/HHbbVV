@@ -19,10 +19,16 @@ def accumulate_files(files: list, norm: bool = False, convert_to_dict: bool = Fa
 
     with open(files[0], 'rb') as file:
         out = pickle.load(file)
+        if '2017' in out.keys():
+            sample = out['2017'].keys()[0]
+            out = out['2017'][sample]
 
     for ifile in files[1:]:
         with open(ifile, 'rb') as file:
             outt = pickle.load(file)
+            if '2017' in outt.keys():
+                sample = outt['2017'].keys()[0]
+                outt = outt['2017'][sample]
             out = accumulate([out, outt])
 
     for year, datasets in out.items():
