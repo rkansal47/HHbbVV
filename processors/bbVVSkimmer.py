@@ -182,15 +182,16 @@ class bbVVSkimmer(ProcessorABC):
 
         for year, datasets in accumulator.items():
             for dataset, output in datasets.items():
-                if not self.condor:
-                    output['skimmed_events'] = {
-                        key: value.value for (key, value) in output['skimmed_events'].items()
-                    }
+                output['skimmed_events'] = {
+                    key: value.value for (key, value) in output['skimmed_events'].items()
+                }
 
                 if 'JetHT' not in dataset:
                     weight = 1 if self.condor else 1 / output['nevents']
                     if dataset in self.XSECS:
                         weight *= self.LUMI[year] * self.XSECS[dataset]
                     output['skimmed_events']['weight'] *= weight
+
+                if self.condor: output['skimmed_events'] = {key: column_accumulator(value) for (key, value) in output['skimmed_events'].items()}
 
         return accumulator

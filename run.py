@@ -44,6 +44,8 @@ def get_fileset(ptype, samples, starti, endi):
                         else: filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]
 
                     fileset['2017_' + sample[:-4].split('_TuneCP5')[0]] = filelist[starti:endi]
+        
+        return fileset
 
 
 def get_xsecs():
@@ -72,7 +74,7 @@ def main(args):
         warnings.warn('Warning: no processor declared')
         return
 
-    fileset = get_fileset(args.processor)
+    fileset = get_fileset(args.processor, args.samples, args.starti, args.endi)
 
     if args.condor:
         uproot.open.defaults['xrootd_handler'] = uproot.source.xrootd.MultithreadedXRootDSource
