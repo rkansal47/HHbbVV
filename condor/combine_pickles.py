@@ -2,7 +2,7 @@
 Combines Coffea processor output pickle files
 Assumes format of output files is {'nevents': int, 'skimmed_events': dict of `column_accumulator`s}, aka output of bbVVSkimmer
 
-Author: Raghav Kansal
+Author(s): Raghav Kansal
 """
 
 import os

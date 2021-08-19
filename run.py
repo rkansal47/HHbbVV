@@ -1,5 +1,11 @@
 #!/usr/bin/python
 
+"""
+Runs coffea processors on the LPC via either condor or dask.
+
+Author(s): Cristina Mantill, Raghav Kansal
+"""
+
 import uproot
 from coffea.nanoevents import NanoAODSchema, BaseSchema
 from coffea import processor
@@ -44,7 +50,7 @@ def get_fileset(ptype, samples, starti, endi):
                         else: filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]
 
                     fileset['2017_' + sample[:-4].split('_TuneCP5')[0]] = filelist[starti:endi]
-        
+
         return fileset
 
 
