@@ -1,5 +1,11 @@
 #!/usr/bin/python
 
+"""
+Splits the total fileset and creates condor job submission files for the specified run script.
+
+Author(s): Cristina Mantill, Raghav Kansal
+"""
+
 import argparse
 import os
 from math import ceil
@@ -11,7 +17,7 @@ def get_fileset(ptype):
             filelist = [f[:-1] for f in file.readlines()]
 
         files = {'2017': filelist}
-        fileset = {k: files[k][args.starti:args.endi] for k in files.keys()}
+        fileset = {k: files[k] for k in files.keys()}
         return fileset
 
     elif ptype == 'skimmer':
@@ -38,6 +44,8 @@ def get_fileset(ptype):
                     else: filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]
 
                 fileset['2017_' + sample[:-4].split('_TuneCP5')[0]] = filelist
+
+        return fileset
 
 
 def main(args):
@@ -117,7 +125,7 @@ if __name__ == "__main__":
     parser.add_argument('--year',       dest='year',       default='2017',       help="year",                       type=str)
     parser.add_argument('--tag',        dest='tag',        default='Test',       help="process tag",                type=str)
     parser.add_argument('--outdir',     dest='outdir',     default='outfiles',   help="directory for output files", type=str)
-    parser.add_argument("--processor",  dest="processor",  default="trigger",    help="Trigger processor",          type=str, choices=['trigger', 'skimmer'])
+    parser.add_argument("--processor",  dest="processor",  default="trigger",    help="which processor",          type=str, choices=['trigger', 'skimmer'])
     parser.add_argument("--files-per-job", default=20,    help="# files per condor job",          type=int)
     args = parser.parse_args()
 
