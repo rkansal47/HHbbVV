@@ -18,12 +18,13 @@ python condor/submit.py --processor skimmer --tag $TAG --files-per-job 20  # wil
 for i in condor/$TAG/*.jdl; do condor_submit $i; done
 ```
 
-Pickle files will be saved in eos directory of specified user at path `~/eos/bbVV/<processor type>/<tag>/outfiles/`, in the format `{'nevents': int, 'skimmed_events': dict of coffea 'column_accumulator'}`
+Pickle files will be saved in eos directory of specified user at path `~/eos/bbVV/<processor type>/<tag>/outfiles/`, in the format `{'nevents': int, 'skimmed_events': dict of coffea 'column_accumulator's}`
 
 After jobs finish, they can be combined (and normalized by total events in the case of MC) via
 ```
 python condor/combine_pickles.py --indir /eos/uscms/store/user/rkansal/bbVV/skimmer/$TAG/outfiles/ --r True --norm True --name ""
 ```
+which will also convert the `column_accumulators` to regular numpy arrays. 
 
 Check out more args for both scripts with the `--help` arg (e.g. `python condor/submit.py --help`)
 
