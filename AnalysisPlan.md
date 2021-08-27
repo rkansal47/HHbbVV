@@ -27,7 +27,12 @@ Trigger scale factor measurements:
    - apply trigger SFs 
    - hybrid case sorting
 
-4) Porting the cutting and plotting from this nightmare https://github.com/rkansal47/boostedhiggs/blob/master/binder/plot_test.py into something that is readable by humans
+4) Hybrid SFs
+ - use 2017 Run B data as well
+ - consistent hybrid policy
+ - settle on 2D trigger SFs
+
+5) Porting the cutting and plotting from this nightmare https://github.com/rkansal47/boostedhiggs/blob/master/binder/plot_test.py into something that is readable by humans
 
 
 #### Samples
