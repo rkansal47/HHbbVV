@@ -34,7 +34,10 @@ Check out more args for both scripts with the `--help` arg (e.g. `python condor/
 
 To test locally, can do e.g.:
 
-`python run.py --starti 0 --endi 1 --year 2017 --processor skimmer --condor --samples '2017_HHToBBVVToBBQQQQ_cHHH1'`
+```
+mkdir outfiles
+python run.py --starti 0 --endi 1 --year 2017 --processor skimmer --condor --samples '2017_HHToBBVVToBBQQQQ_cHHH1' --outdir outfiles
+```
 
 
 #### TODO: instructions for lpcjobqueue (currently quite buggy)
