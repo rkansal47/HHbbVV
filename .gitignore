@@ -24,5 +24,11 @@ outPickles/*skimmed*
 !corrections/*/**
 !plots
 !plots/**
+plots/ControlPlots
+!python
+!python/*
+python/data
+python/*test*
+python/*Test*
 **/.ipynb_checkpoints
 .DS_Store
