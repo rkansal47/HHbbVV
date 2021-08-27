@@ -32,4 +32,9 @@ The `--combine-further` argument combines them into broader categories as well, 
 Check out more args for both scripts with the `--help` arg (e.g. `python condor/submit.py --help`)
 
 
+To test locally, can do e.g.:
+
+`python run.py --starti 0 --endi 1 --year 2017 --processor skimmer --condor --samples '2017_HHToBBVVToBBQQQQ_cHHH1'`
+
+
 #### TODO: instructions for lpcjobqueue (currently quite buggy)
