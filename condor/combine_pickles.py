@@ -20,26 +20,24 @@ def accumulate_files(files: list, norm: bool = False, convert_to_dict: bool = Fa
     with open(files[0], 'rb') as file:
         out = pickle.load(file)
         if '2017' in out.keys():
-            sample = out['2017'].keys()[0]
+            sample = list(out['2017'].keys())[0]
             out = out['2017'][sample]
 
     for ifile in files[1:]:
         with open(ifile, 'rb') as file:
             outt = pickle.load(file)
             if '2017' in outt.keys():
-                sample = outt['2017'].keys()[0]
+                sample = list(outt['2017'].keys())[0]
                 outt = outt['2017'][sample]
             out = accumulate([out, outt])
 
-    for year, datasets in out.items():
-        for dataset, output in datasets.items():
-            if norm:
-                output['skimmed_events']['weight'] = column_accumulator(output['skimmed_events']['weight'].value / output['nevents'])
+    if norm:
+        out['skimmed_events']['weight'] = column_accumulator(out['skimmed_events']['weight'].value / out['nevents'])
 
-            if convert_to_dict:
-                output['skimmed_events'] = {
-                    key: value.value for (key, value) in output['skimmed_events'].items()
-                }
+    if convert_to_dict:
+        out['skimmed_events'] = {
+            key: value.value for (key, value) in out['skimmed_events'].items()
+        }
 
     return out
 
@@ -60,7 +58,7 @@ if __name__ == "__main__":
 
     if not args.combine_further_only:
         if args.r:
-            dirs = [args.indir + '/' + dir for dir in listdir(args.indir) if os.path.isdir(args.indir + '/' + dir)]
+            dirs = [args.indir + '/' + dir for dir in listdir(args.indir) if os.path.isdir(args.indir + '/' + dir) and not 'combined' in dir]
 
             if args.name: args.name = '_' + args.name
             acc_str = "_column_accs" if args.combine_further else ""  # to remind that these files have coffea `column_accumulators`, not arrays
