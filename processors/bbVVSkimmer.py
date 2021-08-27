@@ -1,8 +1,15 @@
+"""
+Skimmer for bbVV analysis.
+
+Author(s): Raghav Kansal
+"""
+
 import awkward as ak
 from coffea.processor import ProcessorABC, column_accumulator
 import numpy as np
 from coffea.analysis_tools import PackedSelection
 import pickle
+import gzip
 
 
 class bbVVSkimmer(ProcessorABC):
@@ -87,8 +94,8 @@ class bbVVSkimmer(ProcessorABC):
 
         self.preselection_cut_vals = {'pt': 250, 'msd': 20}
 
-        with open('processors/2017_pileupweight.pkl', 'rb') as filehandler:
-            self.pileupweight_lookup = pickle.load(filehandler)
+        with gzip.open('corrections/corrections.pkl.gz', 'rb') as filehandler:
+            self.corrections = pickle.load(filehandler)
 
 
     def process(self, events):
@@ -109,6 +116,9 @@ class bbVVSkimmer(ProcessorABC):
             return ret.to_numpy() if to_numpy else ret
 
 
+        cutflow = {}
+        cutflow['all'] = len(events)
+
         # TODO: gen vars
 
 
@@ -117,6 +127,7 @@ class bbVVSkimmer(ProcessorABC):
         if isData:
             HLT_triggered = np.any(np.array([events.HLT[trigger] for trigger in self.HLTs[year] if trigger in events.HLT.fields]), axis=0)
             selection.add('trigger', HLT_triggered)
+            cutflow['trigger'] = np.sum(selection.all(*selection.names))
 
         # pre-selection cuts
         # ORing ak8 and ak15 cuts
@@ -124,6 +135,7 @@ class bbVVSkimmer(ProcessorABC):
         preselection_cut = np.logical_or(   np.prod(pad_val((events.FatJet.pt > self.preselection_cut_vals['pt']) * (events.FatJet.msoftdrop > self.preselection_cut_vals['msd']), 2, False, axis=1), axis=1),
                                             np.prod(pad_val((events.FatJetAK15.pt > self.preselection_cut_vals['pt']) * (events.FatJetAK15.msoftdrop > self.preselection_cut_vals['msd']), 2, False, axis=1), axis=1))
         selection.add('preselection', preselection_cut)
+        cutflow['trigger'] = np.sum(selection.all(*selection.names))
 
         # TODO: trigger SFs
 
@@ -154,7 +166,11 @@ class bbVVSkimmer(ProcessorABC):
 
         # calc weights
 
-        skimmed_events['weight'] = np.ones(n_events) if isData else (events.genWeight * self.pileupweight_lookup(events.Pileup.nPU)).to_numpy()
+        skimmed_events['weight'] = np.ones(n_events)
+        if not isData:
+            skimmed_events['genWeight'] = events.genWeight
+            skimmed_events['pileupWeight'] = self.corrections[f'{year}_pileupweight'](events.Pileup.nPU).to_numpy()
+
 
         # apply selections
 
@@ -167,6 +183,7 @@ class bbVVSkimmer(ProcessorABC):
                 dataset: {
                         'nevents': n_events,
                         'skimmed_events': skimmed_events,
+                        'cutflow': cutflow
                 }
             }
         }

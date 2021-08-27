@@ -73,7 +73,6 @@ if __name__ == "__main__":
 
                 print(f"Accumulating {sample_name}")
                 accumulated = accumulate_files(files, norm = args.norm and 'JetHT' not in sample_name, convert_to_dict = not args.combine_further)  # normalize if not data, and don't convert to dict if combining further
-
                 with open(f"{args.indir}/{sample_name}{args.name}{acc_str}.pkl", 'wb') as file:
                     pickle.dump(accumulated, file)
 
