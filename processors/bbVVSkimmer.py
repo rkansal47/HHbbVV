@@ -1,3 +1,9 @@
+"""
+Skimmer for bbVV analysis.
+
+Author: Raghav Kansal
+"""
+
 import awkward as ak
 from coffea.processor import ProcessorABC, column_accumulator
 import numpy as np
