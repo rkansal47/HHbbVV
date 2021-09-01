@@ -12,6 +12,7 @@ import pickle
 from coffea.processor.accumulator import accumulate
 from coffea.processor import column_accumulator
 import sys
+from tqdm import tqdm
 
 
 def accumulate_files(files: list, norm: bool = False, convert_to_dict: bool = False):
@@ -23,7 +24,8 @@ def accumulate_files(files: list, norm: bool = False, convert_to_dict: bool = Fa
             sample = list(out['2017'].keys())[0]
             out = out['2017'][sample]
 
-    for ifile in files[1:]:
+    for i in tqdm(range(len(files[1:]))):
+        ifile = files[i + 1]
         with open(ifile, 'rb') as file:
             outt = pickle.load(file)
             if '2017' in outt.keys():
@@ -76,7 +78,7 @@ if __name__ == "__main__":
                 with open(f"{args.indir}/{sample_name}{args.name}{acc_str}.pkl", 'wb') as file:
                     pickle.dump(accumulated, file)
 
-                print(f"Saved as {args.indir}/{sample_name}{args.name}.pkl")
+                print(f"Saved as {args.indir}/{sample_name}{args.name}{acc_str}.pkl")
         else:
             if not args.name:
                 print("Name can't be blank -- exiting")
