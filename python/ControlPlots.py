@@ -19,24 +19,29 @@ plt.style.use(hep.style.CMS)
 
 import pickle
 
-# backgrounds listed first
-keys = ['V', 'QCD', 'Top', 'Data', 'HHbbVV4q']
-labels = ['VV/V+jets', 'QCD', 'ST/TT', 'Data', 'HHbbVV4q']
-num_bg = 2  # up to this label for bg
+# backgrounds listed first and plotted in order
+keys = ['V', 'Top', 'QCD', 'Data', 'HHbbVV4q']
+labels = ['VV/V+jets', 'ST/TT', 'QCD', 'Data', 'HHbbVV4q']
+num_bg = 3  # up to this label for bg
 sig = 'HHbbVV4q'
 
 events = {}
-
+out_pickle = {}
 
 for key in keys:
+    print(key)
     with open(f'../../data/2017_combined/{key}.pkl', 'rb') as file:
         events[key] = pickle.load(file)['skimmed_events']
+        # out_pickle[key] = pickle.load(file)
+
+# out_pickle['HHbbVV4q']
 
 
 list(events['HHbbVV4q'].keys())
 
-np.sum(events['QCD']['finalWeight'])
-np.sum(events['V']['finalWeight'])
+np.sum(events['QCD']['weight'])
+np.sum(events['Top']['weight'])
+np.sum(events['V']['weight'])
 np.sum(events['HHbbVV4q']['weight'])
 np.sum(events['Data']['weight'])
 
@@ -46,11 +51,14 @@ np.sum(events['Data']['weight'])
 dR = 0.8
 
 for key in keys:
+    print(key)
     jet1_bb_leading = events[key]['ak8FatJetParticleNetMD_Txbb'][:, 0:1] >= events[key]['ak8FatJetParticleNetMD_Txbb'][:, 1:2]
     bb_mask = np.concatenate([jet1_bb_leading, ~jet1_bb_leading], axis=1)
 
     jet1_VV_leading = events[key]['ak15FatJetParticleNet_Th4q'][:, 0:1] >= events[key]['ak15FatJetParticleNet_Th4q'][:, 1:2]
     VV_mask = ak.concatenate([jet1_VV_leading, ~jet1_VV_leading], axis=1)
+
+    print("prelim masks")
 
     ak8FatJet = vector.array({
                         "pt": events[key]['ak8FatJetPt'],
@@ -66,6 +74,8 @@ for key in keys:
                         "M": events[key]['ak15FatJetMsd'],
     })
 
+    print("fat jet arrays)")
+
     # check if ak15 VV candidate jet is overlapping with the ak8 bb one  - 37.6% of bbVV jets, 6.8% with bb, VV tagger scores > 0.8
     bb_cand_VV_cand_dist = ak8FatJet[bb_mask].deltaR(ak15FatJet[VV_mask])
     VV_cand_overlap = bb_cand_VV_cand_dist < dR
@@ -77,6 +87,7 @@ for key in keys:
     # flip VV_mask only if (VV candidate jet is overlapping AND non-candidate jet is farther away)
     final_VV_mask = VV_mask ^ (VV_cand_overlap * VV_not_cand_farther)
 
+    print("final masks")
 
     vars = events[key].keys()
     values = events[key].values()
@@ -123,7 +134,10 @@ plt.savefig(plotdir + 'ak15VVjets.pdf', bbox_inches='tight')
 
 # derived vars
 
+key = 'HHbbVV4q'
+
 for key in keys:
+    print(key)
     bbFatJet = vector.array({
                         "pt": events[key]['bbFatJetPt'],
                         "phi": events[key]['bbFatJetPhi'],
@@ -143,6 +157,32 @@ for key in keys:
     events[key]['DijetPt'] = Dijet.pt
     events[key]['DijetMass'] = Dijet.M
     events[key]['DijetEta'] = Dijet.eta
+
+    ak8FatJet = vector.array({
+                        "pt": events[key]['ak8FatJetPt'],
+                        "phi": events[key]['ak8FatJetPhi'],
+                        "eta": events[key]['ak8FatJetEta'],
+                        "M": events[key]['ak8FatJetMsd'],
+    })
+
+    ak8Dijet = ak8FatJet[:, 0] + ak8FatJet[:, 1]
+
+    ak15FatJet = vector.array({
+                        "pt": events[key]['ak15FatJetPt'],
+                        "phi": events[key]['ak15FatJetPhi'],
+                        "eta": events[key]['ak15FatJetEta'],
+                        "M": events[key]['ak15FatJetMsd'],
+    })
+
+    ak15Dijet = ak15FatJet[:, 0] + ak15FatJet[:, 1]
+
+    events[key]['ak8DijetPt'] = ak8Dijet.pt
+    events[key]['ak8DijetMass'] = ak8Dijet.M
+    events[key]['ak8DijetEta'] = ak8Dijet.eta
+
+    events[key]['ak15DijetPt'] = ak15Dijet.pt
+    events[key]['ak15DijetMass'] = ak15Dijet.M
+    events[key]['ak15DijetEta'] = ak15Dijet.eta
 
     events[key]['bbFatJetPtOverDijetPt'] = events[key]['bbFatJetPt'] / events[key]['DijetPt']
     events[key]['VVFatJetPtOverDijetPt'] = events[key]['VVFatJetPt'] / events[key]['DijetPt']
@@ -174,9 +214,19 @@ for key in keys:
         events[key]['finalWeight'] = events[key]['weight'] * combined_trigEffs
 
 
+np.sum(events['QCD']['finalWeight'])
+np.sum(events['Top']['finalWeight'])
+np.sum(events['V']['finalWeight'])
+np.sum(events['HHbbVV4q']['finalWeight'])
+np.sum(events['Data']['finalWeight'])
+
+
+
 # plots
 
-plotdir = '../plots/ControlPlots/Aug25/'
+import os
+plotdir = '../plots/ControlPlots/Aug30/'
+os.system(f'mkdir -p {plotdir}')
 
 hep.style.use("CMS")
 
@@ -187,11 +237,11 @@ colours = {
     'orange': '#ff7f00'
 }
 
-bg_colours = [colours['lightblue'], colours['darkblue'], colours['orange']]
+bg_colours = [colours['lightblue'], colours['orange'], colours['darkblue']]
 sig_colour = colours['red']
 
-bg_scale = 1e-2
-sig_scale = 5e8 * bg_scale
+bg_scale = 0.85
+sig_scale = 1.3e7 * bg_scale
 
 from hist import Hist
 from hist.intervals import ratio_uncertainty
@@ -204,6 +254,14 @@ hist_vars = {  # (bins, labels)
     'DijetEta': ([50, -5, 5], r"$\eta^{jj}$"),
     'DijetPt': ([50, 0, 2000], r"$p_T^{jj}$ (GeV)"),
     'DijetMass': ([50, 0, 2000], r"$m^{jj}$ (GeV)"),
+
+    'ak8DijetEta': ([50, -5, 5], r"$\eta^{jj}$"),
+    'ak8DijetPt': ([50, 0, 2000], r"$p_T^{jj}$ (GeV)"),
+    'ak8DijetMass': ([50, 0, 2000], r"$m^{jj}$ (GeV)"),
+
+    'ak15DijetEta': ([50, -5, 5], r"$\eta^{jj}$"),
+    'ak15DijetPt': ([50, 0, 2000], r"$p_T^{jj}$ (GeV)"),
+    'ak15DijetMass': ([50, 0, 2000], r"$m^{jj}$ (GeV)"),
 
     'bbFatJetEta': ([50, -3, 3], r"$\eta^{bb}$"),
     'bbFatJetPt': ([50, 200, 1000], r"$p^{bb}_T$ (GeV)"),
@@ -238,8 +296,8 @@ for var in hist_vars.keys():
     fig, (ax, rax) = plt.subplots(2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True)
 
     ax.set_ylabel('Events')
-    hep.histplot([hists[var][key, :] * bg_scale for key in keys[:num_bg]], ax=ax, histtype='fill', stack=True, label=[f"{label} $\\times$ {bg_scale:.0e}" for label in labels[:num_bg]], color=bg_colours[:num_bg])
-    hep.histplot(hists[var][sig, :] * sig_scale, ax=ax, histtype='step', label=f"{sig} $\\times$ {sig_scale:.0e}", color=sig_colour)
+    hep.histplot([hists[var][key, :] * bg_scale for key in keys[:num_bg]], ax=ax, histtype='fill', stack=True, label=[f"{label} $\\times$ {bg_scale:.1e}" for label in labels[:num_bg]], color=bg_colours[:num_bg])
+    hep.histplot(hists[var][sig, :] * sig_scale, ax=ax, histtype='step', label=f"{sig} $\\times$ {sig_scale:.1e}", color=sig_colour)
     hep.histplot(hists[var]['Data', :], ax=ax, histtype='errorbar', label="Data", color='black')
     ax.legend()
     ax.set_ylim(0)
