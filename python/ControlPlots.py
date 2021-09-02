@@ -29,13 +29,24 @@ events = {}
 out_pickle = {}
 
 for key in keys:
+    if key != sig: continue
     print(key)
     with open(f'../../data/2017_combined/{key}.pkl', 'rb') as file:
-        events[key] = pickle.load(file)['skimmed_events']
-        # out_pickle[key] = pickle.load(file)
+        # events[key] = pickle.load(file)['skimmed_events']
+        out_pickle[key] = pickle.load(file)
 
-# out_pickle['HHbbVV4q']
 
+frac_not_bbVV_events = (out_pickle['HHbbVV4q']['cutflow']['all'] - out_pickle['HHbbVV4q']['cutflow']['has_bbVV']) / out_pickle['HHbbVV4q']['cutflow']['all']
+frac_not_4q_events = (out_pickle['HHbbVV4q']['cutflow']['has_bbVV'] - out_pickle['HHbbVV4q']['cutflow']['has_4q']) / out_pickle['HHbbVV4q']['cutflow']['has_bbVV']
+
+frac_not_bbVV_events
+frac_not_4q_events
+
+
+out_pickle['HHbbVV4q']['cutflow']['all'] - out_pickle['HHbbVV4q']['cutflow']['has_bbVV']
+out_pickle['HHbbVV4q']['cutflow']
+
+events[key]
 
 list(events['HHbbVV4q'].keys())
 

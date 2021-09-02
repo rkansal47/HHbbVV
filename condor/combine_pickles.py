@@ -34,7 +34,10 @@ def accumulate_files(files: list, norm: bool = False, convert_to_dict: bool = Fa
             out = accumulate([out, outt])
 
     if norm:
-        out['skimmed_events']['weight'] = column_accumulator(out['skimmed_events']['weight'].value / out['nevents'])
+        print(sample)
+        if 'HHToBBVVToBBQQQQ' in sample: print("signal")
+        div = out['cutflow']['all_4q'] if 'HHToBBVVToBBQQQQ' in sample else out['nevents']  # only divide by # of actual bbVV4q events if signal
+        out['skimmed_events']['weight'] = column_accumulator(out['skimmed_events']['weight'].value / div)
 
     if convert_to_dict:
         out['skimmed_events'] = {
