@@ -135,7 +135,7 @@ class bbVVSkimmer(ProcessorABC):
         preselection_cut = np.logical_or(   np.prod(pad_val((events.FatJet.pt > self.preselection_cut_vals['pt']) * (events.FatJet.msoftdrop > self.preselection_cut_vals['msd']), 2, False, axis=1), axis=1),
                                             np.prod(pad_val((events.FatJetAK15.pt > self.preselection_cut_vals['pt']) * (events.FatJetAK15.msoftdrop > self.preselection_cut_vals['msd']), 2, False, axis=1), axis=1))
         selection.add('preselection', preselection_cut)
-        cutflow['trigger'] = np.sum(selection.all(*selection.names))
+        cutflow['preselection'] = np.sum(selection.all(*selection.names))
 
         # TODO: trigger SFs
 
@@ -168,7 +168,7 @@ class bbVVSkimmer(ProcessorABC):
 
         skimmed_events['weight'] = np.ones(n_events)
         if not isData:
-            skimmed_events['genWeight'] = events.genWeight
+            skimmed_events['genWeight'] = events.genWeight.to_numpy()
             skimmed_events['pileupWeight'] = self.corrections[f'{year}_pileupweight'](events.Pileup.nPU).to_numpy()
 
 

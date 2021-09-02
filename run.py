@@ -76,9 +76,6 @@ def main(args):
         from processors import bbVVSkimmer
         xsecs = get_xsecs()
         p = bbVVSkimmer(xsecs=xsecs, condor=args.condor)
-    else:
-        warnings.warn('Warning: no processor declared')
-        return
 
     fileset = get_fileset(args.processor, args.samples, args.starti, args.endi)
 
@@ -97,7 +94,6 @@ def main(args):
             executor=processor.futures_executor,
             executor_args=exe_args,
             chunksize=10000,
-            maxchunks=2
         )
 
         filehandler = open(f'outfiles/{args.starti}-{args.endi}.pkl', 'wb')
@@ -156,7 +152,7 @@ if __name__ == "__main__":
     parser.add_argument('--starti',     dest='starti',     default=0,            help="start index of files", type=int)
     parser.add_argument('--endi',       dest='endi',       default=-1,           help="end index of files", type=int)
     parser.add_argument('--outdir',     dest='outdir',     default='outfiles',   help="directory for output files", type=str)
-    parser.add_argument("--processor",  dest="processor",  default="trigger",    help="Trigger processor", type=str)
+    parser.add_argument("--processor",  dest="processor",  default="trigger",    help="Trigger processor", type=str, choices=['trigger', 'skimmer'])
     parser.add_argument("--dask",       dest="dask",       action="store_true",  default=False, help="Run with dask")
     parser.add_argument("--condor",     dest="condor",     action="store_true",  default=True,  help="Run with condor")
     parser.add_argument('--samples',    dest='samples',    default=[],           help='samples',     nargs='*')

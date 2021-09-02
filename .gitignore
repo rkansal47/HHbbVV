@@ -26,7 +26,7 @@ outPickles/*skimmed*
 !plots/**
 plots/ControlPlots
 !python
-!python/*
+!python/*.py
 python/data
 python/*test*
 python/*Test*

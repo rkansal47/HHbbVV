@@ -2,7 +2,7 @@
 
 executable              = DIRECTORY/PREFIX_JOBID.sh
 should_transfer_files   = YES
-transfer_input_files    = processors,run.py,data
+transfer_input_files    = processors,run.py,data,corrections
 when_to_transfer_output = ON_EXIT_OR_EVICT
 request_memory          = 4500
 use_x509userproxy       = true
