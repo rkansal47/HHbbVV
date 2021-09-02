@@ -51,6 +51,7 @@ np.sum(events['Data']['weight'])
 dR = 0.8
 
 for key in keys:
+    if key != sig: continue
     print(key)
     jet1_bb_leading = events[key]['ak8FatJetParticleNetMD_Txbb'][:, 0:1] >= events[key]['ak8FatJetParticleNetMD_Txbb'][:, 1:2]
     bb_mask = np.concatenate([jet1_bb_leading, ~jet1_bb_leading], axis=1)
@@ -103,33 +104,60 @@ for key in keys:
 
 # hybrid policy analysis plots
 
+key = 'HHbbVV4q'
+
 bb_cut = events[key]['ak8FatJetParticleNetMD_Txbb'][bb_mask] > 0.8
 VV_cut = events[key]['ak15FatJetParticleNet_Th4q'][VV_mask] > 0.8
 
 plotdir = '../plots/HybridPolicyAnalysis/'
 
-_ = plt.hist(events[key]['ak8FatJetParticleNetMD_Txbb'].reshape(-1), bins=np.linspace(0, 1, 51), histtype='step', color='blue', linewidth=3, label='All')
-_ = plt.hist(events[key]['ak8FatJetParticleNetMD_Txbb'][bb_mask], bins=np.linspace(0, 1, 51), histtype='step', color='red', linewidth=2, label='Leading by Txbb')
-_ = plt.hist(events[key]['ak8FatJetParticleNetMD_Txbb'][bb_mask][VV_cand_overlap], bins=np.linspace(0, 1, 51), histtype='step', color='green', linewidth=2, label='Leading jet overlapping with AK15 VV candidate')
-_ = plt.hist(events[key]['ak8FatJetParticleNetMD_Txbb'][bb_mask][VV_cut * VV_cand_overlap], bins=np.linspace(0, 1, 51), histtype='step', color='orange', linewidth=2, label='Leading jet overlapping & VV cand Th4q > 0.8')
-plt.ylim(0, 5000)
+
+_ = plt.hist(events[key]['ak8FatJetParticleNetMD_Txbb'].reshape(-1), weights=np.repeat(np.expand_dims(events[key]['weight'], 1), 2, 1).reshape(-1), bins=np.linspace(0, 1, 51), histtype='step', color='blue', linewidth=3, label='All')
+_ = plt.hist(events[key]['ak8FatJetParticleNetMD_Txbb'][bb_mask], weights=events[key]['weight'], bins=np.linspace(0, 1, 51), histtype='step', color='red', linewidth=2, label='Leading by Txbb')
+_ = plt.hist(events[key]['ak8FatJetParticleNetMD_Txbb'][bb_mask][VV_cand_overlap], weights=events[key]['weight'][VV_cand_overlap], bins=np.linspace(0, 1, 51), histtype='step', color='green', linewidth=2, label='Leading jet overlapping with AK15 VV candidate')
+_ = plt.hist(events[key]['ak8FatJetParticleNetMD_Txbb'][bb_mask][VV_cut * VV_cand_overlap], weights=events[key]['weight'][VV_cut * VV_cand_overlap], bins=np.linspace(0, 1, 51), histtype='step', color='orange', linewidth=2, label='Leading jet overlapping & VV cand Th4q > 0.8')
+# plt.ylim(0, 30000)
 plt.xlabel('Txbb Score')
 plt.ylabel('# Jets')
 plt.title('AK8 Fat Jets')
 plt.legend(prop={'size': 18})
-plt.savefig(plotdir + 'ak8bbjets.pdf', bbox_inches='tight')
+plt.savefig(plotdir + 'dR15ak8bbjets.pdf', bbox_inches='tight')
 
 
-_ = plt.hist(events[key]['ak15FatJetParticleNet_Th4q'].reshape(-1), bins=np.linspace(0, 1, 51), histtype='step', color='blue', linewidth=3, label='All')
-_ = plt.hist(events[key]['ak15FatJetParticleNet_Th4q'][VV_mask], bins=np.linspace(0, 1, 51), histtype='step', color='red', linewidth=2, label='Leading by Th4q')
-_ = plt.hist(events[key]['ak15FatJetParticleNet_Th4q'][VV_mask][VV_cand_overlap], bins=np.linspace(0, 1, 51), histtype='step', color='green', linewidth=2, label='Leading jet overlapping with AK8 bb candidate')
-_ = plt.hist(events[key]['ak15FatJetParticleNet_Th4q'][VV_mask][bb_cut * VV_cand_overlap], bins=np.linspace(0, 1, 51), histtype='step', color='orange', linewidth=2, label='Leading jet overlapping & bb cand Txbb > 0.8')
-plt.ylim(0, 5000)
+_ = plt.hist(events[key]['ak15FatJetParticleNet_Th4q'].reshape(-1), weights=np.repeat(np.expand_dims(events[key]['weight'], 1), 2, 1).reshape(-1), bins=np.linspace(0, 1, 51), histtype='step', color='blue', linewidth=3, label='All')
+_ = plt.hist(events[key]['ak15FatJetParticleNet_Th4q'][VV_mask], weights=events[key]['weight'], bins=np.linspace(0, 1, 51), histtype='step', color='red', linewidth=2, label='Leading by Th4q')
+_ = plt.hist(events[key]['ak15FatJetParticleNet_Th4q'][VV_mask][VV_cand_overlap], weights=events[key]['weight'][VV_cand_overlap], bins=np.linspace(0, 1, 51), histtype='step', color='green', linewidth=2, label='Leading jet overlapping with AK8 bb candidate')
+_ = plt.hist(events[key]['ak15FatJetParticleNet_Th4q'][VV_mask][bb_cut * VV_cand_overlap], weights=events[key]['weight'][bb_cut * VV_cand_overlap], bins=np.linspace(0, 1, 51), histtype='step', color='orange', linewidth=2, label='Leading jet overlapping & bb cand Txbb > 0.8')
+# plt.ylim(0, 5000)
 plt.xlabel('Th4q Score')
 plt.ylabel('# Jets')
 plt.title('AK15 Fat Jets')
 plt.legend(prop={'size': 18})
-plt.savefig(plotdir + 'ak15VVjets.pdf', bbox_inches='tight')
+plt.savefig(plotdir + 'dR15ak15VVjets.pdf', bbox_inches='tight')
+
+
+bbFatJet = vector.array({
+                    "pt": events[key]['bbFatJetPt'],
+                    "phi": events[key]['bbFatJetPhi'],
+                    "eta": events[key]['bbFatJetEta'],
+                    "M": events[key]['bbFatJetMsd'],
+})
+
+VVFatJet = vector.array({
+                    "pt": events[key]['VVFatJetPt'],
+                    "phi": events[key]['VVFatJetPhi'],
+                    "eta": events[key]['VVFatJetEta'],
+                    "M": events[key]['VVFatJetMsd'],
+})
+
+
+plt.hist(bbFatJet.deltaR(VVFatJet), weights=events[key]['weight'], bins=np.linspace(0, 5, 51), histtype='step', label='All jets')
+plt.hist(bbFatJet.deltaR(VVFatJet)[bb_cut * VV_cut], weights=events[key]['weight'][bb_cut * VV_cut], bins=np.linspace(0, 5, 51), histtype='step', label='Jets with tagger scores > 0.8')
+plt.xlabel('$\Delta R$ between bb and VV fat jets')
+plt.ylabel('# Jets')
+plt.title('HHbbVV4q Hybrid Fat Jets')
+plt.legend(prop={'size': 18})
+plt.savefig(plotdir + 'bbVVdR.pdf', bbox_inches='tight')
 
 
 # derived vars
@@ -213,6 +241,8 @@ for key in keys:
         combined_trigEffs = 1 - (1 - bb_fj_trigEffs) * (1 - VV_fj_trigEffs)
         events[key]['finalWeight'] = events[key]['weight'] * combined_trigEffs
 
+QCD_SCALE_FACTOR =  (np.sum(events['Data']['finalWeight']) - np.sum(events['Top']['finalWeight']) - np.sum(events['V']['finalWeight'])) / (np.sum(events['QCD']['finalWeight']))
+events['QCD']['finalWeight'] *= QCD_SCALE_FACTOR
 
 np.sum(events['QCD']['finalWeight'])
 np.sum(events['Top']['finalWeight'])
@@ -225,7 +255,7 @@ np.sum(events['Data']['finalWeight'])
 # plots
 
 import os
-plotdir = '../plots/ControlPlots/Aug30/'
+plotdir = '../plots/ControlPlots/Sep1/'
 os.system(f'mkdir -p {plotdir}')
 
 hep.style.use("CMS")
@@ -240,7 +270,7 @@ colours = {
 bg_colours = [colours['lightblue'], colours['orange'], colours['darkblue']]
 sig_colour = colours['red']
 
-bg_scale = 0.85
+bg_scale = 1
 sig_scale = 1.3e7 * bg_scale
 
 from hist import Hist
@@ -249,33 +279,33 @@ from hist.intervals import ratio_uncertainty
 hists = {}
 
 hist_vars = {  # (bins, labels)
-    'MET_pt': ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
+    # 'MET_pt': ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
 
     'DijetEta': ([50, -5, 5], r"$\eta^{jj}$"),
     'DijetPt': ([50, 0, 2000], r"$p_T^{jj}$ (GeV)"),
     'DijetMass': ([50, 0, 2000], r"$m^{jj}$ (GeV)"),
 
-    'ak8DijetEta': ([50, -5, 5], r"$\eta^{jj}$"),
-    'ak8DijetPt': ([50, 0, 2000], r"$p_T^{jj}$ (GeV)"),
-    'ak8DijetMass': ([50, 0, 2000], r"$m^{jj}$ (GeV)"),
-
-    'ak15DijetEta': ([50, -5, 5], r"$\eta^{jj}$"),
-    'ak15DijetPt': ([50, 0, 2000], r"$p_T^{jj}$ (GeV)"),
-    'ak15DijetMass': ([50, 0, 2000], r"$m^{jj}$ (GeV)"),
-
-    'bbFatJetEta': ([50, -3, 3], r"$\eta^{bb}$"),
-    'bbFatJetPt': ([50, 200, 1000], r"$p^{bb}_T$ (GeV)"),
-    'bbFatJetMsd': ([50, 20, 250], r"$m^{bb}$ (GeV)"),
-    'bbFatJetParticleNetMD_Txbb': ([50, 0, 1], r"$p^{bb}_{Txbb}$"),
-
-    'VVFatJetEta': ([50, -3, 3], r"$\eta^{VV}$"),
-    'VVFatJetPt': ([50, 200, 1000], r"$p^{VV}_T$ (GeV)"),
-    'VVFatJetMsd': ([50, 20, 400], r"$m^{VV}$ (GeV)"),
-    'VVFatJetParticleNet_Th4q': ([50, 0, 1], r"$p^{VV}_{Th4q}$"),
-
-    'bbFatJetPtOverDijetPt': ([50, 0.3, 0.7], r"$p^{bb}_T / p_T^{jj}$"),
-    'VVFatJetPtOverDijetPt': ([50, 0.3, 0.7], r"$p^{VV}_T / p_T^{jj}$"),
-    'VVFatJetPtOverbbFatJetPt': ([50, 0.4, 2.5], r"$p^{VV}_T / p^{bb}_T$"),
+    # 'ak8DijetEta': ([50, -5, 5], r"$\eta^{jj}$"),
+    # 'ak8DijetPt': ([50, 0, 2000], r"$p_T^{jj}$ (GeV)"),
+    # 'ak8DijetMass': ([50, 0, 2000], r"$m^{jj}$ (GeV)"),
+    #
+    # 'ak15DijetEta': ([50, -5, 5], r"$\eta^{jj}$"),
+    # 'ak15DijetPt': ([50, 0, 2000], r"$p_T^{jj}$ (GeV)"),
+    # 'ak15DijetMass': ([50, 0, 2000], r"$m^{jj}$ (GeV)"),
+    #
+    # 'bbFatJetEta': ([50, -3, 3], r"$\eta^{bb}$"),
+    # 'bbFatJetPt': ([50, 200, 1000], r"$p^{bb}_T$ (GeV)"),
+    # 'bbFatJetMsd': ([50, 20, 250], r"$m^{bb}$ (GeV)"),
+    # 'bbFatJetParticleNetMD_Txbb': ([50, 0, 1], r"$p^{bb}_{Txbb}$"),
+    #
+    # 'VVFatJetEta': ([50, -3, 3], r"$\eta^{VV}$"),
+    # 'VVFatJetPt': ([50, 200, 1000], r"$p^{VV}_T$ (GeV)"),
+    # 'VVFatJetMsd': ([50, 20, 400], r"$m^{VV}$ (GeV)"),
+    # 'VVFatJetParticleNet_Th4q': ([50, 0, 1], r"$p^{VV}_{Th4q}$"),
+    #
+    # 'bbFatJetPtOverDijetPt': ([50, 0.3, 0.7], r"$p^{bb}_T / p_T^{jj}$"),
+    # 'VVFatJetPtOverDijetPt': ([50, 0.3, 0.7], r"$p^{VV}_T / p_T^{jj}$"),
+    # 'VVFatJetPtOverbbFatJetPt': ([50, 0.4, 2.5], r"$p^{VV}_T / p^{bb}_T$"),
 }
 
 for var, (bins, label) in hist_vars.items():
@@ -296,7 +326,7 @@ for var in hist_vars.keys():
     fig, (ax, rax) = plt.subplots(2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True)
 
     ax.set_ylabel('Events')
-    hep.histplot([hists[var][key, :] * bg_scale for key in keys[:num_bg]], ax=ax, histtype='fill', stack=True, label=[f"{label} $\\times$ {bg_scale:.1e}" for label in labels[:num_bg]], color=bg_colours[:num_bg])
+    hep.histplot([hists[var][key, :] * bg_scale for key in keys[:num_bg]], ax=ax, histtype='fill', stack=True, label=[f"{label}" for label in labels[:num_bg]], color=bg_colours[:num_bg])
     hep.histplot(hists[var][sig, :] * sig_scale, ax=ax, histtype='step', label=f"{sig} $\\times$ {sig_scale:.1e}", color=sig_colour)
     hep.histplot(hists[var]['Data', :], ax=ax, histtype='errorbar', label="Data", color='black')
     ax.legend()
@@ -309,4 +339,4 @@ for var in hist_vars.keys():
     rax.grid()
 
     hep.cms.label('Preliminary', data=True, lumi=40, year=2017, ax=ax)
-    plt.savefig(f"{plotdir}ratio_{var}.pdf", bbox_inches='tight')
+    plt.savefig(f"{plotdir}qcdscaleonly_{var}.pdf", bbox_inches='tight')
