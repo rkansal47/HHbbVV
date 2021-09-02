@@ -11,7 +11,7 @@ import os
 from math import ceil
 
 
-def get_fileset(ptype):
+def get_fileset(ptype, samples=[]):
     if ptype == 'trigger':
         with open('data/SingleMuon_2017.txt', 'r') as file:
             filelist = [f[:-1] for f in file.readlines()]
@@ -23,13 +23,16 @@ def get_fileset(ptype):
     elif ptype == 'skimmer':
         from os import listdir
 
-        # TODO: replace with UL sample once we have it
-        with open('data/2017_preUL_nano/HHToBBVVToBBQQQQ_cHHH1.txt', 'r') as file:
-            filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]   # need to use xcache redirector at Nebraksa coffea-casa
+        fileset = {}
 
-        fileset = {
-            '2017_HHToBBVVToBBQQQQ_cHHH1': filelist
-        }
+        if len(samples) or '2017_HHToBBVVToBBQQQQ_cHHH1' in samples:
+            # TODO: replace with UL sample once we have it
+            with open('data/2017_preUL_nano/HHToBBVVToBBQQQQ_cHHH1.txt', 'r') as file:
+                filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]   # need to use xcache redirector at Nebraksa coffea-casa
+
+            fileset = {
+                '2017_HHToBBVVToBBQQQQ_cHHH1': filelist
+            }
 
         # extra samples in the folder we don't need for this analysis - TODO: should instead have a list of all samples we need
         ignore_samples = ['GluGluHToTauTau_M125_TuneCP5_13TeV-powheg-pythia8',
@@ -39,11 +42,12 @@ def get_fileset(ptype):
 
         for sample in listdir('data/2017_UL_nano/'):
             if sample[-4:] == '.txt' and sample[:-4] not in ignore_samples:
-                with open(f'data/2017_UL_nano/{sample}', 'r') as file:
-                    if 'JetHT' in sample: filelist = [f[:-1].replace('/hadoop/cms/', 'root://redirector.t2.ucsd.edu//') for f in file.readlines()]
-                    else: filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]
+                if len(samples) or '2017_' + sample[:-4].split('_TuneCP5')[0] in samples:
+                    with open(f'data/2017_UL_nano/{sample}', 'r') as file:
+                        if 'JetHT' in sample: filelist = [f[:-1].replace('/hadoop/cms/', 'root://redirector.t2.ucsd.edu//') for f in file.readlines()]
+                        else: filelist = [f[:-1].replace('/eos/uscms/', 'root://cmsxrootd.fnal.gov//') for f in file.readlines()]
 
-                fileset['2017_' + sample[:-4].split('_TuneCP5')[0]] = filelist
+                    fileset['2017_' + sample[:-4].split('_TuneCP5')[0]] = filelist
 
         return fileset
 
@@ -61,7 +65,7 @@ def main(args):
     print('CONDOR work dir: ' + outdir)
     os.system(f'mkdir -p /eos/uscms/{outdir}')
 
-    fileset = get_fileset(args.processor)
+    fileset = get_fileset(args.processor, args.samples)
 
     # directories for every sample
     for sample in fileset:
@@ -128,6 +132,7 @@ if __name__ == "__main__":
     parser.add_argument('--tag',        dest='tag',        default='Test',       help="process tag",                type=str)
     parser.add_argument('--outdir',     dest='outdir',     default='outfiles',   help="directory for output files", type=str)
     parser.add_argument("--processor",  dest="processor",  default="trigger",    help="which processor",          type=str, choices=['trigger', 'skimmer'])
+    parser.add_argument('--samples',    dest='samples',    default=[],           help='which samples to run, default will be all samples',     nargs='*')
     parser.add_argument("--files-per-job", default=20,    help="# files per condor job",          type=int)
     args = parser.parse_args()
 
