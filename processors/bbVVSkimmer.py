@@ -100,7 +100,9 @@ class bbVVSkimmer(ProcessorABC):
 
         self.preselection_cut_vals = {'pt': 250, 'msd': 20}
 
-        with gzip.open('corrections/corrections.pkl.gz', 'rb') as filehandler:
+        # get this file's path
+        import pathlib
+        with gzip.open(str(pathlib.Path(__file__).parent.parent.resolve()) + '/corrections/corrections.pkl.gz', 'rb') as filehandler:
             self.corrections = pickle.load(filehandler)
 
 
@@ -219,7 +221,7 @@ class bbVVSkimmer(ProcessorABC):
 
         skimmed_events['weight'] = np.ones(n_events)
         if not isData:
-            skimmed_events['genWeight'] = events.genWeight
+            skimmed_events['genWeight'] = events.genWeight.to_numpy()
             skimmed_events['pileupWeight'] = self.corrections[f'{year}_pileupweight'](events.Pileup.nPU).to_numpy()
 
 
