@@ -8,6 +8,7 @@
 !processors
 !processors/*.py
 !processors/*.pkl
+processors/*test*
 !condor
 !condor/*
 !binder
