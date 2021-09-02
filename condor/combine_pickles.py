@@ -98,7 +98,9 @@ if __name__ == "__main__":
             print(f"Saved as {args.indir}/{args.name}.pkl")
 
 
+
     if args.combine_further:
+        # TODO: convert into fat jet vectors/objects as well
         os.system(f'mkdir -p {args.indir}/{args.year}_combined{args.name}')
         pickles = [args.indir + '/' + pickle for pickle in listdir(args.indir) if pickle.endswith(f'{args.name}_column_accs.pkl')]
 
