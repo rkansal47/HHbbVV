@@ -25,7 +25,8 @@ outPickles/*skimmed*
 !corrections/*/**
 !plots
 !plots/**
-plots/ControlPlots
+plots/ControlPlots/*
+!plots/ControlPlots/Sep3
 !python
 !python/*.py
 python/data
