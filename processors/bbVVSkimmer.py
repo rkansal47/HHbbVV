@@ -127,6 +127,7 @@ class bbVVSkimmer(ProcessorABC):
 
 
         def add_selection(name, sel):
+            """ adds selection to PackedSelection object and the cutflow """
             selection.add(name, sel)
             cutflow[name] = np.sum(selection.all(*selection.names))
 
@@ -198,8 +199,6 @@ class bbVVSkimmer(ProcessorABC):
         ak8FatJetVars = {f'ak8FatJet{key}': pad_val(events.FatJet[var], 2, -99999, axis=1) for (var, key) in self.skim_vars['FatJet'].items()}
         ak15FatJetVars = {f'ak15FatJet{key}': pad_val(events.FatJetAK15[var], 2, -99999, axis=1) for (var, key) in self.skim_vars['FatJetAK15'].items()}
         otherVars = {key: events[var.split('_')[0]]["_".join(var.split('_')[1:])].to_numpy() for (var, key) in self.skim_vars['other'].items()}
-
-#         skimmed_events = {**ak8FatJetVars, **ak15FatJetVars, **otherVars}
 
         import sys
         if sys.version_info[1] < 9: skimmed_events = {**skimmed_events, **ak8FatJetVars, **ak15FatJetVars, **otherVars}

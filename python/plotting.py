@@ -61,6 +61,7 @@ from hist.intervals import ratio_uncertainty
 
 
 def ratioHistPlot(hists, bg_keys, sig_key, bg_labels=None, sig_label=None, bg_colours=bg_colours, sig_colour=sig_colour, plotdir="", name="", sig_scale=1):
+    """ Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally scaled) with a data/mc ratio plot below """
     if sig_label is None: sig_label = sig_key
 
     fig, (ax, rax) = plt.subplots(2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True)
