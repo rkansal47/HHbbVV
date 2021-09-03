@@ -49,7 +49,18 @@ def getParticles(particle_list, particle_type):
         return (abs(particle_list) == W_PDGID) + (abs(particle_list) == Z_PDGID)
 
 
-def singleVarHist(events, var, bins, label, weight_key='weight'):
+def singleVarHist(events: dict, var: str, bins: list, label: str, weight_key: str = 'weight'):
+    """
+    Makes and fills a histogram for variable `var` using data in the `events` dict.
+
+    Args:
+        events (dict): a dict of events of format {sample1: {var1: np.array, var2: np.array, ...}, sample2: ...}
+        var (str): variable inside the events dict to make a histogram of
+        bins (list): bins in Hist format i.e. [num_bins, min_value, max_value]
+        label (str): label for variable (shows up when plotting)
+        weight_key (str, optional): which weight to use from events, if different from 'weight'
+    """
+    
     keys = list(events.keys())
 
     h = (
