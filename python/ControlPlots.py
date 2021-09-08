@@ -155,6 +155,21 @@ for key in keys:
 
 
 ##################################################################################
+# Save these new pickles
+##################################################################################
+
+for key in keys:
+    # if key != sig: continue
+    print(key)
+    with open(f'{data_path}{key}.pkl', 'rb') as file:
+        out_pickle = pickle.load(file)
+
+    out_pickle['skimmed_events'] = events[key]
+    with open(f'{data_path}{key}.pkl', 'wb') as file:
+        pickle.dump(out_pickle, file)
+
+
+##################################################################################
 # Control plots
 ##################################################################################
 
