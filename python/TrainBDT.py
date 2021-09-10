@@ -86,7 +86,7 @@ def main(args):
         X_train, X_test, X_Txbb_train, X_Txbb_test, y_train, y_test, weights_train, weights_test = preprocess_events(events, bdtVars, test_size=args.test_size, seed=args.seed, save=True, save_dir=data_path)
 
     if not args.evaluate_only:
-        os.system(f'mkdir -p {data_path}')
+        os.system(f'mkdir -p {args.model_dir}')
         model = train_model(X_train, X_test, y_train, y_test, weights_train, args.model_dir, **classifier_params)
     else:
         model = xgb.XGBClassifier()
