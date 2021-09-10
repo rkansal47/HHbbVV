@@ -218,12 +218,11 @@ def evaluate_model(model: xgb.XGBClassifier, model_dir: str, X_test: np.array, y
 
     # sorting by importance
     feature_importance = np.array(list(zip(bdtVars, model.feature_importances_)))[np.argsort(model.feature_importances_)[::-1]]
-    np.savetxt(f"{model_dir}/feature_importance.txt", feature_importance)
+    # np.savetxt(f"{model_dir}/feature_importance.txt", feature_importance)
 
     print("Feature importance")
     for feature, imp in feature_importance:
         print(f"{feature}: {imp}")
-
 
     fpr, tpr, thresholds = roc_curve(y_test, preds[:, 1], sample_weight=weights_test)
     plotting.rocCurve(fpr, tpr, title="ROC Curve", plotdir=model_dir, name="bdtroccurve")
