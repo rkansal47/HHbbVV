@@ -64,7 +64,10 @@ bdtVars = [
 
 
 def main(args):
-    data_path = f'{args.data_dir}/{"all_" if args.num_events <= 0 else args.num_events}_events_{"" if args.preselection else "no_"}preselection_{"equalized_weights_" if args.equalize_weights else ""}test_size_0{args.test_size * 10:.0f}_seed_{args.seed}'
+    print("Setup")
+
+    data_path = f'{args.data_dir}/{"all" if args.num_events <= 0 else args.num_events}_events_{"" if args.preselection else "no_"}preselection_{"equalized_weights_" if args.equalize_weights else ""}test_size_0{args.test_size * 10:.0f}_seed_{args.seed}'
+    print(f"{data_path = }")
 
     classifier_params = {
         'max_depth': 3,
@@ -79,12 +82,12 @@ def main(args):
         X_train, X_test, X_Txbb_train, X_Txbb_test, y_train, y_test, weights_train, weights_test = load_training_data(data_path)
     else:
         os.system(f'mkdir -p {data_path}')
-        events = load_events(num_events=args.num_events, preselection=args.preselection)
+        events = load_events(args.pickles_path, num_events=args.num_events, preselection=args.preselection)
         X_train, X_test, X_Txbb_train, X_Txbb_test, y_train, y_test, weights_train, weights_test = preprocess_events(events, bdtVars, test_size=args.test_size, seed=args.seed, save=True, save_dir=data_path)
 
     if not args.evaluate_only:
         os.system(f'mkdir -p {data_path}')
-        model = train_model(X_train, X_test, y_train, y_test, args.model_dir, **classifier_params)
+        model = train_model(X_train, X_test, y_train, y_test, weights_train, args.model_dir, **classifier_params)
     else:
         model = xgb.XGBClassifier()
         model.load_model(f'{args.model_dir}/trained_bdt.model')
@@ -98,6 +101,7 @@ def load_events(pickles_path: str, num_events: int = 0, preselection: bool = Tru
     If `num_events` > 0, only returns `num_events` entries for each sample.
     If `preselection` is True, applies a preselection as defined below
     """
+    print("Loading events")
     import pickle
 
     events = {}
@@ -148,6 +152,7 @@ def load_events(pickles_path: str, num_events: int = 0, preselection: bool = Tru
 
 def preprocess_events(events: dict, bdtVars: list, test_size: float = 0.3, seed: int = 4, save: bool = True, save_dir: str = "", equalize_weights: bool = False):
     """ Preprocess events for training """
+    print("Preprocessing events")
 
     # X = np.concatenate([np.concatenate([events[key][var][bdt_presel_cut[key]][:, np.newaxis] for var in bdtVars], axis=1) for key in keys], axis=0)
     # X_Txbb = np.concatenate([events[key]['bbFatJetParticleNetMD_Txbb'][bdt_presel_cut[key]] for key in keys])  # for the final ROC curve
@@ -186,6 +191,7 @@ def preprocess_events(events: dict, bdtVars: list, test_size: float = 0.3, seed:
 
 def load_training_data(data_path: str):
     """ Load pre-processed data directly if already saved """
+    print("Loading preprocessed training data")
     X_train = np.load(f'{data_path}/X_train.npy')
     X_test = np.load(f'{data_path}/X_test.npy')
     X_Txbb_train = np.load(f'{data_path}/X_Txbb_train.npy')
@@ -199,6 +205,7 @@ def load_training_data(data_path: str):
 
 def train_model(X_train: np.array, X_test: np.array, y_train: np.array, y_test: np.array, weights_train: np.array, model_dir: str, early_stopping_rounds: int = 5, use_sample_weights=False, equalize_weights=False, **classifier_params):
     """ Trains BDT. `classifier_params` are hyperparameters for the classifier """
+    print("Training model")
     model = xgb.XGBClassifier(**classifier_params)
     trained_model = model.fit(X_train, y_train, early_stopping_rounds=5, eval_set=[(X_test, y_test)])  # , sample_weight=weights_train)
     trained_model.save_model(f'{model_dir}/trained_bdt.model')
@@ -244,6 +251,7 @@ def evaluate_model(model: xgb.XGBClassifier, model_dir: str, X_test: np.array, y
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--pickles-path', default="/hhbbvvvol/data/2017_combined", help="event pickles directory", type=str)
     parser.add_argument('--data-dir', default="/hhbbvvvol/data/2017_bdt_training", help="directory in which to save model and evaluation output", type=str)
     parser.add_argument('--model-dir', default="./", help="directory in which to save model and evaluation output", type=str)
     utils.add_bool_arg(parser, "load-data", "Load pre-processed data if done already", default=True)
