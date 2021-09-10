@@ -240,7 +240,7 @@ def evaluate_model(model: xgb.XGBClassifier, model_dir: str, X_test: np.array, X
         fpr_txbb_threshold[np.argmin(np.abs(tpr_txbb_threshold - 0.15))]
         thresholds_txbb_threshold[np.argmin(np.abs(tpr_txbb_threshold - 0.15))]
 
-        plotting.rocCurve(fpr_txbb_threshold, tpr_txbb_threshold, title="ROC Curve after Txbb {txbb_threshold} Cut", plotdir=model_dir, name="bdtroccurve_txbb_cut")
+        plotting.rocCurve(fpr_txbb_threshold, tpr_txbb_threshold, title=f"ROC Curve after Txbb {txbb_threshold} Cut", plotdir=model_dir, name="bdtroccurve_txbb_cut")
 
         np.savetxt(f"{model_dir}/fpr_txbb_threshold.txt", fpr_txbb_threshold)
         np.savetxt(f"{model_dir}/tpr_txbb_threshold.txt", tpr_txbb_threshold)
