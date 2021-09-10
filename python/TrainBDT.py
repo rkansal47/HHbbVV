@@ -92,7 +92,7 @@ def main(args):
         model = xgb.XGBClassifier()
         model.load_model(f'{args.model_dir}/trained_bdt.model')
 
-    evaluate_model(model, args.model_dir, X_test, y_test, weights_test)
+    evaluate_model(model, args.model_dir, X_test, X_Txbb_test, y_test, weights_test)
 
 
 def load_events(pickles_path: str, num_events: int = 0, preselection: bool = True):
@@ -212,7 +212,7 @@ def train_model(X_train: np.array, X_test: np.array, y_train: np.array, y_test: 
     return model
 
 
-def evaluate_model(model: xgb.XGBClassifier, model_dir: str, X_test: np.array, y_test: np.array, weights_test: np.array, txbb_threshold: float = 0.98):
+def evaluate_model(model: xgb.XGBClassifier, model_dir: str, X_test: np.array, X_Txbb_test: np.array, y_test: np.array, weights_test: np.array, txbb_threshold: float = 0.98):
     """ """
     preds = model.predict_proba(X_test)
 
@@ -227,13 +227,13 @@ def evaluate_model(model: xgb.XGBClassifier, model_dir: str, X_test: np.array, y
     fpr, tpr, thresholds = roc_curve(y_test, preds[:, 1], sample_weight=weights_test)
     plotting.rocCurve(fpr, tpr, title="ROC Curve", plotdir=model_dir, name="bdtroccurve")
 
-    np.savetxt(f"{model_dir}/fpr", fpr)
-    np.savetxt(f"{model_dir}/tpr", tpr)
-    np.savetxt(f"{model_dir}/thresholds", thresholds)
+    np.savetxt(f"{model_dir}/fpr.txt", fpr)
+    np.savetxt(f"{model_dir}/tpr.txt", tpr)
+    np.savetxt(f"{model_dir}/thresholds.txt", thresholds)
 
     if txbb_threshold:
         preds_txbb_threshold = preds[:, 1].copy()
-        preds_txbb_threshold[X_test < txbb_threshold] = 0
+        preds_txbb_threshold[X_Txbb_test < txbb_threshold] = 0
 
         fpr_txbb_threshold, tpr_txbb_threshold, thresholds_txbb_threshold = roc_curve(y_test, preds_txbb_threshold, sample_weight=weights_test)
 
@@ -242,9 +242,9 @@ def evaluate_model(model: xgb.XGBClassifier, model_dir: str, X_test: np.array, y
 
         plotting.rocCurve(fpr_txbb_threshold, tpr_txbb_threshold, title="ROC Curve after Txbb {txbb_threshold} Cut", plotdir=model_dir, name="bdtroccurve_txbb_cut")
 
-        np.savetxt(f"{model_dir}/fpr_txbb_threshold", fpr_txbb_threshold)
-        np.savetxt(f"{model_dir}/tpr_txbb_threshold", tpr_txbb_threshold)
-        np.savetxt(f"{model_dir}/thresholds_txbb_threshold", thresholds_txbb_threshold)
+        np.savetxt(f"{model_dir}/fpr_txbb_threshold.txt", fpr_txbb_threshold)
+        np.savetxt(f"{model_dir}/tpr_txbb_threshold.txt", tpr_txbb_threshold)
+        np.savetxt(f"{model_dir}/thresholds_txbb_threshold.txt", thresholds_txbb_threshold)
 
 
 if __name__ == "__main__":
