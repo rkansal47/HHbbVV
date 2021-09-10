@@ -50,12 +50,12 @@ bdtVars = [
 ]
 
 # Just for checking
-for key in keys:
-    print(f"{key} events: {np.sum(events[key]['finalWeight']):.2f}")
-
-TOT_BG_EVENTS = 34940902
-TOT_SIG_EVENTS = 2.6
-NUM_SIM_SIG_EVENTS = 223334
+# for key in keys:
+#     print(f"{key} events: {np.sum(events[key]['finalWeight']):.2f}")
+#
+# TOT_BG_EVENTS = 34940902
+# TOT_SIG_EVENTS = 2.6
+# NUM_SIM_SIG_EVENTS = 223334
 
 # sum([np.sum(events[key]['finalWeight']) for key in keys[:num_bg]])
 # np.sum(events[sig]['finalWeight'])
@@ -146,11 +146,8 @@ def load_events(pickles_path: str, num_events: int = 0, preselection: bool = Tru
 # Features to use for BDT
 
 
-def preprocess_events(events: dict, bdtVars: list, test_size: float = 0.3, seed: int = 4, save: bool = True, save_dir: str = ""):
+def preprocess_events(events: dict, bdtVars: list, test_size: float = 0.3, seed: int = 4, save: bool = True, save_dir: str = "", equalize_weights: bool = False):
     """ Preprocess events for training """
-    # NUM_EVENTS = 10000
-    TEST_SIZE = 0.3
-    SEED = 4
 
     # X = np.concatenate([np.concatenate([events[key][var][bdt_presel_cut[key]][:, np.newaxis] for var in bdtVars], axis=1) for key in keys], axis=0)
     # X_Txbb = np.concatenate([events[key]['bbFatJetParticleNetMD_Txbb'][bdt_presel_cut[key]] for key in keys])  # for the final ROC curve
@@ -163,6 +160,14 @@ def preprocess_events(events: dict, bdtVars: list, test_size: float = 0.3, seed:
     Y = np.concatenate((np.concatenate([np.zeros_like(events[key]['weight'][:]) for key in keys[:num_bg]]),
                         np.ones_like(events[sig]['weight'][:])))
     weights = np.concatenate([events[key]['finalWeight'][:] for key in keys])
+
+    if equalize_weights:
+        tot_bg_events = sum([np.sum(events[key]['finalWeight']) for key in keys[:num_bg]])
+        tot_sig_events = np.sum(events[sig]['finalWeight'])
+        bg_over_sig = tot_bg_events / tot_sig_events
+        weights = np.concatenate([np.concatenate([events[key]['finalWeight'] for key in keys[:num_bg]]), events[sig]['finalWeight'] * bg_over_sig])
+    else:
+        weights = np.concatenate([events[key]['finalWeight'][:] for key in keys])
 
     X_train, X_test, X_Txbb_train, X_Txbb_test, y_train, y_test, weights_train, weights_test = train_test_split(X, X_Txbb, Y, weights, test_size=test_size, random_state=seed)
 
