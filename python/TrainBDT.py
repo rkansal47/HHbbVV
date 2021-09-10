@@ -49,9 +49,22 @@ bdtVars = [
     'VVFatJetPtOverbbFatJetPt',
 ]
 
+# Just for checking
+for key in keys:
+    print(f"{key} events: {np.sum(events[key]['finalWeight']):.2f}")
+
+TOT_BG_EVENTS = 34940902
+TOT_SIG_EVENTS = 2.6
+NUM_SIM_SIG_EVENTS = 223334
+
+# sum([np.sum(events[key]['finalWeight']) for key in keys[:num_bg]])
+# np.sum(events[sig]['finalWeight'])
+# len(events[sig]['weight'])
+
+
 
 def main(args):
-    data_path = f'{args.data_dir}/{"all_" if args.num_events <= 0 else args.num_events}_events_{"" if args.preselection else "no_"}preselection_test_size_0{args.test_size * 10:.0f}_seed_{args.seed}'
+    data_path = f'{args.data_dir}/{"all_" if args.num_events <= 0 else args.num_events}_events_{"" if args.preselection else "no_"}preselection_{"equalized_weights_" if args.equalize_weights else ""}test_size_0{args.test_size * 10:.0f}_seed_{args.seed}'
 
     classifier_params = {
         'max_depth': 3,
@@ -179,7 +192,7 @@ def load_training_data(data_path: str):
     return X_train, X_test, X_Txbb_train, X_Txbb_test, y_train, y_test, weights_train, weights_test
 
 
-def train_model(X_train: np.array, X_test: np.array, y_train: np.array, y_test: np.array, model_dir: str, early_stopping_rounds: int = 5, **classifier_params):
+def train_model(X_train: np.array, X_test: np.array, y_train: np.array, y_test: np.array, weights_train: np.array, model_dir: str, early_stopping_rounds: int = 5, use_sample_weights=False, equalize_weights=False, **classifier_params):
     """ Trains BDT. `classifier_params` are hyperparameters for the classifier """
     model = xgb.XGBClassifier(**classifier_params)
     trained_model = model.fit(X_train, y_train, early_stopping_rounds=5, eval_set=[(X_test, y_test)])  # , sample_weight=weights_train)
@@ -228,9 +241,13 @@ if __name__ == "__main__":
 
     parser.add_argument('--data-dir', default="/hhbbvvvol/data/2017_bdt_training", help="directory in which to save model and evaluation output", type=str)
     parser.add_argument('--model-dir', default="./", help="directory in which to save model and evaluation output", type=str)
+    utils.add_bool_arg(parser, "load-data", "Load pre-processed data if done already", default=True)
 
     parser.add_argument('--num-events', default=0, help="Num events per sample to train on - if 0 train on all", type=int)
     utils.add_bool_arg(parser, "preselection", "Apply preselection on events before training", default=True)
+
+    utils.add_bool_arg(parser, "use-sample-weights", "Use properly scaled event weights", default=False)
+    utils.add_bool_arg(parser, "equalize-weights", "Equalise signal and background weights", default=False)
 
     parser.add_argument('--test-size', default=0.3, help="testing/training split", type=float)
     parser.add_argument('--seed', default=4, help="seed for testing/training split", type=int)
@@ -238,4 +255,6 @@ if __name__ == "__main__":
     utils.add_bool_arg(parser, "evaluate-only", "Only evaluation, no training", default=False)
 
     args = parser.parse_args()
+
+    if args.equalize_weights: args.use_sample_weights = True  # sample weights are used before equalizing
     main(args)
