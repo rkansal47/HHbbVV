@@ -51,7 +51,7 @@ bdtVars = [
 
 
 def main(args):
-    data_path = f'{args.data_dir}/{"all_" if args.num_events <= 0 else args.num_events}_events_{"" if args.preselection else "no_"}preselection_test_size_{args.test_size}_seed_{args.seed}'
+    data_path = f'{args.data_dir}/{"all_" if args.num_events <= 0 else args.num_events}_events_{"" if args.preselection else "no_"}preselection_test_size_0{args.test_size * 10:.0f}_seed_{args.seed}'
 
     classifier_params = {
         'max_depth': 3,
