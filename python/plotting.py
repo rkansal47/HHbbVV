@@ -81,3 +81,16 @@ def ratioHistPlot(hists, bg_keys, sig_key, bg_labels=None, sig_label=None, bg_co
 
     hep.cms.label('Preliminary', data=True, lumi=40, year=2017, ax=ax)
     if len(name): plt.savefig(f"{plotdir}{name}.pdf", bbox_inches='tight')
+
+
+def rocCurve(fpr, tpr, title=None, xlim=[0, 0.4], ylim=[1e-6, 1e-2], plotdir="", name=""):
+    """ Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally scaled) with a data/mc ratio plot below """
+    plt.figure(figsize=(12, 12))
+    plt.plot(tpr, fpr)
+    plt.yscale('log')
+    plt.xlabel('Signal Eff.')
+    plt.ylabel('BG Eff.')
+    plt.title(title)
+    plt.xlim(*xlim)
+    plt.ylim(*ylim)
+    plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches='tight')
