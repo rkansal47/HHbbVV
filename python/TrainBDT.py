@@ -226,6 +226,7 @@ def evaluate_model(model: xgb.XGBClassifier, model_dir: str, X_test: np.array, y
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--data-dir', default="/hhbbvvvol/data/2017_bdt_training", help="directory in which to save model and evaluation output", type=str)
     parser.add_argument('--model-dir', default="./", help="directory in which to save model and evaluation output", type=str)
 
     parser.add_argument('--num-events', default=0, help="Num events per sample to train on - if 0 train on all", type=int)
