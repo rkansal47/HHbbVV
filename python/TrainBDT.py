@@ -218,7 +218,7 @@ def evaluate_model(model: xgb.XGBClassifier, model_dir: str, X_test: np.array, y
 
     # sorting by importance
     feature_importance = np.array(list(zip(bdtVars, model.feature_importances_)))[np.argsort(model.feature_importances_)[::-1]]
-    np.savetxt(f"{model_dir}/feature_importance.txt", )
+    np.savetxt(f"{model_dir}/feature_importance.txt", feature_importance)
 
     print("Feature importance")
     for feature, imp in feature_importance:
