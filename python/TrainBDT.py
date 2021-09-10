@@ -82,7 +82,7 @@ def main(args):
         X_train, X_test, X_Txbb_train, X_Txbb_test, y_train, y_test, weights_train, weights_test = load_training_data(data_path)
     else:
         os.system(f'mkdir -p {data_path}')
-        events = load_events(args.pickles_path, num_events=args.num_events, preselection=args.preselection)
+        events = load_events(args.pickles_dir, num_events=args.num_events, preselection=args.preselection)
         X_train, X_test, X_Txbb_train, X_Txbb_test, y_train, y_test, weights_train, weights_test = preprocess_events(events, bdtVars, test_size=args.test_size, seed=args.seed, save=True, save_dir=data_path)
 
     if not args.evaluate_only:
@@ -108,7 +108,7 @@ def load_events(pickles_path: str, num_events: int = 0, preselection: bool = Tru
     for key in keys:
         # if key != sig: continue
         print(key)
-        with open(f'{pickles_path}{key}.pkl', 'rb') as file:
+        with open(f'{pickles_path}/{key}.pkl', 'rb') as file:
             events[key] = pickle.load(file)['skimmed_events']
 
     if num_events > 0:
@@ -251,7 +251,7 @@ def evaluate_model(model: xgb.XGBClassifier, model_dir: str, X_test: np.array, y
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--pickles-path', default="/hhbbvvvol/data/2017_combined", help="event pickles directory", type=str)
+    parser.add_argument('--pickles-dir', default="/hhbbvvvol/data/2017_combined", help="event pickles directory", type=str)
     parser.add_argument('--data-dir', default="/hhbbvvvol/data/2017_bdt_training", help="directory in which to save model and evaluation output", type=str)
     parser.add_argument('--model-dir', default="./", help="directory in which to save model and evaluation output", type=str)
     utils.add_bool_arg(parser, "load-data", "Load pre-processed data if done already", default=True)
