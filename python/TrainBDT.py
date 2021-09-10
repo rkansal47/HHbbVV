@@ -87,7 +87,7 @@ def main(args):
 
     if not args.evaluate_only:
         os.system(f'mkdir -p {args.model_dir}')
-        model = train_model(X_train, X_test, y_train, y_test, weights_train, args.model_dir, **classifier_params)
+        model = train_model(X_train, X_test, y_train, y_test, weights_train, args.model_dir, use_sample_weights=args.use_sample_weights, early_stopping_rounds=args.early_stopping_rounds, **classifier_params)
     else:
         model = xgb.XGBClassifier()
         model.load_model(f'{args.model_dir}/trained_bdt.model')
@@ -203,11 +203,11 @@ def load_training_data(data_path: str):
     return X_train, X_test, X_Txbb_train, X_Txbb_test, y_train, y_test, weights_train, weights_test
 
 
-def train_model(X_train: np.array, X_test: np.array, y_train: np.array, y_test: np.array, weights_train: np.array, model_dir: str, early_stopping_rounds: int = 5, use_sample_weights=False, equalize_weights=False, **classifier_params):
+def train_model(X_train: np.array, X_test: np.array, y_train: np.array, y_test: np.array, weights_train: np.array, model_dir: str, use_sample_weights: bool = False, early_stopping_rounds: int = 5, **classifier_params):
     """ Trains BDT. `classifier_params` are hyperparameters for the classifier """
     print("Training model")
     model = xgb.XGBClassifier(**classifier_params)
-    trained_model = model.fit(X_train, y_train, early_stopping_rounds=5, eval_set=[(X_test, y_test)])  # , sample_weight=weights_train)
+    trained_model = model.fit(X_train, y_train, early_stopping_rounds=5, eval_set=[(X_test, y_test)], sample_weight=weights_train if use_sample_weights else None)
     trained_model.save_model(f'{model_dir}/trained_bdt.model')
     return model
 
@@ -262,6 +262,7 @@ if __name__ == "__main__":
     utils.add_bool_arg(parser, "use-sample-weights", "Use properly scaled event weights", default=False)
     utils.add_bool_arg(parser, "equalize-weights", "Equalise signal and background weights", default=False)
 
+    parser.add_argument('--early-stopping-rounds', default=5, help="early stopping rounds", type=int)
     parser.add_argument('--test-size', default=0.3, help="testing/training split", type=float)
     parser.add_argument('--seed', default=4, help="seed for testing/training split", type=int)
 
