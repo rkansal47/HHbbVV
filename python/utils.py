@@ -1,5 +1,6 @@
 import vector
 from hist import Hist
+import numpy as np
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):

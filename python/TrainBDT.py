@@ -49,6 +49,7 @@ bdtVars = [
     'VVFatJetPtOverbbFatJetPt',
 ]
 
+
 # Just for checking
 # for key in keys:
 #     print(f"{key} events: {np.sum(events[key]['finalWeight']):.2f}")
@@ -60,7 +61,6 @@ bdtVars = [
 # sum([np.sum(events[key]['finalWeight']) for key in keys[:num_bg]])
 # np.sum(events[sig]['finalWeight'])
 # len(events[sig]['weight'])
-
 
 
 def main(args):
@@ -118,7 +118,7 @@ def load_events(pickles_path: str, num_events: int = 0, preselection: bool = Tru
 
     if preselection:
         for key in keys:
-            cut = (events[key]['bbFatJetParticleNetMD_Txbb'] > 0.8) * (events[key]['bbFatJetMsd'] > 50) * (events[key]['bbFatJetMsd'] > 50)
+            cut = (events[key]['bbFatJetParticleNetMD_Txbb'] > 0.8) * (events[key]['bbFatJetMsd'] > 50) * (events[key]['VVFatJetMsd'] > 50)
             for var in events[key].keys():
                 events[key][var] = events[key][var][cut]
 
@@ -128,17 +128,49 @@ def load_events(pickles_path: str, num_events: int = 0, preselection: bool = Tru
 
     return events
 
-
+#
+# events = load_events('../../data/2017_combined/', preselection=False)
+#
 # bdt_presel_cut = {}
 #
 # for key in keys:
-#     bdt_presel_cut[key] = (events[key]['bbFatJetParticleNetMD_Txbb'] > 0.8) * (events[key]['bbFatJetMsd'] > 50) * (events[key]['bbFatJetMsd'] > 50)
+#     bdt_presel_cut[key] = (events[key]['bbFatJetPt'] > 250) * (events[key]['VVFatJetPt'] > 250) * (events[key]['bbFatJetParticleNetMD_Txbb'] > 0.8) * (events[key]['bbFatJetMsd'] > 50) * (events[key]['VVFatJetMsd'] > 50)
 #
 # # Just for checking
 # print("Post bdt preselection")
 # for key in keys:
 #     print(f"{key} events: {np.sum(events[key]['finalWeight'][bdt_presel_cut[key]]):.2f}")
-# # For checking again 4b AN
+#
+#
+# import pickle
+# from coffea.lookup_tools.dense_lookup import dense_lookup
+#
+# with open('../corrections/trigEffs/AK8JetHTTriggerEfficiency_2017.hist', 'rb') as filehandler:
+#     ak8TrigEffs = pickle.load(filehandler)
+#
+# ak8TrigEffsLookup = dense_lookup(np.nan_to_num(ak8TrigEffs.view(flow=False), 0), np.squeeze(ak8TrigEffs.axes.edges))
+#
+# for key in keys:
+#     if key == 'Data':
+#         events[key]['finalWeight'] = events[key]['weight']
+#     else:
+#         fj1_trigEffs = ak8TrigEffsLookup(events[key]['ak8FatJetPt'][:, 0], events[key]['ak8FatJetMsd'][:, 0])
+#         fj2_trigEffs = ak8TrigEffsLookup(events[key]['ak8FatJetPt'][:, 1], events[key]['ak8FatJetMsd'][:, 1])
+#         combined_trigEffs = 1 - (1 - fj1_trigEffs) * (1 - fj2_trigEffs)
+#         events[key]['final4bWeight'] = events[key]['weight'] * combined_trigEffs
+#
+# with open('../../data/2017_combined/data.pkl', 'rb') as file:
+#     data = pickle.load(file)['skimmed_events']
+#
+# events['Data'] = data
+#
+# QCD_SCALE_FACTOR =  (np.sum(data['weight']) - np.sum(events['Top']['final4bWeight']) - np.sum(events['V']['final4bWeight'])) / (np.sum(events['QCD']['final4bWeight']))
+# events['QCD']['final4bWeight'] *= QCD_SCALE_FACTOR
+#
+# for key in keys:
+#     print(f"Final {key} events: {np.sum(events[key]['final4bWeight']):.2f}")
+#
+# # For checking against 4b AN
 # bbbb_presel_cut = {}
 #
 # for key in keys:
@@ -146,8 +178,75 @@ def load_events(pickles_path: str, num_events: int = 0, preselection: bool = Tru
 #
 # print("Post 4b preselection")
 # for key in keys:
-#     print(f"{key} events: {np.sum(events[key]['finalWeight'][bbbb_presel_cut[key]]):.2f}")
-# Features to use for BDT
+#     print(f"{key} events: {np.sum(events[key]['final4bWeight'][bbbb_presel_cut[key]]):.2f}")
+#
+#
+# # For checking against 4b AN
+# bbbb_presel_mass_cut = {}
+#
+# for key in keys:
+#     bbbb_presel_mass_cut[key] =  (
+#                                 (events[key]['ak8FatJetPt'][:, 0] > 300) *
+#                                 (events[key]['ak8FatJetPt'][:, 1] > 300) *
+#                                 (events[key]['ak8FatJetMsd'][:, 0] > 50) *
+#                                 (events[key]['ak8FatJetMsd'][:, 1] > 110) *
+#                                 (events[key]['ak8FatJetMsd'][:, 1] < 140) *
+#                                 (events[key]['ak8FatJetParticleNetMD_Txbb'][:, 0] > 0.8)
+#                             )
+#
+# print("Post 4b preselection")
+# for key in keys:
+#     if key == 'Data': print(f"{key} events: {np.sum(events[key]['weight'][bbbb_presel_mass_cut[key]]):.2f}")
+#     else: print(f"{key} events: {np.sum(events[key]['final4bWeight'][bbbb_presel_mass_cut[key]]):.2f}")
+#
+#
+# cut_based_sel = {}
+#
+# for key in keys:
+#     cut_based_sel[key] =   (
+#                                 (events[key]['bbFatJetPt'] > 250) *
+#                                 (events[key]['VVFatJetPt'] > 250) *
+#                                 (events[key]['bbFatJetParticleNetMD_Txbb'] > 0.95) *
+#                                 (events[key]['VVFatJetParticleNet_Th4q'] > 0.95) *
+#                                 (50 < events[key]['bbFatJetMsd']) *
+#                                 # (100 < events[key]['bbFatJetMsd']) *
+#                                 # (events[key]['bbFatJetMsd'] < 150) *
+#                                 (110 < events[key]['VVFatJetMsd']) *
+#                                 (events[key]['VVFatJetMsd'] < 150)
+#                             )
+#
+# keys = ['V', 'Top', 'QCD', 'Data', 'HHbbVV4q']
+#
+# # Just for checking
+# print("Post cut based sel")
+# for key in keys:
+#     print(f"{key} events: {np.sum(events[key]['finalWeight'][cut_based_sel[key]]):.2f}")
+#
+#
+# preselection_mass = {}
+#
+# for key in keys:
+#     preselection_mass[key] =   (
+#                                 # (events[key]['bbFatJetPt'] > 250) *
+#                                 # (events[key]['VVFatJetPt'] > 250) *
+#                                 (events[key]['bbFatJetParticleNetMD_Txbb'] > 0.8) *
+#                                 # (events[key]['VVFatJetParticleNet_Th4q'] > 0.95) *
+#                                 # (50 < events[key]['bbFatJetMsd']) *
+#                                 (100 < events[key]['bbFatJetMsd']) *
+#                                 (events[key]['bbFatJetMsd'] < 150) *
+#                                 (50 < events[key]['VVFatJetMsd'])
+#                                 # (events[key]['VVFatJetMsd'] < 150)
+#                             )
+#
+# # Just for checking
+# print("Post cut based sel")
+# for key in keys:
+#     print(f"{key} events: {np.sum(events[key]['finalWeight'][preselection_mass[key]]):.2f}")
+#
+#
+# events.keys()
+#
+
 
 
 def preprocess_events(events: dict, bdtVars: list, test_size: float = 0.3, seed: int = 4, save: bool = True, save_dir: str = "", equalize_weights: bool = False):
@@ -240,7 +339,7 @@ def evaluate_model(model: xgb.XGBClassifier, model_dir: str, X_test: np.array, X
         fpr_txbb_threshold[np.argmin(np.abs(tpr_txbb_threshold - 0.15))]
         thresholds_txbb_threshold[np.argmin(np.abs(tpr_txbb_threshold - 0.15))]
 
-        plotting.rocCurve(fpr_txbb_threshold, tpr_txbb_threshold, title=f"ROC Curve after Txbb {txbb_threshold} Cut", plotdir=model_dir, name="bdtroccurve_txbb_cut")
+        plotting.rocCurve(fpr_txbb_threshold, tpr_txbb_threshold, title=f"ROC Curve Including Txbb {txbb_threshold} Cut", plotdir=model_dir, name="bdtroccurve_txbb_cut")
 
         np.savetxt(f"{model_dir}/fpr_txbb_threshold.txt", fpr_txbb_threshold)
         np.savetxt(f"{model_dir}/tpr_txbb_threshold.txt", tpr_txbb_threshold)
