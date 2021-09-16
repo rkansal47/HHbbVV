@@ -350,6 +350,7 @@ def evaluate_model(
     txbb_threshold: float = 0.98,
 ):
     """ """
+    print("Evaluating model")
     preds = model.predict_proba(X_test)
 
     # sorting by importance
@@ -395,6 +396,7 @@ def do_inference(
     X_full: np.array,
 ):
     """ """
+    print("Running inference")
     preds = model.predict_proba(X_full)
 
     print(preds)
@@ -425,7 +427,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", default=4, help="seed for testing/training split", type=int)
 
     utils.add_bool_arg(parser, "evaluate-only", "Only evaluation, no training", default=False)
-    utils.add_bool_arg(parser, "inerence-only", "Only inference, no training", default=False)
+    utils.add_bool_arg(parser, "inference-only", "Only inference, no training", default=False)
 
     args = parser.parse_args()
 
