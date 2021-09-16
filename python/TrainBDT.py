@@ -72,11 +72,12 @@ def main(args):
         X_full, X_train, X_test, X_Txbb_train, X_Txbb_test, y_train, y_test, weights_train, weights_test = load_training_data(data_path)
     else:
         os.system(f"mkdir -p {data_path}")
-        events = load_events(args.pickles_dir, num_events=args.num_events, preselection=args.preselection)
+        events = load_events(args.pickles_dir, num_events=args.num_events, preselection=args.preselection, keys=utils.getAllKeys())
         X_train, X_test, X_Txbb_train, X_Txbb_test, y_train, y_test, weights_train, weights_test = preprocess_events(
             events, bdtVars, test_size=args.test_size, seed=args.seed, save=args.save_data, save_dir=data_path
         )
         X_full = preprocess_events(events, bdtVars, ret_X_only=True, keys=utils.getAllKeys(), save=args.save_data, save_dir=data_path)  # for inference
+        del(events)
 
     if args.evaluate_only or args.inference_only:
         model = xgb.XGBClassifier()
@@ -102,7 +103,7 @@ def main(args):
         do_inference(model, args.model_dir, X_full)
 
 
-def load_events(pickles_path: str, num_events: int = 0, preselection: bool = True):
+def load_events(pickles_path: str, num_events: int = 0, preselection: bool = True, keys: list = keys):
     """
     Loads events from pickles.
     If `num_events` > 0, only returns `num_events` entries for each sample.
