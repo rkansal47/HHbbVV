@@ -8,6 +8,8 @@
 !processors
 !processors/*.py
 !processors/*.pkl
+!processors/tagger_resources
+!processors/tagger_resources/**
 processors/*test*
 !condor
 !condor/*
@@ -32,5 +34,6 @@ plots/ControlPlots/*
 python/data
 python/*test*
 python/*Test*
+!.gitignore
 **/.ipynb_checkpoints
 .DS_Store

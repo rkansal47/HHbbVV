@@ -148,6 +148,8 @@ def get_svs_features(tagger_vars: dict, preselected_events: NanoEventsArray, jet
 
 
 def runInference(tagger_resources_path: str, events: NanoEventsArray) -> dict:
+    total_start = time.time()
+
     with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
         tagger_vars = json.load(f)
 
@@ -201,4 +203,5 @@ def runInference(tagger_resources_path: str, events: NanoEventsArray) -> dict:
         for key in pnet_vars_list[0]
     }
 
+    print(f"Total time taken: {time.time() - total_start}s")
     return pnet_vars_combined
