@@ -1,5 +1,9 @@
 # HHbbVV
 
+## Instructions for running coffea processors
+
+General note: Coffea-casa is faster and more convenient, however still somewhat experimental so for large of inputs and/or processors which may require heavier cpu/memory usage (e.g. bbVVSkimmer) condor is recommended.
+
 ### For [coffea-casa](https://coffea-casa.readthedocs.io/en/latest/cc_user.html):
 1. after following instructions ^ set up an account, open the coffea-casa GUI (https://cmsaf-jh.unl.edu) and create an image
 2. open `runCoffeaCasa.ipynb` 
