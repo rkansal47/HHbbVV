@@ -223,7 +223,7 @@ def make_selection(
 
         if s in selection:
             new_selection = PackedSelection()
-            add_selection("Previous selection", selection[s], new_selection, cutflow, evts, weight_key)
+            new_selection.add("Previous selection", selection[s])
             selection[s] = new_selection
         else:
             selection[s] = PackedSelection()
@@ -254,21 +254,21 @@ def make_selection(
     return selection, cutflow
 
 
-def getSigSidebandBGYields(mass_key: str, mass_cuts: list, events: dict, weight_key: str = "finalWeight", prev_selection: dict = None):
+def getSigSidebandBGYields(mass_key: str, mass_cuts: list, events: dict, weight_key: str = "finalWeight", selection: dict = None):
     """Get signal and background yields in the `mass_cuts` range ([mass_cuts[0], mass_cuts[1]]), using the data in the sideband regions as the bg estimate"""
     sig_mass = events[sig_key][mass_key]
     sig_weight = events[sig_key][weight_key]
 
-    if prev_selection is not None:
-        sig_mass = sig_mass[prev_selection[sig_key]]
-        sig_weight = sig_weight[prev_selection[sig_key]]
+    if selection is not None:
+        sig_mass = sig_mass[selection[sig_key]]
+        sig_weight = sig_weight[selection[sig_key]]
 
     data_mass = events[data_key][mass_key]
     data_weight = events[data_key][weight_key]
 
-    if prev_selection is not None:
-        data_mass = data_mass[prev_selection[data_key]]
-        data_weight = data_weight[prev_selection[data_key]]
+    if selection is not None:
+        data_mass = data_mass[selection[data_key]]
+        data_weight = data_weight[selection[data_key]]
 
     sig_cut = (sig_mass > mass_cuts[0]) * (sig_mass < mass_cuts[1])
     sig_yield = np.sum(sig_weight[sig_cut])
