@@ -8,6 +8,8 @@
 !processors
 !processors/*.py
 !processors/*.pkl
+!processors/tagger_resources
+!processors/tagger_resources/**
 processors/*test*
 !condor
 !condor/*
@@ -25,11 +27,13 @@ outPickles/*skimmed*
 !corrections/*/**
 !plots
 !plots/**
-plots/ControlPlots
+plots/ControlPlots/*
+!plots/ControlPlots/Sep3
 !python
 !python/*.py
 python/data
 python/*test*
 python/*Test*
+!.gitignore
 **/.ipynb_checkpoints
 .DS_Store
