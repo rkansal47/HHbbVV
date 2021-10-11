@@ -403,7 +403,7 @@ def do_inference(
     print(preds)
     print(preds.shape)
 
-    np.savetxt(f"{model_dir}/preds.txt", preds)
+    np.save(f"{model_dir}/preds.npy", preds)
 
 
 if __name__ == "__main__":
