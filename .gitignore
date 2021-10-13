@@ -34,6 +34,7 @@ plots/ControlPlots/*
 python/data
 python/*test*
 python/*Test*
+*test*.py
 !.gitignore
 **/.ipynb_checkpoints
 .DS_Store
