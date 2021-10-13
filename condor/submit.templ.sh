@@ -7,6 +7,7 @@
 mkdir outfiles
 
 # run code
+conda install -c conda-forge onnxruntime 
 python SCRIPTNAME --year YEAR --starti STARTNUM --endi ENDNUM --samples SAMPLE --processor PROCESSOR --condor
 
 #move output to eos

@@ -110,14 +110,14 @@ def main(args):
             "savemetrics": True,
             # 'schema': BaseSchema,
             "schema": nanoevents.NanoAODSchema,
-            "retries": 1,
+            # "retries": 1,
         }
 
         out, metrics = processor.run_uproot_job(
             {key: fileset[key] for key in args.samples},
             treename="Events",
             processor_instance=p,
-            executor=processor.futures_executor,
+            executor=processor.iterative_executor,
             executor_args=exe_args,
             chunksize=10000,
         )
