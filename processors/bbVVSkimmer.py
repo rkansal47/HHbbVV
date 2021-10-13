@@ -15,7 +15,7 @@ import pathlib
 import pickle
 import gzip
 
-from TaggerInference import runInference
+# from .TaggerInference import runInference
 
 
 class bbVVSkimmer(ProcessorABC):
@@ -129,6 +129,8 @@ class bbVVSkimmer(ProcessorABC):
 
     def process(self, events):
         """Returns skimmed events which pass preselection cuts (and triggers if data) and with the branches listed in self.skim_vars"""
+
+        print("processing")
 
         year = events.metadata["dataset"][:4]
         dataset = events.metadata["dataset"][5:]
@@ -257,10 +259,15 @@ class bbVVSkimmer(ProcessorABC):
         }
 
         # apply HWW4q tagger
+        print("pre-inference")
 
-        pnet_vars = runInference(
-            self.tagger_resources_path, events[selection.all(*selection.names)]
-        )
+        # pnet_vars = runInference(
+        #     self.tagger_resources_path, events[selection.all(*selection.names)]
+        # )
+
+        pnet_vars = {}
+        
+        print("post-inference")
 
         skimmed_events = {
             **skimmed_events,
