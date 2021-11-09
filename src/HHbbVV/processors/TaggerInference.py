@@ -158,7 +158,12 @@ def runInferenceOnnx(tagger_resources_path: str, events: NanoEventsArray) -> dic
     with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
         tagger_vars = json.load(f)
 
-    tagger_session = ort.InferenceSession(f"{tagger_resources_path}/pnetmd_ak15_hww4q_model.onnx")
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = 1 
+    opts.inter_op_num_threads = 1 
+    opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+
+    tagger_session = ort.InferenceSession(f"{tagger_resources_path}/pnetmd_ak15_hww4q_model.onnx", sess_options=opts)
 
     # prepare inputs for both fat jets
     tagger_inputs = []
