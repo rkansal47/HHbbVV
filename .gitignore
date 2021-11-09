@@ -8,6 +8,8 @@
 !*.pickle
 !src
 src/*
+!src/*.py
+!src/*.ipynb
 !src/HHbbVV
 !src/HHbbVV/processors
 !src/HHbbVV/processors/*.py
