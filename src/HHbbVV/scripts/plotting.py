@@ -12,7 +12,19 @@ bg_colours = ["lightblue", "orange", "darkblue"]
 sig_colour = "red"
 
 
-def singleHistPlot(data, weights=None, bins=None, xlabel="", ylabel="# Events", title="", plotdir="", name="", xlim=None, ylim=None, **histkwargs):
+def singleHistPlot(
+    data,
+    weights=None,
+    bins=None,
+    xlabel="",
+    ylabel="# Events",
+    title="",
+    plotdir="",
+    name="",
+    xlim=None,
+    ylim=None,
+    **histkwargs,
+):
     """Makes and saves a single histogram plot"""
     plt.figure(figsize=(12, 12))
     plt.hist(data.reshape(-1), bins=bins, weights=weights, histtype="step", **histkwargs)
@@ -25,11 +37,29 @@ def singleHistPlot(data, weights=None, bins=None, xlabel="", ylabel="# Events", 
         plt.savefig(f"{plotdir}{name}.pdf", bbox_inches="tight")
 
 
-def multiHistPlot(data, labels, weights=None, bins=None, xlabel="", ylabel="# Events", title="", plotdir="", name="", xlim=None, ylim=None):
+def multiHistPlot(
+    data,
+    labels,
+    weights=None,
+    bins=None,
+    xlabel="",
+    ylabel="# Events",
+    title="",
+    plotdir="",
+    name="",
+    xlim=None,
+    ylim=None,
+):
     """Makes and saves a plot with multiple histograms, `data` is a list of data to plot"""
     plt.figure(figsize=(12, 12))
     for i in range(len(data)):
-        plt.hist(data[i].reshape(-1), bins=bins, weights=weights[i] if type(weights) == list else weights, histtype="step", label=labels[i])
+        plt.hist(
+            data[i].reshape(-1),
+            bins=bins,
+            weights=weights[i] if type(weights) == list else weights,
+            histtype="step",
+            label=labels[i],
+        )
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.title(title)
@@ -40,8 +70,24 @@ def multiHistPlot(data, labels, weights=None, bins=None, xlabel="", ylabel="# Ev
         plt.savefig(f"{plotdir}{name}.pdf", bbox_inches="tight")
 
 
-def multiHistCutsPlot(data, cuts, labels, weights=None, bins=None, xlabel="", ylabel="# Events", title="", plotdir="", name="", xlim=None, ylim=None):
-    """Makes and saves a plot with multiple histograms, all from the same data array but with different labels and cuts. None cut means all data is plotted"""
+def multiHistCutsPlot(
+    data,
+    cuts,
+    labels,
+    weights=None,
+    bins=None,
+    xlabel="",
+    ylabel="# Events",
+    title="",
+    plotdir="",
+    name="",
+    xlim=None,
+    ylim=None,
+):
+    """
+    Makes and saves a plot with multiple histograms, all from the same data array but with
+    different labels and cuts. None cut means all data is plotted
+    """
     plt.figure(figsize=(12, 12))
     for i in range(len(cuts)):
         plt.hist(
@@ -79,15 +125,25 @@ def ratioHistPlot(
     name: str = "",
     sig_scale: float = 1.0,
 ):
-    """Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally scaled) with a data/mc ratio plot below"""
+    """
+    Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
+    scaled) with a data/mc ratio plot below
+    """
     if sig_label is None:
         sig_label = sig_key
 
-    fig, (ax, rax) = plt.subplots(2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True)
+    fig, (ax, rax) = plt.subplots(
+        2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
+    )
 
     ax.set_ylabel("Events")
     hep.histplot(
-        [hists[key, :] for key in bg_keys], ax=ax, histtype="fill", stack=True, label=bg_labels, color=[colours[colour] for colour in bg_colours]
+        [hists[key, :] for key in bg_keys],
+        ax=ax,
+        histtype="fill",
+        stack=True,
+        label=bg_labels,
+        color=[colours[colour] for colour in bg_colours],
     )
     hep.histplot(
         hists[sig_key, :] * sig_scale,
@@ -102,7 +158,9 @@ def ratioHistPlot(
 
     bg_tot = sum([hists[key, :] for key in bg_keys])
     yerr = ratio_uncertainty(hists["Data", :].values(), bg_tot.values(), "poisson")
-    hep.histplot(hists["Data", :] / bg_tot, yerr=yerr, ax=rax, histtype="errorbar", color="black", capsize=4)
+    hep.histplot(
+        hists["Data", :] / bg_tot, yerr=yerr, ax=rax, histtype="errorbar", color="black", capsize=4
+    )
     rax.set_ylabel("Data/MC")
     rax.grid()
 
@@ -112,7 +170,7 @@ def ratioHistPlot(
 
 
 def rocCurve(fpr, tpr, title=None, xlim=[0, 0.4], ylim=[1e-6, 1e-2], plotdir="", name=""):
-    """Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally scaled) with a data/mc ratio plot below"""
+    """Plots a ROC curve"""
     plt.figure(figsize=(12, 12))
     plt.plot(tpr, fpr)
     plt.yscale("log")
