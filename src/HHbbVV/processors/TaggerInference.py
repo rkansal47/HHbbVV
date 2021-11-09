@@ -1,3 +1,5 @@
+from typing import Optional, List
+
 import numpy as np
 import awkward as ak
 from coffea.nanoevents.methods.base import NanoEventsArray
@@ -6,6 +8,9 @@ import json
 import onnxruntime as ort
 
 import time
+
+import tritonclient.grpc as triton_grpc
+import tritonclient.http as triton_http
 
 
 def get_pfcands_features(
@@ -147,7 +152,7 @@ def get_svs_features(tagger_vars: dict, preselected_events: NanoEventsArray, jet
     return feature_dict
 
 
-def runInference(tagger_resources_path: str, events: NanoEventsArray) -> dict:
+def runInferenceOnnx(tagger_resources_path: str, events: NanoEventsArray) -> dict:
     total_start = time.time()
 
     with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
@@ -182,6 +187,140 @@ def runInference(tagger_resources_path: str, events: NanoEventsArray) -> dict:
         print(f"Running inference for Jet {jet_idx + 1}")
         start = time.time()
         tagger_outputs.append(tagger_session.run(None, tagger_inputs[jet_idx])[0])
+        time_taken = time.time() - start
+        print(f"Inference took {time_taken}s")
+
+    pnet_vars_list = []
+    for jet_idx in range(2):
+        pnet_vars_list.append(
+            {
+                "ak15FatJetParticleNetHWWMD_probQCD": tagger_outputs[jet_idx][:, 3],
+                "ak15FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, 0],
+                "ak15FatJetParticleNetHWWMD_THWW4q": tagger_outputs[jet_idx][:, 0]
+                / (tagger_outputs[jet_idx][:, 0] + tagger_outputs[jet_idx][:, 3]),
+            }
+        )
+
+    pnet_vars_combined = {
+        key: np.concatenate(
+            [pnet_vars_list[0][key][:, np.newaxis], pnet_vars_list[1][key][:, np.newaxis]], axis=1
+        )
+        for key in pnet_vars_list[0]
+    }
+
+    print(f"Total time taken: {time.time() - total_start}s")
+    return pnet_vars_combined
+
+
+# from https://github.com/lgray/hgg-coffea/blob/triton-bdts/src/hgg_coffea/tools/chained_quantile.py
+class wrapped_triton:
+    def __init__(
+        self,
+        model_url: str,
+        scale: Optional[float],
+        center: Optional[float],
+        variables: Optional[List[str]],
+    ) -> None:
+        fullprotocol, location = model_url.split("://")
+        _, protocol = fullprotocol.split("+")
+        address, model, version = location.split("/")
+
+        self._protocol = protocol
+        self._address = address
+        self._model = model
+        self._version = version
+
+        self._scale = scale
+        self._center = center
+        self._variables = variables
+
+    def __call__(self, array: np.ndarray) -> np.ndarray:
+        if self._protocol == "grpc":
+            client = triton_grpc.InferenceServerClient(url=self._address, verbose=False)
+        elif self._protocol == "http":
+            client = triton_http.InferenceServerClient(
+                url=self._address,
+                verbose=False,
+                concurrency=12,
+            )
+        else:
+            raise ValueError(f"{self._protocol} does not encode a valid protocol (grpc or http)")
+
+        if isinstance(client, triton_grpc.InferenceServerClient):
+            triton_input = triton_grpc.InferInput(
+                "input__0", (array.shape[0], array.shape[1]), "FP32"
+            )
+            triton_input.set_data_from_numpy(array)
+            triton_output = triton_grpc.InferRequestedOutput("output__0")
+        else:  # it is assured to be http
+            triton_input = triton_http.InferInput(
+                "input__0", (array.shape[0], array.shape[1]), "FP32"
+            )
+            triton_input.set_data_from_numpy(array, binary_data=True)
+            triton_output = triton_http.InferRequestedOutput("output__0", binary_data=True)
+
+        request = client.infer(
+            self._model,
+            model_version=self._version,
+            inputs=[triton_input],
+            outputs=[triton_output],
+        )
+
+        out = request.as_numpy("output__0")
+
+        return out * (self._scale or 1.0) + (self._center or 0.0)
+
+    @property
+    def scale(self) -> Optional[float]:
+        return self._scale
+
+    @property
+    def center(self) -> Optional[float]:
+        return self._center
+
+    @property
+    def variables(self) -> Optional[List[str]]:
+        return self._variables
+
+
+def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> dict:
+    total_start = time.time()
+
+    with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
+        tagger_vars = json.load(f)
+
+    with open(f"{tagger_resources_path}/triton_config.json") as f:
+        triton_config = json.load(f)
+
+    triton_model = wrapped_triton(triton_config.model_url)
+
+    # prepare inputs for both fat jets
+    tagger_inputs = []
+    for jet_idx in range(2):
+        feature_dict = {
+            **get_pfcands_features(tagger_vars, events, jet_idx),
+            **get_svs_features(tagger_vars, events, jet_idx),
+        }
+
+        tagger_inputs.append(
+            {
+                input_name: np.concatenate(
+                    [
+                        np.expand_dims(feature_dict[key], 1)
+                        for key in tagger_vars[input_name]["var_names"]
+                    ],
+                    axis=1,
+                )
+                for input_name in tagger_vars["input_names"]
+            }
+        )
+
+    # run inference for both fat jets
+    tagger_outputs = []
+    for jet_idx in range(2):
+        print(f"Running inference for Jet {jet_idx + 1}")
+        start = time.time()
+        tagger_outputs.append(triton_model(tagger_inputs[jet_idx]))
         time_taken = time.time() - start
         print(f"Inference took {time_taken}s")
 
