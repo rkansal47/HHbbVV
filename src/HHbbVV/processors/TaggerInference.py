@@ -9,8 +9,8 @@ import onnxruntime as ort
 
 import time
 
-import tritonclient.grpc as triton_grpc
-import tritonclient.http as triton_http
+# import tritonclient.grpc as triton_grpc
+# import tritonclient.http as triton_http
 
 
 def get_pfcands_features(

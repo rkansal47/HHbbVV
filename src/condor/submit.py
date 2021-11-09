@@ -81,7 +81,7 @@ def main(args):
 
         for j in range(njobs):
             if args.test and j == 2: break
-            condor_templ_file = open("condor/submit.templ.jdl")
+            condor_templ_file = open("src/condor/submit.templ.jdl")
 
             localcondor = f'{locdir}/{sample}_{j}.jdl'
             condor_file = open(localcondor, "w")
@@ -95,7 +95,7 @@ def main(args):
             condor_templ_file.close()
 
 
-            sh_templ_file = open("condor/submit.templ.sh")
+            sh_templ_file = open("src/condor/submit.templ.sh")
 
             localsh = f'{locdir}/{sample}_{j}.sh'
             eosoutput = f'root://cmseos.fnal.gov/{outdir}/{sample}/out_{j}.pkl'
