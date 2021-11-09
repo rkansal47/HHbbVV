@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 import numpy as np
 import awkward as ak
@@ -15,7 +15,11 @@ import tritonclient.http as triton_http
 
 def get_pfcands_features(
     tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int
-) -> dict:
+) -> Dict[str, np.ndarray]:
+    """
+    Extracts the pf_candidate features specified in the ``tagger_vars`` dict from the
+    ``preselected_events`` and returns them as a dict of numpy arrays
+    """
     feature_dict = {}
 
     jet = preselected_events.FatJetAK15[:, jet_idx]
@@ -94,6 +98,10 @@ def get_pfcands_features(
 
 
 def get_svs_features(tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int) -> dict:
+    """
+    Extracts the sv features specified in the ``tagger_vars`` dict from the
+    ``preselected_events`` and returns them as a dict of numpy arrays
+    """
     feature_dict = {}
 
     jet = preselected_events.FatJetAK15[:, jet_idx]
@@ -159,11 +167,13 @@ def runInferenceOnnx(tagger_resources_path: str, events: NanoEventsArray) -> dic
         tagger_vars = json.load(f)
 
     opts = ort.SessionOptions()
-    opts.intra_op_num_threads = 1 
-    opts.inter_op_num_threads = 1 
+    opts.intra_op_num_threads = 1
+    opts.inter_op_num_threads = 1
     opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
 
-    tagger_session = ort.InferenceSession(f"{tagger_resources_path}/pnetmd_ak15_hww4q_model.onnx", sess_options=opts)
+    tagger_session = ort.InferenceSession(
+        f"{tagger_resources_path}/pnetmd_ak15_hww4q_model.onnx", sess_options=opts
+    )
 
     # prepare inputs for both fat jets
     tagger_inputs = []
@@ -222,9 +232,6 @@ class wrapped_triton:
     def __init__(
         self,
         model_url: str,
-        scale: Optional[float],
-        center: Optional[float],
-        variables: Optional[List[str]],
     ) -> None:
         fullprotocol, location = model_url.split("://")
         _, protocol = fullprotocol.split("+")
@@ -235,57 +242,40 @@ class wrapped_triton:
         self._model = model
         self._version = version
 
-        self._scale = scale
-        self._center = center
-        self._variables = variables
-
-    def __call__(self, array: np.ndarray) -> np.ndarray:
+    def __call__(self, input_dict: Dict[str, np.ndarray]) -> np.ndarray:
         if self._protocol == "grpc":
             client = triton_grpc.InferenceServerClient(url=self._address, verbose=False)
+            triton_protocol = triton_grpc
         elif self._protocol == "http":
             client = triton_http.InferenceServerClient(
                 url=self._address,
                 verbose=False,
                 concurrency=12,
             )
+            triton_protocol = triton_http
         else:
             raise ValueError(f"{self._protocol} does not encode a valid protocol (grpc or http)")
 
-        if isinstance(client, triton_grpc.InferenceServerClient):
-            triton_input = triton_grpc.InferInput(
-                "input__0", (array.shape[0], array.shape[1]), "FP32"
-            )
-            triton_input.set_data_from_numpy(array)
-            triton_output = triton_grpc.InferRequestedOutput("output__0")
-        else:  # it is assured to be http
-            triton_input = triton_http.InferInput(
-                "input__0", (array.shape[0], array.shape[1]), "FP32"
-            )
-            triton_input.set_data_from_numpy(array, binary_data=True)
-            triton_output = triton_http.InferRequestedOutput("output__0", binary_data=True)
+        # Infer
+        inputs = []
+
+        for key in input_dict:
+            input = triton_protocol.InferInput(key, input_dict[key].shape, "FP32")
+            input.set_data_from_numpy(input_dict[key])
+            inputs.append(input)
+
+        output = triton_protocol.InferRequestedOutput("softmax")
 
         request = client.infer(
             self._model,
             model_version=self._version,
-            inputs=[triton_input],
-            outputs=[triton_output],
+            inputs=inputs,
+            outputs=[output],
         )
 
-        out = request.as_numpy("output__0")
+        out = request.as_numpy("softmax")
 
-        return out * (self._scale or 1.0) + (self._center or 0.0)
-
-    @property
-    def scale(self) -> Optional[float]:
-        return self._scale
-
-    @property
-    def center(self) -> Optional[float]:
-        return self._center
-
-    @property
-    def variables(self) -> Optional[List[str]]:
-        return self._variables
+        return out
 
 
 def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> dict:

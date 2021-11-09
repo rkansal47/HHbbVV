@@ -1,3 +1,3 @@
 {
-  model_url: ""
+  model_url: "triton+grpc://ailab01.fnal.gov:8001/particlenet_hww/1"
 }
