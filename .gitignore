@@ -1,6 +1,5 @@
 *
 !*.py
-*test*.py
 */*
 */*/**
 !*.py
@@ -44,4 +43,5 @@ src/HHbbVV/scripts/*Test*
 **/.ipynb_checkpoints
 !LICENSE
 !*.md
+*test*.py
 .DS_Store

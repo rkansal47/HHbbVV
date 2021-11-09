@@ -156,6 +156,7 @@ def main(args):
             processor_instance=p,
             executor=processor.dask_executor,
             executor_args=exe_args,
+            chunksize=1000
             #    maxchunks=10
         )
 
