@@ -28,9 +28,9 @@ outPickles/*skimmed*
 !data/*.txt
 !data/**
 !data/**/*.txt
-!corrections
-!corrections/*
-!corrections/*/**
+!src/HHbbVV/corrections
+!src/HHbbVV/corrections/*
+!src/HHbbVV/corrections/*/**
 !plots
 !plots/**
 plots/ControlPlots/*
