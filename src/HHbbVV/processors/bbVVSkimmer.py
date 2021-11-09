@@ -15,7 +15,7 @@ import pathlib
 import pickle
 import gzip
 
-from .TaggerInference import runInferenceOnnx
+from .TaggerInference import runInferenceOnnx, runInferenceTriton
 
 
 class bbVVSkimmer(ProcessorABC):
@@ -262,7 +262,7 @@ class bbVVSkimmer(ProcessorABC):
         # apply HWW4q tagger
         print("pre-inference")
 
-        pnet_vars = runInferenceOnnx(
+        pnet_vars = runInferenceTriton(
             self.tagger_resources_path, events[selection.all(*selection.names)]
         )
 
