@@ -229,6 +229,8 @@ def runInferenceOnnx(tagger_resources_path: str, events: NanoEventsArray) -> dic
 
 # from https://github.com/lgray/hgg-coffea/blob/triton-bdts/src/hgg_coffea/tools/chained_quantile.py
 class wrapped_triton:
+    _batch_size = 512
+
     def __init__(
         self,
         model_url: str,
@@ -256,6 +258,21 @@ class wrapped_triton:
         else:
             raise ValueError(f"{self._protocol} does not encode a valid protocol (grpc or http)")
 
+        # manually split into batches for gpu inference
+        outs = [
+            self._do_inference(
+                {input_dict[key][batch : batch + self._batch_size] for key in input_dict},
+                triton_protocol,
+                client,
+            )
+            for batch in range(0, input_dict[list(input_dict.keys())[0]], self._batch_size)
+        ]
+
+        return np.concatenate(outs)
+
+    def _do_inference(
+        self, input_dict: Dict[str, np.ndarray], triton_protocol, client
+    ) -> np.ndarray:
         # Infer
         inputs = []
 
@@ -273,9 +290,7 @@ class wrapped_triton:
             outputs=[output],
         )
 
-        out = request.as_numpy("softmax")
-
-        return out
+        return request.as_numpy("softmax")
 
 
 def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> dict:
@@ -287,7 +302,7 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
     with open(f"{tagger_resources_path}/triton_config.json") as f:
         triton_config = json.load(f)
 
-    triton_model = wrapped_triton(triton_config.model_url)
+    triton_model = wrapped_triton(triton_config["model_url"])
 
     # prepare inputs for both fat jets
     tagger_inputs = []
