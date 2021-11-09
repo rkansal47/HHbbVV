@@ -15,12 +15,13 @@ import pathlib
 import pickle
 import gzip
 
-# from .TaggerInference import runInference
+from .TaggerInference import runInferenceOnnx
 
 
 class bbVVSkimmer(ProcessorABC):
     """
-    Skims nanoaod files, saving selected branches and events passing preselection cuts (and triggers for data), for preliminary cut-based analysis and BDT studies
+    Skims nanoaod files, saving selected branches and events passing preselection cuts
+    (and triggers for data), for preliminary cut-based analysis and BDT studies.
 
     Args:
         xsecs (dict, optional): sample cross sections, if sample not included no lumi and xsec will not be applied to weights
@@ -261,12 +262,12 @@ class bbVVSkimmer(ProcessorABC):
         # apply HWW4q tagger
         print("pre-inference")
 
-        pnet_vars = runInference(
+        pnet_vars = runInferenceOnnx(
             self.tagger_resources_path, events[selection.all(*selection.names)]
         )
 
         # pnet_vars = {}
-        
+
         print("post-inference")
 
         skimmed_events = {
@@ -317,14 +318,18 @@ class bbVVSkimmer(ProcessorABC):
         bb = ak.flatten(higgs_children[is_bb], axis=2)
         VV = ak.flatten(higgs_children[is_VV], axis=2)
 
+        # have to pad to 2 because of some 4V events
         GenbbVars = {
             f"Genbb{key}": self.pad_val(bb[var], 2, -99999, axis=1)
             for (var, key) in self.skim_vars["GenHiggs"].items()
-        }  # have to pad to 2 because of some 4V events
+        }
+
+        # selecting only up to the 2nd index because of some 4V events
+        # (doesn't matter which two are selected since these events will be excluded anyway)
         GenVVVars = {
             f"GenVV{key}": VV[var][:, :2].to_numpy()
             for (var, key) in self.skim_vars["GenHiggs"].items()
-        }  # selecting only up to the 2nd index because of some 4V events (doesn't matter which two are selected since these events will be excluded anyway)
+        }
 
         # checking that each V has 2 q children
         VV_children = VV.children
