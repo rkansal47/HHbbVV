@@ -92,11 +92,11 @@ def main(args):
 
     # define processor
     if args.processor == "trigger":
-        from processors import JetHTTriggerEfficienciesProcessor
+        from HHbbVV.processors import JetHTTriggerEfficienciesProcessor
 
         p = JetHTTriggerEfficienciesProcessor()
     elif args.processor == "skimmer":
-        from processors import bbVVSkimmer
+        from HHbbVV.processors import bbVVSkimmer
 
         xsecs = get_xsecs()
         p = bbVVSkimmer(xsecs=xsecs, condor=args.condor)
