@@ -19,7 +19,7 @@ cd HHbbVV
 # replace 'rkansal' in homedir var in src/condor/submit.py and the proxy address in condor/submit.templ.jdl
 TAG=Aug18_skimmer
 python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20  # will need python3 (recommended to set up via miniconda)
-for i in src/condor/$TAG/*.jdl; do condor_submit $i; done
+for i in condor/$TAG/*.jdl; do condor_submit $i; done
 ```
 
 Pickle files will be saved in eos directory of specified user at path `~/eos/bbVV/<processor type>/<tag>/outfiles/`, in the format `{'nevents': int, 'skimmed_events': dict of coffea 'column_accumulator's}`

@@ -22,21 +22,17 @@ def get_pfcands_features(
     ``preselected_events`` and returns them as a dict of numpy arrays
     """
 
-    print(preselected_events.FatJetAK15)
-    # with open('fatjets.pkl', 'wb') as f:
-    #     import pickle
-    #     pickle.dump(preselected_events, f)
-    print(preselected_events.FatJetAK15.shape)
-
-
     feature_dict = {}
 
-    jet = preselected_events.FatJetAK15[:, jet_idx]
+    jet = ak.pad_none(preselected_events.FatJetAK15, 2, axis=1)[:, jet_idx]
     jet_pfcands = preselected_events.PFCands[
         preselected_events.JetPFCandsAK15.candIdx[
             preselected_events.JetPFCandsAK15.jetIdx == jet_idx
         ]
     ]
+
+    # def pad_pfcand(var: str):
+    #     return pad_val(jet_pfcands[var], 1, -1, axis=1, to_numpy=False, clip=False)
 
     # get features
 
@@ -71,7 +67,8 @@ def get_pfcands_features(
     feature_dict["pfcand_mask"] = (
         ~(
             ak.pad_none(
-                feature_dict["pfcand_etarel"],
+                # padding to have at least one pf candidate in the graph
+                pad_val(feature_dict["pfcand_abseta"], 1, -1, axis=1, to_numpy=False, clip=False),
                 tagger_vars["pf_points"]["var_length"],
                 axis=1,
                 clip=True,
@@ -107,13 +104,9 @@ def get_pfcands_features(
 
 
 def get_svs_features(tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int) -> dict:
-    """
-    Extracts the sv features specified in the ``tagger_vars`` dict from the
-    ``preselected_events`` and returns them as a dict of numpy arrays
-    """
     feature_dict = {}
 
-    jet = preselected_events.FatJetAK15[:, jet_idx]
+    jet = ak.pad_none(preselected_events.FatJetAK15, 2, axis=1)[:, jet_idx]
     jet_svs = preselected_events.SV[
         preselected_events.JetSVsAK15.svIdx[
             (preselected_events.JetSVsAK15.svIdx != -1)
