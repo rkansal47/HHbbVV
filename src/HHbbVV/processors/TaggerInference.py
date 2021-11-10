@@ -35,7 +35,7 @@ def get_pfcands_features(
     ]
 
     # def pad_pfcand(var: str):
-    #     return pad_val(jet_pfcands[var], 1, -1, axis=1, to_numpy=False, clip=False)
+    #     return utils.pad_val(jet_pfcands[var], 1, -1, axis=1, to_numpy=False, clip=False)
 
     # get features
 
@@ -71,7 +71,9 @@ def get_pfcands_features(
         ~(
             ak.pad_none(
                 # padding to have at least one pf candidate in the graph
-                pad_val(feature_dict["pfcand_abseta"], 1, -1, axis=1, to_numpy=False, clip=False),
+                utils.pad_val(
+                    feature_dict["pfcand_abseta"], 1, -1, axis=1, to_numpy=False, clip=False
+                ),
                 tagger_vars["pf_points"]["var_length"],
                 axis=1,
                 clip=True,
