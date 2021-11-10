@@ -17,7 +17,7 @@ import gzip
 
 from .TaggerInference import runInferenceOnnx, runInferenceTriton
 
-import utils
+from . import utils
 
 
 class bbVVSkimmer(ProcessorABC):

@@ -14,7 +14,8 @@ import tritonclient.http as triton_http
 
 from tqdm import tqdm
 
-import utils
+from . import utils
+# import utils
 
 
 def get_pfcands_features(
