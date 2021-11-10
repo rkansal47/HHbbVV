@@ -9,9 +9,10 @@ import onnxruntime as ort
 
 import time
 
-# import tritonclient.grpc as triton_grpc
-# import tritonclient.http as triton_http
+import tritonclient.grpc as triton_grpc
+import tritonclient.http as triton_http
 
+from tqdm import tqdm
 
 def get_pfcands_features(
     tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int
@@ -20,6 +21,14 @@ def get_pfcands_features(
     Extracts the pf_candidate features specified in the ``tagger_vars`` dict from the
     ``preselected_events`` and returns them as a dict of numpy arrays
     """
+
+    print(preselected_events.FatJetAK15)
+    # with open('fatjets.pkl', 'wb') as f:
+    #     import pickle
+    #     pickle.dump(preselected_events, f)
+    print(preselected_events.FatJetAK15.shape)
+
+
     feature_dict = {}
 
     jet = preselected_events.FatJetAK15[:, jet_idx]
@@ -261,11 +270,11 @@ class wrapped_triton:
         # manually split into batches for gpu inference
         outs = [
             self._do_inference(
-                {input_dict[key][batch : batch + self._batch_size] for key in input_dict},
+                {key: input_dict[key][batch : batch + self._batch_size] for key in input_dict},
                 triton_protocol,
                 client,
             )
-            for batch in range(0, input_dict[list(input_dict.keys())[0]], self._batch_size)
+            for batch in tqdm(range(0, input_dict[list(input_dict.keys())[0]].shape[0], self._batch_size))
         ]
 
         return np.concatenate(outs)
@@ -332,7 +341,7 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
         start = time.time()
         tagger_outputs.append(triton_model(tagger_inputs[jet_idx]))
         time_taken = time.time() - start
-        print(f"Inference took {time_taken}s")
+        print(f"Inference took {time_taken:.1f}s")
 
     pnet_vars_list = []
     for jet_idx in range(2):
@@ -352,5 +361,5 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
         for key in pnet_vars_list[0]
     }
 
-    print(f"Total time taken: {time.time() - total_start}s")
+    print(f"Total time taken: {time.time() - total_start:.1f}s")
     return pnet_vars_combined
