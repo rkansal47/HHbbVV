@@ -14,6 +14,9 @@ import tritonclient.http as triton_http
 
 from tqdm import tqdm
 
+import utils
+
+
 def get_pfcands_features(
     tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int
 ) -> Dict[str, np.ndarray]:
@@ -267,7 +270,9 @@ class wrapped_triton:
                 triton_protocol,
                 client,
             )
-            for batch in tqdm(range(0, input_dict[list(input_dict.keys())[0]].shape[0], self._batch_size))
+            for batch in tqdm(
+                range(0, input_dict[list(input_dict.keys())[0]].shape[0], self._batch_size)
+            )
         ]
 
         return np.concatenate(outs)
