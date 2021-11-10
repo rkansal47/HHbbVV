@@ -166,7 +166,7 @@ class bbVVSkimmer(ProcessorABC):
 
         preselection_cut = np.logical_or(
             np.prod(
-                self.pad_val(
+                utils.pad_val(
                     (events.FatJet.pt > self.preselection_cut_vals["pt"])
                     * (events.FatJet.msoftdrop > self.preselection_cut_vals["msd"]),
                     2,
@@ -176,7 +176,7 @@ class bbVVSkimmer(ProcessorABC):
                 axis=1,
             ),
             np.prod(
-                self.pad_val(
+                utils.pad_val(
                     (events.FatJetAK15.pt > self.preselection_cut_vals["pt"])
                     * (events.FatJetAK15.msoftdrop > self.preselection_cut_vals["msd"]),
                     2,
@@ -193,11 +193,11 @@ class bbVVSkimmer(ProcessorABC):
         # select vars
 
         ak8FatJetVars = {
-            f"ak8FatJet{key}": self.pad_val(events.FatJet[var], 2, -99999, axis=1)
+            f"ak8FatJet{key}": utils.pad_val(events.FatJet[var], 2, -99999, axis=1)
             for (var, key) in self.skim_vars["FatJet"].items()
         }
         ak15FatJetVars = {
-            f"ak15FatJet{key}": self.pad_val(events.FatJetAK15[var], 2, -99999, axis=1)
+            f"ak15FatJet{key}": utils.pad_val(events.FatJetAK15[var], 2, -99999, axis=1)
             for (var, key) in self.skim_vars["FatJetAK15"].items()
         }
         otherVars = {
@@ -209,21 +209,21 @@ class bbVVSkimmer(ProcessorABC):
 
         # particlenet h4q vs qcd, xbb vs qcd
 
-        skimmed_events["ak8FatJetParticleNetMD_Txbb"] = self.pad_val(
+        skimmed_events["ak8FatJetParticleNetMD_Txbb"] = utils.pad_val(
             events.FatJet.particleNetMD_Xbb
             / (events.FatJet.particleNetMD_QCD + events.FatJet.particleNetMD_Xbb),
             2,
             -1,
             axis=1,
         )
-        skimmed_events["ak15FatJetParticleNetMD_Txbb"] = self.pad_val(
+        skimmed_events["ak15FatJetParticleNetMD_Txbb"] = utils.pad_val(
             events.FatJetAK15.ParticleNetMD_probXbb
             / (events.FatJetAK15.ParticleNetMD_probQCD + events.FatJetAK15.ParticleNetMD_probXbb),
             2,
             -1,
             axis=1,
         )
-        skimmed_events["ak15FatJetParticleNet_Th4q"] = self.pad_val(
+        skimmed_events["ak15FatJetParticleNet_Th4q"] = utils.pad_val(
             events.FatJetAK15.ParticleNet_probHqqqq
             / (
                 events.FatJetAK15.ParticleNet_probHqqqq
@@ -315,7 +315,7 @@ class bbVVSkimmer(ProcessorABC):
 
         # have to pad to 2 because of some 4V events
         GenbbVars = {
-            f"Genbb{key}": self.pad_val(bb[var], 2, -99999, axis=1)
+            f"Genbb{key}": utils.pad_val(bb[var], 2, -99999, axis=1)
             for (var, key) in self.skim_vars["GenHiggs"].items()
         }
 
@@ -334,7 +334,7 @@ class bbVVSkimmer(ProcessorABC):
 
         # saving 4q 4-vector info
         Gen4qVars = {
-            f"Gen4q{key}": self.pad_val(
+            f"Gen4q{key}": utils.pad_val(
                 ak.fill_none(VV_children[var][:, :2], []), 2, -99999, axis=2
             )
             for (var, key) in self.skim_vars["GenHiggs"].items()
