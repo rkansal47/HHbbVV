@@ -14,7 +14,7 @@ import tritonclient.http as triton_http
 
 from tqdm import tqdm
 
-import utils
+from .utils import pad_val
 
 
 def get_pfcands_features(
@@ -35,7 +35,7 @@ def get_pfcands_features(
     ]
 
     # def pad_pfcand(var: str):
-    #     return utils.pad_val(jet_pfcands[var], 1, -1, axis=1, to_numpy=False, clip=False)
+    #     return pad_val(jet_pfcands[var], 1, -1, axis=1, to_numpy=False, clip=False)
 
     # get features
 
@@ -71,7 +71,7 @@ def get_pfcands_features(
         ~(
             ak.pad_none(
                 # padding to have at least one pf candidate in the graph
-                utils.pad_val(
+                pad_val(
                     feature_dict["pfcand_abseta"], 1, -1, axis=1, to_numpy=False, clip=False
                 ),
                 tagger_vars["pf_points"]["var_length"],

@@ -126,8 +126,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--script',       default='run.py',       help="script to run",                       type=str)
-    parser.add_argument('--test',       default=False,       help="test run or not - test run means only 2 jobs per sample will be created",                       type=bool)
+    parser.add_argument('--script',     default='run.py',  help="script to run",                       type=str)
+    parser.add_argument('--test',       default=False,     help="test run or not - test run means only 2 jobs per sample will be created",                       type=bool)
     parser.add_argument('--year',       dest='year',       default='2017',       help="year",                       type=str)
     parser.add_argument('--tag',        dest='tag',        default='Test',       help="process tag",                type=str)
     parser.add_argument('--outdir',     dest='outdir',     default='outfiles',   help="directory for output files", type=str)

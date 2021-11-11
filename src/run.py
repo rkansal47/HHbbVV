@@ -11,9 +11,17 @@ from coffea.nanoevents import BaseSchema
 from coffea import nanoevents
 from coffea import processor
 import pickle
+import os
 
 import argparse
 
+import warnings
+def fxn():
+    warnings.warn("userwarning", UserWarning)
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    fxn()
 
 nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
     "FatJetAK15_nConstituents",
@@ -99,75 +107,44 @@ def main(args):
         from HHbbVV.processors import bbVVSkimmer
 
         xsecs = get_xsecs()
-        p = bbVVSkimmer(xsecs=xsecs, condor=args.condor)
+        p = bbVVSkimmer(xsecs=xsecs, condor=args.condor, output_location=f"root://cmseos.fnal.gov//store/user/cmantill/bbVV/test/")
+        #p = bbVVSkimmer(xsecs=xsecs, condor=args.condor, output_location=os.getcwd())
 
     fileset = get_fileset(args.processor, args.samples, args.starti, args.endi)
 
     if args.condor:
+        print('condor')
         uproot.open.defaults["xrootd_handler"] = uproot.source.xrootd.MultithreadedXRootDSource
 
-        exe_args = {
-            "savemetrics": True,
-            # 'schema': BaseSchema,
-            "schema": nanoevents.NanoAODSchema,
-            # "retries": 1,
-        }
-
-        out, metrics = processor.run_uproot_job(
-            {key: fileset[key] for key in args.samples},
-            treename="Events",
-            processor_instance=p,
-            executor=processor.iterative_executor,
-            executor_args=exe_args,
-            # chunksize=10000,
-        )
-
-        filehandler = open(f"outfiles/{args.starti}-{args.endi}.pkl", "wb")
-        pickle.dump(out, filehandler)
-        filehandler.close()
+        # executor = processor.FuturesExecutor(compression=1, status=True)
+        executor = processor.IterativeExecutor(status=True)
+        run = processor.Runner(executor=executor,savemetrics=True,schema=nanoevents.NanoAODSchema) # chunksize=10000
+        out,metrics = run({key: fileset[key] for key in args.samples},'Events',processor_instance=p)
 
     elif args.dask:
+        print('dask')
         import time
         from distributed import Client
         from lpcjobqueue import LPCCondorCluster
 
         tic = time.time()
         cluster = LPCCondorCluster(
-            # ship_env=True,
-            # transfer_input_files="HHbbVV",
+            ship_env=True,
+            transfer_input_files="HHbbVV",
         )
         cluster.adapt(minimum=1, maximum=30)
         client = Client(cluster)
 
-        exe_args = {
-            "client": client,
-            "savemetrics": True,
-            "schema": BaseSchema,  # for base schema
-            # 'schema': nanoevents.NanoAODSchema, # for nano schema in the future
-            "align_clusters": True,
-        }
-
         print("Waiting for at least one worker...")
         client.wait_for_workers(1)
 
-        out, metrics = processor.run_uproot_job(
-            fileset,
-            treename="Events",
-            processor_instance=p,
-            executor=processor.dask_executor,
-            executor_args=exe_args,
-            chunksize=1000
-            #    maxchunks=10
-        )
+        executor = processor.DaskExecutor(status=True,client=client,treereduction=2) #does treereduction help?
+        run = processor.Runner(executor=executor,savemetrics=True,schema=nanoevents.NanoAODSchema,chunksize=100000)
+        out,metrics = run({key: fileset[key] for key in args.samples},'Events',processor_instance=p)
 
         elapsed = time.time() - tic
         print(f"Metrics: {metrics}")
         print(f"Finished in {elapsed:.1f}s")
-
-        filehandler = open("out.hist", "wb")
-        pickle.dump(out, filehandler)
-        filehandler.close()
-
 
 if __name__ == "__main__":
     # e.g.
@@ -193,7 +170,7 @@ if __name__ == "__main__":
         "--dask", dest="dask", action="store_true", default=False, help="Run with dask"
     )
     parser.add_argument(
-        "--condor", dest="condor", action="store_true", default=True, help="Run with condor"
+        "--condor", dest="condor", action="store_true", default=False, help="Run with condor"
     )
     parser.add_argument("--samples", dest="samples", default=[], help="samples", nargs="*")
     args = parser.parse_args()

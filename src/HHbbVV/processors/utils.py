@@ -8,12 +8,11 @@ import awkward as ak
 
 
 def pad_val(
-    self,
     arr: ak.Array,
     target: int,
     value: float,
     axis: int = 0,
-    to_numpy: bool = True,
+    to_numpy: bool = False,
     clip: bool = True,
 ):
     """
