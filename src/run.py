@@ -157,6 +157,8 @@ def main(args):
         )
         cluster.adapt(minimum=1, maximum=30)
         client = Client(cluster)
+        nanoevents_plugin = NanoeventsSchemaPlugin()
+        client.register_worker_plugin(nanoevents_plugin)
 
         print("Waiting for at least one worker")
         client.wait_for_workers(1)
