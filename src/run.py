@@ -130,7 +130,7 @@ def main(args):
         tic = time.time()
         cluster = LPCCondorCluster(
             ship_env=True,
-            transfer_input_files="HHbbVV",
+            transfer_input_files="src/HHbbVV",
         )
         cluster.adapt(minimum=1, maximum=30)
         client = Client(cluster)

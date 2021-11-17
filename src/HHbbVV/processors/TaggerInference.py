@@ -5,7 +5,7 @@ import awkward as ak
 from coffea.nanoevents.methods.base import NanoEventsArray
 
 import json
-import onnxruntime as ort
+# import onnxruntime as ort
 
 import time
 
