@@ -8,7 +8,6 @@ import awkward as ak
 
 
 def pad_val(
-    self,
     arr: ak.Array,
     target: int,
     value: float,
