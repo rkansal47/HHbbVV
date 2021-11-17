@@ -16,8 +16,13 @@ import os
 import argparse
 
 import warnings
+
+from distributed.diagnostics.plugin import WorkerPlugin
+
+
 def fxn():
     warnings.warn("userwarning", UserWarning)
+
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -29,6 +34,16 @@ nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
 )
 nanoevents.NanoAODSchema.mixins["FatJetAK15"] = "FatJet"
 nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
+
+
+class NanoeventsSchemaPlugin(WorkerPlugin):
+    def setup(self):
+        nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
+            "FatJetAK15_nConstituents",
+            "JetPFCandsAK15",
+        )
+        nanoevents.NanoAODSchema.mixins["FatJetAK15"] = "FatJet"
+        nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
 
 
 def get_fileset(ptype, samples, starti, endi):
@@ -107,22 +122,30 @@ def main(args):
         from HHbbVV.processors import bbVVSkimmer
 
         xsecs = get_xsecs()
-        p = bbVVSkimmer(xsecs=xsecs, condor=args.condor, output_location=f"root://cmseos.fnal.gov//store/user/cmantill/bbVV/test/")
-        #p = bbVVSkimmer(xsecs=xsecs, condor=args.condor, output_location=os.getcwd())
+        p = bbVVSkimmer(
+            xsecs=xsecs,
+            condor=args.condor,
+            output_location=f"root://cmseos.fnal.gov//store/user/cmantill/bbVV/test/",
+        )
+        # p = bbVVSkimmer(xsecs=xsecs, condor=args.condor, output_location=os.getcwd())
 
     fileset = get_fileset(args.processor, args.samples, args.starti, args.endi)
 
     if args.condor:
-        print('condor')
+        print("condor")
         uproot.open.defaults["xrootd_handler"] = uproot.source.xrootd.MultithreadedXRootDSource
 
         # executor = processor.FuturesExecutor(compression=1, status=True)
         executor = processor.IterativeExecutor(status=True)
-        run = processor.Runner(executor=executor,savemetrics=True,schema=nanoevents.NanoAODSchema) # chunksize=10000
-        out,metrics = run({key: fileset[key] for key in args.samples},'Events',processor_instance=p)
+        run = processor.Runner(
+            executor=executor, savemetrics=True, schema=nanoevents.NanoAODSchema
+        )  # chunksize=10000
+        out, metrics = run(
+            {key: fileset[key] for key in args.samples}, "Events", processor_instance=p
+        )
 
     elif args.dask:
-        print('dask')
+        print("dask")
         import time
         from distributed import Client
         from lpcjobqueue import LPCCondorCluster
@@ -134,17 +157,25 @@ def main(args):
         )
         cluster.adapt(minimum=1, maximum=30)
         client = Client(cluster)
+        nanoevents_plugin = NanoeventsSchemaPlugin()
+        client.register_worker_plugin(nanoevents_plugin)
 
-        print("Waiting for at least one worker...")
+        print("Waiting for at least one worker")
         client.wait_for_workers(1)
 
-        executor = processor.DaskExecutor(status=True,client=client,treereduction=2) #does treereduction help?
-        run = processor.Runner(executor=executor,savemetrics=True,schema=nanoevents.NanoAODSchema,chunksize=100000)
-        out,metrics = run({key: fileset[key] for key in args.samples},'Events',processor_instance=p)
+        # does treereduction help?
+        executor = processor.DaskExecutor(status=True, client=client, treereduction=2)
+        run = processor.Runner(
+            executor=executor, savemetrics=True, schema=nanoevents.NanoAODSchema, chunksize=100000
+        )
+        out, metrics = run(
+            {key: fileset[key] for key in args.samples}, "Events", processor_instance=p
+        )
 
         elapsed = time.time() - tic
         print(f"Metrics: {metrics}")
         print(f"Finished in {elapsed:.1f}s")
+
 
 if __name__ == "__main__":
     # e.g.

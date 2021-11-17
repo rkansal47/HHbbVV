@@ -7,7 +7,7 @@ import numpy as np
 import awkward as ak
 import pandas as pd
 
-from coffea.processor import ProcessorABC,dict_accumulator
+from coffea.processor import ProcessorABC, dict_accumulator
 from coffea.nanoevents.methods.base import NanoEventsArray
 from coffea.analysis_tools import PackedSelection
 
@@ -21,6 +21,7 @@ from typing import List, Optional
 
 from .TaggerInference import runInferenceOnnx, runInferenceTriton
 from .utils import pad_val
+
 
 class bbVVSkimmer(ProcessorABC):
     """
@@ -37,8 +38,8 @@ class bbVVSkimmer(ProcessorABC):
     def __init__(self, xsecs={}, condor: bool = False, output_location=None):
         super(bbVVSkimmer, self).__init__()
 
-        self.LUMI = {"2017": 40000} # in pb^-1
-        self.XSECS = xsecs # in pb
+        self.LUMI = {"2017": 40000}  # in pb^-1
+        self.XSECS = xsecs  # in pb
         self.condor = condor
         self.output_location = output_location
 
@@ -119,7 +120,9 @@ class bbVVSkimmer(ProcessorABC):
 
         self._accumulator = dict_accumulator({})
 
-    def dump_table(self, pddf: pd.DataFrame, fname: str, location: str, subdirs: Optional[List[str]] = None) -> None:
+    def dump_table(
+        self, pddf: pd.DataFrame, fname: str, location: str, subdirs: Optional[List[str]] = None
+    ) -> None:
         subdirs = subdirs or []
         xrd_prefix = "root://"
         pfx_len = len(xrd_prefix)
@@ -128,15 +131,14 @@ class bbVVSkimmer(ProcessorABC):
             try:
                 import XRootD
                 import XRootD.client
+
                 xrootd = True
             except ImportError:
                 raise ImportError(
                     "Install XRootD python bindings with: conda install -c conda-forge xroot"
                 )
         local_file = (
-            os.path.abspath(os.path.join(".", fname))
-            if xrootd
-            else os.path.join(".", fname)
+            os.path.abspath(os.path.join(".", fname)) if xrootd else os.path.join(".", fname)
         )
         merged_subdirs = "/".join(subdirs) if xrootd else os.path.sep.join(subdirs)
         destination = (
@@ -150,9 +152,7 @@ class bbVVSkimmer(ProcessorABC):
             copyproc.add_job(local_file, destination)
             copyproc.prepare()
             copyproc.run()
-            client = XRootD.client.FileSystem(
-                location[: location[pfx_len:].find("/") + pfx_len]
-            )
+            client = XRootD.client.FileSystem(location[: location[pfx_len:].find("/") + pfx_len])
             status = client.locate(
                 destination[destination[pfx_len:].find("/") + pfx_len + 1 :],
                 XRootD.client.flags.OpenFlags.READ,
@@ -306,16 +306,15 @@ class bbVVSkimmer(ProcessorABC):
         # apply selections
 
         skimmed_events = {
-            key: value[selection.all(*selection.names)]
-            for (key, value) in skimmed_events.items()
+            key: value[selection.all(*selection.names)] for (key, value) in skimmed_events.items()
         }
 
         # apply HWW4q tagger
         print("pre-inference")
 
-        #pnet_vars = runInferenceTriton(
+        # pnet_vars = runInferenceTriton(
         #    self.tagger_resources_path, events[selection.all(*selection.names)]
-        #)
+        # )
 
         pnet_vars = {}
 
@@ -327,10 +326,7 @@ class bbVVSkimmer(ProcessorABC):
 
         df = ak.to_pandas(ak.Array([skimmed_events]))
 
-        fname = (
-            events.behavior["__events_factory__"]._partition_key.replace("/", "_")
-            + ".parquet"
-        )
+        fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
         subdirs = []
         subdirs.append(f"{year}")
         subdirs.append(dataset)
@@ -397,9 +393,7 @@ class bbVVSkimmer(ProcessorABC):
 
         # saving 4q 4-vector info
         Gen4qVars = {
-            f"Gen4q{key}": pad_val(
-                ak.fill_none(VV_children[var][:, :2], []), 2, -99999, axis=2
-            )
+            f"Gen4q{key}": pad_val(ak.fill_none(VV_children[var][:, :2], []), 2, -99999, axis=2)
             for (var, key) in self.skim_vars["GenHiggs"].items()
         }
 
