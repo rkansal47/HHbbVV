@@ -5,7 +5,8 @@ import awkward as ak
 from coffea.nanoevents.methods.base import NanoEventsArray
 
 import json
-import onnxruntime as ort
+
+# import onnxruntime as ort
 
 import time
 
@@ -14,7 +15,7 @@ import tritonclient.http as triton_http
 
 from tqdm import tqdm
 
-import utils
+from .utils import pad_val
 
 
 def get_pfcands_features(
@@ -35,7 +36,7 @@ def get_pfcands_features(
     ]
 
     # def pad_pfcand(var: str):
-    #     return utils.pad_val(jet_pfcands[var], 1, -1, axis=1, to_numpy=False, clip=False)
+    #     return pad_val(jet_pfcands[var], 1, -1, axis=1, to_numpy=False, clip=False)
 
     # get features
 
@@ -71,9 +72,7 @@ def get_pfcands_features(
         ~(
             ak.pad_none(
                 # padding to have at least one pf candidate in the graph
-                utils.pad_val(
-                    feature_dict["pfcand_abseta"], 1, -1, axis=1, to_numpy=False, clip=False
-                ),
+                pad_val(feature_dict["pfcand_abseta"], 1, -1, axis=1, to_numpy=False, clip=False),
                 tagger_vars["pf_points"]["var_length"],
                 axis=1,
                 clip=True,
@@ -236,11 +235,10 @@ def runInferenceOnnx(tagger_resources_path: str, events: NanoEventsArray) -> dic
 
 # from https://github.com/lgray/hgg-coffea/blob/triton-bdts/src/hgg_coffea/tools/chained_quantile.py
 class wrapped_triton:
-    _batch_size = 512
-
     def __init__(
         self,
         model_url: str,
+        batch_size: int,
     ) -> None:
         fullprotocol, location = model_url.split("://")
         _, protocol = fullprotocol.split("+")
@@ -250,6 +248,8 @@ class wrapped_triton:
         self._address = address
         self._model = model
         self._version = version
+
+        self._batch_size = batch_size
 
     def __call__(self, input_dict: Dict[str, np.ndarray]) -> np.ndarray:
         if self._protocol == "grpc":
@@ -305,13 +305,14 @@ class wrapped_triton:
 def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> dict:
     total_start = time.time()
 
+    tagger_resources_path = "HHbbVV/processors/tagger_resources"
     with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
         tagger_vars = json.load(f)
 
     with open(f"{tagger_resources_path}/triton_config.json") as f:
         triton_config = json.load(f)
 
-    triton_model = wrapped_triton(triton_config["model_url"])
+    triton_model = wrapped_triton(triton_config["model_url"], triton_config["batch_size"])
 
     # prepare inputs for both fat jets
     tagger_inputs = []
