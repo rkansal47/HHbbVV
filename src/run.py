@@ -37,7 +37,11 @@ nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
 
 
 class NanoeventsSchemaPlugin(WorkerPlugin):
-    def setup(self):
+    def __init__(self):
+        pass
+
+    def setup(self, worker):
+        from coffea import nanoevents
         nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
             "FatJetAK15_nConstituents",
             "JetPFCandsAK15",
@@ -155,10 +159,10 @@ def main(args):
             ship_env=True,
             transfer_input_files="src/HHbbVV",
         )
-        cluster.adapt(minimum=1, maximum=30)
         client = Client(cluster)
         nanoevents_plugin = NanoeventsSchemaPlugin()
         client.register_worker_plugin(nanoevents_plugin)
+        cluster.adapt(minimum=1, maximum=30)
 
         print("Waiting for at least one worker")
         client.wait_for_workers(1)

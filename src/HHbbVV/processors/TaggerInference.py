@@ -305,6 +305,8 @@ class wrapped_triton:
 def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> dict:
     total_start = time.time()
 
+
+    tagger_resources_path = "HHbbVV/processors/tagger_resources"
     with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
         tagger_vars = json.load(f)
 
