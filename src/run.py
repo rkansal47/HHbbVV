@@ -42,6 +42,7 @@ class NanoeventsSchemaPlugin(WorkerPlugin):
 
     def setup(self, worker):
         from coffea import nanoevents
+
         nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
             "FatJetAK15_nConstituents",
             "JetPFCandsAK15",
@@ -74,7 +75,8 @@ def get_fileset(ptype, samples, starti, endi):
 
             fileset["2017_HHToBBVVToBBQQQQ_cHHH1"] = filelist[starti:endi]
 
-        # extra samples in the folder we don't need for this analysis - TODO: should instead have a list of all samples we need
+        # extra samples in the folder we don't need for this analysis -
+        # TODO: should instead have a list of all samples we need
         ignore_samples = [
             "GluGluHToTauTau_M125_TuneCP5_13TeV-powheg-pythia8",
             "GluGluHToWWToLNuQQ_M125_TuneCP5_PSweight_13TeV-powheg2-jhugen727-pythia8",
@@ -129,7 +131,7 @@ def main(args):
         p = bbVVSkimmer(
             xsecs=xsecs,
             condor=args.condor,
-            output_location=f"root://cmseos.fnal.gov//store/user/cmantill/bbVV/test/",
+            output_location=args.outdir,
         )
         # p = bbVVSkimmer(xsecs=xsecs, condor=args.condor, output_location=os.getcwd())
 
@@ -208,6 +210,7 @@ if __name__ == "__main__":
         "--condor", dest="condor", action="store_true", default=False, help="Run with condor"
     )
     parser.add_argument("--samples", dest="samples", default=[], help="samples", nargs="*")
+
     args = parser.parse_args()
 
     main(args)

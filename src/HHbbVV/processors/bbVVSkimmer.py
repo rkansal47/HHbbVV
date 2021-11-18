@@ -127,6 +127,7 @@ class bbVVSkimmer(ProcessorABC):
         xrd_prefix = "root://"
         pfx_len = len(xrd_prefix)
         xrootd = False
+
         if xrd_prefix in location:
             try:
                 import XRootD
@@ -137,17 +138,23 @@ class bbVVSkimmer(ProcessorABC):
                 raise ImportError(
                     "Install XRootD python bindings with: conda install -c conda-forge xroot"
                 )
+
+        # saving to a local file first
         local_file = (
             os.path.abspath(os.path.join(".", fname)) if xrootd else os.path.join(".", fname)
         )
         merged_subdirs = "/".join(subdirs) if xrootd else os.path.sep.join(subdirs)
+
         destination = (
             location + merged_subdirs + f"/{fname}"
             if xrootd
             else os.path.join(location, os.path.join(merged_subdirs, fname))
         )
+
         pddf.to_parquet(local_file)
+
         if xrootd:
+            # copy via xrootd
             copyproc = XRootD.client.CopyProcess()
             copyproc.add_job(local_file, destination)
             copyproc.prepare()
@@ -161,6 +168,7 @@ class bbVVSkimmer(ProcessorABC):
             del client
             del copyproc
         else:
+            # copy through shell
             dirname = os.path.dirname(destination)
             if not os.path.exists(dirname):
                 pathlib.Path(dirname).mkdir(parents=True, exist_ok=True)
@@ -171,6 +179,7 @@ class bbVVSkimmer(ProcessorABC):
                 destination = os.path.join(location, os.path.join(merged_subdirs, fname))
                 shutil.copy2(local_file, destination)
             assert os.path.isfile(destination)
+
         pathlib.Path(local_file).unlink()
 
     @property
@@ -313,7 +322,7 @@ class bbVVSkimmer(ProcessorABC):
         print("pre-inference")
 
         pnet_vars = runInferenceTriton(
-           self.tagger_resources_path, events[selection.all(*selection.names)]
+            self.tagger_resources_path, events[selection.all(*selection.names)]
         )
 
         # pnet_vars = {}
