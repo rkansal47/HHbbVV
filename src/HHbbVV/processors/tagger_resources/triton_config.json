@@ -1,4 +1,4 @@
 {
   "model_url": "triton+grpc://prp-gpu-1.t2.ucsd.edu:8001/particlenet_hww/1",
-  "batch_size": 384,
+  "batch_size": 256
 }
