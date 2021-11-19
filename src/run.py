@@ -130,10 +130,8 @@ def main(args):
         xsecs = get_xsecs()
         p = bbVVSkimmer(
             xsecs=xsecs,
-            condor=args.condor,
             output_location=args.outdir,
         )
-        # p = bbVVSkimmer(xsecs=xsecs, condor=args.condor, output_location=os.getcwd())
 
     fileset = get_fileset(args.processor, args.samples, args.starti, args.endi)
 
@@ -193,6 +191,7 @@ def main(args):
         filehandler = open(f"outfiles/{args.starti}-{args.endi}.pkl", "wb")
         pickle.dump(out, filehandler)
         filehandler.close()
+
 
 if __name__ == "__main__":
     # e.g.

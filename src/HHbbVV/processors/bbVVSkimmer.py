@@ -35,12 +35,11 @@ class bbVVSkimmer(ProcessorABC):
 
     # TODO: do ak8, ak15 sorting for hybrid case
 
-    def __init__(self, xsecs={}, condor: bool = False, output_location=None):
+    def __init__(self, xsecs={}, output_location=None):
         super(bbVVSkimmer, self).__init__()
 
         self.LUMI = {"2017": 40000}  # in pb^-1
         self.XSECS = xsecs  # in pb
-        self.condor = condor
         self.output_location = output_location
 
         self.HLTs = {
