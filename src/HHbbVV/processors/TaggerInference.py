@@ -266,6 +266,7 @@ class wrapped_triton:
             raise ValueError(f"{self._protocol} does not encode a valid protocol (grpc or http)")
 
         # manually split into batches for gpu inference
+        print(f"size of input = {input_dict[list(input_dict.keys())[0]].shape[0]}")
         outs = [
             self._do_inference(
                 {key: input_dict[key][batch : batch + self._batch_size] for key in input_dict},
@@ -305,7 +306,8 @@ class wrapped_triton:
 def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> dict:
     total_start = time.time()
 
-    tagger_resources_path = "HHbbVV/processors/tagger_resources"
+    # tagger_resources_path = "HHbbVV/processors/tagger_resources"
+
     with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
         tagger_vars = json.load(f)
 

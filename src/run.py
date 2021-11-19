@@ -137,21 +137,7 @@ def main(args):
 
     fileset = get_fileset(args.processor, args.samples, args.starti, args.endi)
 
-    if args.condor:
-        print("condor")
-        uproot.open.defaults["xrootd_handler"] = uproot.source.xrootd.MultithreadedXRootDSource
-
-        # executor = processor.FuturesExecutor(compression=1, status=True)
-        executor = processor.IterativeExecutor(status=True)
-        run = processor.Runner(
-            executor=executor, savemetrics=True, schema=nanoevents.NanoAODSchema
-        )  # chunksize=10000
-        out, metrics = run(
-            {key: fileset[key] for key in args.samples}, "Events", processor_instance=p
-        )
-
-    elif args.dask:
-        print("dask")
+    if args.executor == "dask":
         import time
         from distributed import Client
         from lpcjobqueue import LPCCondorCluster
@@ -181,7 +167,32 @@ def main(args):
         elapsed = time.time() - tic
         print(f"Metrics: {metrics}")
         print(f"Finished in {elapsed:.1f}s")
+    else:
+        uproot.open.defaults["xrootd_handler"] = uproot.source.xrootd.MultithreadedXRootDSource
 
+        executor = (
+            processor.futures_executor
+            if args.executor == "futures"
+            else processor.iterative_executor
+        )
+
+        exe_args = {
+            "savemetrics": True,
+            "schema": nanoevents.NanoAODSchema,
+        }
+
+        out, metrics = processor.run_uproot_job(
+            {key: fileset[key] for key in args.samples},
+            treename="Events",
+            processor_instance=p,
+            executor=executor,
+            executor_args=exe_args,
+            chunksize=args.chunksize,
+        )
+
+        filehandler = open(f"outfiles/{args.starti}-{args.endi}.pkl", "wb")
+        pickle.dump(out, filehandler)
+        filehandler.close()
 
 if __name__ == "__main__":
     # e.g.
@@ -204,13 +215,14 @@ if __name__ == "__main__":
         choices=["trigger", "skimmer"],
     )
     parser.add_argument(
-        "--dask", dest="dask", action="store_true", default=False, help="Run with dask"
-    )
-    parser.add_argument(
-        "--condor", dest="condor", action="store_true", default=False, help="Run with condor"
+        "--executor",
+        type=str,
+        default="futures",
+        choices=["futures", "iterative", "dask"],
+        help="type of processor executor",
     )
     parser.add_argument("--samples", dest="samples", default=[], help="samples", nargs="*")
-
+    parser.add_argument("--chunksize", type=int, default=2750, help="chunk size in processor")
     args = parser.parse_args()
 
     main(args)
