@@ -15,8 +15,6 @@ import tritonclient.http as triton_http
 
 from tqdm import tqdm
 
-# from . import utils
-# import utils
 from .utils import pad_val
 
 
@@ -309,6 +307,7 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
     total_start = time.time()
 
     # tagger_resources_path = "HHbbVV/processors/tagger_resources"
+
     with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
         tagger_vars = json.load(f)
 
