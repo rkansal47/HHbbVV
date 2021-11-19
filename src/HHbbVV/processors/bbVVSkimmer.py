@@ -342,7 +342,7 @@ class bbVVSkimmer(ProcessorABC):
         if self.output_location is not None:
             self.dump_table(df, fname, self.output_location, subdirs)
 
-        return self.accumulator.identity()
+        return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
 
     def gen_matching(self, events: NanoEventsArray, selection: PackedSelection, cutflow: dict):
         """Gets HH, bb, VV, and 4q 4-vectors + Higgs children information"""

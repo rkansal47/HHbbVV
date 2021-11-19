@@ -110,7 +110,8 @@ def main(args):
             sh_templ_file = open("src/condor/submit.templ.sh")
 
             localsh = f"{locdir}/{sample}_{j}.sh"
-            eosoutput = f"root://cmseos.fnal.gov/{outdir}/{sample}/out_{j}.pkl"
+            eosoutput_dir = f"root://cmseos.fnal.gov/{outdir}/{sample}/"
+            eosoutput_pkl = f"{eosoutput_dir}/out_{j}.pkl"
             sh_file = open(localsh, "w")
             for line in sh_templ_file:
                 line = line.replace("SCRIPTNAME", args.script)
@@ -119,7 +120,8 @@ def main(args):
                 line = line.replace("PROCESSOR", args.processor)
                 line = line.replace("STARTNUM", str(j * args.files_per_job))
                 line = line.replace("ENDNUM", str((j + 1) * args.files_per_job))
-                line = line.replace("EOSOUT", eosoutput)
+                line = line.replace("EOSOUTDIR", eosoutput_dir)
+                line = line.replace("EOSOUTPKL", eosoutput_pkl)
                 sh_file.write(line)
             sh_file.close()
             sh_templ_file.close()
