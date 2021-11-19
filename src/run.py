@@ -117,8 +117,9 @@ def main(args):
             {key: fileset[key] for key in args.samples},
             treename="Events",
             processor_instance=p,
-            executor=processor.iterative_executor,
+            executor=processor.futures_executor,
             executor_args=exe_args,
+            chunksize=2750,
             # chunksize=10000,
         )
 
