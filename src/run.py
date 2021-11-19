@@ -11,9 +11,22 @@ from coffea.nanoevents import BaseSchema
 from coffea import nanoevents
 from coffea import processor
 import pickle
+import os
 
 import argparse
 
+import warnings
+
+from distributed.diagnostics.plugin import WorkerPlugin
+
+
+def fxn():
+    warnings.warn("userwarning", UserWarning)
+
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    fxn()
 
 nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
     "FatJetAK15_nConstituents",
@@ -21,6 +34,21 @@ nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
 )
 nanoevents.NanoAODSchema.mixins["FatJetAK15"] = "FatJet"
 nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
+
+
+class NanoeventsSchemaPlugin(WorkerPlugin):
+    def __init__(self):
+        pass
+
+    def setup(self, worker):
+        from coffea import nanoevents
+
+        nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
+            "FatJetAK15_nConstituents",
+            "JetPFCandsAK15",
+        )
+        nanoevents.NanoAODSchema.mixins["FatJetAK15"] = "FatJet"
+        nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
 
 
 def get_fileset(ptype, samples, starti, endi):
@@ -100,7 +128,12 @@ def main(args):
         from HHbbVV.processors import bbVVSkimmer
 
         xsecs = get_xsecs()
-        p = bbVVSkimmer(xsecs=xsecs, condor=args.condor)
+        p = bbVVSkimmer(
+            xsecs=xsecs,
+            condor=args.condor,
+            output_location=args.outdir,
+        )
+        # p = bbVVSkimmer(xsecs=xsecs, condor=args.condor, output_location=os.getcwd())
 
     fileset = get_fileset(args.processor, args.samples, args.starti, args.endi)
 
@@ -111,41 +144,29 @@ def main(args):
 
         tic = time.time()
         cluster = LPCCondorCluster(
-            # ship_env=True,
-            # transfer_input_files="HHbbVV",
+            ship_env=True,
+            transfer_input_files="src/HHbbVV",
         )
-        cluster.adapt(minimum=1, maximum=30)
         client = Client(cluster)
+        nanoevents_plugin = NanoeventsSchemaPlugin()
+        client.register_worker_plugin(nanoevents_plugin)
+        cluster.adapt(minimum=1, maximum=30)
 
-        exe_args = {
-            "client": client,
-            "savemetrics": True,
-            "schema": BaseSchema,  # for base schema
-            # 'schema': nanoevents.NanoAODSchema, # for nano schema in the future
-            "align_clusters": True,
-        }
-
-        print("Waiting for at least one worker...")
+        print("Waiting for at least one worker")
         client.wait_for_workers(1)
 
-        out, metrics = processor.run_uproot_job(
-            fileset,
-            treename="Events",
-            processor_instance=p,
-            executor=processor.dask_executor,
-            executor_args=exe_args,
-            chunksize=args.chunksize
-            #    maxchunks=10
+        # does treereduction help?
+        executor = processor.DaskExecutor(status=True, client=client, treereduction=2)
+        run = processor.Runner(
+            executor=executor, savemetrics=True, schema=nanoevents.NanoAODSchema, chunksize=100000
+        )
+        out, metrics = run(
+            {key: fileset[key] for key in args.samples}, "Events", processor_instance=p
         )
 
         elapsed = time.time() - tic
         print(f"Metrics: {metrics}")
         print(f"Finished in {elapsed:.1f}s")
-
-        filehandler = open("out.hist", "wb")
-        pickle.dump(out, filehandler)
-        filehandler.close()
-
     else:
         uproot.open.defaults["xrootd_handler"] = uproot.source.xrootd.MultithreadedXRootDSource
 
@@ -172,7 +193,6 @@ def main(args):
         filehandler = open(f"outfiles/{args.starti}-{args.endi}.pkl", "wb")
         pickle.dump(out, filehandler)
         filehandler.close()
-
 
 if __name__ == "__main__":
     # e.g.

@@ -1,23 +1,26 @@
 """
 Skimmer for bbVV analysis.
-
 Author(s): Raghav Kansal
 """
 
 import numpy as np
 import awkward as ak
+import pandas as pd
 
-from coffea.processor import ProcessorABC, column_accumulator
+from coffea.processor import ProcessorABC, dict_accumulator
 from coffea.nanoevents.methods.base import NanoEventsArray
 from coffea.analysis_tools import PackedSelection
 
 import pathlib
 import pickle
 import gzip
+import os
+import shutil
+
+from typing import List, Optional
 
 from .TaggerInference import runInferenceOnnx, runInferenceTriton
-
-from . import utils
+from .utils import pad_val
 
 
 class bbVVSkimmer(ProcessorABC):
@@ -32,16 +35,13 @@ class bbVVSkimmer(ProcessorABC):
 
     # TODO: do ak8, ak15 sorting for hybrid case
 
-    def __init__(self, xsecs={}, condor: bool = False):
+    def __init__(self, xsecs={}, condor: bool = False, output_location=None):
         super(bbVVSkimmer, self).__init__()
 
-        # in pb^-1
-        self.LUMI = {"2017": 40000}
-
-        # in pb
-        self.XSECS = xsecs
-
+        self.LUMI = {"2017": 40000}  # in pb^-1
+        self.XSECS = xsecs  # in pb
         self.condor = condor
+        self.output_location = output_location
 
         self.HLTs = {
             "2017": [
@@ -118,12 +118,80 @@ class bbVVSkimmer(ProcessorABC):
             str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
         )
 
+        self._accumulator = dict_accumulator({})
+
+    def dump_table(
+        self, pddf: pd.DataFrame, fname: str, location: str, subdirs: Optional[List[str]] = None
+    ) -> None:
+        subdirs = subdirs or []
+        xrd_prefix = "root://"
+        pfx_len = len(xrd_prefix)
+        xrootd = False
+
+        if xrd_prefix in location:
+            try:
+                import XRootD
+                import XRootD.client
+
+                xrootd = True
+            except ImportError:
+                raise ImportError(
+                    "Install XRootD python bindings with: conda install -c conda-forge xroot"
+                )
+
+        # saving to a local file first
+        local_file = (
+            os.path.abspath(os.path.join(".", fname)) if xrootd else os.path.join(".", fname)
+        )
+        merged_subdirs = "/".join(subdirs) if xrootd else os.path.sep.join(subdirs)
+
+        destination = (
+            location + merged_subdirs + f"/{fname}"
+            if xrootd
+            else os.path.join(location, os.path.join(merged_subdirs, fname))
+        )
+
+        pddf.to_parquet(local_file)
+
+        if xrootd:
+            # copy via xrootd
+            copyproc = XRootD.client.CopyProcess()
+            copyproc.add_job(local_file, destination)
+            copyproc.prepare()
+            copyproc.run()
+            client = XRootD.client.FileSystem(location[: location[pfx_len:].find("/") + pfx_len])
+            status = client.locate(
+                destination[destination[pfx_len:].find("/") + pfx_len + 1 :],
+                XRootD.client.flags.OpenFlags.READ,
+            )
+            assert status[0].ok
+            del client
+            del copyproc
+        else:
+            # copy through shell
+            dirname = os.path.dirname(destination)
+            if not os.path.exists(dirname):
+                pathlib.Path(dirname).mkdir(parents=True, exist_ok=True)
+            if not os.path.samefile(local_file, destination):
+                shutil.copy2(local_file, destination)
+            else:
+                fname = "condor_" + fname
+                destination = os.path.join(location, os.path.join(merged_subdirs, fname))
+                shutil.copy2(local_file, destination)
+            assert os.path.isfile(destination)
+
+        pathlib.Path(local_file).unlink()
+
+    @property
+    def accumulator(self):
+        return self._accumulator
+
     def add_selection(self, name: str, sel: np.ndarray, selection: PackedSelection, cutflow: dict):
         """adds selection to PackedSelection object and the cutflow dictionary"""
         selection.add(name, sel)
         cutflow[name] = np.sum(selection.all(*selection.names))
 
-    def process(self, events):
+    def process(self, events: ak.Array):
         """Returns skimmed events which pass preselection cuts (and triggers if data) and with the branches listed in self.skim_vars"""
 
         print("processing")
@@ -141,13 +209,11 @@ class bbVVSkimmer(ProcessorABC):
         skimmed_events = {}
 
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
-
         if "HHToBBVVToBBQQQQ" in dataset:
             skimmed_events = {**skimmed_events, **self.gen_matching(events, selection, cutflow)}
 
         # triggers
         # OR-ing HLT triggers
-
         if isData:
             HLT_triggered = np.any(
                 np.array(
@@ -166,7 +232,7 @@ class bbVVSkimmer(ProcessorABC):
 
         preselection_cut = np.logical_or(
             np.prod(
-                utils.pad_val(
+                pad_val(
                     (events.FatJet.pt > self.preselection_cut_vals["pt"])
                     * (events.FatJet.msoftdrop > self.preselection_cut_vals["msd"]),
                     2,
@@ -176,7 +242,7 @@ class bbVVSkimmer(ProcessorABC):
                 axis=1,
             ),
             np.prod(
-                utils.pad_val(
+                pad_val(
                     (events.FatJetAK15.pt > self.preselection_cut_vals["pt"])
                     * (events.FatJetAK15.msoftdrop > self.preselection_cut_vals["msd"]),
                     2,
@@ -193,11 +259,11 @@ class bbVVSkimmer(ProcessorABC):
         # select vars
 
         ak8FatJetVars = {
-            f"ak8FatJet{key}": utils.pad_val(events.FatJet[var], 2, -99999, axis=1)
+            f"ak8FatJet{key}": pad_val(events.FatJet[var], 2, -99999, axis=1)
             for (var, key) in self.skim_vars["FatJet"].items()
         }
         ak15FatJetVars = {
-            f"ak15FatJet{key}": utils.pad_val(events.FatJetAK15[var], 2, -99999, axis=1)
+            f"ak15FatJet{key}": pad_val(events.FatJetAK15[var], 2, -99999, axis=1)
             for (var, key) in self.skim_vars["FatJetAK15"].items()
         }
         otherVars = {
@@ -209,21 +275,21 @@ class bbVVSkimmer(ProcessorABC):
 
         # particlenet h4q vs qcd, xbb vs qcd
 
-        skimmed_events["ak8FatJetParticleNetMD_Txbb"] = utils.pad_val(
+        skimmed_events["ak8FatJetParticleNetMD_Txbb"] = pad_val(
             events.FatJet.particleNetMD_Xbb
             / (events.FatJet.particleNetMD_QCD + events.FatJet.particleNetMD_Xbb),
             2,
             -1,
             axis=1,
         )
-        skimmed_events["ak15FatJetParticleNetMD_Txbb"] = utils.pad_val(
+        skimmed_events["ak15FatJetParticleNetMD_Txbb"] = pad_val(
             events.FatJetAK15.ParticleNetMD_probXbb
             / (events.FatJetAK15.ParticleNetMD_probQCD + events.FatJetAK15.ParticleNetMD_probXbb),
             2,
             -1,
             axis=1,
         )
-        skimmed_events["ak15FatJetParticleNet_Th4q"] = utils.pad_val(
+        skimmed_events["ak15FatJetParticleNet_Th4q"] = pad_val(
             events.FatJetAK15.ParticleNet_probHqqqq
             / (
                 events.FatJetAK15.ParticleNet_probHqqqq
@@ -239,7 +305,6 @@ class bbVVSkimmer(ProcessorABC):
         )
 
         # calc weights
-
         skimmed_events["weight"] = np.ones(n_events)
         if not isData:
             skimmed_events["genWeight"] = events.genWeight.to_numpy()
@@ -250,8 +315,7 @@ class bbVVSkimmer(ProcessorABC):
         # apply selections
 
         skimmed_events = {
-            key: column_accumulator(value[selection.all(*selection.names)])
-            for (key, value) in skimmed_events.items()
+            key: value[selection.all(*selection.names)] for (key, value) in skimmed_events.items()
         }
 
         # apply HWW4q tagger
@@ -264,17 +328,21 @@ class bbVVSkimmer(ProcessorABC):
         # pnet_vars = {}
 
         print("post-inference")
-
         skimmed_events = {
             **skimmed_events,
-            **{key: column_accumulator(value) for (key, value) in pnet_vars.items()},
+            **{key: value for (key, value) in pnet_vars.items()},
         }
 
-        return {
-            year: {
-                dataset: {"nevents": n_events, "skimmed_events": skimmed_events, "cutflow": cutflow}
-            }
-        }
+        df = ak.to_pandas(ak.Array([skimmed_events]))
+
+        fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
+        subdirs = []
+        subdirs.append(f"{year}")
+        subdirs.append(dataset)
+        if self.output_location is not None:
+            self.dump_table(df, fname, self.output_location, subdirs)
+
+        return self.accumulator.identity()
 
     def gen_matching(self, events: NanoEventsArray, selection: PackedSelection, cutflow: dict):
         """Gets HH, bb, VV, and 4q 4-vectors + Higgs children information"""
@@ -315,7 +383,7 @@ class bbVVSkimmer(ProcessorABC):
 
         # have to pad to 2 because of some 4V events
         GenbbVars = {
-            f"Genbb{key}": utils.pad_val(bb[var], 2, -99999, axis=1)
+            f"Genbb{key}": pad_val(bb[var], 2, -99999, axis=1)
             for (var, key) in self.skim_vars["GenHiggs"].items()
         }
 
@@ -334,38 +402,11 @@ class bbVVSkimmer(ProcessorABC):
 
         # saving 4q 4-vector info
         Gen4qVars = {
-            f"Gen4q{key}": utils.pad_val(
-                ak.fill_none(VV_children[var][:, :2], []), 2, -99999, axis=2
-            )
+            f"Gen4q{key}": pad_val(ak.fill_none(VV_children[var][:, :2], []), 2, -99999, axis=2)
             for (var, key) in self.skim_vars["GenHiggs"].items()
         }
 
         return {**GenHiggsVars, **GenbbVars, **GenVVVars, **Gen4qVars}
 
     def postprocess(self, accumulator):
-        """
-        Multiplies weights by luminosity and cross sections (if specified in input)
-
-        If not using normal condor, will also 1) divide by total events (pre-cuts) and 2) convert `column_accumulator`s to normal arrays
-        If using normal condor, this will have to be done manually, along with combining all the output files
-        """
-
-        for year, datasets in accumulator.items():
-            for dataset, output in datasets.items():
-                output["skimmed_events"] = {
-                    key: value.value for (key, value) in output["skimmed_events"].items()
-                }
-
-                if "JetHT" not in dataset:
-                    weight = 1 if self.condor else 1 / output["nevents"]
-                    if dataset in self.XSECS:
-                        weight *= self.LUMI[year] * self.XSECS[dataset]
-                    output["skimmed_events"]["weight"] *= weight
-
-                if self.condor:
-                    output["skimmed_events"] = {
-                        key: column_accumulator(value)
-                        for (key, value) in output["skimmed_events"].items()
-                    }
-
         return accumulator
