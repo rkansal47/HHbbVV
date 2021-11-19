@@ -67,7 +67,7 @@ def get_fileset(ptype, samples=[]):
 def main(args):
     locdir = "condor/" + args.tag
     homedir = f"/store/user/rkansal/bbVV/{args.processor}/"
-    outdir = homedir + args.tag + "/outfiles/"
+    outdir = homedir + args.tag + "/"
 
     # make local directory
     logdir = locdir + "/logs"
