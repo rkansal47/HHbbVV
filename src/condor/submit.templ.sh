@@ -8,7 +8,7 @@ mkdir outfiles
 
 # run code
 pip install --user onnxruntime
-python SCRIPTNAME --year YEAR --starti STARTNUM --endi ENDNUM --samples SAMPLE --processor PROCESSOR --condor
+python SCRIPTNAME --year YEAR --starti STARTNUM --endi ENDNUM --samples SAMPLE --processor PROCESSOR
 
 #move output to eos
 xrdcp -f outfiles/* EOSOUT
