@@ -122,6 +122,12 @@ class bbVVSkimmer(ProcessorABC):
     def dump_table(
         self, pddf: pd.DataFrame, fname: str, location: str, subdirs: Optional[List[str]] = None
     ) -> None:
+        """
+        Saves pandas dataframe events as parquet files.
+        Saves locally first then:
+        If ``location`` starts with "root://", will xrdcp to ``location``/``[subdirs]``/.
+        Else will copy normally to ``location``/``[subdirs]``/.
+        """
         subdirs = subdirs or []
         xrd_prefix = "root://"
         pfx_len = len(xrd_prefix)
@@ -169,14 +175,21 @@ class bbVVSkimmer(ProcessorABC):
         else:
             # copy through shell
             dirname = os.path.dirname(destination)
+
             if not os.path.exists(dirname):
                 pathlib.Path(dirname).mkdir(parents=True, exist_ok=True)
-            if not os.path.samefile(local_file, destination):
-                shutil.copy2(local_file, destination)
-            else:
-                fname = "condor_" + fname
-                destination = os.path.join(location, os.path.join(merged_subdirs, fname))
-                shutil.copy2(local_file, destination)
+
+            shutil.copy2(local_file, destination)
+
+            # TODO: fix and and this logic back
+
+            # if not os.path.samefile(local_file, destination):
+            #     shutil.copy2(local_file, destination)
+            # else:
+            #     fname = "condor_" + fname
+            #     destination = os.path.join(location, os.path.join(merged_subdirs, fname))
+            #     shutil.copy2(local_file, destination)
+
             assert os.path.isfile(destination)
 
         pathlib.Path(local_file).unlink()
