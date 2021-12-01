@@ -101,6 +101,7 @@ def get_fileset(ptype, samples, starti, endi):
 
                     fileset["2017_" + sample[:-4].split("_TuneCP5")[0]] = filelist[starti:endi]
 
+        print(fileset)
         return fileset
 
 
