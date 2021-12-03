@@ -82,6 +82,12 @@ def get_pfcands_features(
         )
     ).astype(np.float32)
 
+    # if no padding is needed, mask will = 1.0
+    if isinstance(feature_dict["pfcand_mask"], float):
+        feature_dict["pfcand_mask"] = np.ones(
+            (len(feature_dict["pfcand_abseta"]), tagger_vars["pf_points"]["var_length"])
+        )
+
     # convert to numpy arrays and normalize features
     for var in tagger_vars["pf_features"]["var_names"]:
         a = (
@@ -107,7 +113,14 @@ def get_pfcands_features(
     return feature_dict
 
 
-def get_svs_features(tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int) -> dict:
+def get_svs_features(
+    tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int
+) -> Dict[str, np.ndarray]:
+    """
+    Extracts the sv features specified in the ``tagger_vars`` dict from the
+    ``preselected_events`` and returns them as a dict of numpy arrays
+    """
+
     feature_dict = {}
 
     jet = ak.pad_none(preselected_events.FatJetAK15, 2, axis=1)[:, jet_idx]
@@ -146,6 +159,12 @@ def get_svs_features(tagger_vars: dict, preselected_events: NanoEventsArray, jet
             .mask
         )
     ).astype(np.float32)
+
+    # if no padding is needed, mask will = 1.0
+    if isinstance(feature_dict["sv_mask"], float):
+        feature_dict["sv_mask"] = np.ones(
+            (len(feature_dict["sv_abseta"]), tagger_vars["sv_points"]["var_length"])
+        )
 
     # convert to numpy arrays and normalize features
     for var in tagger_vars["sv_features"]["var_names"]:
