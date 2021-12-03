@@ -324,6 +324,21 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
             **get_svs_features(tagger_vars, events, jet_idx),
         }
 
+        # print(feature_dict[tagger_vars[tagger_vars["input_names"][0]]["var_names"][0]])
+        # print(feature_dict[tagger_vars[tagger_vars["input_names"][0]]["var_names"][0]].shape) 
+    
+        for input_name in tagger_vars["input_names"]:
+            for key in tagger_vars[input_name]["var_names"]:
+                try:
+                    np.expand_dims(feature_dict[key], 1)
+                except np.AxisError:
+                    print(f"ERROR \n {input_name = } \n {key = } \n {feature_dict[key].shape} \n {feature_dict[key]}")
+                    print(feature_dict[tagger_vars[tagger_vars["input_names"][0]]["var_names"][0]])
+                    print(feature_dict[tagger_vars[tagger_vars["input_names"][0]]["var_names"][0]].shape) 
+                    print(feature_dict["pfcand_abseta"])
+                    print(feature_dict["pfcand_abseta"].shape)
+                    raise
+
         tagger_inputs.append(
             {
                 input_name: np.concatenate(
