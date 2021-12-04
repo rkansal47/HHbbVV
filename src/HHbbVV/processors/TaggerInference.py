@@ -82,11 +82,19 @@ def get_pfcands_features(
         )
     ).astype(np.float32)
 
+    print(feature_dict["pfcand_mask"])
+    print(feature_dict["pfcand_mask"].shape)
+    print(type(feature_dict["pfcand_mask"]))
+
+
     # if no padding is needed, mask will = 1.0
     if isinstance(feature_dict["pfcand_mask"], float):
         feature_dict["pfcand_mask"] = np.ones(
             (len(feature_dict["pfcand_abseta"]), tagger_vars["pf_points"]["var_length"])
         )
+
+    print(feature_dict["pfcand_mask"])
+    print(feature_dict["pfcand_mask"].shape)
 
     # convert to numpy arrays and normalize features
     for var in tagger_vars["pf_features"]["var_names"]:
