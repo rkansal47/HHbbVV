@@ -88,7 +88,7 @@ def get_pfcands_features(
 
 
     # if no padding is needed, mask will = 1.0
-    if isinstance(feature_dict["pfcand_mask"], float):
+    if isinstance(feature_dict["pfcand_mask"], np.float32):
         feature_dict["pfcand_mask"] = np.ones(
             (len(feature_dict["pfcand_abseta"]), tagger_vars["pf_points"]["var_length"])
         )
@@ -169,7 +169,7 @@ def get_svs_features(
     ).astype(np.float32)
 
     # if no padding is needed, mask will = 1.0
-    if isinstance(feature_dict["sv_mask"], float):
+    if isinstance(feature_dict["sv_mask"], np.float32):
         feature_dict["sv_mask"] = np.ones(
             (len(feature_dict["sv_abseta"]), tagger_vars["sv_points"]["var_length"])
         )
