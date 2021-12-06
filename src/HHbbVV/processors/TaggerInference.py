@@ -345,9 +345,6 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
             **get_svs_features(tagger_vars, events, jet_idx),
         }
 
-        # print(feature_dict[tagger_vars[tagger_vars["input_names"][0]]["var_names"][0]])
-        # print(feature_dict[tagger_vars[tagger_vars["input_names"][0]]["var_names"][0]].shape)
-
         for input_name in tagger_vars["input_names"]:
             for key in tagger_vars[input_name]["var_names"]:
                 np.expand_dims(feature_dict[key], 1)
@@ -376,14 +373,23 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
 
     pnet_vars_list = []
     for jet_idx in range(2):
-        pnet_vars_list.append(
-            {
-                "ak15FatJetParticleNetHWWMD_probQCD": tagger_outputs[jet_idx][:, 3],
-                "ak15FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, 0],
-                "ak15FatJetParticleNetHWWMD_THWW4q": tagger_outputs[jet_idx][:, 0]
-                / (tagger_outputs[jet_idx][:, 0] + tagger_outputs[jet_idx][:, 3]),
-            }
-        )
+        if len(tagger_outputs[jet_idx]):
+            pnet_vars_list.append(
+                {
+                    "ak15FatJetParticleNetHWWMD_probQCD": tagger_outputs[jet_idx][:, 3],
+                    "ak15FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, 0],
+                    "ak15FatJetParticleNetHWWMD_THWW4q": tagger_outputs[jet_idx][:, 0]
+                    / (tagger_outputs[jet_idx][:, 0] + tagger_outputs[jet_idx][:, 3]),
+                }
+            )
+        else:
+            pnet_vars_list.append(
+                {
+                    "ak15FatJetParticleNetHWWMD_probQCD": np.array([]),
+                    "ak15FatJetParticleNetHWWMD_probHWW4q": np.array([]),
+                    "ak15FatJetParticleNetHWWMD_THWW4q": np.array([]),
+                }
+            )
 
     pnet_vars_combined = {
         key: np.concatenate(
