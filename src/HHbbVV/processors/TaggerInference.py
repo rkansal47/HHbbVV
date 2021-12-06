@@ -285,7 +285,9 @@ class wrapped_triton:
             raise ValueError(f"{self._protocol} does not encode a valid protocol (grpc or http)")
 
         # manually split into batches for gpu inference
-        print(f"size of input = {input_dict[list(input_dict.keys())[0]].shape[0]}")
+        input_size = input_dict[list(input_dict.keys())[0]].shape[0]
+        print(f"size of input = {input_size}")
+
         outs = [
             self._do_inference(
                 {key: input_dict[key][batch : batch + self._batch_size] for key in input_dict},
@@ -297,7 +299,7 @@ class wrapped_triton:
             )
         ]
 
-        return np.concatenate(outs)
+        return np.concatenate(outs) if input_size > 0 else outs
 
     def _do_inference(
         self, input_dict: Dict[str, np.ndarray], triton_protocol, client
@@ -344,19 +346,11 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
         }
 
         # print(feature_dict[tagger_vars[tagger_vars["input_names"][0]]["var_names"][0]])
-        # print(feature_dict[tagger_vars[tagger_vars["input_names"][0]]["var_names"][0]].shape) 
-    
+        # print(feature_dict[tagger_vars[tagger_vars["input_names"][0]]["var_names"][0]].shape)
+
         for input_name in tagger_vars["input_names"]:
             for key in tagger_vars[input_name]["var_names"]:
-                try:
-                    np.expand_dims(feature_dict[key], 1)
-                except np.AxisError:
-                    print(f"ERROR \n {input_name = } \n {key = } \n {feature_dict[key].shape} \n {feature_dict[key]}")
-                    print(feature_dict[tagger_vars[tagger_vars["input_names"][0]]["var_names"][0]])
-                    print(feature_dict[tagger_vars[tagger_vars["input_names"][0]]["var_names"][0]].shape) 
-                    print(feature_dict["pfcand_abseta"])
-                    print(feature_dict["pfcand_abseta"].shape)
-                    raise
+                np.expand_dims(feature_dict[key], 1)
 
         tagger_inputs.append(
             {
