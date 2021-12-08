@@ -193,6 +193,14 @@ def main(args):
         pickle.dump(out, filehandler)
         filehandler.close()
 
+        import pandas as pd
+
+        local_dir = os.path.abspath(os.path.join(".", "outparquet"))
+        pddf = pd.read_parquet(local_dir)
+
+        os.system(f"mkdir -p {local_dir}")
+        pddf.to_parquet(f"{os.path.abspath('.')}/{args.starti}-{args.endi}.parquet")
+
 
 if __name__ == "__main__":
     # e.g.
@@ -222,7 +230,7 @@ if __name__ == "__main__":
         help="type of processor executor",
     )
     parser.add_argument("--samples", dest="samples", default=[], help="samples", nargs="*")
-    parser.add_argument("--chunksize", type=int, default=2750, help="chunk size in processor")
+    parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
     args = parser.parse_args()
 
     main(args)
