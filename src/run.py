@@ -191,13 +191,17 @@ def main(args):
 
         import pandas as pd
 
+        print("reading parquet")
+
         local_dir = os.path.abspath(os.path.join(".", "outparquet"))
         pddf = pd.read_parquet(local_dir)
 
+        print("read parquet")
+
         os.system(f"mkdir -p {local_dir}")
-        pddf.repartition(npartitions=1).to_parquet(
-            f"{os.path.abspath('.')}/{args.starti}-{args.endi}.parquet"
-        )
+        pddf.to_parquet(f"{os.path.abspath('.')}/{args.starti}-{args.endi}.parquet")
+
+        print("dumped parquet")
 
 
 if __name__ == "__main__":
