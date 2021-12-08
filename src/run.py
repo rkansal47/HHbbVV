@@ -195,7 +195,9 @@ def main(args):
         pddf = pd.read_parquet(local_dir)
 
         os.system(f"mkdir -p {local_dir}")
-        pddf.to_parquet(f"{os.path.abspath('.')}/{args.starti}-{args.endi}.parquet")
+        pddf.repartition(npartitions=1).to_parquet(
+            f"{os.path.abspath('.')}/{args.starti}-{args.endi}.parquet"
+        )
 
 
 if __name__ == "__main__":
