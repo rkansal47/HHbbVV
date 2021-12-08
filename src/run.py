@@ -128,11 +128,7 @@ def main(args):
     elif args.processor == "skimmer":
         from HHbbVV.processors import bbVVSkimmer
 
-        xsecs = get_xsecs()
-        p = bbVVSkimmer(
-            xsecs=xsecs,
-            output_location=args.outdir,
-        )
+        p = bbVVSkimmer(xsecs=get_xsecs())
 
     fileset = get_fileset(args.processor, args.samples, args.starti, args.endi)
 
@@ -211,9 +207,9 @@ if __name__ == "__main__":
     parser.add_argument("--year", dest="year", default="2017", help="year", type=str)
     parser.add_argument("--starti", dest="starti", default=0, help="start index of files", type=int)
     parser.add_argument("--endi", dest="endi", default=-1, help="end index of files", type=int)
-    parser.add_argument(
-        "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
-    )
+    # parser.add_argument(
+    #     "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
+    # )
     parser.add_argument(
         "--processor",
         dest="processor",
