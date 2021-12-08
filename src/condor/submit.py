@@ -121,7 +121,6 @@ def main(args):
                 line = line.replace("PROCESSOR", args.processor)
                 line = line.replace("STARTNUM", str(j * args.files_per_job))
                 line = line.replace("ENDNUM", str((j + 1) * args.files_per_job))
-                line = line.replace("EOSOUTDIR", eosoutput_dir)
                 line = line.replace("EOSOUTPKL", eosoutput_pkl)
                 line = line.replace("EOSOUTPARQUET", eosoutput_parquet)
                 sh_file.write(line)
