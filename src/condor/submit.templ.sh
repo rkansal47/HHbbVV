@@ -12,3 +12,4 @@ python SCRIPTNAME --year YEAR --starti STARTNUM --endi ENDNUM --samples SAMPLE -
 
 #move output to eos
 xrdcp -f outfiles/* EOSOUTPKL
+xrdcp -f *.parquet EOSOUTPARQUET
