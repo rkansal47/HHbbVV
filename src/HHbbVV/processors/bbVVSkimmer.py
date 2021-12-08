@@ -282,11 +282,7 @@ class bbVVSkimmer(ProcessorABC):
         df = ak.to_pandas(ak.Array([skimmed_events]))
 
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
-        subdirs = []
-        subdirs.append(f"{year}")
-        subdirs.append(dataset)
-        if self.output_location is not None:
-            self.dump_table(df, fname, self.output_location, subdirs)
+        self.dump_table(df, fname)
 
         return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
 
