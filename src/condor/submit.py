@@ -112,7 +112,7 @@ def main(args):
             localsh = f"{locdir}/{sample}_{j}.sh"
             eosoutput_dir = f"root://cmseos.fnal.gov/{outdir}/{sample}/"
             eosoutput_pkl = f"{eosoutput_dir}/pickles/out_{j}.pkl"
-            eosoutput_parquet = f"{eosoutput_dir}/parquet/out_{j}.pkl"
+            eosoutput_parquet = f"{eosoutput_dir}/parquet/out_{j}.parquet"
             sh_file = open(localsh, "w")
             for line in sh_templ_file:
                 line = line.replace("SCRIPTNAME", args.script)
