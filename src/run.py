@@ -128,11 +128,7 @@ def main(args):
     elif args.processor == "skimmer":
         from HHbbVV.processors import bbVVSkimmer
 
-        xsecs = get_xsecs()
-        p = bbVVSkimmer(
-            xsecs=xsecs,
-            output_location=args.outdir,
-        )
+        p = bbVVSkimmer(xsecs=get_xsecs())
 
     fileset = get_fileset(args.processor, args.samples, args.starti, args.endi)
 
@@ -193,6 +189,20 @@ def main(args):
         pickle.dump(out, filehandler)
         filehandler.close()
 
+        import pandas as pd
+
+        print("reading parquet")
+
+        local_dir = os.path.abspath(os.path.join(".", "outparquet"))
+        pddf = pd.read_parquet(local_dir)
+
+        print("read parquet")
+
+        os.system(f"mkdir -p {local_dir}")
+        pddf.to_parquet(f"{os.path.abspath('.')}/{args.starti}-{args.endi}.parquet")
+
+        print("dumped parquet")
+
 
 if __name__ == "__main__":
     # e.g.
@@ -203,9 +213,9 @@ if __name__ == "__main__":
     parser.add_argument("--year", dest="year", default="2017", help="year", type=str)
     parser.add_argument("--starti", dest="starti", default=0, help="start index of files", type=int)
     parser.add_argument("--endi", dest="endi", default=-1, help="end index of files", type=int)
-    parser.add_argument(
-        "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
-    )
+    # parser.add_argument(
+    #     "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
+    # )
     parser.add_argument(
         "--processor",
         dest="processor",
@@ -222,7 +232,7 @@ if __name__ == "__main__":
         help="type of processor executor",
     )
     parser.add_argument("--samples", dest="samples", default=[], help="samples", nargs="*")
-    parser.add_argument("--chunksize", type=int, default=2750, help="chunk size in processor")
+    parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
     args = parser.parse_args()
 
     main(args)
