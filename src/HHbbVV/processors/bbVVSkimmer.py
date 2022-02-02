@@ -15,11 +15,10 @@ import pathlib
 import pickle
 import gzip
 import os
-import shutil
 
-from typing import List, Optional
+from typing import Dict
 
-from .TaggerInference import runInferenceOnnx, runInferenceTriton
+from .TaggerInference import runInferenceTriton
 from .utils import pad_val
 
 
@@ -118,6 +117,18 @@ class bbVVSkimmer(ProcessorABC):
         )
 
         self._accumulator = dict_accumulator({})
+
+    def to_pandas(self, events: Dict[str, np.array]):
+        """
+        Convert our dictionary of numpy arrays into a pandas data frame
+        Uses multi-index columns for numpy arrays with >1 dimension
+        (e.g. FatJet arrays with two columns)
+        """
+        return pd.concat(
+            [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in events.items()],
+            axis=1,
+            keys=list(events.keys()),
+        )
 
     def dump_table(self, pddf: pd.DataFrame, fname: str) -> None:
         """
@@ -279,8 +290,7 @@ class bbVVSkimmer(ProcessorABC):
             **{key: value for (key, value) in pnet_vars.items()},
         }
 
-        df = ak.to_pandas(ak.Array([skimmed_events]))
-
+        df = self.to_pandas(skimmed_events)
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
         self.dump_table(df, fname)
 
