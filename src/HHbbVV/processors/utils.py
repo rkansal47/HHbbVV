@@ -12,7 +12,7 @@ def pad_val(
     target: int,
     value: float,
     axis: int = 0,
-    to_numpy: bool = False,
+    to_numpy: bool = True,
     clip: bool = True,
 ):
     """
