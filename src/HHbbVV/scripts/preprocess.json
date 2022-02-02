@@ -1,0 +1,337 @@
+{
+  "output_names": [
+    "fj_H_WW_4q",
+    "fj_H_WW_elenuqq",
+    "fj_H_WW_munuqq",
+    "fj_isQCD"
+  ],
+  "input_names": [
+    "pf_points",
+    "pf_features",
+    "pf_mask",
+    "sv_points",
+    "sv_features",
+    "sv_mask"
+  ],
+  "pf_points": {
+    "var_names": [
+      "pfcand_etarel",
+      "pfcand_phirel"
+    ],
+    "var_infos": {
+      "pfcand_etarel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_phirel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      }
+    },
+    "var_length": 100
+  },
+  "pf_features": {
+    "var_names": [
+      "pfcand_pt_log_nopuppi",
+      "pfcand_e_log_nopuppi",
+      "pfcand_etarel",
+      "pfcand_phirel",
+      "pfcand_abseta",
+      "pfcand_charge",
+      "pfcand_VTX_ass",
+      "pfcand_lostInnerHits",
+      "pfcand_normchi2",
+      "pfcand_quality",
+      "pfcand_dz",
+      "pfcand_dzsig",
+      "pfcand_dxy",
+      "pfcand_dxysig"
+    ],
+    "var_infos": {
+      "pfcand_pt_log_nopuppi": {
+        "median": 1,
+        "norm_factor": 0.5,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_e_log_nopuppi": {
+        "median": 1.3,
+        "norm_factor": 0.5,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_etarel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_phirel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_abseta": {
+        "median": 0.6,
+        "norm_factor": 1.6,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_charge": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_VTX_ass": {
+        "median": 4,
+        "norm_factor": 0.3,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_lostInnerHits": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_normchi2": {
+        "median": 5,
+        "norm_factor": 0.2,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_quality": {
+        "median": 0,
+        "norm_factor": 0.2,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_dz": {
+        "median": 0,
+        "norm_factor": 180,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_dzsig": {
+        "median": 0,
+        "norm_factor": 0.9,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_dxy": {
+        "median": 0.0,
+        "norm_factor": 300,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_dxysig": {
+        "median": 0,
+        "norm_factor": 1.0,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      }
+    },
+    "var_length": 100
+  },
+  "pf_mask": {
+    "var_names": [
+      "pfcand_mask"
+    ],
+    "var_infos": {
+      "pfcand_mask": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      }
+    },
+    "var_length": 100
+  },
+  "sv_points": {
+    "var_names": [
+      "sv_etarel",
+      "sv_phirel"
+    ],
+    "var_infos": {
+      "sv_etarel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "sv_phirel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      }
+    },
+    "var_length": 7
+  },
+  "sv_features": {
+    "var_names": [
+      "sv_pt_log",
+      "sv_mass",
+      "sv_etarel",
+      "sv_phirel",
+      "sv_abseta",
+      "sv_ntracks",
+      "sv_normchi2",
+      "sv_dxy",
+      "sv_dxysig",
+      "sv_d3d",
+      "sv_d3dsig"
+    ],
+    "var_infos": {
+      "sv_pt_log": {
+        "median": 4,
+        "norm_factor": 0.6,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_mass": {
+        "median": 1.2,
+        "norm_factor": 0.3,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_etarel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "sv_phirel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "sv_abseta": {
+        "median": 0.5,
+        "norm_factor": 1.6,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_ntracks": {
+        "median": 3,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_normchi2": {
+        "median": 0.8,
+        "norm_factor": 0.6,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_dxy": {
+        "median": 0.4,
+        "norm_factor": 0.25,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_dxysig": {
+        "median": 7,
+        "norm_factor": 0.02,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_d3d": {
+        "median": 0.5,
+        "norm_factor": 0.2,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_d3dsig": {
+        "median": 7,
+        "norm_factor": 0.02,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      }
+    },
+    "var_length": 7
+  },
+  "sv_mask": {
+    "var_names": [
+      "sv_mask"
+    ],
+    "var_infos": {
+      "sv_mask": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      }
+    },
+    "var_length": 7
+  }
+}
