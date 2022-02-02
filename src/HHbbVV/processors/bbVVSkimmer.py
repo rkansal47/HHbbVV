@@ -119,80 +119,14 @@ class bbVVSkimmer(ProcessorABC):
 
         self._accumulator = dict_accumulator({})
 
-    def dump_table(
-        self, pddf: pd.DataFrame, fname: str, location: str, subdirs: Optional[List[str]] = None
-    ) -> None:
+    def dump_table(self, pddf: pd.DataFrame, fname: str) -> None:
         """
-        Saves pandas dataframe events as parquet files.
-        Saves locally first then:
-        If ``location`` starts with "root://", will xrdcp to ``location``/``[subdirs]``/.
-        Else will copy normally to ``location``/``[subdirs]``/.
+        Saves pandas dataframe events to './outparquet'
         """
-        subdirs = subdirs or []
-        xrd_prefix = "root://"
-        pfx_len = len(xrd_prefix)
-        xrootd = False
-
-        if xrd_prefix in location:
-            try:
-                import XRootD
-                import XRootD.client
-
-                xrootd = True
-            except ImportError:
-                raise ImportError(
-                    "Install XRootD python bindings with: conda install -c conda-forge xroot"
-                )
-
         # saving to a local file first
-        local_file = (
-            os.path.abspath(os.path.join(".", fname)) if xrootd else os.path.join(".", fname)
-        )
-        merged_subdirs = "/".join(subdirs) if xrootd else os.path.sep.join(subdirs)
-
-        destination = (
-            location + merged_subdirs + f"/{fname}"
-            if xrootd
-            else os.path.join(location, os.path.join(merged_subdirs, fname))
-        )
-
-        pddf.to_parquet(local_file)
-
-        if xrootd:
-            # copy via xrootd
-            copyproc = XRootD.client.CopyProcess()
-            copyproc.add_job(local_file, destination)
-            copyproc.prepare()
-            copyproc.run()
-            client = XRootD.client.FileSystem(location[: location[pfx_len:].find("/") + pfx_len])
-            status = client.locate(
-                destination[destination[pfx_len:].find("/") + pfx_len + 1 :],
-                XRootD.client.flags.OpenFlags.READ,
-            )
-            assert status[0].ok
-            del client
-            del copyproc
-        else:
-            # copy through shell
-            dirname = os.path.dirname(destination)
-
-            if not os.path.exists(dirname):
-                pathlib.Path(dirname).mkdir(parents=True, exist_ok=True)
-
-            shutil.copy2(local_file, destination)
-
-            # TODO: fix and and this logic back
-
-            # if not os.path.samefile(local_file, destination):
-            #     shutil.copy2(local_file, destination)
-            # else:
-            #     fname = "condor_" + fname
-            #     destination = os.path.join(location, os.path.join(merged_subdirs, fname))
-            #     shutil.copy2(local_file, destination)
-
-            assert os.path.isfile(destination)
-
-        pathlib.Path(local_file).unlink()
+        local_dir = os.path.abspath(os.path.join(".", "outparquet"))
+        os.system(f"mkdir -p {local_dir}")
+        pddf.to_parquet(f"{local_dir}/{fname}")
 
     @property
     def accumulator(self):
@@ -348,11 +282,7 @@ class bbVVSkimmer(ProcessorABC):
         df = ak.to_pandas(ak.Array([skimmed_events]))
 
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
-        subdirs = []
-        subdirs.append(f"{year}")
-        subdirs.append(dataset)
-        if self.output_location is not None:
-            self.dump_table(df, fname, self.output_location, subdirs)
+        self.dump_table(df, fname)
 
         return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
 
