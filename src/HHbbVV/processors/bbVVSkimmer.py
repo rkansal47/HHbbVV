@@ -172,7 +172,7 @@ class bbVVSkimmer(ProcessorABC):
         skimmed_events = {}
 
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
-        if "HHToBBVVToBBQQQQ" in dataset:
+        if "HHToBBVVToBBQQQQ" in dataset or "GluGluToHHTobbVV" in dataset:
             skimmed_events = {**skimmed_events, **self.gen_matching(events, selection, cutflow)}
 
         # triggers

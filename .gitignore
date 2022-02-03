@@ -38,6 +38,7 @@ outPickles/*skimmed*
 !plots/**
 plots/ControlPlots/*
 !plots/ControlPlots/Sep3
+plots/TaggerAnalysis
 
 !.gitignore
 !LICENSE
