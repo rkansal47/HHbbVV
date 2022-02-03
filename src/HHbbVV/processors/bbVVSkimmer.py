@@ -284,11 +284,11 @@ class bbVVSkimmer(ProcessorABC):
         # apply HWW4q tagger
         print("pre-inference")
 
-        # pnet_vars = runInferenceTriton(
-        #    self.tagger_resources_path, events[selection.all(*selection.names)]
-        # )
+        pnet_vars = runInferenceTriton(
+            self.tagger_resources_path, events[selection.all(*selection.names)]
+        )
 
-        pnet_vars = {}
+        # pnet_vars = {}
 
         print("post-inference")
         skimmed_events = {
