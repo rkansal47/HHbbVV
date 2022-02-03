@@ -30,8 +30,8 @@ def get_pfcands_features(
 
     jet = ak.pad_none(preselected_events.FatJetAK15, 2, axis=1)[:, jet_idx]
     jet_pfcands = preselected_events.PFCands[
-        preselected_events.JetPFCandsAK15.candIdx[
-            preselected_events.JetPFCandsAK15.jetIdx == jet_idx
+        preselected_events.FatJetAK15PFCands.pFCandsIdx[
+            preselected_events.FatJetAK15PFCands.jetIdx == jet_idx
         ]
     ]
 
@@ -125,8 +125,8 @@ def get_svs_features(
 
     jet = ak.pad_none(preselected_events.FatJetAK15, 2, axis=1)[:, jet_idx]
     jet_svs = preselected_events.SV[
-        preselected_events.JetSVsAK15.svIdx[
-            (preselected_events.JetSVsAK15.svIdx != -1)
+        preselected_events.JetSVsAK15.sVIdx[
+            (preselected_events.JetSVsAK15.sVIdx != -1)
             * (preselected_events.JetSVsAK15.jetIdx == jet_idx)
         ]
     ]
@@ -185,71 +185,71 @@ def get_svs_features(
     return feature_dict
 
 
-def runInferenceOnnx(tagger_resources_path: str, events: NanoEventsArray) -> dict:
-    total_start = time.time()
-
-    with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
-        tagger_vars = json.load(f)
-
-    opts = ort.SessionOptions()
-    opts.intra_op_num_threads = 1
-    opts.inter_op_num_threads = 1
-    opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-
-    tagger_session = ort.InferenceSession(
-        f"{tagger_resources_path}/pnetmd_ak15_hww4q_model.onnx", sess_options=opts
-    )
-
-    # prepare inputs for both fat jets
-    tagger_inputs = []
-    for jet_idx in range(2):
-        feature_dict = {
-            **get_pfcands_features(tagger_vars, events, jet_idx),
-            **get_svs_features(tagger_vars, events, jet_idx),
-        }
-
-        tagger_inputs.append(
-            {
-                input_name: np.concatenate(
-                    [
-                        np.expand_dims(feature_dict[key], 1)
-                        for key in tagger_vars[input_name]["var_names"]
-                    ],
-                    axis=1,
-                )
-                for input_name in tagger_vars["input_names"]
-            }
-        )
-
-    # run inference for both fat jets
-    tagger_outputs = []
-    for jet_idx in range(2):
-        print(f"Running inference for Jet {jet_idx + 1}")
-        start = time.time()
-        tagger_outputs.append(tagger_session.run(None, tagger_inputs[jet_idx])[0])
-        time_taken = time.time() - start
-        print(f"Inference took {time_taken}s")
-
-    pnet_vars_list = []
-    for jet_idx in range(2):
-        pnet_vars_list.append(
-            {
-                "ak15FatJetParticleNetHWWMD_probQCD": tagger_outputs[jet_idx][:, 3],
-                "ak15FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, 0],
-                "ak15FatJetParticleNetHWWMD_THWW4q": tagger_outputs[jet_idx][:, 0]
-                / (tagger_outputs[jet_idx][:, 0] + tagger_outputs[jet_idx][:, 3]),
-            }
-        )
-
-    pnet_vars_combined = {
-        key: np.concatenate(
-            [pnet_vars_list[0][key][:, np.newaxis], pnet_vars_list[1][key][:, np.newaxis]], axis=1
-        )
-        for key in pnet_vars_list[0]
-    }
-
-    print(f"Total time taken: {time.time() - total_start}s")
-    return pnet_vars_combined
+# def runInferenceOnnx(tagger_resources_path: str, events: NanoEventsArray) -> dict:
+#     total_start = time.time()
+#
+#     with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
+#         tagger_vars = json.load(f)
+#
+#     opts = ort.SessionOptions()
+#     opts.intra_op_num_threads = 1
+#     opts.inter_op_num_threads = 1
+#     opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+#
+#     tagger_session = ort.InferenceSession(
+#         f"{tagger_resources_path}/pnetmd_ak15_hww4q_model.onnx", sess_options=opts
+#     )
+#
+#     # prepare inputs for both fat jets
+#     tagger_inputs = []
+#     for jet_idx in range(2):
+#         feature_dict = {
+#             **get_pfcands_features(tagger_vars, events, jet_idx),
+#             **get_svs_features(tagger_vars, events, jet_idx),
+#         }
+#
+#         tagger_inputs.append(
+#             {
+#                 input_name: np.concatenate(
+#                     [
+#                         np.expand_dims(feature_dict[key], 1)
+#                         for key in tagger_vars[input_name]["var_names"]
+#                     ],
+#                     axis=1,
+#                 )
+#                 for input_name in tagger_vars["input_names"]
+#             }
+#         )
+#
+#     # run inference for both fat jets
+#     tagger_outputs = []
+#     for jet_idx in range(2):
+#         print(f"Running inference for Jet {jet_idx + 1}")
+#         start = time.time()
+#         tagger_outputs.append(tagger_session.run(None, tagger_inputs[jet_idx])[0])
+#         time_taken = time.time() - start
+#         print(f"Inference took {time_taken}s")
+#
+#     pnet_vars_list = []
+#     for jet_idx in range(2):
+#         pnet_vars_list.append(
+#             {
+#                 "ak15FatJetParticleNetHWWMD_probQCD": tagger_outputs[jet_idx][:, 3],
+#                 "ak15FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, 0],
+#                 "ak15FatJetParticleNetHWWMD_THWW4q": tagger_outputs[jet_idx][:, 0]
+#                 / (tagger_outputs[jet_idx][:, 0] + tagger_outputs[jet_idx][:, 3]),
+#             }
+#         )
+#
+#     pnet_vars_combined = {
+#         key: np.concatenate(
+#             [pnet_vars_list[0][key][:, np.newaxis], pnet_vars_list[1][key][:, np.newaxis]], axis=1
+#         )
+#         for key in pnet_vars_list[0]
+#     }
+#
+#     print(f"Total time taken: {time.time() - total_start}s")
+#     return pnet_vars_combined
 
 
 # from https://github.com/lgray/hgg-coffea/blob/triton-bdts/src/hgg_coffea/tools/chained_quantile.py
