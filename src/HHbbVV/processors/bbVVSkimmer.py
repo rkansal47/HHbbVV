@@ -137,11 +137,12 @@ class bbVVSkimmer(ProcessorABC):
         import pyarrow.parquet as pq
         import pyarrow as pa
 
+        local_dir = os.path.abspath(os.path.join(".", "outparquet"))
+        os.system(f"mkdir -p {local_dir}")
+
         # need to write with pyarrow as pd.to_parquet doesn't support different types in
         # multi-index column names
         table = pa.Table.from_pandas(pddf)
-        local_dir = os.path.abspath(os.path.join(".", "outparquet"))
-        os.system(f"mkdir -p {local_dir}")
         pq.write_table(table, f"{local_dir}/{fname}")
 
     @property
