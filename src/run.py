@@ -65,15 +65,15 @@ def get_fileset(ptype, samples, starti, endi):
 
         fileset = {}
 
-        if "2017_HHToBBVVToBBQQQQ_cHHH1" in samples:
-            # TODO: replace with UL sample once we have it
-            with open("data/2017_preUL_nano/HHToBBVVToBBQQQQ_cHHH1.txt", "r") as file:
-                filelist = [
-                    f[:-1].replace("/eos/uscms/", "root://cmsxrootd.fnal.gov//")
-                    for f in file.readlines()
-                ]  # need to use xcache redirector at Nebraksa coffea-casa
-
-            fileset["2017_HHToBBVVToBBQQQQ_cHHH1"] = filelist[starti:endi]
+        # if "2017_HHToBBVVToBBQQQQ_cHHH1" in samples:
+        #     # TODO: replace with UL sample once we have it
+        #     with open("data/2017_preUL_nano/HHToBBVVToBBQQQQ_cHHH1.txt", "r") as file:
+        #         filelist = [
+        #             f[:-1].replace("/eos/uscms/", "root://cmsxrootd.fnal.gov//")
+        #             for f in file.readlines()
+        #         ]  # need to use xcache redirector at Nebraksa coffea-casa
+        #
+        #     fileset["2017_HHToBBVVToBBQQQQ_cHHH1"] = filelist[starti:endi]
 
         # extra samples in the folder we don't need for this analysis -
         # TODO: should instead have a list of all samples we need
