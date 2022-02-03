@@ -77,21 +77,21 @@ class bbVVSkimmer(ProcessorABC):
                 "msoftdrop": "Msd",
                 "pt": "Pt",
                 "ParticleNetMD_probQCD": "ParticleNetMD_probQCD",
-                "ParticleNetMD_probQCDb": "ParticleNetMD_probQCDb",
-                "ParticleNetMD_probQCDbb": "ParticleNetMD_probQCDbb",
-                "ParticleNetMD_probQCDc": "ParticleNetMD_probQCDc",
-                "ParticleNetMD_probQCDcc": "ParticleNetMD_probQCDcc",
+                # "ParticleNetMD_probQCDb": "ParticleNetMD_probQCDb",
+                # "ParticleNetMD_probQCDbb": "ParticleNetMD_probQCDbb",
+                # "ParticleNetMD_probQCDc": "ParticleNetMD_probQCDc",
+                # "ParticleNetMD_probQCDcc": "ParticleNetMD_probQCDcc",
                 "ParticleNetMD_probXbb": "ParticleNetMD_probXbb",
                 "ParticleNetMD_probXcc": "ParticleNetMD_probXcc",
                 "ParticleNetMD_probXqq": "ParticleNetMD_probXqq",
-                "ParticleNet_probHbb": "ParticleNet_probHbb",
-                "ParticleNet_probHcc": "ParticleNet_probHcc",
-                "ParticleNet_probHqqqq": "ParticleNet_probHqqqq",
-                "ParticleNet_probQCDb": "ParticleNet_probQCDb",
-                "ParticleNet_probQCDbb": "ParticleNet_probQCDbb",
-                "ParticleNet_probQCDc": "ParticleNet_probQCDc",
-                "ParticleNet_probQCDcc": "ParticleNet_probQCDcc",
-                "ParticleNet_probQCDothers": "ParticleNet_probQCDothers",
+                # "ParticleNet_probHbb": "ParticleNet_probHbb",
+                # "ParticleNet_probHcc": "ParticleNet_probHcc",
+                # "ParticleNet_probHqqqq": "ParticleNet_probHqqqq",
+                # "ParticleNet_probQCDb": "ParticleNet_probQCDb",
+                # "ParticleNet_probQCDbb": "ParticleNet_probQCDbb",
+                # "ParticleNet_probQCDc": "ParticleNet_probQCDc",
+                # "ParticleNet_probQCDcc": "ParticleNet_probQCDcc",
+                # "ParticleNet_probQCDothers": "ParticleNet_probQCDothers",
             },
             "GenHiggs": {
                 "eta": "Eta",
@@ -252,20 +252,20 @@ class bbVVSkimmer(ProcessorABC):
             -1,
             axis=1,
         )
-        skimmed_events["ak15FatJetParticleNet_Th4q"] = pad_val(
-            events.FatJetAK15.ParticleNet_probHqqqq
-            / (
-                events.FatJetAK15.ParticleNet_probHqqqq
-                + events.FatJetAK15.ParticleNet_probQCDb
-                + events.FatJetAK15.ParticleNet_probQCDbb
-                + events.FatJetAK15.ParticleNet_probQCDc
-                + events.FatJetAK15.ParticleNet_probQCDcc
-                + events.FatJetAK15.ParticleNet_probQCDothers
-            ),
-            2,
-            -1,
-            axis=1,
-        )
+        # skimmed_events["ak15FatJetParticleNet_Th4q"] = pad_val(
+        #     events.FatJetAK15.ParticleNet_probHqqqq
+        #     / (
+        #         events.FatJetAK15.ParticleNet_probHqqqq
+        #         + events.FatJetAK15.ParticleNet_probQCDb
+        #         + events.FatJetAK15.ParticleNet_probQCDbb
+        #         + events.FatJetAK15.ParticleNet_probQCDc
+        #         + events.FatJetAK15.ParticleNet_probQCDcc
+        #         + events.FatJetAK15.ParticleNet_probQCDothers
+        #     ),
+        #     2,
+        #     -1,
+        #     axis=1,
+        # )
 
         # calc weights
         skimmed_events["weight"] = np.ones(n_events)
