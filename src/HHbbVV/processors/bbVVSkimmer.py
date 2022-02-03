@@ -140,10 +140,9 @@ class bbVVSkimmer(ProcessorABC):
         # need to write with pyarrow as pd.to_parquet doesn't support different types in
         # multi-index column names
         table = pa.Table.from_pandas(pddf)
-        pq.write_table(table, "test.parquet")
         local_dir = os.path.abspath(os.path.join(".", "outparquet"))
         os.system(f"mkdir -p {local_dir}")
-        pddf.to_parquet(f"{local_dir}/{fname}")
+        pq.write_table(table, f"{local_dir}/{fname}")
 
     @property
     def accumulator(self):
