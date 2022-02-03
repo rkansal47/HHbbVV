@@ -53,10 +53,16 @@ dR = 1
 for key in keys:
     # if key != sig: continue
     print(key)
-    jet1_bb_leading = events[key]["ak8FatJetParticleNetMD_Txbb"][:, 0:1] >= events[key]["ak8FatJetParticleNetMD_Txbb"][:, 1:2]
+    jet1_bb_leading = (
+        events[key]["ak8FatJetParticleNetMD_Txbb"][:, 0:1]
+        >= events[key]["ak8FatJetParticleNetMD_Txbb"][:, 1:2]
+    )
     bb_mask = np.concatenate([jet1_bb_leading, ~jet1_bb_leading], axis=1)
 
-    jet1_VV_leading = events[key]["ak15FatJetParticleNet_Th4q"][:, 0:1] >= events[key]["ak15FatJetParticleNet_Th4q"][:, 1:2]
+    jet1_VV_leading = (
+        events[key]["ak15FatJetParticleNet_Th4q"][:, 0:1]
+        >= events[key]["ak15FatJetParticleNet_Th4q"][:, 1:2]
+    )
     VV_mask = ak.concatenate([jet1_VV_leading, ~jet1_VV_leading], axis=1)
 
     print("prelim masks")
@@ -132,12 +138,16 @@ from coffea.lookup_tools.dense_lookup import dense_lookup
 with open("../corrections/trigEffs/AK15JetHTTriggerEfficiency_2017.hist", "rb") as filehandler:
     ak15TrigEffs = pickle.load(filehandler)
 
-ak15TrigEffsLookup = dense_lookup(np.nan_to_num(ak15TrigEffs.view(flow=False), 0), np.squeeze(ak15TrigEffs.axes.edges))
+ak15TrigEffsLookup = dense_lookup(
+    np.nan_to_num(ak15TrigEffs.view(flow=False), 0), np.squeeze(ak15TrigEffs.axes.edges)
+)
 
 with open("../corrections/trigEffs/AK8JetHTTriggerEfficiency_2017.hist", "rb") as filehandler:
     ak8TrigEffs = pickle.load(filehandler)
 
-ak8TrigEffsLookup = dense_lookup(np.nan_to_num(ak8TrigEffs.view(flow=False), 0), np.squeeze(ak8TrigEffs.axes.edges))
+ak8TrigEffsLookup = dense_lookup(
+    np.nan_to_num(ak8TrigEffs.view(flow=False), 0), np.squeeze(ak8TrigEffs.axes.edges)
+)
 
 for key in keys:
     if key == "Data":
@@ -148,9 +158,11 @@ for key in keys:
         combined_trigEffs = 1 - (1 - bb_fj_trigEffs) * (1 - VV_fj_trigEffs)
         events[key]["finalWeight"] = events[key]["weight"] * combined_trigEffs
 
-QCD_SCALE_FACTOR = (np.sum(events["Data"]["finalWeight"]) - np.sum(events["Top"]["finalWeight"]) - np.sum(events["V"]["finalWeight"])) / (
-    np.sum(events["QCD"]["finalWeight"])
-)
+QCD_SCALE_FACTOR = (
+    np.sum(events["Data"]["finalWeight"])
+    - np.sum(events["Top"]["finalWeight"])
+    - np.sum(events["V"]["finalWeight"])
+) / (np.sum(events["QCD"]["finalWeight"]))
 events["QCD"]["finalWeight"] *= QCD_SCALE_FACTOR
 
 for key in keys:
@@ -213,4 +225,12 @@ for var, (bins, label) in hist_vars.items():
 # var = 'MET_pt'
 
 for var in hist_vars.keys():
-    plotting.ratioHistPlot(hists[var], keys[:num_bg], sig, bg_labels=labels[:num_bg], plotdir=plotdir, name=var, sig_scale=sig_scale)
+    plotting.ratioHistPlot(
+        hists[var],
+        keys[:num_bg],
+        sig,
+        bg_labels=labels[:num_bg],
+        plotdir=plotdir,
+        name=var,
+        sig_scale=sig_scale,
+    )

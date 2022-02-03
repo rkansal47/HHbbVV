@@ -66,7 +66,9 @@ def add_bool_arg(parser, name, help, default=False, no_name=None):
     parser.set_defaults(**{varname: default})
 
 
-def load_events(data_path: str = "../../data/2017_combined/", keys: list = all_keys, do_print: bool = True):
+def load_events(
+    data_path: str = "../../data/2017_combined/", keys: list = all_keys, do_print: bool = True
+):
     """Load events for samples in `keys` from pickles in `data_path`, which must be named `key`.pkl"""
     import pickle
 
@@ -113,7 +115,9 @@ def make_vector(events: dict, name: str, mask=None):
                 "pt": events[f"{name}Pt"][mask],
                 "phi": events[f"{name}Phi"][mask],
                 "eta": events[f"{name}Eta"][mask],
-                "M": events[f"{name}Msd"][mask] if f"{name}Msd" in events else events[f"{name}Mass"][mask],
+                "M": events[f"{name}Msd"][mask]
+                if f"{name}Msd" in events
+                else events[f"{name}Mass"][mask],
             }
         )
 
@@ -137,7 +141,15 @@ def getParticles(particle_list, particle_type):
         return (abs(particle_list) == W_PDGID) + (abs(particle_list) == Z_PDGID)
 
 
-def singleVarHist(events: dict, var: str, bins: list, label: str, weight_key: str = "finalWeight", blind_region: list = None, selection: dict = None):
+def singleVarHist(
+    events: dict,
+    var: str,
+    bins: list,
+    label: str,
+    weight_key: str = "finalWeight",
+    blind_region: list = None,
+    selection: dict = None,
+):
     """
     Makes and fills a histogram for variable `var` using data in the `events` dict.
 
@@ -166,10 +178,10 @@ def singleVarHist(events: dict, var: str, bins: list, label: str, weight_key: st
 
     if blind_region is not None:
         bins = h.axes[1].edges
-        lv = int(np.searchsorted(bins, blind_region[0], 'right'))
-        rv = int(np.searchsorted(bins, blind_region[1], 'left') + 1)
+        lv = int(np.searchsorted(bins, blind_region[0], "right"))
+        rv = int(np.searchsorted(bins, blind_region[1], "left") + 1)
 
-        data_key_index = np.where(np.array(list(h.axes[0])) == 'Data')[0][0]
+        data_key_index = np.where(np.array(list(h.axes[0])) == "Data")[0][0]
         h.view(flow=True)[data_key_index][lv:rv] = 0
 
     return h
@@ -180,7 +192,9 @@ def getSignalPlotScaleFactor(events: dict, weight_key: str = "finalWeight", sele
     if selection is None:
         return np.sum(events[data_key][weight_key]) / np.sum(events[sig_key][weight_key])
     else:
-        return np.sum(events[data_key][weight_key][selection[data_key]]) / np.sum(events[sig_key][weight_key][selection[sig_key]])
+        return np.sum(events[data_key][weight_key][selection[data_key]]) / np.sum(
+            events[sig_key][weight_key][selection[sig_key]]
+        )
 
 
 def add_selection(name, sel, selection, cutflow, events, weight_key):
@@ -190,7 +204,12 @@ def add_selection(name, sel, selection, cutflow, events, weight_key):
 
 
 def make_selection(
-    var_cuts: dict, events: dict, weight_key: str = "finalWeight", cutflow: dict = None, selection: dict = None, MAX_VAL: float = 9999.0
+    var_cuts: dict,
+    events: dict,
+    weight_key: str = "finalWeight",
+    cutflow: dict = None,
+    selection: dict = None,
+    MAX_VAL: float = 9999.0,
 ):
     """
     Makes cuts defined in `var_cuts` for each sample in `events`.
@@ -236,25 +255,59 @@ def make_selection(
                     cut1 = evts[vars[0]] > brange[0]
                     for tvars in vars[1:]:
                         cut1 = cut1 + (evts[tvars] > brange[0])
-                    add_selection(f"{' or '.join(vars[:])} > {brange[0]}", cut1, selection[s], cutflow[s], evts, weight_key)
+                    add_selection(
+                        f"{' or '.join(vars[:])} > {brange[0]}",
+                        cut1,
+                        selection[s],
+                        cutflow[s],
+                        evts,
+                        weight_key,
+                    )
 
                 if brange[1] < MAX_VAL:
                     cut2 = evts[vars[0]] < brange[1]
                     for tvars in vars[1:]:
                         cut2 = cut2 + (evts[tvars] < brange[1])
-                    add_selection(f"{' or '.join(vars[:])} < {brange[1]}", cut2, selection[s], cutflow[s], evts, weight_key)
+                    add_selection(
+                        f"{' or '.join(vars[:])} < {brange[1]}",
+                        cut2,
+                        selection[s],
+                        cutflow[s],
+                        evts,
+                        weight_key,
+                    )
             else:
                 if brange[0] > -MAX_VAL:
-                    add_selection(f"{var} > {brange[0]}", evts[var] > brange[0], selection[s], cutflow[s], evts, weight_key)
+                    add_selection(
+                        f"{var} > {brange[0]}",
+                        evts[var] > brange[0],
+                        selection[s],
+                        cutflow[s],
+                        evts,
+                        weight_key,
+                    )
                 if brange[1] < MAX_VAL:
-                    add_selection(f"{var} < {brange[1]}", evts[var] < brange[1], selection[s], cutflow[s], evts, weight_key)
+                    add_selection(
+                        f"{var} < {brange[1]}",
+                        evts[var] < brange[1],
+                        selection[s],
+                        cutflow[s],
+                        evts,
+                        weight_key,
+                    )
 
         selection[s] = selection[s].all(*selection[s].names)
 
     return selection, cutflow
 
 
-def getSigSidebandBGYields(mass_key: str, mass_cuts: list, events: dict, weight_key: str = "finalWeight", selection: dict = None):
+def getSigSidebandBGYields(
+    mass_key: str,
+    mass_cuts: list,
+    events: dict,
+    weight_key: str = "finalWeight",
+    selection: dict = None,
+):
     """Get signal and background yields in the `mass_cuts` range ([mass_cuts[0], mass_cuts[1]]), using the data in the sideband regions as the bg estimate"""
     sig_mass = events[sig_key][mass_key]
     sig_weight = events[sig_key][weight_key]
