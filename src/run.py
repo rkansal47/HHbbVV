@@ -190,6 +190,8 @@ def main(args):
         filehandler.close()
 
         import pandas as pd
+        import pyarrow.parquet as pq
+        import pyarrow as pa
 
         print("reading parquet")
 
@@ -199,7 +201,10 @@ def main(args):
         print("read parquet")
 
         os.system(f"mkdir -p {local_dir}")
-        pddf.to_parquet(f"{os.path.abspath('.')}/{args.starti}-{args.endi}.parquet")
+        # need to write with pyarrow as pd.to_parquet doesn't support different types in
+        # multi-index column names
+        table = pa.Table.from_pandas(pddf)
+        pq.write_table(table, f"{os.path.abspath('.')}/{args.starti}-{args.endi}.parquet")
 
         print("dumped parquet")
 
