@@ -300,7 +300,7 @@ class bbVVSkimmer(ProcessorABC):
             # TODO: add pileup and trigger SFs here once calculated properly
             # this still needs to be normalized with the acceptance of the pre-selection
             skimmed_events["weight"] = (
-                np.sign(skimmed_events["genWeight"]) * self.XSECS[year][dataset] * self.LUMI[year]
+                np.sign(skimmed_events["genWeight"]) * self.XSECS[dataset] * self.LUMI[year]
             )
 
         # apply selections
