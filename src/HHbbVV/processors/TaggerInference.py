@@ -18,7 +18,7 @@ from tqdm import tqdm
 from .utils import pad_val
 
 
-def get_pfcands_features(
+def get_pfcands_features_old(
     tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int
 ) -> Dict[str, np.ndarray]:
     """
@@ -113,7 +113,7 @@ def get_pfcands_features(
     return feature_dict
 
 
-def get_svs_features(
+def get_svs_features_old(
     tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int
 ) -> Dict[str, np.ndarray]:
     """
@@ -185,7 +185,7 @@ def get_svs_features(
     return feature_dict
 
 
-def get_pfcands_features_v2(
+def get_pfcands_features(
     tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int
 ) -> Dict[str, np.ndarray]:
     """
@@ -280,7 +280,7 @@ def get_pfcands_features_v2(
     return feature_dict
 
 
-def get_svs_features_v2(
+def get_svs_features(
     tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int
 ) -> Dict[str, np.ndarray]:
     """
