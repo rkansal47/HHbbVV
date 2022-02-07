@@ -1,5 +1,13 @@
 # HHbbVV
 
+[![Codestyle](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+<p align="left">
+  <img width="300" src="https://raw.githubusercontent.com/rkansal47/HHbbVV/main/figure.png" />
+</p>
+
+Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to two beauty quarks (b) and two vector bosons (V). The majority of the analysis uses a columnar framework to process input tree-based [NanoAOD](https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookNanoAOD) files using the [coffea](https://coffeateam.github.io/coffea/) and [scikit-hep](https://scikit-hep.org) Python libraries.
+
 ## Instructions for running coffea processors
 
 General note: Coffea-casa is faster and more convenient, however still somewhat experimental so for large of inputs and/or processors which may require heavier cpu/memory usage (e.g. bbVVSkimmer) condor is recommended.
@@ -22,26 +30,19 @@ python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20  #
 for i in condor/$TAG/*.jdl; do condor_submit $i; done
 ```
 
-Pickle files will be saved in eos directory of specified user at path `~/eos/bbVV/<processor type>/<tag>/outfiles/`, in the format `{'nevents': int, 'skimmed_events': dict of coffea 'column_accumulator's}`
-
-After jobs finish, they can be combined (and normalized by total events in the case of MC) via
-```bash
-python src/condor/combine_pickles.py --year 2017 --indir /eos/uscms/store/user/rkansal/bbVV/skimmer/$TAG/outfiles/ --r True --norm True --combine-further True
-```
-
-The `--combine-further` argument combines them into broader categories as well, saved in the `<indir>/<year>_combined/` directory.
-
-
-
-Check out more args for both scripts with the `--help` arg (e.g. `python condor/submit.py --help`)
-
-
-To test locally, can do e.g.:
+To test locally first (recommended), can do e.g.:
 
 ```bash
 mkdir outfiles
 python src/run.py --starti 0 --endi 1 --year 2017 --processor skimmer --executor iterative --samples '2017_HHToBBVVToBBQQQQ_cHHH1'
 ```
 
-
 #### TODO: instructions for lpcjobqueue (currently quite buggy)
+
+## Processors
+
+### bbVVSkimmer
+
+Applies pre-selection cuts, runs inference with our new HVV tagger, and saves unbinned branches as parquet files. 
+
+Parquet and pickle files will be saved in the eos directory of specified user at path `~/eos/bbVV/skimmer/<tag>/<sample_name>/<parquet or pickles>`. Pickles are in the format `{'nevents': int, 'cutflow': Dict[str, int]}`. 

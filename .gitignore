@@ -2,6 +2,7 @@
 */**
 !*.py
 !*.ipynb
+!figure.png
 
 !src
 src/*
