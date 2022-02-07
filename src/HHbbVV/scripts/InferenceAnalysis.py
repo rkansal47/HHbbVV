@@ -20,6 +20,9 @@ import time
 import contextlib
 
 
+MAIN_DIR = "../../../"
+
+
 @contextlib.contextmanager
 def timer():
     old_time = time.monotonic()
@@ -34,7 +37,7 @@ def get_xsecs():
     """Load cross sections json file and evaluate if necessary"""
     import json
 
-    with open("data/xsecs.json") as f:
+    with open(f"{MAIN_DIR}/data/xsecs.json") as f:
         xsecs = json.load(f)
 
     for key, value in xsecs.items():
@@ -105,9 +108,12 @@ def getParticles(particle_list, particle_type):
 
 
 def get_key(events: pd.DataFrame, key: str, num_key: int = 1, sig: bool = True):
-    skip = 4 // num_key if sig else 2 // num_key
-    arr = events[key][::skip].values.reshape(-1, num_key)
-    return arr
+    if sig:
+        return events[key].values
+    else:
+        skip = 2 // num_key
+        arr = events[key][::skip].values.reshape(-1, num_key)
+        return arr
 
 
 def make_vector(events: dict, name: str, mask=None, num_key: int = 1, sig: bool = True):
@@ -151,12 +157,71 @@ LUMI = {"2017": 40000}
 SIG_KEY = "HHToBBVVToBBQQQQ"
 DATA_KEY = ""
 
-plot_dir = "plots/TaggerAnalysis/"
-samples_dir = "../temp_data/211210_skimmer"
+plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/"
+samples_dir = f"{MAIN_DIR}/../temp_data/211210_skimmer"
 full_samples_list = listdir(samples_dir)
 xsecs = get_xsecs()
 
-full_samples_list
+
+##################################################################################
+# Signal processing
+##################################################################################
+
+year = "2017"
+sample_name = "GluGluToHHTobbVV_node_cHHH1"
+
+# get rid of weird parquet formatting
+sig_events = pd.read_parquet(
+    f"{MAIN_DIR}/../data/2017_UL_nano/GluGluToHHTobbVV_node_cHHH1/0-1.parquet"
+)
+
+pickles_path = f"{MAIN_DIR}/../data/2017_UL_nano/GluGluToHHTobbVV_node_cHHH1/outfiles"
+n_events = get_cutflow(pickles_path, year, sample_name)["has_4q"]
+
+sig_events["weight"] *= (
+    xsecs[sample_name]
+    # * events["pileupWeight"]
+    * LUMI[year]
+    * np.sign(sig_events["genWeight"])
+    / (n_events * np.mean(np.sign(sig_events["genWeight"])))
+)
+
+# get 4-vectors
+vec_keys = ["ak8FatJet", "ak15FatJet", "GenHiggs", "Genbb", "GenVV", "Gen4q"]
+vectors = {vec_key: make_vector(sig_events, vec_key, sig=True) for vec_key in vec_keys}
+
+is_HVV = getParticles(get_key(sig_events, "GenHiggsChildren", 2), "V")
+is_Hbb = getParticles(get_key(sig_events, "GenHiggsChildren", 2), "b")
+
+genHVV = vectors["GenHiggs"][is_HVV]
+genHbb = vectors["GenHiggs"][is_Hbb]
+
+dR = 1.0
+masks = []
+for i in range(2):
+    masks.append(vectors["ak15FatJet"][:, i].deltaR(genHVV) < dR)
+
+HVV_masks = np.transpose(np.stack(masks))
+
+sig_events
+
+sig_old_score = get_key(sig_events, "ak15FatJetParticleNet_Th4q")[HVV_masks]
+sig_score = get_key(sig_events, "ak15FatJetParticleNetHWWMD_THWW4q")[HVV_masks]
+
+plt.hist(sig_score, np.linspace(0, 1, 101), histtype="step")
+
+HVV_masks
+
+sig_events["ak15FatJetParticleNetHWWMD_THWW4q"][HVV_masks]
+
+sig_score
+
+sig_weight = np.tile(get_key(sig_events, "weight"), [1, 2])[HVV_masks]
+
+
+##################################################################################
+# Background processing
+##################################################################################
 
 bg_columns = [
     "weight",
@@ -166,9 +231,7 @@ bg_columns = [
     "ak15FatJetParticleNetHWWMD_THWW4q",
 ]
 
-
 bg_scores_dict = {}
-
 
 for sample in full_samples_list:
     year, sample_name = split_year_sample_name(sample)
@@ -188,8 +251,6 @@ for sample in full_samples_list:
         )
 
     print("read file")
-
-    # USE 4q cutflow for SIG!!
 
     pickles_path = f"{samples_dir}/{sample}/pickles"
 
@@ -246,43 +307,14 @@ _ = np.nan_to_num(bg_scores, False, 0)
 
 
 ##################################################################################
-# Signal processing
-##################################################################################
-
-# get 4-vectors
-vec_keys = ["ak8FatJet", "ak15FatJet", "GenHiggs", "Genbb", "GenVV", "Gen4q"]
-vectors = {
-    vec_key: make_vector(sig_events, vec_key, num_key=2 if not vec_key == "Gen4q" else 4, sig=True)
-    for vec_key in vec_keys
-}
-
-is_HVV = getParticles(get_key(sig_events, "GenHiggsChildren", 2), "V")
-is_Hbb = getParticles(get_key(sig_events, "GenHiggsChildren", 2), "b")
-
-genHVV = vectors["GenHiggs"][is_HVV]
-genHbb = vectors["GenHiggs"][is_Hbb]
-
-dR = 1.0
-masks = []
-for i in range(2):
-    masks.append(vectors["ak15FatJet"][:, i].deltaR(genHVV) < dR)
-
-HVV_masks = np.transpose(np.stack(masks))
-
-sig_old_score = get_key(sig_events, "ak15FatJetParticleNet_Th4q", 2)[HVV_masks]
-sig_score = get_key(sig_events, "ak15FatJetParticleNetHWWMD_THWW4q", 2)[HVV_masks]
-sig_weight = np.tile(get_key(sig_events, "weight", 1), [1, 2])[HVV_masks]
-
-
-##################################################################################
 # Plots
 ##################################################################################
 
 plt.figure(figsize=(16, 12))
 plt.title("HVV FatJet PNet Scores")
-_ = plt.hist(
-    sig_old_score, histtype="step", bins=np.linspace(0, 1, 101), label="Non-MD H4q", linewidth=2
-)
+# _ = plt.hist(
+#     sig_old_score, histtype="step", bins=np.linspace(0, 1, 101), label="Non-MD H4q", linewidth=2
+# )
 _ = plt.hist(
     sig_score, histtype="step", bins=np.linspace(0, 1, 101), label="New MD HWW4q", linewidth=2
 )
