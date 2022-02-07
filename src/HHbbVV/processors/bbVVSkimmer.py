@@ -84,14 +84,15 @@ class bbVVSkimmer(ProcessorABC):
                 "ParticleNetMD_probXbb": "ParticleNetMD_probXbb",
                 "ParticleNetMD_probXcc": "ParticleNetMD_probXcc",
                 "ParticleNetMD_probXqq": "ParticleNetMD_probXqq",
-                # "ParticleNet_probHbb": "ParticleNet_probHbb",
-                # "ParticleNet_probHcc": "ParticleNet_probHcc",
-                # "ParticleNet_probHqqqq": "ParticleNet_probHqqqq",
-                # "ParticleNet_probQCDb": "ParticleNet_probQCDb",
-                # "ParticleNet_probQCDbb": "ParticleNet_probQCDbb",
-                # "ParticleNet_probQCDc": "ParticleNet_probQCDc",
-                # "ParticleNet_probQCDcc": "ParticleNet_probQCDcc",
-                # "ParticleNet_probQCDothers": "ParticleNet_probQCDothers",
+                # old non-md particlenet
+                "ParticleNet_probHbb": "ParticleNet_probHbb",
+                "ParticleNet_probHcc": "ParticleNet_probHcc",
+                "ParticleNet_probHqqqq": "ParticleNet_probHqqqq",
+                "ParticleNet_probQCDb": "ParticleNet_probQCDb",
+                "ParticleNet_probQCDbb": "ParticleNet_probQCDbb",
+                "ParticleNet_probQCDc": "ParticleNet_probQCDc",
+                "ParticleNet_probQCDcc": "ParticleNet_probQCDcc",
+                "ParticleNet_probQCDothers": "ParticleNet_probQCDothers",
             },
             "GenHiggs": {
                 "eta": "Eta",
@@ -149,10 +150,23 @@ class bbVVSkimmer(ProcessorABC):
     def accumulator(self):
         return self._accumulator
 
-    def add_selection(self, name: str, sel: np.ndarray, selection: PackedSelection, cutflow: dict):
+    def add_selection(
+        self,
+        name: str,
+        sel: np.ndarray,
+        selection: PackedSelection,
+        cutflow: dict,
+        isData: bool,
+        signGenWeights: ak.Array,
+    ):
         """adds selection to PackedSelection object and the cutflow dictionary"""
         selection.add(name, sel)
-        cutflow[name] = np.sum(selection.all(*selection.names))
+        cutflow[name] = (
+            np.sum(selection.all(*selection.names))
+            if isData
+            # add up sign of genWeights for MC
+            else np.sum(signGenWeights[selection.all(*selection.names)])
+        )
 
     def process(self, events: ak.Array):
         """Returns skimmed events which pass preselection cuts (and triggers if data) and with the branches listed in self.skim_vars"""
@@ -162,8 +176,9 @@ class bbVVSkimmer(ProcessorABC):
         year = events.metadata["dataset"][:4]
         dataset = events.metadata["dataset"][5:]
 
-        n_events = len(events)
         isData = "JetHT" in dataset
+        signGenWeights = None if isData else np.sign(events["genWeight"])
+        n_events = len(events) if isData else int(np.sum(signGenWeights))
         selection = PackedSelection()
 
         cutflow = {}
@@ -173,7 +188,10 @@ class bbVVSkimmer(ProcessorABC):
 
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
         if "HHToBBVVToBBQQQQ" in dataset or "GluGluToHHTobbVV" in dataset:
-            skimmed_events = {**skimmed_events, **self.gen_matching(events, selection, cutflow)}
+            skimmed_events = {
+                **skimmed_events,
+                **self.gen_matching(events, selection, cutflow, signGenWeights),
+            }
 
         # triggers
         # OR-ing HLT triggers
@@ -188,7 +206,7 @@ class bbVVSkimmer(ProcessorABC):
                 ),
                 axis=0,
             )
-            self.add_selection("trigger", HLT_triggered, selection, cutflow)
+            self.add_selection("trigger", HLT_triggered, selection, cutflow, isData, signGenWeights)
 
         # pre-selection cuts
         # ORing ak8 and ak15 cuts
@@ -215,7 +233,9 @@ class bbVVSkimmer(ProcessorABC):
                 axis=1,
             ),
         )
-        self.add_selection("preselection", preselection_cut, selection, cutflow)
+        self.add_selection(
+            "preselection", preselection_cut, selection, cutflow, isData, signGenWeights
+        )
 
         # TODO: trigger SFs
 
@@ -252,28 +272,36 @@ class bbVVSkimmer(ProcessorABC):
             -1,
             axis=1,
         )
-        # skimmed_events["ak15FatJetParticleNet_Th4q"] = pad_val(
-        #     events.FatJetAK15.ParticleNet_probHqqqq
-        #     / (
-        #         events.FatJetAK15.ParticleNet_probHqqqq
-        #         + events.FatJetAK15.ParticleNet_probQCDb
-        #         + events.FatJetAK15.ParticleNet_probQCDbb
-        #         + events.FatJetAK15.ParticleNet_probQCDc
-        #         + events.FatJetAK15.ParticleNet_probQCDcc
-        #         + events.FatJetAK15.ParticleNet_probQCDothers
-        #     ),
-        #     2,
-        #     -1,
-        #     axis=1,
-        # )
+        skimmed_events["ak15FatJetParticleNet_Th4q"] = pad_val(
+            events.FatJetAK15.ParticleNet_probHqqqq
+            / (
+                events.FatJetAK15.ParticleNet_probHqqqq
+                + events.FatJetAK15.ParticleNet_probQCDb
+                + events.FatJetAK15.ParticleNet_probQCDbb
+                + events.FatJetAK15.ParticleNet_probQCDc
+                + events.FatJetAK15.ParticleNet_probQCDcc
+                + events.FatJetAK15.ParticleNet_probQCDothers
+            ),
+            2,
+            -1,
+            axis=1,
+        )
 
         # calc weights
-        skimmed_events["weight"] = np.ones(n_events)
+
+        if isData:
+            skimmed_events["weight"] = np.ones(n_events)
         if not isData:
             skimmed_events["genWeight"] = events.genWeight.to_numpy()
             skimmed_events["pileupWeight"] = self.corrections[f"{year}_pileupweight"](
                 events.Pileup.nPU
             ).to_numpy()
+
+            # TODO: add pileup and trigger SFs here once calculated properly
+            # this still needs to be normalized with the acceptance of the pre-selection
+            skimmed_events["weight"] = (
+                np.sign(skimmed_events["genWeight"]) * self.XSECS[year][dataset] * self.LUMI[year]
+            )
 
         # apply selections
 
@@ -302,7 +330,13 @@ class bbVVSkimmer(ProcessorABC):
 
         return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
 
-    def gen_matching(self, events: NanoEventsArray, selection: PackedSelection, cutflow: dict):
+    def gen_matching(
+        self,
+        events: NanoEventsArray,
+        selection: PackedSelection,
+        cutflow: dict,
+        signGenWeights: ak.Array,
+    ):
         """Gets HH, bb, VV, and 4q 4-vectors + Higgs children information"""
         B_PDGID = 5
         Z_PDGID = 23
@@ -332,7 +366,7 @@ class bbVVSkimmer(ProcessorABC):
         has_bb = ak.sum(ak.flatten(is_bb, axis=2), axis=1) == 2
         has_VV = ak.sum(ak.flatten(is_VV, axis=2), axis=1) == 2
         self.add_selection(
-            "has_bbVV", has_bb * has_VV, selection, cutflow
+            "has_bbVV", has_bb * has_VV, selection, cutflow, False, signGenWeights
         )  # only select events with 2 b's and 2 V's
 
         # saving bb and VV 4-vector info
@@ -356,7 +390,7 @@ class bbVVSkimmer(ProcessorABC):
         VV_children = VV.children
         V_has_2q = ak.count(VV_children.pdgId, axis=2) == 2
         has_4q = ak.values_astype(ak.prod(V_has_2q, axis=1), np.bool)
-        self.add_selection("has_4q", has_4q, selection, cutflow)
+        self.add_selection("has_4q", has_4q, selection, cutflow, False, signGenWeights)
 
         # saving 4q 4-vector info
         Gen4qVars = {
