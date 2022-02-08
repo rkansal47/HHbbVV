@@ -394,7 +394,14 @@ class bbVVSkimmer(ProcessorABC):
 
         # saving 4q 4-vector info
         Gen4qVars = {
-            f"Gen4q{key}": pad_val(ak.fill_none(VV_children[var][:, :2], []), 2, -99999, axis=2)
+            f"Gen4q{key}": ak.to_numpy(
+                ak.fill_none(
+                    ak.pad_none(
+                        ak.pad_none(VV_children["pt"], 2, axis=1, clip=True), 2, axis=2, clip=True
+                    ),
+                    -99999,
+                )
+            )
             for (var, key) in self.skim_vars["GenHiggs"].items()
         }
 
