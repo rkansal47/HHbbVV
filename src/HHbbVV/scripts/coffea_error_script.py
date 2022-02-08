@@ -9,7 +9,7 @@ nanoevents.NanoAODSchema.mixins["FatJetAK15"] = "FatJet"
 nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
 
 events = nanoevents.NanoEventsFactory.from_root(
-    "../../../../data/2017_UL_nano/GluGluToHHTobbVV_node_cHHH1/nano_mc2017_1-1.root",
+    "root://cmsxrootd.fnal.gov//store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTobbVV_node_cHHH1_TuneCP5_13TeV-powheg-pythia8/GluGluToHHTobbVV_node_cHHH1/220206_211217/0000/nano_mc_2017_ULv1_NANO_1-1.root",
     schemaclass=nanoevents.NanoAODSchema,
 ).events()
 
