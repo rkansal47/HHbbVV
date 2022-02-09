@@ -20,7 +20,8 @@ import time
 import contextlib
 
 
-MAIN_DIR = "../../../"
+# MAIN_DIR = "../../../"
+MAIN_DIR = "./"
 
 
 @contextlib.contextmanager
@@ -162,29 +163,26 @@ samples_dir = f"{MAIN_DIR}/../temp_data/211210_skimmer"
 full_samples_list = listdir(samples_dir)
 xsecs = get_xsecs()
 
+full_samples_list
 
 ##################################################################################
 # Signal processing
 ##################################################################################
 
-year = "2017"
-sample_name = "GluGluToHHTobbVV_node_cHHH1"
+sample = "2017_GluGluToHHTobbVV_node_cHHH1"
+year, sample_name = split_year_sample_name(sample)
 
-# get rid of weird parquet formatting
-sig_events = pd.read_parquet(
-    f"{MAIN_DIR}/../data/2017_UL_nano/GluGluToHHTobbVV_node_cHHH1/0-1.parquet"
-)
+# sig_events = pd.read_parquet(
+#     f"{MAIN_DIR}/../data/2017_UL_nano/GluGluToHHTobbVV_node_cHHH1/0-1.parquet"
+# )
 
-pickles_path = f"{MAIN_DIR}/../data/2017_UL_nano/GluGluToHHTobbVV_node_cHHH1/outfiles"
+sig_events = pd.read_parquet(f"{MAIN_DIR}/../temp_data/220208_skimmer/{sample}/parquet")
+
+pickles_path = f"{MAIN_DIR}/../temp_data/220208_skimmer/{sample}/pickles"
 n_events = get_cutflow(pickles_path, year, sample_name)["has_4q"]
 
-sig_events["weight"] *= (
-    xsecs[sample_name]
-    # * events["pileupWeight"]
-    * LUMI[year]
-    * np.sign(sig_events["genWeight"])
-    / (n_events * np.mean(np.sign(sig_events["genWeight"])))
-)
+sig_events["weight"] /= n_events
+np.sum(sig_events["weight"])
 
 # get 4-vectors
 vec_keys = ["ak8FatJet", "ak15FatJet", "GenHiggs", "Genbb", "GenVV", "Gen4q"]
@@ -207,17 +205,11 @@ sig_events
 
 sig_old_score = get_key(sig_events, "ak15FatJetParticleNet_Th4q")[HVV_masks]
 sig_score = get_key(sig_events, "ak15FatJetParticleNetHWWMD_THWW4q")[HVV_masks]
-
-plt.hist(sig_score, np.linspace(0, 1, 101), histtype="step")
-
-HVV_masks
-
-sig_events["ak15FatJetParticleNetHWWMD_THWW4q"][HVV_masks]
-
-sig_score
-
 sig_weight = np.tile(get_key(sig_events, "weight"), [1, 2])[HVV_masks]
 
+_ = np.nan_to_num(sig_old_score, False, 0)
+
+plt.hist(sig_score, np.linspace(0, 1, 101), histtype="step")
 
 ##################################################################################
 # Background processing
@@ -241,13 +233,9 @@ for sample in full_samples_list:
 
     # get rid of weird parquet formatting
     with timer():
-        events = (
-            pd.read_parquet(
-                f"{samples_dir}/{sample}/parquet",
-                columns=None if sig_sample else bg_columns,
-            )
-            # .reset_index()
-            # .filter(regex="(?<!entry)$")
+        events = pd.read_parquet(
+            f"{samples_dir}/{sample}/parquet",
+            columns=None if sig_sample else bg_columns,
         )
 
     print("read file")
@@ -280,7 +268,7 @@ for sample in full_samples_list:
     print("xsecs")
 
     if sig_sample:
-        sig_events = events
+        sig_events_preUL = events
     else:
         bg_scores_dict[sample] = np.concatenate(
             (
@@ -311,17 +299,17 @@ _ = np.nan_to_num(bg_scores, False, 0)
 ##################################################################################
 
 plt.figure(figsize=(16, 12))
-plt.title("HVV FatJet PNet Scores")
-# _ = plt.hist(
-#     sig_old_score, histtype="step", bins=np.linspace(0, 1, 101), label="Non-MD H4q", linewidth=2
-# )
+plt.title("HVV FatJet PNet Scores on HVV jets from ULv1 HHbbVV samples")
+_ = plt.hist(
+    sig_old_score, histtype="step", bins=np.linspace(0, 1, 101), label="Non-MD H4q", linewidth=2
+)
 _ = plt.hist(
     sig_score, histtype="step", bins=np.linspace(0, 1, 101), label="New MD HWW4q", linewidth=2
 )
 plt.ylabel("# Events")
 plt.xlabel("PNet score on signal")
 plt.legend()
-plt.savefig(f"{plot_dir}/hvvfatjetpnetscore.pdf", bbox_inches="tight")
+plt.savefig(f"{plot_dir}/hvvfatjetpnetscore_ulv1.pdf", bbox_inches="tight")
 
 
 plt.figure(figsize=(16, 12))
