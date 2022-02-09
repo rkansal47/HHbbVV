@@ -22,7 +22,6 @@ HIGGS_FLAGS = ["fromHardProcess", "isLastCopy"]
 
 
 def gen_selection_HHbbVV(
-    self,
     events: NanoEventsArray,
     selection: PackedSelection,
     cutflow: dict,
@@ -91,7 +90,6 @@ def gen_selection_HHbbVV(
 
 
 def gen_selection_HH4V(
-    self,
     events: NanoEventsArray,
     selection: PackedSelection,
     cutflow: dict,
