@@ -27,7 +27,6 @@ def pad_val(
 
 
 def add_selection(
-    self,
     name: str,
     sel: np.ndarray,
     selection: PackedSelection,
