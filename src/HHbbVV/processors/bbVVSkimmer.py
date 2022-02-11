@@ -29,6 +29,13 @@ P4 = {
     "pt": "Pt",
 }
 
+# mapping samples to the appropriate function for doing gen-level selections
+gen_selection_dict = {
+    "GluGluToHHTobbVV_node_cHHH1": gen_selection_HHbbVV,
+    "GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow": gen_selection_HH4V,
+    "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
+}
+
 
 class bbVVSkimmer(ProcessorABC):
     """
@@ -99,11 +106,6 @@ class bbVVSkimmer(ProcessorABC):
             "other": {"MET_pt": "MET_pt"},
         }
 
-        self.gen_selection_dict = {
-            "GluGluToHHTobbVV_node_cHHH1": gen_selection_HHbbVV,
-            "GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow": gen_selection_HH4V,
-        }
-
         self.preselection_cut_vals = {"pt": 250, "msd": 20}
 
         # find corrections path using this file's path
@@ -170,7 +172,7 @@ class bbVVSkimmer(ProcessorABC):
         skimmed_events = {}
 
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
-        if dataset in self.gen_selection_dict:
+        if dataset in gen_selection_dict:
             skimmed_events = {
                 **skimmed_events,
                 **self.gen_selection_dict[dataset](events, selection, cutflow, signGenWeights, P4),
