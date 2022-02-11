@@ -175,7 +175,7 @@ class bbVVSkimmer(ProcessorABC):
         if dataset in gen_selection_dict:
             skimmed_events = {
                 **skimmed_events,
-                **self.gen_selection_dict[dataset](events, selection, cutflow, signGenWeights, P4),
+                **gen_selection_dict[dataset](events, selection, cutflow, signGenWeights, P4),
             }
 
         # triggers
