@@ -291,6 +291,28 @@ sig_thvv4q_scores[sample_name] = np.nan_to_num(
 )
 sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True).reshape(-1), 2)
 
+
+# GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow
+
+sample_name = sig_events_keys[2]
+
+events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
+pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
+n_events = get_cutflow(pickles_path, year, sample_name)["has_2_4q"]
+events["weight"] /= n_events
+
+sig_events[sample_name] = events
+
+sig_th4q_scores[sample_name] = np.nan_to_num(
+    get_key(events, "ak15FatJetParticleNet_Th4q", new_samples=True).reshape(-1), copy=True, nan=0
+)
+sig_thvv4q_scores[sample_name] = np.nan_to_num(
+    get_key(events, "ak15FatJetParticleNetHWWMD_THWW4q", new_samples=True).reshape(-1),
+    copy=True,
+    nan=0,
+)
+sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True).reshape(-1), 2)
+
 len(sig_weights[sample_name])
 len(sig_thvv4q_scores[sample_name])
 

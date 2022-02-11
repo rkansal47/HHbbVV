@@ -196,12 +196,14 @@ class bbVVSkimmer(ProcessorABC):
         # pre-selection cuts
         # ORing ak8 and ak15 cuts
 
+        num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
+
         preselection_cut = np.logical_or(
             np.prod(
                 pad_val(
                     (events.FatJet.pt > self.preselection_cut_vals["pt"])
                     * (events.FatJet.msoftdrop > self.preselection_cut_vals["msd"]),
-                    2,
+                    num_jets,
                     False,
                     axis=1,
                 ),
@@ -211,13 +213,14 @@ class bbVVSkimmer(ProcessorABC):
                 pad_val(
                     (events.FatJetAK15.pt > self.preselection_cut_vals["pt"])
                     * (events.FatJetAK15.msoftdrop > self.preselection_cut_vals["msd"]),
-                    2,
+                    num_jets,
                     False,
                     axis=1,
                 ),
                 axis=1,
             ),
         )
+
         add_selection("preselection", preselection_cut, selection, cutflow, isData, signGenWeights)
 
         # TODO: trigger SFs
