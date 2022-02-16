@@ -1,0 +1,14 @@
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_1-1.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_1-2.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_1-3.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_1-4.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_1-5.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_1-6.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_1-7.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_1.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_2.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_3.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_4.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_5.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_6.root
+/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017v1/HWW/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8/GluGluToHHTo4V_node_cHHH1/220214_145030/0000/nano_mc2017_9.root
