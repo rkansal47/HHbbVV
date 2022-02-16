@@ -184,6 +184,7 @@ sig_events_keys = [
     "HHToBBVVToBBQQQQ_cHHH1",
     "GluGluToHHTobbVV_node_cHHH1",
     "GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow",
+    "GluGluHToWWTo4q_M-125",
 ]
 sig_events_labels = ["Private pre-UL HHbbVV", "ULv1 HHbbVV", "HH4W JHUGen"]
 sig_th4q_scores = {}
@@ -200,6 +201,9 @@ sample_name = sig_events_keys[0]
 events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
 pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
 n_events = get_cutflow(pickles_path, year, sample_name)["has_4q"]
+
+get_cutflow(pickles_path, year, sample_name)
+
 events["weight"] *= (np.sign(events["genWeight"]) * LUMI[year] * xsecs[sample_name]) / (
     n_events * np.mean(np.sign(events["genWeight"]))
 )
@@ -240,6 +244,8 @@ events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
 pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
 n_events = get_cutflow(pickles_path, year, sample_name)["has_4q"]
 events["weight"] /= n_events
+
+get_cutflow(pickles_path, year, sample_name)
 
 # get 4-vectors
 vec_keys = ["ak8FatJet", "ak15FatJet", "GenHiggs", "Genbb", "GenVV", "Gen4q"]
@@ -292,13 +298,15 @@ sig_thvv4q_scores[sample_name] = np.nan_to_num(
 sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True).reshape(-1), 2)
 
 
-# GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow
+# GluGluHToWWTo4q_M-125
 
-sample_name = sig_events_keys[2]
+sample_name = sig_events_keys[3]
+
+events
 
 events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
 pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
-n_events = get_cutflow(pickles_path, year, sample_name)["has_2_4q"]
+n_events = get_cutflow(pickles_path, year, sample_name)["all"]
 events["weight"] /= n_events
 
 sig_events[sample_name] = events
@@ -311,10 +319,7 @@ sig_thvv4q_scores[sample_name] = np.nan_to_num(
     copy=True,
     nan=0,
 )
-sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True).reshape(-1), 2)
-
-len(sig_weights[sample_name])
-len(sig_thvv4q_scores[sample_name])
+sig_weights[sample_name] = get_key(events, "weight", new_samples=True).reshape(-1)
 
 for sample_name in sig_weights:
     print(f"Pre-selection {sample_name} yield: {np.sum(sig_weights[sample_name]):.2f}")
@@ -394,7 +399,13 @@ _ = np.nan_to_num(bg_scores, False, 0)
 # Plots
 ##################################################################################
 
-colours = {"lightblue": "#a6cee3", "darkblue": "#1f78b4", "red": "#e31a1c", "orange": "#ff7f00"}
+colours = {
+    "lightblue": "#a6cee3",
+    "darkblue": "#1f78b4",
+    "red": "#e31a1c",
+    "orange": "#ff7f00",
+    "green": "#80ed99",
+}
 sig_colours = {sig_events_keys[i]: list(colours.values())[i + 1] for i in range(num_sig)}
 bg_colour = colours["lightblue"]
 
@@ -451,7 +462,7 @@ _ = plt.hist(
     density=True,
 )
 plt.ylabel("# Events")
-plt.xlabel("PNet Non-MD TH4q score")
+plt.xlabel("PNet MD THvv4q score")
 plt.legend()
 plt.savefig(f"{plot_dir}/thvv4qmdfatjetpnetscore.pdf", bbox_inches="tight")
 
