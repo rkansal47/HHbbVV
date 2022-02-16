@@ -33,6 +33,7 @@ P4 = {
 gen_selection_dict = {
     "GluGluToHHTobbVV_node_cHHH1": gen_selection_HHbbVV,
     "GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow": gen_selection_HH4V,
+    "GluGluToHHTo4V_node_cHHH1": gen_selection_HH4V,
     "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
 }
 
