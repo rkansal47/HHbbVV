@@ -122,6 +122,10 @@ def gen_selection_HH4V(
 
     VV_children = VV.children
 
+    quarks = abs(VV_children.pdgId) <= B_PDGID
+    all_q = ak.all(ak.all(quarks, axis=2), axis=1)
+    add_selection("all_q", all_q, selection, cutflow, False, signGenWeights)
+
     V_has_2q = ak.count(VV_children.pdgId, axis=2) == 2
     has_2_4q = ak.all(V_has_2q, axis=1)
 
