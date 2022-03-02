@@ -9,8 +9,8 @@ mkdir outfiles
 
 # run code
 # pip install --user onnxruntime
-python -W ignore SCRIPTNAME --year YEAR --starti STARTNUM --endi ENDNUM --samples SAMPLE --processor PROCESSOR
+python -W ignore $script --year $year --starti $starti --endi $endi --samples $sample --processor $processor
 
 #move output to eos
-xrdcp -f outfiles/* EOSOUTPKL
-xrdcp -f *.parquet EOSOUTPARQUET
+xrdcp -f outfiles/* $eosoutpkl
+xrdcp -f *.parquet $eosoutparquet
