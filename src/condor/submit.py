@@ -9,6 +9,7 @@ Author(s): Cristina Mantill, Raghav Kansal
 import argparse
 import os
 from math import ceil
+from string import Template
 
 
 def get_fileset(ptype, samples=[]):
@@ -84,6 +85,16 @@ def get_fileset(ptype, samples=[]):
         return fileset
 
 
+def write_template(templ_file: str, out_file: str, templ_args: dict):
+    """Write to ``out_file`` based on template from ``templ_file`` using ``templ_args``"""
+
+    with open(templ_file, "r") as f:
+        templ = Template(f.read())
+
+    with open(out_file, "w") as f:
+        f.write(templ.substitute(templ_args))
+
+
 def main(args):
     locdir = "condor/" + args.tag
     homedir = f"/store/user/rkansal/bbVV/{args.processor}/"
@@ -103,6 +114,9 @@ def main(args):
     for sample in fileset:
         os.system(f"mkdir -p /eos/uscms/{outdir}/{sample}")
 
+    jdl_templ = "src/condor/submit.templ.jdl"
+    sh_templ = "src/condor/submit.templ.sh"
+
     # submit jobs
     nsubmit = 0
     for sample in fileset:
@@ -111,48 +125,34 @@ def main(args):
         tot_files = len(fileset[sample])
         njobs = ceil(tot_files / args.files_per_job)
 
+        eosoutput_dir = f"root://cmseos.fnal.gov/{outdir}/{sample}/"
+
         for j in range(njobs):
             if args.test and j == 2:
                 break
-            condor_templ_file = open("src/condor/submit.templ.jdl")
 
             localcondor = f"{locdir}/{sample}_{j}.jdl"
-            condor_file = open(localcondor, "w")
-            for line in condor_templ_file:
-                line = line.replace("DIRECTORY", locdir)
-                line = line.replace("PREFIX", sample)
-                line = line.replace("JOBID", str(j))
-                condor_file.write(line)
-
-            condor_file.close()
-            condor_templ_file.close()
-
-            sh_templ_file = open("src/condor/submit.templ.sh")
+            jdl_args = {"dir": locdir, "prefix": sample, "jobid": j}
+            write_template(jdl_templ, localcondor, jdl_args)
 
             localsh = f"{locdir}/{sample}_{j}.sh"
-            eosoutput_dir = f"root://cmseos.fnal.gov/{outdir}/{sample}/"
-            eosoutput_pkl = f"{eosoutput_dir}/pickles/out_{j}.pkl"
-            eosoutput_parquet = f"{eosoutput_dir}/parquet/out_{j}.parquet"
-            sh_file = open(localsh, "w")
-            for line in sh_templ_file:
-                line = line.replace("SCRIPTNAME", args.script)
-                line = line.replace("YEAR", args.year)
-                line = line.replace("SAMPLE", sample)
-                line = line.replace("PROCESSOR", args.processor)
-                line = line.replace("STARTNUM", str(j * args.files_per_job))
-                line = line.replace("ENDNUM", str((j + 1) * args.files_per_job))
-                line = line.replace("EOSOUTPKL", eosoutput_pkl)
-                line = line.replace("EOSOUTPARQUET", eosoutput_parquet)
-                sh_file.write(line)
-            sh_file.close()
-            sh_templ_file.close()
-
+            sh_args = {
+                "script": args.script,
+                "year": args.year,
+                "starti": j * args.files_per_job,
+                "endi": (j + 1) * args.files_per_job,
+                "sample": sample,
+                "processor": args.processor,
+                "eosoutpkl": f"{eosoutput_dir}/pickles/out_{j}.pkl",
+                "eosoutparquet": f"{eosoutput_dir}/parquet/out_{j}.parquet",
+            }
+            write_template(sh_templ, localsh, sh_args)
             os.system(f"chmod u+x {localsh}")
-            if os.path.exists("%s.log" % localcondor):
-                os.system("rm %s.log" % localcondor)
+
+            if os.path.exists(f"{localcondor}.log"):
+                os.system(f"rm {localcondor}.log")
 
             print("To submit ", localcondor)
-            # os.system('condor_submit %s' % localcondor)
 
             nsubmit = nsubmit + 1
 

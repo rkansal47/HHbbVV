@@ -163,7 +163,10 @@ def main(args):
         # does treereduction help?
         executor = processor.DaskExecutor(status=True, client=client, treereduction=2)
         run = processor.Runner(
-            executor=executor, savemetrics=True, schema=nanoevents.NanoAODSchema, chunksize=100000
+            executor=executor,
+            savemetrics=True,
+            schema=nanoevents.NanoAODSchema,
+            chunksize=args.chunksize,
         )
         out, metrics = run(
             {key: fileset[key] for key in args.samples}, "Events", processor_instance=p
