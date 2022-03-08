@@ -198,7 +198,6 @@ class bbVVSkimmer(ProcessorABC):
         # ORing ak8 and ak15 cuts
 
         num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
-        print(f"{num_jets = }")
 
         preselection_cut = np.logical_or(
             np.prod(
@@ -222,8 +221,6 @@ class bbVVSkimmer(ProcessorABC):
                 axis=1,
             ),
         )
-
-        print(f"{preselection_cut = }")
 
         add_selection("preselection", preselection_cut, selection, cutflow, isData, signGenWeights)
 
