@@ -191,6 +191,7 @@ sig_events_keys = [
     # "GluGluHToWWTo4q_M-125",
     "GluGluToHHTo4V_node_cHHH1_new",
     "GluGluToHHTo4V_node_cHHH1",
+    "jhu_HHbbWW",
 ]
 sig_events_labels = [
     "Private pre-UL HHbbVV",
@@ -198,6 +199,7 @@ sig_events_labels = [
     "HH4W JHUGen",
     "HH4V pre-UL New PFNano",
     "HH4V pre-UL Old PFNano",
+    "JHU HHbbWW",
 ]
 sig_th4q_scores = {}
 sig_thvv4q_scores = {}
@@ -381,6 +383,49 @@ sig_thvv4q_scores[sample_name] = np.nan_to_num(
     nan=0,
 )
 sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True).reshape(-1), 2)
+
+
+# jhu_HHbbWW (ULv1 private)
+
+sample_name = sig_events_keys[5]
+
+events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
+pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
+
+get_cutflow(pickles_path, year, sample_name)
+
+n_events = get_cutflow(pickles_path, year, sample_name)["all"]
+
+events["weight"] *= (np.sign(events["genWeight"]) * LUMI[year]) / (
+    n_events * np.mean(np.sign(events["genWeight"]))
+)
+
+# get 4-vectors
+vec_keys = ["ak8FatJet", "ak15FatJet", "GenHiggs", "Genbb", "GenVV"]
+vectors = {vec_key: make_vector(events, vec_key, num_key=2, sig=True) for vec_key in vec_keys}
+vectors = {**vectors, "Gen4q": make_vector(events, "Gen4q", num_key=4, sig=True)}
+
+is_HVV = getParticles(get_key(events, "GenHiggsChildren", 2), "V")
+is_Hbb = getParticles(get_key(events, "GenHiggsChildren", 2), "b")
+
+genHVV = vectors["GenHiggs"][is_HVV]
+genHbb = vectors["GenHiggs"][is_Hbb]
+
+dR = 1.0
+masks = []
+for i in range(2):
+    masks.append(vectors["ak15FatJet"][:, i].deltaR(genHVV) < dR)
+
+HVV_masks = np.transpose(np.stack(masks))
+
+sig_events[sample_name] = events
+sig_th4q_scores[sample_name] = np.nan_to_num(
+    get_key(events, "ak15FatJetParticleNet_Th4q", num_key=2)[HVV_masks], copy=True, nan=0
+)
+sig_thvv4q_scores[sample_name] = np.nan_to_num(
+    get_key(events, "ak15FatJetParticleNetHWWMD_THWW4q", num_key=2)[HVV_masks], copy=True, nan=0
+)
+sig_weights[sample_name] = np.tile(get_key(events, "weight"), [1, 2])[HVV_masks]
 
 
 for sample_name in sig_weights:

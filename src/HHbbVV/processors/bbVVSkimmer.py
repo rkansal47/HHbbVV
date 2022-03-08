@@ -32,6 +32,7 @@ P4 = {
 # mapping samples to the appropriate function for doing gen-level selections
 gen_selection_dict = {
     "GluGluToHHTobbVV_node_cHHH1": gen_selection_HHbbVV,
+    "jhu_HHbbWW": gen_selection_HHbbVV,
     "GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow": gen_selection_HH4V,
     "GluGluToHHTo4V_node_cHHH1": gen_selection_HH4V,
     "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
