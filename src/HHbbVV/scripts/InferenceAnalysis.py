@@ -171,7 +171,11 @@ LUMI = {"2017": 40000}
 SIG_KEY = "HHToBBVVToBBQQQQ"
 DATA_KEY = ""
 
-plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/"
+plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/Feb18"
+import os
+
+os.mkdir(plot_dir)
+
 samples_dir = f"{MAIN_DIR}/../temp_data/211210_skimmer"
 xsecs = get_xsecs()
 
@@ -184,9 +188,17 @@ sig_events_keys = [
     "HHToBBVVToBBQQQQ_cHHH1",
     "GluGluToHHTobbVV_node_cHHH1",
     "GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow",
-    "GluGluHToWWTo4q_M-125",
+    # "GluGluHToWWTo4q_M-125",
+    "GluGluToHHTo4V_node_cHHH1_new",
+    "GluGluToHHTo4V_node_cHHH1",
 ]
-sig_events_labels = ["Private pre-UL HHbbVV", "ULv1 HHbbVV", "HH4W JHUGen"]
+sig_events_labels = [
+    "Private pre-UL HHbbVV",
+    "ULv1 HHbbVV",
+    "HH4W JHUGen",
+    "HH4V pre-UL New PFNano",
+    "HH4V pre-UL Old PFNano",
+]
 sig_th4q_scores = {}
 sig_thvv4q_scores = {}
 sig_weights = {}
@@ -299,14 +311,37 @@ sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True)
 
 
 # GluGluHToWWTo4q_M-125
+#
+# sample_name = sig_events_keys[3]
+#
+# events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
+# pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
+# n_events = get_cutflow(pickles_path, year, sample_name)["all"]
+# events["weight"] /= n_events
+#
+# sig_events[sample_name] = events
+#
+# sig_th4q_scores[sample_name] = np.nan_to_num(
+#     get_key(events, "ak15FatJetParticleNet_Th4q", new_samples=True).reshape(-1), copy=True, nan=0
+# )
+# sig_thvv4q_scores[sample_name] = np.nan_to_num(
+#     get_key(events, "ak15FatJetParticleNetHWWMD_THWW4q", new_samples=True).reshape(-1),
+#     copy=True,
+#     nan=0,
+# )
+# sig_weights[sample_name] = get_key(events, "weight", new_samples=True).reshape(-1)
+#
+# for sample_name in sig_weights:
+#     print(f"Pre-selection {sample_name} yield: {np.sum(sig_weights[sample_name]):.2f}")
+
+
+# GluGluToHHTo4V_node_cHHH1_new
 
 sample_name = sig_events_keys[3]
 
-events
-
 events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
 pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
-n_events = get_cutflow(pickles_path, year, sample_name)["all"]
+n_events = get_cutflow(pickles_path, year, "GluGluToHHTo4V_node_cHHH1")["has_2_4q"]
 events["weight"] /= n_events
 
 sig_events[sample_name] = events
@@ -319,16 +354,45 @@ sig_thvv4q_scores[sample_name] = np.nan_to_num(
     copy=True,
     nan=0,
 )
-sig_weights[sample_name] = get_key(events, "weight", new_samples=True).reshape(-1)
+sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True).reshape(-1), 2)
+
 
 for sample_name in sig_weights:
     print(f"Pre-selection {sample_name} yield: {np.sum(sig_weights[sample_name]):.2f}")
+
+
+# GluGluToHHTo4V_node_cHHH1_old
+
+sample_name = sig_events_keys[4]
+
+events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
+pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
+n_events = get_cutflow(pickles_path, year, sample_name)["has_2_4q"]
+events["weight"] /= n_events
+
+sig_events[sample_name] = events
+
+sig_th4q_scores[sample_name] = np.nan_to_num(
+    get_key(events, "ak15FatJetParticleNet_Th4q", new_samples=True).reshape(-1), copy=True, nan=0
+)
+sig_thvv4q_scores[sample_name] = np.nan_to_num(
+    get_key(events, "ak15FatJetParticleNetHWWMD_THWW4q", new_samples=True).reshape(-1),
+    copy=True,
+    nan=0,
+)
+sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True).reshape(-1), 2)
+
+
+for sample_name in sig_weights:
+    print(f"Pre-selection {sample_name} yield: {np.sum(sig_weights[sample_name]):.2f}")
+
 
 ##################################################################################
 # Background processing
 ##################################################################################
 
 full_samples_list = listdir(samples_dir)
+full_samples_list
 
 bg_columns = [
     "weight",
@@ -342,7 +406,7 @@ bg_scores_dict = {}
 
 for sample in full_samples_list:
     if "HH" in sample:
-        break
+        continue
 
     year, sample_name = split_year_sample_name(sample)
     print(sample)
@@ -405,6 +469,7 @@ colours = {
     "red": "#e31a1c",
     "orange": "#ff7f00",
     "green": "#80ed99",
+    "marigold": "#F3A712",
 }
 sig_colours = {sig_events_keys[i]: list(colours.values())[i + 1] for i in range(num_sig)}
 bg_colour = colours["lightblue"]
@@ -436,6 +501,8 @@ _ = plt.hist(
 plt.ylabel("# Events")
 plt.xlabel("PNet Non-MD TH4q score")
 plt.legend()
+
+
 plt.savefig(f"{plot_dir}/th4qfatjetpnetscore.pdf", bbox_inches="tight")
 
 
@@ -464,6 +531,8 @@ _ = plt.hist(
 plt.ylabel("# Events")
 plt.xlabel("PNet MD THvv4q score")
 plt.legend()
+
+
 plt.savefig(f"{plot_dir}/thvv4qmdfatjetpnetscore.pdf", bbox_inches="tight")
 
 
@@ -487,7 +556,7 @@ tpr = {"th4q": {}, "thvv4q": {}}
 thresholds = {"th4q": {}, "thvv4q": {}}
 aucs = {"th4q": {}, "thvv4q": {}}
 
-for sample_name in sig_events_keys[2:]:
+for sample_name in sig_events_keys[3:]:
     y_true = np.concatenate([np.ones(len(sig_weights[sample_name])), np.zeros(len(bg_scores) // 4)])
     weights = np.concatenate((sig_weights[sample_name], bg_scores[:, 2][::bg_skip]))
     scores = np.concatenate((sig_th4q_scores[sample_name], bg_scores[:, 0][::bg_skip]))
@@ -505,10 +574,10 @@ for sample_name in sig_events_keys[2:]:
     ) = roc_curve(y_true, scores, sample_weight=weights)
 
 
+fpr
+
 xlim = [0, 0.6]
 ylim = [1e-6, 1]
-
-np.searchsorted
 
 plt.figure(figsize=(12, 12))
 for i in range(num_sig):
