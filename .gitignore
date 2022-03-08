@@ -26,6 +26,7 @@ src/*
 !src/HHbbVV/scripts
 !src/HHbbVV/scripts/**
 src/HHbbVV/scripts/data/*
+src/HHbbVV/scripts/*.pkl
 
 !outPickles
 !outPickles/*.pickle
