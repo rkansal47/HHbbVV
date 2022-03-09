@@ -280,7 +280,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--executor",
         type=str,
-        default="futures",
+        default="iterative",
         choices=["futures", "iterative", "dask"],
         help="type of processor executor",
     )
