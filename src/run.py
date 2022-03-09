@@ -178,6 +178,8 @@ def main(args):
         args.processor, args.year, args.samples, args.subsamples, args.starti, args.endi
     )
 
+    print(fileset)
+
     if args.executor == "dask":
         import time
         from distributed import Client
