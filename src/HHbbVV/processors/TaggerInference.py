@@ -493,8 +493,6 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
         time_taken = time.time() - start
         print(f"Inference took {time_taken:.1f}s")
 
-    print(tagger_outputs)
-
     pnet_vars_list = []
     for jet_idx in range(2):
         if len(tagger_outputs[jet_idx]):
@@ -511,8 +509,6 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
                     / np.sum(tagger_outputs[jet_idx], axis=1),
                 }
             )
-
-            print(pnet_vars_list[-1])
         else:
             pnet_vars_list.append(
                 {
