@@ -1,6 +1,7 @@
 from typing import Optional, List, Dict
 
 import numpy as np
+from scipy.special import softmax
 import awkward as ak
 from coffea.nanoevents.methods.base import NanoEventsArray
 
@@ -488,7 +489,7 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
     for jet_idx in range(2):
         print(f"Running inference for Jet {jet_idx + 1}")
         start = time.time()
-        tagger_outputs.append(triton_model(tagger_inputs[jet_idx]))
+        tagger_outputs.append(softmax(triton_model(tagger_inputs[jet_idx]), axis=1))
         time_taken = time.time() - start
         print(f"Inference took {time_taken:.1f}s")
 
@@ -499,20 +500,46 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
         if len(tagger_outputs[jet_idx]):
             pnet_vars_list.append(
                 {
-                    "ak15FatJetParticleNetHWWMD_probQCD": tagger_outputs[jet_idx][:, 3],
-                    "ak15FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, 0],
-                    "ak15FatJetParticleNetHWWMD_THWW4q": tagger_outputs[jet_idx][:, 0]
-                    / (tagger_outputs[jet_idx][:, 0] + tagger_outputs[jet_idx][:, 3]),
+                    "ak15FatJetParticleNetHWWMD_probQCD": np.sum(
+                        tagger_outputs[jet_idx][:, :6], axis=1
+                    ),
+                    "ak15FatJetParticleNetHWWMD_probHWW3q": tagger_outputs[jet_idx][:, 6],
+                    "ak15FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, 7],
+                    "ak15FatJetParticleNetHWWMD_THWW4q": (
+                        tagger_outputs[jet_idx][:, 6] + tagger_outputs[jet_idx][:, 7]
+                    )
+                    / np.sum(tagger_outputs[jet_idx], axis=1),
                 }
             )
+
+            print(pnet_vars_list[-1])
         else:
             pnet_vars_list.append(
                 {
                     "ak15FatJetParticleNetHWWMD_probQCD": np.array([]),
+                    "ak15FatJetParticleNetHWWMD_probHWW3q": np.array([]),
                     "ak15FatJetParticleNetHWWMD_probHWW4q": np.array([]),
                     "ak15FatJetParticleNetHWWMD_THWW4q": np.array([]),
                 }
             )
+
+        # if len(tagger_outputs[jet_idx]):
+        #     pnet_vars_list.append(
+        #         {
+        #             "ak15FatJetParticleNetHWWMD_probQCD": tagger_outputs[jet_idx][:, 3],
+        #             "ak15FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, 0],
+        #             "ak15FatJetParticleNetHWWMD_THWW4q": tagger_outputs[jet_idx][:, 0]
+        #             / (tagger_outputs[jet_idx][:, 0] + tagger_outputs[jet_idx][:, 3]),
+        #         }
+        #     )
+        # else:
+        #     pnet_vars_list.append(
+        #         {
+        #             "ak15FatJetParticleNetHWWMD_probQCD": np.array([]),
+        #             "ak15FatJetParticleNetHWWMD_probHWW4q": np.array([]),
+        #             "ak15FatJetParticleNetHWWMD_THWW4q": np.array([]),
+        #         }
+        #     )
 
     pnet_vars_combined = {
         key: np.concatenate(
