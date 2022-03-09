@@ -352,79 +352,13 @@ def get_svs_features(
     return feature_dict
 
 
-# def runInferenceOnnx(tagger_resources_path: str, events: NanoEventsArray) -> dict:
-#     total_start = time.time()
-#
-#     with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
-#         tagger_vars = json.load(f)
-#
-#     opts = ort.SessionOptions()
-#     opts.intra_op_num_threads = 1
-#     opts.inter_op_num_threads = 1
-#     opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-#
-#     tagger_session = ort.InferenceSession(
-#         f"{tagger_resources_path}/pnetmd_ak15_hww4q_model.onnx", sess_options=opts
-#     )
-#
-#     # prepare inputs for both fat jets
-#     tagger_inputs = []
-#     for jet_idx in range(2):
-#         feature_dict = {
-#             **get_pfcands_features(tagger_vars, events, jet_idx),
-#             **get_svs_features(tagger_vars, events, jet_idx),
-#         }
-#
-#         tagger_inputs.append(
-#             {
-#                 input_name: np.concatenate(
-#                     [
-#                         np.expand_dims(feature_dict[key], 1)
-#                         for key in tagger_vars[input_name]["var_names"]
-#                     ],
-#                     axis=1,
-#                 )
-#                 for input_name in tagger_vars["input_names"]
-#             }
-#         )
-#
-#     # run inference for both fat jets
-#     tagger_outputs = []
-#     for jet_idx in range(2):
-#         print(f"Running inference for Jet {jet_idx + 1}")
-#         start = time.time()
-#         tagger_outputs.append(tagger_session.run(None, tagger_inputs[jet_idx])[0])
-#         time_taken = time.time() - start
-#         print(f"Inference took {time_taken}s")
-#
-#     pnet_vars_list = []
-#     for jet_idx in range(2):
-#         pnet_vars_list.append(
-#             {
-#                 "ak15FatJetParticleNetHWWMD_probQCD": tagger_outputs[jet_idx][:, 3],
-#                 "ak15FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, 0],
-#                 "ak15FatJetParticleNetHWWMD_THWW4q": tagger_outputs[jet_idx][:, 0]
-#                 / (tagger_outputs[jet_idx][:, 0] + tagger_outputs[jet_idx][:, 3]),
-#             }
-#         )
-#
-#     pnet_vars_combined = {
-#         key: np.concatenate(
-#             [pnet_vars_list[0][key][:, np.newaxis], pnet_vars_list[1][key][:, np.newaxis]], axis=1
-#         )
-#         for key in pnet_vars_list[0]
-#     }
-#
-#     print(f"Total time taken: {time.time() - total_start}s")
-#     return pnet_vars_combined
-
-
 # from https://github.com/lgray/hgg-coffea/blob/triton-bdts/src/hgg_coffea/tools/chained_quantile.py
 class wrapped_triton:
     def __init__(
         self,
         model_url: str,
         batch_size: int,
+        torchscript: bool = True,
     ) -> None:
         fullprotocol, location = model_url.split("://")
         _, protocol = fullprotocol.split("+")
@@ -436,6 +370,8 @@ class wrapped_triton:
         self._version = version
 
         self._batch_size = batch_size
+
+        self._torchscript = torchscript
 
     def __call__(self, input_dict: Dict[str, np.ndarray]) -> np.ndarray:
         if self._protocol == "grpc":
@@ -479,7 +415,9 @@ class wrapped_triton:
             input.set_data_from_numpy(input_dict[key])
             inputs.append(input)
 
-        output = triton_protocol.InferRequestedOutput("softmax")
+        out_name = "softmax__0" if self._torchscript else "softmax"
+
+        output = triton_protocol.InferRequestedOutput(out_name)
 
         request = client.infer(
             self._model,
@@ -488,7 +426,7 @@ class wrapped_triton:
             outputs=[output],
         )
 
-        return request.as_numpy("softmax")
+        return request.as_numpy(out_name)
 
 
 def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> dict:
@@ -496,13 +434,16 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
 
     # tagger_resources_path = "HHbbVV/processors/tagger_resources"
 
-    with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
+    # with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
+    with open(f"{tagger_resources_path}/pyg_ef_ul_cw_8_2_preprocess.json") as f:
         tagger_vars = json.load(f)
 
     with open(f"{tagger_resources_path}/triton_config.json") as f:
         triton_config = json.load(f)
 
-    triton_model = wrapped_triton(triton_config["model_url"], triton_config["batch_size"])
+    triton_model = wrapped_triton(
+        triton_config["model_url"], triton_config["batch_size"], torchscript=True
+    )
 
     # prepare inputs for both fat jets
     tagger_inputs = []
@@ -516,16 +457,29 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
             for key in tagger_vars[input_name]["var_names"]:
                 np.expand_dims(feature_dict[key], 1)
 
+        # tagger_inputs.append(
+        #     {
+        #         f"{input_name}": np.concatenate(
+        #             [
+        #                 np.expand_dims(feature_dict[key], 1)
+        #                 for key in tagger_vars[input_name]["var_names"]
+        #             ],
+        #             axis=1,
+        #         )
+        #         for input_name in tagger_vars["input_names"]
+        #     }
+        # )
+
         tagger_inputs.append(
             {
-                input_name: np.concatenate(
+                f"{input_name}__{i}": np.concatenate(
                     [
                         np.expand_dims(feature_dict[key], 1)
                         for key in tagger_vars[input_name]["var_names"]
                     ],
                     axis=1,
                 )
-                for input_name in tagger_vars["input_names"]
+                for i, input_name in enumerate(tagger_vars["input_names"])
             }
         )
 
@@ -537,6 +491,8 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
         tagger_outputs.append(triton_model(tagger_inputs[jet_idx]))
         time_taken = time.time() - start
         print(f"Inference took {time_taken:.1f}s")
+
+    print(tagger_outputs)
 
     pnet_vars_list = []
     for jet_idx in range(2):
