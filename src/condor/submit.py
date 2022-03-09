@@ -103,9 +103,7 @@ def get_fileset(processor, year, samples, subsamples):
             sample_set = {subsample: sample_set[subsample] for subsample in get_subsamples}
 
         sample_set = {
-            f"{year}_{subsample}": [
-                "root://cmsxrootd.fnal.gov//" + fname for fname in sample_set[subsample]
-            ]
+            subsample: ["root://cmsxrootd.fnal.gov//" + fname for fname in sample_set[subsample]]
             for subsample in sample_set
         }
 
@@ -147,22 +145,23 @@ def main(args):
     for sample in fileset:
         for subsample in fileset[sample]:
             print("Submitting " + subsample)
-            os.system(f"mkdir -p /eos/uscms/{outdir}/{subsample}")
+            os.system(f"mkdir -p /eos/uscms/{outdir}/{args.year}/{subsample}")
 
             tot_files = len(fileset[sample][subsample])
             njobs = ceil(tot_files / args.files_per_job)
 
-            eosoutput_dir = f"root://cmseos.fnal.gov/{outdir}/{subsample}/"
+            eosoutput_dir = f"root://cmseos.fnal.gov/{outdir}/{args.year}/{subsample}/"
 
             for j in range(njobs):
                 if args.test and j == 2:
                     break
 
-                localcondor = f"{locdir}/{subsample}_{j}.jdl"
-                jdl_args = {"dir": locdir, "prefix": subsample, "jobid": j}
+                prefix = f"{args.year}_{subsample}"
+                localcondor = f"{locdir}/{prefix}_{j}.jdl"
+                jdl_args = {"dir": locdir, "prefix": prefix, "jobid": j}
                 write_template(jdl_templ, localcondor, jdl_args)
 
-                localsh = f"{locdir}/{subsample}_{j}.sh"
+                localsh = f"{locdir}/{prefix}_{j}.sh"
                 sh_args = {
                     "script": args.script,
                     "year": args.year,
