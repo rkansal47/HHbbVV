@@ -171,7 +171,7 @@ LUMI = {"2017": 40000}
 SIG_KEY = "HHToBBVVToBBQQQQ"
 DATA_KEY = ""
 
-plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/Feb18"
+plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/Mar8"
 import os
 
 os.mkdir(plot_dir)
@@ -190,7 +190,7 @@ sig_events_keys = [
     "GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow",
     # "GluGluHToWWTo4q_M-125",
     "GluGluToHHTo4V_node_cHHH1_new",
-    "GluGluToHHTo4V_node_cHHH1",
+    # "GluGluToHHTo4V_node_cHHH1",
     "jhu_HHbbWW",
 ]
 sig_events_labels = [
@@ -198,7 +198,7 @@ sig_events_labels = [
     "ULv1 HHbbVV",
     "HH4W JHUGen",
     "HH4V pre-UL New PFNano",
-    "HH4V pre-UL Old PFNano",
+    # "HH4V pre-UL Old PFNano",
     "JHU HHbbWW",
 ]
 sig_th4q_scores = {}
@@ -210,7 +210,7 @@ num_sig = len(sig_events_keys)
 
 # HHToBBVVToBBQQQQ_cHHH1 (preUL private)
 
-sample_name = sig_events_keys[0]
+sample_name = "HHToBBVVToBBQQQQ_cHHH1"
 
 events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
 pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
@@ -252,14 +252,13 @@ sig_weights[sample_name] = np.tile(get_key(events, "weight"), [1, 2])[HVV_masks]
 
 # GluGluToHHTobbVV_node_cHHH1
 
-sample_name = sig_events_keys[1]
+sample_name = "GluGluToHHTobbVV_node_cHHH1"
 
 events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
 pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
 n_events = get_cutflow(pickles_path, year, sample_name)["has_4q"]
 events["weight"] /= n_events
 
-get_cutflow(pickles_path, year, sample_name)
 
 # get 4-vectors
 vec_keys = ["ak8FatJet", "ak15FatJet", "GenHiggs", "Genbb", "GenVV", "Gen4q"]
@@ -292,7 +291,7 @@ sig_weights[sample_name] = np.tile(get_key(events, "weight", new_samples=True), 
 
 # GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow
 
-sample_name = sig_events_keys[2]
+sample_name = "GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow"
 
 events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
 pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
@@ -311,6 +310,29 @@ sig_thvv4q_scores[sample_name] = np.nan_to_num(
 )
 sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True).reshape(-1), 2)
 
+sig_events[sample_name]["ak15FatJetPt"] < 400
+_ = plt.hist(
+    sig_events[sample_name]["ak15FatJetParticleNetHWWMD_THWW4q"].values[
+        sig_events[sample_name]["ak15FatJetPt"] < 400
+    ],
+    np.linspace(0, 1, 101),
+    histtype="step",
+)
+
+
+_ = plt.hist2d(
+    sig_events[sample_name]["ak15FatJetPt"].values.reshape(-1),
+    sig_events[sample_name]["ak15FatJetParticleNetHWWMD_THWW4q"].values.reshape(-1),
+    bins=20,
+    range=((200, 800), (0, 1)),
+    density=True,
+)
+plt.xlabel("pT (GeV)")
+plt.ylabel("PNetMD THWW4q")
+plt.title("JHUGen BulkGrav To HH4W")
+plt.show()
+
+plt.hist(get_key(sig_events["GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow"]))
 
 # GluGluHToWWTo4q_M-125
 #
@@ -337,9 +359,11 @@ sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True)
 #     print(f"Pre-selection {sample_name} yield: {np.sum(sig_weights[sample_name]):.2f}")
 
 
+events
+
 # GluGluToHHTo4V_node_cHHH1_new
 
-sample_name = sig_events_keys[3]
+sample_name = "GluGluToHHTo4V_node_cHHH1_new"
 
 events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
 pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
@@ -359,13 +383,9 @@ sig_thvv4q_scores[sample_name] = np.nan_to_num(
 sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True).reshape(-1), 2)
 
 
-for sample_name in sig_weights:
-    print(f"Pre-selection {sample_name} yield: {np.sum(sig_weights[sample_name]):.2f}")
+# GluGluToHHTo4V_node_cHHH1
 
-
-# GluGluToHHTo4V_node_cHHH1_old
-
-sample_name = sig_events_keys[4]
+sample_name = "GluGluToHHTo4V_node_cHHH1"
 
 events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
 pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
@@ -387,14 +407,12 @@ sig_weights[sample_name] = np.repeat(get_key(events, "weight", new_samples=True)
 
 # jhu_HHbbWW (ULv1 private)
 
-sample_name = sig_events_keys[5]
+sample_name = "jhu_HHbbWW"
 
 events = pd.read_parquet(f"{samples_dir}/{year}_{sample_name}/parquet")
 pickles_path = f"{samples_dir}/{year}_{sample_name}/pickles"
 
-get_cutflow(pickles_path, year, sample_name)
-
-n_events = get_cutflow(pickles_path, year, sample_name)["all"]
+n_events = get_cutflow(pickles_path, year, sample_name)["has_4q"]
 
 events["weight"] *= (np.sign(events["genWeight"]) * LUMI[year]) / (
     n_events * np.mean(np.sign(events["genWeight"]))
@@ -402,11 +420,11 @@ events["weight"] *= (np.sign(events["genWeight"]) * LUMI[year]) / (
 
 # get 4-vectors
 vec_keys = ["ak8FatJet", "ak15FatJet", "GenHiggs", "Genbb", "GenVV"]
-vectors = {vec_key: make_vector(events, vec_key, num_key=2, sig=True) for vec_key in vec_keys}
-vectors = {**vectors, "Gen4q": make_vector(events, "Gen4q", num_key=4, sig=True)}
+vectors = {vec_key: make_vector(events, vec_key, new_samples=True) for vec_key in vec_keys}
+vectors = {**vectors, "Gen4q": make_vector(events, "Gen4q", new_samples=True)}
 
-is_HVV = getParticles(get_key(events, "GenHiggsChildren", 2), "V")
-is_Hbb = getParticles(get_key(events, "GenHiggsChildren", 2), "b")
+is_HVV = getParticles(get_key(events, "GenHiggsChildren", new_samples=True), "V")
+is_Hbb = getParticles(get_key(events, "GenHiggsChildren", new_samples=True), "b")
 
 genHVV = vectors["GenHiggs"][is_HVV]
 genHbb = vectors["GenHiggs"][is_Hbb]
@@ -418,14 +436,32 @@ for i in range(2):
 
 HVV_masks = np.transpose(np.stack(masks))
 
+HVV_masks.shape
+
 sig_events[sample_name] = events
 sig_th4q_scores[sample_name] = np.nan_to_num(
-    get_key(events, "ak15FatJetParticleNet_Th4q", num_key=2)[HVV_masks], copy=True, nan=0
+    get_key(events, "ak15FatJetParticleNet_Th4q", new_samples=True)[HVV_masks], copy=True, nan=0
 )
 sig_thvv4q_scores[sample_name] = np.nan_to_num(
-    get_key(events, "ak15FatJetParticleNetHWWMD_THWW4q", num_key=2)[HVV_masks], copy=True, nan=0
+    get_key(events, "ak15FatJetParticleNetHWWMD_THWW4q", new_samples=True)[HVV_masks],
+    copy=True,
+    nan=0,
 )
-sig_weights[sample_name] = np.tile(get_key(events, "weight"), [1, 2])[HVV_masks]
+sig_weights[sample_name] = np.tile(get_key(events, "weight", new_samples=True), [1, 2])[HVV_masks]
+
+
+_ = plt.hist2d(
+    sig_events[sample_name]["ak15FatJetPt"].values[HVV_masks],
+    sig_events[sample_name]["ak15FatJetParticleNetHWWMD_THWW4q"].values[HVV_masks],
+    bins=20,
+    range=((200, 800), (0, 1)),
+    density=True,
+)
+plt.xlabel("pT (GeV)")
+plt.ylabel("PNetMD THWW4q")
+plt.title("JHUGen HHbbWW")
+# plt.colorbar()
+plt.show()
 
 
 for sample_name in sig_weights:
@@ -450,7 +486,7 @@ bg_columns = [
 bg_scores_dict = {}
 
 for sample in full_samples_list:
-    if "HH" in sample:
+    if "HH" in sample or "GluGluH" in sample:
         continue
 
     year, sample_name = split_year_sample_name(sample)
@@ -514,7 +550,7 @@ colours = {
     "red": "#e31a1c",
     "orange": "#ff7f00",
     "green": "#80ed99",
-    "marigold": "#F3A712",
+    "marigold": "#9B7EDE",
 }
 sig_colours = {sig_events_keys[i]: list(colours.values())[i + 1] for i in range(num_sig)}
 bg_colour = colours["lightblue"]
@@ -546,8 +582,6 @@ _ = plt.hist(
 plt.ylabel("# Events")
 plt.xlabel("PNet Non-MD TH4q score")
 plt.legend()
-
-
 plt.savefig(f"{plot_dir}/th4qfatjetpnetscore.pdf", bbox_inches="tight")
 
 
@@ -576,8 +610,6 @@ _ = plt.hist(
 plt.ylabel("# Events")
 plt.xlabel("PNet MD THvv4q score")
 plt.legend()
-
-
 plt.savefig(f"{plot_dir}/thvv4qmdfatjetpnetscore.pdf", bbox_inches="tight")
 
 
@@ -618,8 +650,6 @@ for sample_name in sig_events_keys[3:]:
         thresholds["thvv4q"][sample_name],
     ) = roc_curve(y_true, scores, sample_weight=weights)
 
-
-fpr
 
 xlim = [0, 0.6]
 ylim = [1e-6, 1]
