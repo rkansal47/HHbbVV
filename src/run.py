@@ -81,6 +81,8 @@ def get_fileset(processor, year, samples, subsamples, starti, endi):
 
         fileset = {**fileset, **sample_set}
 
+    return fileset
+
 
 # def get_fileset(ptype, samples, starti, endi):
 #     if ptype == "trigger":
@@ -224,7 +226,7 @@ def main(args):
         }
 
         out, metrics = processor.run_uproot_job(
-            {key: fileset[key] for key in args.samples},
+            fileset,
             treename="Events",
             processor_instance=p,
             executor=executor,
