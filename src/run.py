@@ -6,12 +6,15 @@ Runs coffea processors on the LPC via either condor or dask.
 Author(s): Cristina Mantill, Raghav Kansal
 """
 
+import numpy as np
+
 import uproot
 from coffea.nanoevents import BaseSchema
 from coffea import nanoevents
 from coffea import processor
 import pickle
 import os
+import json
 
 import argparse
 
@@ -51,73 +54,102 @@ class NanoeventsSchemaPlugin(WorkerPlugin):
         nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
 
 
-def get_fileset(ptype, samples, starti, endi):
-    if ptype == "trigger":
-        with open("data/SingleMuon_2017.txt", "r") as file:
-            filelist = [f[:-1] for f in file.readlines()]
+def get_fileset(processor, year, samples, subsamples, starti, endi):
+    with open(f"data/pfnanoindex_{year}.json", "r") as f:
+        full_fileset = json.load(f)
 
-        files = {"2017": filelist}
-        fileset = {k: files[k][starti:endi] for k in files.keys()}
-        return fileset
+    fileset = {}
 
-    elif ptype == "skimmer":
-        from os import listdir
+    for sample in samples:
+        sample_set = full_fileset[year][sample]
+        set_subsamples = list(sample_set.keys())
 
-        fileset = {}
+        # check if any subsamples for this sample have been specified
+        get_subsamples = set(set_subsamples).intersection(subsamples)
 
-        # if "2017_HHToBBVVToBBQQQQ_cHHH1" in samples:
-        #     # TODO: replace with UL sample once we have it
-        #     with open("data/2017_preUL_nano/HHToBBVVToBBQQQQ_cHHH1.txt", "r") as file:
-        #         filelist = [
-        #             f[:-1].replace("/eos/uscms/", "root://cmsxrootd.fnal.gov//")
-        #             for f in file.readlines()
-        #         ]  # need to use xcache redirector at Nebraksa coffea-casa
-        #
-        #     fileset["2017_HHToBBVVToBBQQQQ_cHHH1"] = filelist[starti:endi]
+        # if so keep only that subset
+        if len(get_subsamples):
+            sample_set = {subsample: sample_set[subsample] for subsample in get_subsamples}
 
-        if "2017_GluGluToHHTo4V_node_cHHH1" in samples:
-            # TODO: replace with UL sample once we have it
-            with open("data/2017_preUL_nano/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8.txt", "r") as file:
-                filelist = [
-                    f[:-1].replace("/eos/uscms/", "root://cmsxrootd.fnal.gov//")
-                    for f in file.readlines()
-                ]  # need to use xcache redirector at Nebraksa coffea-casa
+        sample_set = {
+            f"{year}_{subsample}": [
+                "root://cmsxrootd.fnal.gov//" + fname
+                for fname in sample_set[subsample][starti:endi]
+            ]
+            for subsample in sample_set
+        }
 
-            fileset["2017_GluGluToHHTo4V_node_cHHH1"] = filelist[starti:endi]
+        fileset = {**fileset, **sample_set}
 
-        # extra samples in the folder we don't need for this analysis -
-        # TODO: should instead have a list of all samples we need
-        ignore_samples = [
-            "GluGluHToTauTau_M125_TuneCP5_13TeV-powheg-pythia8",
-            "GluGluHToWWToLNuQQ_M125_TuneCP5_PSweight_13TeV-powheg2-jhugen727-pythia8",
-            "ST_tW_antitop_5f_DS_NoFullyHadronicDecays_TuneCP5_13TeV-powheg-pythia8",
-            "ST_tW_top_5f_DS_NoFullyHadronicDecays_TuneCP5_13TeV-powheg-pythia8",
-        ]
 
-        for sample in listdir("data/2017_UL_nano/"):
-            if sample[-4:] == ".txt" and sample[:-4] not in ignore_samples:
-                if "2017_" + sample[:-4].split("_TuneCP5")[0] in samples:
-                    with open(f"data/2017_UL_nano/{sample}", "r") as file:
-                        if "JetHT" in sample:
-                            filelist = [
-                                f[:-1].replace("/hadoop/cms/", "root://redirector.t2.ucsd.edu//")
-                                for f in file.readlines()
-                            ]
-                        else:
-                            filelist = [
-                                f[:-1].replace("/eos/uscms/", "root://cmsxrootd.fnal.gov//")
-                                for f in file.readlines()
-                            ]
-
-                    fileset["2017_" + sample[:-4].split("_TuneCP5")[0]] = filelist[starti:endi]
-
-        print(fileset)
-        return fileset
+# def get_fileset(ptype, samples, starti, endi):
+#     if ptype == "trigger":
+#         with open("data/SingleMuon_2017.txt", "r") as file:
+#             filelist = [f[:-1] for f in file.readlines()]
+#
+#         files = {"2017": filelist}
+#         fileset = {k: files[k][starti:endi] for k in files.keys()}
+#         return fileset
+#
+#     elif ptype == "skimmer":
+#         from os import listdir
+#
+#         fileset = {}
+#
+#         # if "2017_HHToBBVVToBBQQQQ_cHHH1" in samples:
+#         #     # TODO: replace with UL sample once we have it
+#         #     with open("data/2017_preUL_nano/HHToBBVVToBBQQQQ_cHHH1.txt", "r") as file:
+#         #         filelist = [
+#         #             f[:-1].replace("/eos/uscms/", "root://cmsxrootd.fnal.gov//")
+#         #             for f in file.readlines()
+#         #         ]  # need to use xcache redirector at Nebraksa coffea-casa
+#         #
+#         #     fileset["2017_HHToBBVVToBBQQQQ_cHHH1"] = filelist[starti:endi]
+#
+#         if "2017_GluGluToHHTo4V_node_cHHH1" in samples:
+#             # TODO: replace with UL sample once we have it
+#             with open(
+#                 "data/2017_preUL_nano/GluGluToHHTo4V_node_cHHH1_TuneCP5_PSWeights_13TeV-powheg-pythia8.txt",
+#                 "r",
+#             ) as file:
+#                 filelist = [
+#                     f[:-1].replace("/eos/uscms/", "root://cmsxrootd.fnal.gov//")
+#                     for f in file.readlines()
+#                 ]  # need to use xcache redirector at Nebraksa coffea-casa
+#
+#             fileset["2017_GluGluToHHTo4V_node_cHHH1"] = filelist[starti:endi]
+#
+#         # extra samples in the folder we don't need for this analysis -
+#         # TODO: should instead have a list of all samples we need
+#         ignore_samples = [
+#             "GluGluHToTauTau_M125_TuneCP5_13TeV-powheg-pythia8",
+#             "GluGluHToWWToLNuQQ_M125_TuneCP5_PSweight_13TeV-powheg2-jhugen727-pythia8",
+#             "ST_tW_antitop_5f_DS_NoFullyHadronicDecays_TuneCP5_13TeV-powheg-pythia8",
+#             "ST_tW_top_5f_DS_NoFullyHadronicDecays_TuneCP5_13TeV-powheg-pythia8",
+#         ]
+#
+#         for sample in listdir("data/2017_UL_nano/"):
+#             if sample[-4:] == ".txt" and sample[:-4] not in ignore_samples:
+#                 if "2017_" + sample[:-4].split("_TuneCP5")[0] in samples:
+#                     with open(f"data/2017_UL_nano/{sample}", "r") as file:
+#                         if "JetHT" in sample:
+#                             filelist = [
+#                                 f[:-1].replace("/hadoop/cms/", "root://redirector.t2.ucsd.edu//")
+#                                 for f in file.readlines()
+#                             ]
+#                         else:
+#                             filelist = [
+#                                 f[:-1].replace("/eos/uscms/", "root://cmsxrootd.fnal.gov//")
+#                                 for f in file.readlines()
+#                             ]
+#
+#                     fileset["2017_" + sample[:-4].split("_TuneCP5")[0]] = filelist[starti:endi]
+#
+#         print(fileset)
+#         return fileset
 
 
 def get_xsecs():
-    import json
-
     with open("data/xsecs.json") as f:
         xsecs = json.load(f)
 
@@ -140,7 +172,9 @@ def main(args):
 
         p = bbVVSkimmer(xsecs=get_xsecs())
 
-    fileset = get_fileset(args.processor, args.samples, args.starti, args.endi)
+    fileset = get_fileset(
+        args.processor, args.year, args.samples, args.subsamples, args.starti, args.endi
+    )
 
     if args.executor == "dask":
         import time
@@ -228,15 +262,14 @@ if __name__ == "__main__":
     # inside a dask job:  python run.py --year 2017 --processor trigger --dask
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--year", dest="year", default="2017", help="year", type=str)
-    parser.add_argument("--starti", dest="starti", default=0, help="start index of files", type=int)
-    parser.add_argument("--endi", dest="endi", default=-1, help="end index of files", type=int)
+    parser.add_argument("--year", default="2017", help="year", type=str)
+    parser.add_argument("--starti", default=0, help="start index of files", type=int)
+    parser.add_argument("--endi", default=-1, help="end index of files", type=int)
     # parser.add_argument(
     #     "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
     # )
     parser.add_argument(
         "--processor",
-        dest="processor",
         default="trigger",
         help="Trigger processor",
         type=str,
@@ -249,7 +282,8 @@ if __name__ == "__main__":
         choices=["futures", "iterative", "dask"],
         help="type of processor executor",
     )
-    parser.add_argument("--samples", dest="samples", default=[], help="samples", nargs="*")
+    parser.add_argument("--samples", default=[], help="samples", nargs="*")
+    parser.add_argument("--subsamples", default=[], help="subsamples", nargs="*")
     parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
     args = parser.parse_args()
 
