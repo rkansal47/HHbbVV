@@ -162,7 +162,7 @@ def main(args):
                 jdl_args = {"dir": locdir, "prefix": subsample, "jobid": j}
                 write_template(jdl_templ, localcondor, jdl_args)
 
-                localsh = f"{locdir}/{sample}_{j}.sh"
+                localsh = f"{locdir}/{subsample}_{j}.sh"
                 sh_args = {
                     "script": args.script,
                     "year": args.year,
