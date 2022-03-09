@@ -51,7 +51,7 @@ class bbVVSkimmer(ProcessorABC):
 
     # TODO: do ak8, ak15 sorting for hybrid case
 
-    def __init__(self, xsecs={}, tagger="pyg_ul_1"):
+    def __init__(self, xsecs={}):
         super(bbVVSkimmer, self).__init__()
 
         self.LUMI = {"2017": 40000}  # in pb^-1
