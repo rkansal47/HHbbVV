@@ -255,25 +255,26 @@ class bbVVSkimmer(ProcessorABC):
         )
         skimmed_events["ak15FatJetParticleNetMD_Txbb"] = pad_val(
             events.FatJetAK15.ParticleNetMD_probXbb
-            / (events.FatJetAK15.ParticleNetMD_probQCD + events.FatJetAK15.ParticleNetMD_probXbb),
+            / (events.FatJetAK15.Pa
+rticleNetMD_probQCD + events.FatJetAK15.ParticleNetMD_probXbb),
             2,
             -1,
             axis=1,
         )
-        skimmed_events["ak15FatJetParticleNet_Th4q"] = pad_val(
-            events.FatJetAK15.ParticleNet_probHqqqq
-            / (
-                events.FatJetAK15.ParticleNet_probHqqqq
-                + events.FatJetAK15.ParticleNet_probQCDb
-                + events.FatJetAK15.ParticleNet_probQCDbb
-                + events.FatJetAK15.ParticleNet_probQCDc
-                + events.FatJetAK15.ParticleNet_probQCDcc
-                + events.FatJetAK15.ParticleNet_probQCDothers
-            ),
-            2,
-            -1,
-            axis=1,
-        )
+        # skimmed_events["ak15FatJetParticleNet_Th4q"] = pad_val(
+        #     events.FatJetAK15.ParticleNet_probHqqqq
+        #     / (
+        #         events.FatJetAK15.ParticleNet_probHqqqq
+        #         + events.FatJetAK15.ParticleNet_probQCDb
+        #         + events.FatJetAK15.ParticleNet_probQCDbb
+        #         + events.FatJetAK15.ParticleNet_probQCDc
+        #         + events.FatJetAK15.ParticleNet_probQCDcc
+        #         + events.FatJetAK15.ParticleNet_probQCDothers
+        #     ),
+        #     2,
+        #     -1,
+        #     axis=1,
+        # )
 
         # calc weights
 
