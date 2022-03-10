@@ -34,7 +34,7 @@ To test locally first (recommended), can do e.g.:
 
 ```bash
 mkdir outfiles
-python -W ignore src/run.py --starti 0 --endi 1 --year 2017 --processor skimmer --executor iterative --samples '2017_HHToBBVVToBBQQQQ_cHHH1'
+python -W ignore src/run.py --starti 0 --endi 1 --year 2017 --processor skimmer --executor iterative --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q
 ```
 
 #### TODO: instructions for lpcjobqueue (currently quite buggy)
