@@ -255,8 +255,7 @@ class bbVVSkimmer(ProcessorABC):
         )
         skimmed_events["ak15FatJetParticleNetMD_Txbb"] = pad_val(
             events.FatJetAK15.ParticleNetMD_probXbb
-            / (events.FatJetAK15.Pa
-rticleNetMD_probQCD + events.FatJetAK15.ParticleNetMD_probXbb),
+            / (events.FatJetAK15.ParticleNetMD_probQCD + events.FatJetAK15.ParticleNetMD_probXbb),
             2,
             -1,
             axis=1,
