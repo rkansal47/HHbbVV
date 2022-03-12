@@ -187,7 +187,12 @@ def get_svs_features_old(
 
 
 def get_pfcands_features(
-    tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int
+    tagger_vars: dict,
+    preselected_events: NanoEventsArray,
+    jet_idx: int,
+    fatjet_label: str = "FatJetAK15",
+    pfcands_label: str = "FatJetAK15PFCands",
+    normalize: bool = True,
 ) -> Dict[str, np.ndarray]:
     """
     Extracts the pf_candidate features specified in the ``tagger_vars`` dict from the
@@ -196,15 +201,12 @@ def get_pfcands_features(
 
     feature_dict = {}
 
-    jet = ak.pad_none(preselected_events.FatJetAK15, 2, axis=1)[:, jet_idx]
+    jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
     jet_pfcands = preselected_events.PFCands[
-        preselected_events.FatJetAK15PFCands.pFCandsIdx[
-            preselected_events.FatJetAK15PFCands.jetIdx == jet_idx
+        preselected_events[pfcands_label].pFCandsIdx[
+            preselected_events[pfcands_label].jetIdx == jet_idx
         ]
     ]
-
-    # def pad_pfcand(var: str):
-    #     return pad_val(jet_pfcands[var], 1, -1, axis=1, to_numpy=False, clip=False)
 
     # get features
 
@@ -266,9 +268,10 @@ def get_pfcands_features(
             .filled(fill_value=0)
         ).astype(np.float32)
 
-        info = tagger_vars["pf_features"]["var_infos"][var]
-        a = (a - info["median"]) * info["norm_factor"]
-        a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
+        if normalize:
+            info = tagger_vars["pf_features"]["var_infos"][var]
+            a = (a - info["median"]) * info["norm_factor"]
+            a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
 
         feature_dict[var] = a
 
@@ -282,7 +285,12 @@ def get_pfcands_features(
 
 
 def get_svs_features(
-    tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int
+    tagger_vars: dict,
+    preselected_events: NanoEventsArray,
+    jet_idx: int,
+    fatjet_label: str = "FatJetAK15",
+    svs_label: str = "JetSVsAK15",
+    normalize: bool = True,
 ) -> Dict[str, np.ndarray]:
     """
     Extracts the sv features specified in the ``tagger_vars`` dict from the
@@ -291,11 +299,11 @@ def get_svs_features(
 
     feature_dict = {}
 
-    jet = ak.pad_none(preselected_events.FatJetAK15, 2, axis=1)[:, jet_idx]
+    jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
     jet_svs = preselected_events.SV[
-        preselected_events.JetSVsAK15.sVIdx[
-            (preselected_events.JetSVsAK15.sVIdx != -1)
-            * (preselected_events.JetSVsAK15.jetIdx == jet_idx)
+        preselected_events[svs_label].sVIdx[
+            (preselected_events[svs_label].sVIdx != -1)
+            * (preselected_events[svs_label].jetIdx == jet_idx)
         ]
     ]
 
@@ -344,9 +352,10 @@ def get_svs_features(
             .filled(fill_value=0)
         ).astype(np.float32)
 
-        info = tagger_vars["sv_features"]["var_infos"][var]
-        a = (a - info["median"]) * info["norm_factor"]
-        a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
+        if normalize:
+            info = tagger_vars["sv_features"]["var_infos"][var]
+            a = (a - info["median"]) * info["norm_factor"]
+            a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
 
         feature_dict[var] = a
 
