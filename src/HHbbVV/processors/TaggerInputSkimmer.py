@@ -1,4 +1,3 @@
-import os
 import numpy as np
 import awkward as ak
 import pandas as pd
@@ -6,7 +5,12 @@ import pandas as pd
 from coffea.processor import ProcessorABC, dict_accumulator
 from coffea.analysis_tools import PackedSelection
 
-from .utils import pad_val, add_selection
+from .utils import pad_val, add_selection_no_cutflow
+from .TaggerInference import get_pfcands_features, get_svs_features
+
+import os
+import pathlib
+import json
 
 P4 = {
     "eta": "eta",
@@ -20,19 +24,29 @@ class TaggerInputSkimmer(ProcessorABC):
     """
     Produces a flat training ntuple from PFNano.
     """
-    def __init__(self):
+
+    def __init__(self, num_jets=2):
         self.skim_vars = {
             "FatJet": {
                 **P4,
                 "msoftdrop": "msoftdrop",
             }
         }
-        self.fatjet = "FatJetAK15"
-        self.pfcands = "FatJetAK15PFCands"
-        self.num_jets = 2
+        self.fatjet_label = "FatJetAK15"
+        self.pfcands_label = "FatJetAK15PFCands"
+        self.svs_label = "JetSVsAK15"
+        self.num_jets = num_jets
+
+        # for tagger model and preprocessing dict
+        self.tagger_resources_path = (
+            str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
+        )
+
+        with open(f"{self.tagger_resources_path}/pyg_ef_ul_cw_8_2_preprocess.json") as f:
+            self.tagger_vars = json.load(f)
 
         self._accumulator = dict_accumulator({})
-        
+
     @property
     def accumulator(self):
         return self._accumulator
@@ -59,56 +73,103 @@ class TaggerInputSkimmer(ProcessorABC):
         return output
 
     def process(self, events: ak.Array):
-        # objects
-        fatjets = events[self.fatjet]
-        pfcands = events[self.pfcands]
+        jet_vars = []
 
-        # selection
-        selection = PackedSelection()
-        preselection_cut =  np.prod(
-            pad_val(
-                (fatjets.pt > 200)
-                * (fatjets.pt < 1500),
-                self.num_jets,
-                False,
-                axis=1,
-            ),
-            axis=1,
-        ) > 0
-        add_selection("preselection", preselection_cut, selection, {}, True, None)
+        for jet_idx in range(self.num_jets):
+            # objects
+            fatjets = ak.pad_none(events[self.fatjet_label], 2, axis=1)[:, jet_idx]
+            # pfcands = events[self.pfcands_label]
 
-        # variables
-        FatJetVars = {
-            f"fj_{key}": pad_val(fatjets[var], self.num_jets, -99999, axis=1)
-            for (var, key) in self.skim_vars["FatJet"].items()
-        }
+            # selection
+            selection = PackedSelection()
+            preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
+            add_selection_no_cutflow("preselection", preselection_cut, selection)
 
-        for jet_idx in range(0,2):
-            jet_col = ak.pad_none(fatjets, self.num_jets, axis=1)[:, jet_idx : jet_idx+1]
-            idx_sel = pfcands.jetIdx == 0
-            jet_pfcands = events.PFCands[pfcands.pFCandsIdx[idx_sel]]
-            fjets = ak.pad_none(jet_col, 1, axis=1)
-            eta_sign = ak.values_astype(jet_pfcands.eta > 0, int) * 2 - 1
-            PFVars = {
-                "pfcand_etarel": (eta_sign * (jet_pfcands.eta - ak.flatten(fjets.eta))),
+            # variables
+            FatJetVars = {
+                f"fj_{key}": ak.fill_none(fatjets[var], -99999)
+                for (var, key) in self.skim_vars["FatJet"].items()
             }
 
-        #TaggerVars = {
-        #    **get_pfcands_features(tagger_vars, events, fatjets, pfcands),
-        #    **get_svs_features(tagger_vars, events, fatjets, pfcands),
-        #}
+            PFSVVars = {
+                **get_pfcands_features(
+                    self.tagger_vars,
+                    events,
+                    jet_idx,
+                    self.fatjet_label,
+                    self.pfcands_label,
+                    normalize=False,
+                ),
+                **get_svs_features(
+                    self.tagger_vars,
+                    events,
+                    jet_idx,
+                    self.fatjet_label,
+                    self.svs_label,
+                    normalize=False,
+                ),
+            }
 
+            ############ Gen Matching ##############
+
+            B_PDGID = 5
+            Z_PDGID = 23
+            W_PDGID = 24
+            HIGGS_PDGID = 25
+
+            match_dR = 1.0
+            jet_dR = 1.5
+
+            flags = ["fromHardProcess", "isLastCopy"]
+            higgs = events.GenPart[
+                (abs(events.GenPart.pdgId) == HIGGS_PDGID) * events.GenPart.hasFlags(flags)
+            ]
+
+            jet = ak.pad_none(fatjets, 2, axis=1)[:, jet_idx]
+            jet_dr_higgs = jet.delta_r(higgs)
+            # TODO: this indexing is not working!
+            matched_higgs = higgs[ak.argmin(jet_dr_higgs, axis=1)]
+            add_selection_no_cutflow(
+                "higgs_match", ak.any(jet_dr_higgs < match_dR, axis=1), selection
+            )
+
+            genResVars = {
+                f"fj_genRes_{key}": ak.fill_none(matched_higgs[var], -99999)
+                for (var, key) in P4.items()
+            }
+
+            higgs_children = matched_higgs.children
+            higgs_children_pdgId = abs(higgs_children.pdgId[:, :, 0])
+            is_VV = (higgs_children_pdgId == W_PDGID) + (higgs_children_pdgId == Z_PDGID)
+            FatJetVars["fj_H_WW"] = is_VV
+
+            FatJetVars = {**FatJetVars, **genResVars}
+
+            ############ Gen Matching ##############
+
+            skimmed_vars = {**FatJetVars, **PFSVVars}
+            skimmed_vars = {
+                key: value[selection.all(*selection.names)] for (key, value) in skimmed_vars.items()
+            }
+
+            jet_vars.append(skimmed_vars)
+
+        if self.num_jets > 1:
+            # stack each set of jets
+            jet_vars = {
+                var: np.concatenate([jet_var[var] for jet_var in jet_vars], axis=0)
+                for var in jet_vars[0]
+            }
+        else:
+            jet_vars = jet_vars[0]
 
         # output
-        skimmed_events = {}
-        skimmed_events = {**skimmed_events, **FatJetVars}
-        skimmed_events = {key: value[selection.all(*selection.names)] for (key, value) in skimmed_events.items()}
-        df = self.ak_to_pandas(skimmed_events)
+        df = self.ak_to_pandas(jet_vars)  # need to modify to deal with pfcands
         print(df)
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
         self.dump_table(df, fname)
 
         return {}
 
-    def postprocess(self,accumulator):
+    def postprocess(self, accumulator):
         pass

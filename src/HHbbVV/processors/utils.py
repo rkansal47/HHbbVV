@@ -42,3 +42,12 @@ def add_selection(
         # add up sign of genWeights for MC
         else np.sum(signGenWeights[selection.all(*selection.names)])
     )
+
+
+def add_selection_no_cutflow(
+    name: str,
+    sel: np.ndarray,
+    selection: PackedSelection,
+):
+    """adds selection to PackedSelection object"""
+    selection.add(name, ak.fill_none(sel, False))
