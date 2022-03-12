@@ -20,6 +20,15 @@ P4 = {
 }
 
 
+"""
+TODOs:
+    - Finish signal gen vars
+    - Background gen labels
+    - Is saving as parquet the way to go? Could also potentially save to root files?
+        - If yes to parquet, need to update ak_to_pandas function
+"""
+
+
 class TaggerInputSkimmer(ProcessorABC):
     """
     Produces a flat training ntuple from PFNano.
@@ -37,7 +46,6 @@ class TaggerInputSkimmer(ProcessorABC):
         self.svs_label = "JetSVsAK15"
         self.num_jets = num_jets
 
-        # for tagger model and preprocessing dict
         self.tagger_resources_path = (
             str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
         )
