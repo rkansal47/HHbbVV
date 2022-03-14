@@ -106,7 +106,7 @@ def main(args):
         p = bbVVSkimmer(xsecs=get_xsecs())
     elif args.processor == "input":
         from HHbbVV.processors import TaggerInputSkimmer
-        p = TaggerInputSkimmer.TaggerInputSkimmer(args.label)
+        p = TaggerInputSkimmer.TaggerInputSkimmer(args.label,args.njets)
 
     fileset = get_fileset(
         args.processor, args.year, args.samples, args.subsamples, args.starti, args.endi
@@ -150,24 +150,21 @@ def main(args):
     else:
         uproot.open.defaults["xrootd_handler"] = uproot.source.xrootd.MultithreadedXRootDSource
 
-        executor = (
-            processor.futures_executor
-            if args.executor == "futures"
-            else processor.iterative_executor
+        if args.executor == "futures":
+            executor = processor.FuturesExecutor(status=True)
+        else:
+            executor = processor.IterativeExecutor(status=True)
+
+        run = processor.Runner(
+            executor=executor, 
+            savemetrics=True, 
+            schema=nanoevents.NanoAODSchema, 
+            chunksize=args.chunksize,
+            maxchunks=args.maxchunks
         )
 
-        exe_args = {
-            "savemetrics": True,
-            "schema": nanoevents.NanoAODSchema,
-        }
-
-        out, metrics = processor.run_uproot_job(
-            fileset,
-            treename="Events",
-            processor_instance=p,
-            executor=executor,
-            executor_args=exe_args,
-            chunksize=args.chunksize,
+        out, metrics = run(
+            fileset, "Events", processor_instance=p
         )
 
         filehandler = open(f"outfiles/{args.starti}-{args.endi}.pkl", "wb")
@@ -221,6 +218,8 @@ if __name__ == "__main__":
     parser.add_argument("--subsamples", default=[], help="subsamples", nargs="*")
     parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
+    parser.add_argument("--njets", default=2, help="njets", type=int)
+    parser.add_argument("--maxchunks", default=None, help="max chunks", type=int)
     args = parser.parse_args()
 
     main(args)

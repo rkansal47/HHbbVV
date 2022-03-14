@@ -139,7 +139,7 @@ class TaggerInputSkimmer(ProcessorABC):
 
             # selection
             selection = PackedSelection()
-            preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
+            preselection_cut = (fatjets.pt > 250) * (fatjets.pt < 1500)
             add_selection_no_cutflow("preselection", preselection_cut, selection)
 
             # variables
@@ -152,14 +152,15 @@ class TaggerInputSkimmer(ProcessorABC):
                 fatjets.ParticleNetMD_probQCD + fatjets.ParticleNetMD_probXbb
             )
 
-            FatJetVars["fj_PN_H4qvsQCD"] = fatjets.ParticleNet_probHqqqq / (
-                fatjets.ParticleNet_probHqqqq
-                + fatjets.ParticleNet_probQCDb
-                + fatjets.ParticleNet_probQCDbb
-                + fatjets.ParticleNet_probQCDc
-                + fatjets.ParticleNet_probQCDcc
-                + fatjets.ParticleNet_probQCDothers
-            )
+            if "ParticleNet_probHqqqq" in fatjets:
+                FatJetVars["fj_PN_H4qvsQCD"] = fatjets.ParticleNet_probHqqqq / (
+                    fatjets.ParticleNet_probHqqqq
+                    + fatjets.ParticleNet_probQCDb
+                    + fatjets.ParticleNet_probQCDbb
+                    + fatjets.ParticleNet_probQCDc
+                    + fatjets.ParticleNet_probQCDcc
+                    + fatjets.ParticleNet_probQCDothers
+                )
 
             PFSVVars = {
                 **get_pfcands_features(
