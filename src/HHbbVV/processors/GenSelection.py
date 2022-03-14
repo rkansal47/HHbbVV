@@ -253,6 +253,9 @@ def tagger_gen_H_matching(
     matched_higgs_children = matched_higgs.children
 
     if "VV" in decays:
+        # select only VV children
+        children_mask = get_pid_mask(matched_higgs_children, [W_PDGID,Z_PDGID], byall=False)
+        matched_higgs_children = matched_higgs_children[children_mask]
         children_mass = matched_higgs_children.mass
 
         # select lower mass child as V* and higher as V
@@ -266,10 +269,6 @@ def tagger_gen_H_matching(
         matched_Vs_mask = ak.any(fatjets.delta_r(v) < jet_dR, axis=1) & ak.any(
             fatjets.delta_r(v_star) < jet_dR, axis=1
         )
-
-        # I think this will find all VV daughters - not just the ones from the Higgs matched to the fatjet? (e.g. for HH4W it'll find all 8 daughters?)
-        # daughter_mask = get_pid_mask(genparts.distinctParent, [W_PDGID, Z_PDGID], ax=1, byall=False)
-        # daughters = genparts[daughter_mask & genparts.hasFlags(GEN_FLAGS)]
 
         # get VV daughters
         daughters = ak.flatten(ak.flatten(matched_higgs_children.distinctChildren, axis=2), axis=2)
@@ -298,15 +297,13 @@ def tagger_gen_H_matching(
         genVstarVars = {
             f"fj_genVstar_{key}": ak.fill_none(v_star[var], -99999) for (var, key) in P4.items()
         }
-        print('decay ',decay)
-        print('nprongs ',nprongs)
         genLabelVars = {
             "fj_nprongs": nprongs,
             "fj_H_VV_4q": to_label(decay == 11),
             "fj_H_VV_elenuqq": to_label(decay == 4),
             "fj_H_VV_munuqq": to_label(decay == 6),
             "fj_H_VV_taunuqq": to_label(decay == 8),
-            "fj_H_VV_unmatched": to_label(~matched_mask),
+            "fj_H_VV_unmatched": to_label(matched_higgs_mask & ~matched_Vs_mask & ak.firsts(ak.all(children_mask,axis=2))),
         }
         genVars = {**genVars, **genVVars, **genVstarVars, **genLabelVars}
 
