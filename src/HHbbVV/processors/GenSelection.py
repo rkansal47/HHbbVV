@@ -319,10 +319,10 @@ def tagger_gen_QCD_matching(
 ) -> Tuple[np.array, Dict[str, np.array]]:
 
     """Gen matching for QCD samples, arguments as defined in ``tagger_gen_matching``"""
-    partons = genparts[get_pid_mask(genparts, [21, 1, 2, 3, 4, 5])]
+    partons = genparts[get_pid_mask(genparts, [21, 1, 2, 3, 4, 5], ax=1, byall=False)]
     matched_mask = ak.any(fatjets.delta_r(partons) < match_dR, axis=1)
     btoleptons = genparts[
-        get_pid_mask(genparts, [511, 521, 523]) & get_pid_mask(genparts.children, [11, 13])
+        get_pid_mask(genparts, [511, 521, 523], ax=1, byall=False) & get_pid_mask(genparts.children, [11, 13])
     ]
     matched_b = ak.any(fatjets.delta_r(btoleptons) < 0.5, axis=1)
     genLabelVars = {
