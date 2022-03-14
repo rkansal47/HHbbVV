@@ -298,6 +298,8 @@ def tagger_gen_H_matching(
         genVstarVars = {
             f"fj_genVstar_{key}": ak.fill_none(v_star[var], -99999) for (var, key) in P4.items()
         }
+        print('decay ',decay)
+        print('nprongs ',nprongs)
         genLabelVars = {
             "fj_nprongs": nprongs,
             "fj_H_VV_4q": to_label(decay == 11),
@@ -408,7 +410,7 @@ def tagger_gen_matching(
             genparts, fatjets, genlabels, jet_dR, match_dR
         )
 
-    GenVars = {**GenVars, **get_genjet_vars(fatjets, label.startswith("AK15"))}
+    GenVars = {**GenVars, **get_genjet_vars(events, fatjets, label.startswith("AK15"))}
 
     # if ``GenVars`` doesn't contain a gen var, that var is not applicable to this sample so fill with 0s
     GenVars = {

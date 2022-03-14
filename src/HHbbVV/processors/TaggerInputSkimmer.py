@@ -1,6 +1,7 @@
 import numpy as np
 import awkward as ak
 import pandas as pd
+import uproot
 
 from coffea.processor import ProcessorABC, dict_accumulator
 from coffea.analysis_tools import PackedSelection
@@ -102,10 +103,30 @@ class TaggerInputSkimmer(ProcessorABC):
         table = pa.Table.from_pandas(pddf)
         pq.write_table(table, f"{local_dir}/{fname}")
 
+    def dump_root(self, pddf: pd.DataFrame, fname: str) -> None:
+        """
+        Saves pandas dataframe events to './outroot'
+        """
+        local_dir = os.path.abspath(os.path.join(".", "outroot"))
+        os.system(f"mkdir -p {local_dir}")
+        
+        with uproot.recreate(f"{local_dir}/{fname}", compression=uproot.LZ4(4)) as rfile:
+            rfile["Events"] = pddf
+            # rfile["Events"].show()
+        
     def ak_to_pandas(self, output_collection: ak.Array) -> pd.DataFrame:
         output = pd.DataFrame()
         for field in ak.fields(output_collection):
-            output[field] = ak.to_numpy(ak.flatten(output_collection[field], axis=None))
+            if 'sv_' in field:
+                if field=="sv_costhetasvpv": # TODO: fix this variable
+                    continue
+                x = ak.to_numpy(output_collection[field])
+                output[field] = x.tolist()
+            elif 'pfcand_' in field:
+                x = ak.to_numpy(output_collection[field])
+                output[field] = x.tolist()
+            else:
+                output[field] = ak.to_numpy(ak.flatten(output_collection[field], axis=None))
         return output
 
     def process(self, events: ak.Array):
@@ -160,8 +181,9 @@ class TaggerInputSkimmer(ProcessorABC):
             }
 
             matched_mask, genVars = tagger_gen_matching(
-                events, genparts, fatjets, self.skim_vars["GenPart"], label=self.label
+                events, genparts, fatjets, self.skim_vars["GenPart"], label=self.label, match_dR=1.0
             )
+
             add_selection_no_cutflow("gen_match", matched_mask, selection)
 
             skimmed_vars = {**FatJetVars, **genVars, **PFSVVars}
@@ -181,11 +203,14 @@ class TaggerInputSkimmer(ProcessorABC):
         else:
             jet_vars = jet_vars[0]
 
-        # output
+        # convert output to pandas
         df = self.ak_to_pandas(jet_vars)
-        print(df)
-        fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".root"
-        self.dump_table(df, fname)
+
+        fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_")
+        # save to parquet
+        self.dump_table(df, fname + ".parquet")
+        # save to root
+        self.dump_root(df, fname + ".root")
 
         return {}
 

@@ -106,7 +106,7 @@ def main(args):
         p = bbVVSkimmer(xsecs=get_xsecs())
     elif args.processor == "input":
         from HHbbVV.processors import TaggerInputSkimmer
-        p = TaggerInputSkimmer.TaggerInputSkimmer()
+        p = TaggerInputSkimmer.TaggerInputSkimmer(args.label)
 
     fileset = get_fileset(
         args.processor, args.year, args.samples, args.subsamples, args.starti, args.endi
@@ -220,6 +220,7 @@ if __name__ == "__main__":
     parser.add_argument("--samples", default=[], help="samples", nargs="*")
     parser.add_argument("--subsamples", default=[], help="subsamples", nargs="*")
     parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
+    parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
     args = parser.parse_args()
 
     main(args)
