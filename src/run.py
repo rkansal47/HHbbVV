@@ -112,7 +112,7 @@ def main(args):
     elif args.processor == "input":
         from HHbbVV.processors import TaggerInputSkimmer
 
-        p = TaggerInputSkimmer.TaggerInputSkimmer(args.label, args.njets)
+        p = TaggerInputSkimmer(args.label, args.njets)
 
     fileset = get_fileset(
         args.processor, args.year, args.samples, args.subsamples, args.starti, args.endi
