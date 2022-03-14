@@ -1,9 +1,13 @@
 {
   "output_names": [
-    "fj_H_WW_4q",
-    "fj_H_WW_elenuqq",
-    "fj_H_WW_munuqq",
-    "fj_isQCD"
+    "fj_isQCDb",
+    "fj_isQCDbb",
+    "fj_isQCDc",
+    "fj_isQCDcc",
+    "fj_isQCDlep",
+    "fj_isQCDothers",
+    "fj_H_WW_4q_3q",
+    "fj_H_WW_4q_4q"
   ],
   "input_names": [
     "pf_points",
@@ -44,6 +48,11 @@
       "pfcand_e_log_nopuppi",
       "pfcand_etarel",
       "pfcand_phirel",
+      "pfcand_isEl",
+      "pfcand_isMu",
+      "pfcand_isGamma",
+      "pfcand_isChargedHad",
+      "pfcand_isNeutralHad",
       "pfcand_abseta",
       "pfcand_charge",
       "pfcand_VTX_ass",
@@ -81,6 +90,46 @@
         "pad": 0
       },
       "pfcand_phirel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_isEl": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_isMu": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_isGamma": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_isChargedHad": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_isNeutralHad": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
@@ -276,7 +325,7 @@
         "pad": 0
       },
       "sv_normchi2": {
-        "median": 0.8,
+        "median": 1.5,
         "norm_factor": 0.6,
         "replace_inf_value": 0,
         "lower_bound": -5,

@@ -275,11 +275,12 @@ def get_pfcands_features(
 
         feature_dict[var] = a
 
-    var = "pfcand_normchi2"
-    info = tagger_vars["pf_features"]["var_infos"][var]
-    # finding what -1 transforms to
-    chi2_min = -1 - info["median"] * info["norm_factor"]
-    feature_dict[var][feature_dict[var] == chi2_min] = info["upper_bound"]
+    if normalize:
+        var = "pfcand_normchi2"
+        info = tagger_vars["pf_features"]["var_infos"][var]
+        # finding what -1 transforms to
+        chi2_min = -1 - info["median"] * info["norm_factor"]
+        feature_dict[var][feature_dict[var] == chi2_min] = info["upper_bound"]
 
     return feature_dict
 
