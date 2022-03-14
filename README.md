@@ -46,3 +46,13 @@ python -W ignore src/run.py --starti 0 --endi 1 --year 2017 --processor skimmer 
 Applies pre-selection cuts, runs inference with our new HVV tagger, and saves unbinned branches as parquet files. 
 
 Parquet and pickle files will be saved in the eos directory of specified user at path `~/eos/bbVV/skimmer/<tag>/<sample_name>/<parquet or pickles>`. Pickles are in the format `{'nevents': int, 'cutflow': Dict[str, int]}`. 
+
+### TaggerInputSkimmer
+
+Applies a loose pre-selection cut, saves ntuple with training inputs.
+
+To test locally (in singularity):
+```
+python -W ignore run.py --year 2017 --starti 300 --endi 301 --samples HWWPrivate --subsamples jhu_HHbbWW --processor input
+python -W ignore run.py --year 2017 --starti 300 --endi 301 --samples QCD --subsamples QCD_Pt_1000to1400 --processor input --label AK15_QCD --njets 1 --maxchunks 1
+```
