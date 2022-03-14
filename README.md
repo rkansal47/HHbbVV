@@ -56,3 +56,11 @@ To test locally (in singularity):
 python -W ignore run.py --year 2017 --starti 300 --endi 301 --samples HWWPrivate --subsamples jhu_HHbbWW --processor input
 python -W ignore run.py --year 2017 --starti 300 --endi 301 --samples QCD --subsamples QCD_Pt_1000to1400 --processor input --label AK15_QCD --njets 1 --maxchunks 1
 ```
+
+Jobs:
+```
+python3 src/condor/submit.py --processor input --tag Mar14_test --files-per-job 20 --maxchunks 1 --samples QCD --label AK15_QCD --njets 1
+python3 src/condor/submit.py --processor input --tag Mar14_test --files-per-job 20 --maxchunks 1 --samples HWW --subsamples jhu_HHbbWW,GluGluToBulkGravitonToHHTo4W_JHUGen_M-2500_narrow,jhu_HHbbZZ,pythia_HHbbWW
+python3 src/condor/submit.py --processor input --tag Mar14_test --files-per-job 20 --maxchunks 1 --samples HWW --subsamples BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2_ext1,BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2,GluGluToBulkGravitonToHHTo4W_JHUGen_M-2500_narrow --label AK15_H_VV --njets 2
+```
+Add `--submit` flag to submit.
