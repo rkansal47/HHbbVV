@@ -198,6 +198,8 @@ def main(args):
             import awkward as ak
 
             local_dir_root = os.path.abspath(os.path.join(".", "outroot"))
+            os.system(f"mkdir -p {local_dir_root}")
+
             with uproot.recreate(
                 f"{local_dir_root}/nano_skim_{args.starti}-{args.endi}.root",
                 compression=uproot.LZ4(4),
