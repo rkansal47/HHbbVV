@@ -188,6 +188,10 @@ class TaggerInputSkimmer(ProcessorABC):
         )
 
     def process(self, events: ak.Array):
+        import time
+
+        start = time.time()
+
         jet_vars = []
 
         for jet_idx in range(self.num_jets):
@@ -199,6 +203,8 @@ class TaggerInputSkimmer(ProcessorABC):
             selection = PackedSelection()
             preselection_cut = (fatjets.pt > 250) * (fatjets.pt < 1500)
             add_selection_no_cutflow("preselection", preselection_cut, selection)
+
+            print(f"preselection: {time.time() - start}s")
 
             # variables
             FatJetVars = {
@@ -220,6 +226,8 @@ class TaggerInputSkimmer(ProcessorABC):
                     + fatjets.ParticleNet_probQCDothers
                 )
 
+            print(f"fat jet vars: {time.time() - start}s")
+
             PFSVVars = {
                 **get_pfcands_features(
                     self.skim_vars["PFSV"],
@@ -239,11 +247,15 @@ class TaggerInputSkimmer(ProcessorABC):
                 ),
             }
 
+            print(f"PFSV vars: {time.time() - start}s")
+
             matched_mask, genVars = tagger_gen_matching(
                 events, genparts, fatjets, self.skim_vars["GenPart"], label=self.label, match_dR=1.0
             )
 
             add_selection_no_cutflow("gen_match", matched_mask, selection)
+
+            print(f"Gen vars: {time.time() - start}s")
 
             skimmed_vars = {**FatJetVars, **genVars, **PFSVVars}
             # apply selections
@@ -254,6 +266,8 @@ class TaggerInputSkimmer(ProcessorABC):
 
             jet_vars.append(skimmed_vars)
 
+            print(f"Jet {jet_idx}: {time.time() - start}s")
+
         if self.num_jets > 1:
             # stack each set of jets
             jet_vars = {
@@ -263,14 +277,21 @@ class TaggerInputSkimmer(ProcessorABC):
         else:
             jet_vars = jet_vars[0]
 
+        print(f"Stack: {time.time() - start}s")
+
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_")
 
         # convert output to pandas
         df = self.to_pandas(jet_vars)
+
+        print(f"convert: {time.time() - start}s")
+
         # save to parquet
         self.dump_table(df, fname + ".parquet")
         # save to root (now
         # self.dump_root(jet_vars, fname + ".root")
+
+        print(f"dumped: {time.time() - start}s")
 
         return {}
 
