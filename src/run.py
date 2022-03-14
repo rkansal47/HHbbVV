@@ -152,6 +152,14 @@ def main(args):
         print(f"Metrics: {metrics}")
         print(f"Finished in {elapsed:.1f}s")
     else:
+        local_dir = os.path.abspath(".")
+        local_parquet_dir = os.path.abspath(os.path.join(".", "outparquet"))
+
+        if os.path.isdir(local_parquet_dir):
+            os.system(f"rm -rf {local_parquet_dir}")
+
+        os.system(f"mkdir {local_parquet_dir}")
+
         uproot.open.defaults["xrootd_handler"] = uproot.source.xrootd.MultithreadedXRootDSource
 
         if args.executor == "futures":
@@ -179,9 +187,8 @@ def main(args):
 
         print("reading parquet")
 
-        local_dir = os.path.abspath(".")
-        local_parquet_dir = os.path.abspath(os.path.join(".", "outparquet"))
         pddf = pd.read_parquet(local_parquet_dir)
+        print(pddf)
 
         print("read parquet")
         # need to write with pyarrow as pd.to_parquet doesn't support different types in
