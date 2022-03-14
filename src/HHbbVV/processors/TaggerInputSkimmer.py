@@ -95,7 +95,7 @@ class TaggerInputSkimmer(ProcessorABC):
                         "pfcand_dxysig",
                     ],
                 },
-                "pf_points": {"var_length": 100},  # number of pf cands to select or pad up to
+                "pf_points": {"var_length": 130},  # number of pf cands to select or pad up to
                 "sv_features": {
                     "var_names": [
                         "sv_pt_log",
