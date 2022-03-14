@@ -10,6 +10,8 @@ from .utils import add_selection_no_cutflow
 from .TaggerInference import get_pfcands_features, get_svs_features
 from .GenSelection import tagger_gen_matching
 
+from typing import Dict
+
 import os
 import pathlib
 import json
@@ -68,6 +70,50 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_isQCDlep",
                 "fj_isQCDothers",
             ],
+            # formatted to match weaver's preprocess.json
+            "PFSV": {
+                "pf_features": {
+                    "var_names": [
+                        "pfcand_pt_log_nopuppi",
+                        "pfcand_e_log_nopuppi",
+                        "pfcand_etarel",
+                        "pfcand_phirel",
+                        "pfcand_isEl",
+                        "pfcand_isMu",
+                        "pfcand_isGamma",
+                        "pfcand_isChargedHad",
+                        "pfcand_isNeutralHad",
+                        "pfcand_abseta",
+                        "pfcand_charge",
+                        "pfcand_VTX_ass",
+                        "pfcand_lostInnerHits",
+                        "pfcand_normchi2",
+                        "pfcand_quality",
+                        "pfcand_dz",
+                        "pfcand_dzsig",
+                        "pfcand_dxy",
+                        "pfcand_dxysig",
+                    ],
+                },
+                "pf_points": {"var_length": 100},  # number of pf cands to select or pad up to
+                "sv_features": {
+                    "var_names": [
+                        "sv_pt_log",
+                        "sv_mass",
+                        "sv_etarel",
+                        "sv_phirel",
+                        "sv_abseta",
+                        "sv_ntracks",
+                        "sv_normchi2",
+                        "sv_dxy",
+                        "sv_dxysig",
+                        "sv_d3d",
+                        "sv_d3dsig",
+                        "sv_costhetasvpv",
+                    ],
+                },
+                "sv_points": {"var_length": 7},  # number of svs to select or pad up to
+            },
         }
         self.fatjet_label = "FatJetAK15"
         self.pfcands_label = "FatJetAK15PFCands"
@@ -103,31 +149,43 @@ class TaggerInputSkimmer(ProcessorABC):
         table = pa.Table.from_pandas(pddf)
         pq.write_table(table, f"{local_dir}/{fname}")
 
-    def dump_root(self, pddf: pd.DataFrame, fname: str) -> None:
+    def dump_root(self, jet_vars: Dict[str, np.array], fname: str) -> None:
         """
-        Saves pandas dataframe events to './outroot'
+        Saves ``jet_vars`` dict as a rootfile to './outroot'
         """
         local_dir = os.path.abspath(os.path.join(".", "outroot"))
         os.system(f"mkdir -p {local_dir}")
-        
+
         with uproot.recreate(f"{local_dir}/{fname}", compression=uproot.LZ4(4)) as rfile:
-            rfile["Events"] = pddf
+            rfile["Events"] = ak.Array(jet_vars)
             # rfile["Events"].show()
-        
-    def ak_to_pandas(self, output_collection: ak.Array) -> pd.DataFrame:
+
+    def to_pandas_lists(self, events: Dict[str, np.array]) -> pd.DataFrame:
+        """
+        Convert our dictionary of numpy arrays into a pandas data frame.
+        Uses lists for numpy arrays with >1 dimension
+        (e.g. FatJet arrays with two columns)
+        """
         output = pd.DataFrame()
-        for field in ak.fields(output_collection):
-            if 'sv_' in field:
-                if field=="sv_costhetasvpv": # TODO: fix this variable
-                    continue
-                x = ak.to_numpy(output_collection[field])
-                output[field] = x.tolist()
-            elif 'pfcand_' in field:
-                x = ak.to_numpy(output_collection[field])
-                output[field] = x.tolist()
+        for field in ak.fields(events):
+            if "sv_" in field or "pfcand_" in field:
+                output[field] = events[field].tolist()
             else:
-                output[field] = ak.to_numpy(ak.flatten(output_collection[field], axis=None))
+                output[field] = ak.to_numpy(ak.flatten(events[field], axis=None))
+
         return output
+
+    def to_pandas(self, events: Dict[str, np.array]) -> pd.DataFrame:
+        """
+        Convert our dictionary of numpy arrays into a pandas data frame.
+        Uses multi-index columns for numpy arrays with >1 dimension
+        (e.g. FatJet arrays with two columns)
+        """
+        return pd.concat(
+            [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in events.items()],
+            axis=1,
+            keys=list(events.keys()),
+        )
 
     def process(self, events: ak.Array):
         jet_vars = []
@@ -163,7 +221,7 @@ class TaggerInputSkimmer(ProcessorABC):
 
             PFSVVars = {
                 **get_pfcands_features(
-                    self.tagger_vars,
+                    self.skim_vars["PFSV"],
                     events,
                     jet_idx,
                     self.fatjet_label,
@@ -171,7 +229,7 @@ class TaggerInputSkimmer(ProcessorABC):
                     normalize=False,
                 ),
                 **get_svs_features(
-                    self.tagger_vars,
+                    self.skim_vars["PFSV"],
                     events,
                     jet_idx,
                     self.fatjet_label,
@@ -189,7 +247,8 @@ class TaggerInputSkimmer(ProcessorABC):
             skimmed_vars = {**FatJetVars, **genVars, **PFSVVars}
             # apply selections
             skimmed_vars = {
-                key: value[selection.all(*selection.names)] for (key, value) in skimmed_vars.items()
+                key: np.array(value[selection.all(*selection.names)])
+                for (key, value) in skimmed_vars.items()
             }
 
             jet_vars.append(skimmed_vars)
@@ -203,14 +262,14 @@ class TaggerInputSkimmer(ProcessorABC):
         else:
             jet_vars = jet_vars[0]
 
-        # convert output to pandas
-        df = self.ak_to_pandas(jet_vars)
-
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_")
+
+        # convert output to pandas
+        df = self.to_pandas(jet_vars)
         # save to parquet
         self.dump_table(df, fname + ".parquet")
         # save to root
-        self.dump_root(df, fname + ".root")
+        self.dump_root(jet_vars, fname + ".root")
 
         return {}
 
