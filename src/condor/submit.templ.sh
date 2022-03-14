@@ -14,4 +14,4 @@ python -u -W ignore $script --year $year --starti $starti --endi $endi --samples
 #move output to eos
 xrdcp -f outfiles/* $eosoutpkl
 xrdcp -f *.parquet $eosoutparquet
-xrdcp -f outroot/*.root $eosoutroot
+xrdcp -f *.root $eosoutroot

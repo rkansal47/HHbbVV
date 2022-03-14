@@ -179,16 +179,15 @@ def main(args):
 
         print("reading parquet")
 
-        local_dir = os.path.abspath(os.path.join(".", "outparquet"))
-        pddf = pd.read_parquet(local_dir)
+        local_dir = os.path.abspath(".")
+        local_parquet_dir = os.path.abspath(os.path.join(".", "outparquet"))
+        pddf = pd.read_parquet(local_parquet_dir)
 
         print("read parquet")
-
-        os.system(f"mkdir -p {local_dir}")
         # need to write with pyarrow as pd.to_parquet doesn't support different types in
         # multi-index column names
         table = pa.Table.from_pandas(pddf)
-        pq.write_table(table, f"{os.path.abspath('.')}/{args.starti}-{args.endi}.parquet")
+        pq.write_table(table, f"{local_dir}/{args.starti}-{args.endi}.parquet")
 
         print("dumped parquet")
 
@@ -197,11 +196,8 @@ def main(args):
 
             import awkward as ak
 
-            local_dir_root = os.path.abspath(os.path.join(".", "outroot"))
-            os.system(f"mkdir -p {local_dir_root}")
-
             with uproot.recreate(
-                f"{local_dir_root}/nano_skim_{args.starti}-{args.endi}.root",
+                f"{local_dir}/nano_skim_{args.starti}-{args.endi}.root",
                 compression=uproot.LZ4(4),
             ) as rfile:
                 rfile["Events"] = ak.Array(
