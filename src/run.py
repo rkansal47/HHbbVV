@@ -31,6 +31,8 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     fxn()
 
+
+# for running on condor
 nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
     "FatJetAK15_nConstituents",
     "JetPFCandsAK15",
@@ -39,6 +41,7 @@ nanoevents.NanoAODSchema.mixins["FatJetAK15"] = "FatJet"
 nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
 
 
+# for Dask executor
 class NanoeventsSchemaPlugin(WorkerPlugin):
     def __init__(self):
         pass
@@ -83,6 +86,7 @@ def get_fileset(processor, year, samples, subsamples, starti, endi):
 
     return fileset
 
+
 def get_xsecs():
     with open("data/xsecs.json") as f:
         xsecs = json.load(f)
@@ -92,6 +96,7 @@ def get_xsecs():
             xsecs[key] = eval(value)
 
     return xsecs
+
 
 def main(args):
 
@@ -106,7 +111,8 @@ def main(args):
         p = bbVVSkimmer(xsecs=get_xsecs())
     elif args.processor == "input":
         from HHbbVV.processors import TaggerInputSkimmer
-        p = TaggerInputSkimmer.TaggerInputSkimmer(args.label,args.njets)
+
+        p = TaggerInputSkimmer.TaggerInputSkimmer(args.label, args.njets)
 
     fileset = get_fileset(
         args.processor, args.year, args.samples, args.subsamples, args.starti, args.endi
@@ -154,16 +160,14 @@ def main(args):
             executor = processor.IterativeExecutor(status=True)
 
         run = processor.Runner(
-            executor=executor, 
-            savemetrics=True, 
-            schema=nanoevents.NanoAODSchema, 
+            executor=executor,
+            savemetrics=True,
+            schema=nanoevents.NanoAODSchema,
             chunksize=args.chunksize,
-            maxchunks=args.maxchunks
+            maxchunks=args.maxchunks,
         )
 
-        out, metrics = run(
-            fileset, "Events", processor_instance=p
-        )
+        out, metrics = run(fileset, "Events", processor_instance=p)
 
         filehandler = open(f"outfiles/{args.starti}-{args.endi}.pkl", "wb")
         pickle.dump(out, filehandler)
@@ -187,6 +191,22 @@ def main(args):
         pq.write_table(table, f"{os.path.abspath('.')}/{args.starti}-{args.endi}.parquet")
 
         print("dumped parquet")
+
+        if args.processor == "input":
+            # save as root files for input skimmer
+
+            import awkward as ak
+
+            local_dir_root = os.path.abspath(os.path.join(".", "outroot"))
+            with uproot.recreate(
+                f"{local_dir_root}/nano_skim_{args.starti}-{args.endi}.root",
+                compression=uproot.LZ4(4),
+            ) as rfile:
+                rfile["Events"] = ak.Array(
+                    {key: pddf[key].values for key in pddf.columns.levels[0]}
+                )
+
+            print("dumped root")
 
 
 if __name__ == "__main__":

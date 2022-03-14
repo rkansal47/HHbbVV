@@ -269,8 +269,8 @@ class TaggerInputSkimmer(ProcessorABC):
         df = self.to_pandas(jet_vars)
         # save to parquet
         self.dump_table(df, fname + ".parquet")
-        # save to root
-        self.dump_root(jet_vars, fname + ".root")
+        # save to root (now
+        # self.dump_root(jet_vars, fname + ".root")
 
         return {}
 
