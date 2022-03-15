@@ -172,7 +172,7 @@ def main(args):
             savemetrics=True,
             schema=nanoevents.NanoAODSchema,
             chunksize=args.chunksize,
-            maxchunks=args.maxchunks,
+            maxchunks=None if args.maxchunks == 0 else args.maxchunks,
         )
 
         out, metrics = run(fileset, "Events", processor_instance=p)
@@ -242,7 +242,7 @@ if __name__ == "__main__":
     parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
     parser.add_argument("--njets", default=2, help="njets", type=int)
-    parser.add_argument("--maxchunks", default=None, help="max chunks", type=int)
+    parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
     args = parser.parse_args()
 
     main(args)
