@@ -12,6 +12,7 @@ from math import ceil
 from string import Template
 import json
 
+
 def get_fileset(processor, year, samples, subsamples):
     with open(f"data/pfnanoindex_{year}.json", "r") as f:
         full_fileset = json.load(f)
@@ -53,7 +54,7 @@ def main(args):
     try:
         proxy = os.environ["X509_USER_PROXY"]
     except:
-        print('No valid proxy. Exiting.')
+        print("No valid proxy. Exiting.")
         exit(1)
 
     username = os.environ["USER"]
@@ -109,7 +110,7 @@ def main(args):
                     "njets": args.njets,
                     "eosoutpkl": f"{eosoutput_dir}/pickles/out_{j}.pkl",
                     "eosoutparquet": f"{eosoutput_dir}/parquet/out_{j}.parquet",
-                    "eosoutroot":  f"{eosoutput_dir}/root/",
+                    "eosoutroot": f"{eosoutput_dir}/root/",
                 }
                 write_template(sh_templ, localsh, sh_args)
                 os.system(f"chmod u+x {localsh}")
@@ -119,7 +120,7 @@ def main(args):
 
                 print("To submit ", localcondor)
                 if args.submit:
-                    os.system('condor_submit %s' % localcondor)
+                    os.system("condor_submit %s" % localcondor)
                 nsubmit = nsubmit + 1
 
     print(f"Total {nsubmit} jobs")
@@ -159,14 +160,11 @@ if __name__ == "__main__":
         nargs="*",
     )
     parser.add_argument("--files-per-job", default=20, help="# files per condor job", type=int)
-    parser.add_argument("--maxchunks", default=None, help="max chunks", type=int)
+    parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
     parser.add_argument("--njets", default=2, help="njets", type=int)
     parser.add_argument(
-        "--submit",    
-        dest='submit',    
-        action='store_true',           
-        help="submit jobs when created"
+        "--submit", dest="submit", action="store_true", help="submit jobs when created"
     )
     args = parser.parse_args()
 
