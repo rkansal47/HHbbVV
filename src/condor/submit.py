@@ -110,7 +110,7 @@ def main(args):
                     "njets": args.njets,
                     "eosoutpkl": f"{eosoutput_dir}/pickles/out_{j}.pkl",
                     "eosoutparquet": f"{eosoutput_dir}/parquet/out_{j}.parquet",
-                    "eosoutroot": f"{eosoutput_dir}/root/",
+                    "eosoutroot": f"{eosoutput_dir}/root/nano_skim_{j}.root",
                 }
                 write_template(sh_templ, localsh, sh_args)
                 os.system(f"chmod u+x {localsh}")
