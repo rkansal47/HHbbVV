@@ -60,8 +60,8 @@ python -W ignore run.py --year 2017 --starti 300 --endi 301 --samples QCD --subs
 Jobs:
 ```
 python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 20 --samples QCD --label AK15_QCD --njets 2
-python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 20 --samples HWWPrivate --subsamples jhu_HHbbWW,GluGluToBulkGravitonToHHTo4W_JHUGen_M-2500_narrow,jhu_HHbbZZ,pythia_HHbbWW,GluGluToHHTo4V_node_cHHH1 --label AK15_H_VV --njets 2
-python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 20 --samples HWWPrivate --subsamples BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2_ext1,BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2 --label AK15_H_VV --njets 2
-python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 20 --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q,GluGluToHHTobbVV_node_cHHH0_pn4q --label AK15_H_VV --njets 2
+python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 20 --samples HWWPrivate --subsamples jhu_HHbbWW GluGluToBulkGravitonToHHTo4W_JHUGen_M-2500_narrow jhu_HHbbZZ pythia_HHbbWW GluGluToHHTo4V_node_cHHH1 --label AK15_H_VV --njets 2
+python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 20 --samples HWWPrivate --subsamples BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2_ext1 BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2 --label AK15_H_VV --njets 2
+python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 20 --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q GluGluToHHTobbVV_node_cHHH0_pn4q --label AK15_H_VV --njets 2
 ```
 Add `--submit` flag to submit.
