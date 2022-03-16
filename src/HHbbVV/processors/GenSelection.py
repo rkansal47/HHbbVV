@@ -339,7 +339,7 @@ def tagger_gen_QCD_matching(
         "fj_isQCDcc": to_label(matched_mask & (fatjets.nCHadrons > 1)),
         "fj_isQCDlep": to_label(matched_mask & matched_b),
     }
-    genLabelVars["fj_isQCDothers"] = (
+    genLabelVars["fj_isQCDothers"] = to_label(
         matched_mask & (fatjets.nBHadrons == 0) & (fatjets.nBHadrons == 0) & ~matched_b
     )
 
