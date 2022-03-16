@@ -15,3 +15,6 @@ python -u -W ignore $script --year $year --starti $starti --endi $endi --samples
 xrdcp -f outfiles/* $eosoutpkl
 xrdcp -f *.parquet $eosoutparquet
 xrdcp -f *.root $eosoutroot
+
+rm *.parquet
+rm *.root
