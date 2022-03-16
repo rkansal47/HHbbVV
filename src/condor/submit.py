@@ -13,19 +13,6 @@ from string import Template
 import json
 
 
-def add_bool_arg(parser, name, help, default=False, no_name=None):
-    varname = "_".join(name.split("-"))  # change hyphens to underscores
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument("--" + name, dest=varname, action="store_true", help=help)
-    if no_name is None:
-        no_name = "no-" + name
-        no_help = "don't " + help
-    else:
-        no_help = help
-    group.add_argument("--" + no_name, dest=varname, action="store_false", help=no_help)
-    parser.set_defaults(**{varname: default})
-
-
 def get_fileset(processor, year, samples, subsamples):
     with open(f"data/pfnanoindex_{year}.json", "r") as f:
         full_fileset = json.load(f)
@@ -124,7 +111,6 @@ def main(args):
                     "eosoutpkl": f"{eosoutput_dir}/pickles/out_{j}.pkl",
                     "eosoutparquet": f"{eosoutput_dir}/parquet/out_{j}.parquet",
                     "eosoutroot": f"{eosoutput_dir}/root/nano_skim_{j}.root",
-                    "save_root": args.save_root,
                 }
                 write_template(sh_templ, localsh, sh_args)
                 os.system(f"chmod u+x {localsh}")
@@ -180,7 +166,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--submit", dest="submit", action="store_true", help="submit jobs when created"
     )
-    add_bool_arg(parser, "save-root", "save skimmed outputs to root files", default=False)
     args = parser.parse_args()
 
     main(args)
