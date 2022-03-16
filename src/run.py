@@ -20,6 +20,19 @@ import warnings
 from distributed.diagnostics.plugin import WorkerPlugin
 
 
+def add_bool_arg(parser, name, help, default=False, no_name=None):
+    varname = "_".join(name.split("-"))  # change hyphens to underscores
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument("--" + name, dest=varname, action="store_true", help=help)
+    if no_name is None:
+        no_name = "no-" + name
+        no_help = "don't " + help
+    else:
+        no_help = help
+    group.add_argument("--" + no_name, dest=varname, action="store_false", help=no_help)
+    parser.set_defaults(**{varname: default})
+
+
 def fxn():
     warnings.warn("userwarning", UserWarning)
 
@@ -199,7 +212,7 @@ def main(args):
 
         print("dumped parquet")
 
-        if args.processor == "input":
+        if args.processor == "input" and args.save_root:
             # save as root files for input skimmer
 
             import awkward as ak
@@ -247,6 +260,7 @@ if __name__ == "__main__":
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
     parser.add_argument("--njets", default=2, help="njets", type=int)
     parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
+    add_bool_arg(parser, "save-root", "save skimmed outputs to root files", default=False)
     args = parser.parse_args()
 
     main(args)
