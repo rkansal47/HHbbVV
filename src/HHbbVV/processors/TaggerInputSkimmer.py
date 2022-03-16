@@ -263,6 +263,10 @@ class TaggerInputSkimmer(ProcessorABC):
 
             print(f"Gen vars: {time.time() - start:.1f}s")
 
+            if np.sum(selection.all(*selection.names)) == 0:
+                print("No jets pass selections")
+                continue
+
             skimmed_vars = {**FatJetVars, **genVars, **PFSVVars}
             # apply selections
             skimmed_vars = {
@@ -272,16 +276,19 @@ class TaggerInputSkimmer(ProcessorABC):
 
             jet_vars.append(skimmed_vars)
 
-            print(f"Jet {jet_idx}: {time.time() - start:.1f}s")
+            print(f"Jet {jet_idx + 1}: {time.time() - start:.1f}s")
 
-        if self.num_jets > 1:
+        if len(jet_vars) > 1:
             # stack each set of jets
             jet_vars = {
                 var: np.concatenate([jet_var[var] for jet_var in jet_vars], axis=0)
                 for var in jet_vars[0]
             }
-        else:
+        elif len(jet_vars) == 1:
             jet_vars = jet_vars[0]
+        else:
+            print("No jets passed selection")
+            return {}
 
         print(f"Stack: {time.time() - start:.1f}s")
 
