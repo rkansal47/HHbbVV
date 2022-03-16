@@ -3,13 +3,10 @@
 """
 Runs coffea processors on the LPC via either condor or dask.
 
-Author(s): Cristina Mantill, Raghav Kansal
+Author(s): Cristina Mantilla Suarez, Raghav Kansal
 """
 
-import numpy as np
-
 import uproot
-from coffea.nanoevents import BaseSchema
 from coffea import nanoevents
 from coffea import processor
 import pickle
@@ -114,8 +111,12 @@ def main(args):
 
         p = TaggerInputSkimmer(args.label, args.njets)
 
-    fileset = get_fileset(
-        args.processor, args.year, args.samples, args.subsamples, args.starti, args.endi
+    fileset = (
+        get_fileset(
+            args.processor, args.year, args.samples, args.subsamples, args.starti, args.endi
+        )
+        if not len(args.files)
+        else args.files
     )
 
     if args.executor == "dask":
@@ -239,6 +240,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--samples", default=[], help="samples", nargs="*")
     parser.add_argument("--subsamples", default=[], help="subsamples", nargs="*")
+    parser.add_argument(
+        "--files", default=[], help="set of files to run on instead of samples", nargs="*"
+    )
     parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
     parser.add_argument("--njets", default=2, help="njets", type=int)
