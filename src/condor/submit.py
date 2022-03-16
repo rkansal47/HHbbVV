@@ -3,7 +3,7 @@
 """
 Splits the total fileset and creates condor job submission files for the specified run script.
 
-Author(s): Cristina Mantill, Raghav Kansal
+Author(s): Cristina Mantilla Suarez, Raghav Kansal
 """
 
 import argparse

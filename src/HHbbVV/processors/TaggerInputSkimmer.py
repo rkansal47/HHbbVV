@@ -1,3 +1,9 @@
+"""
+Skimmer for ParticleNet tagger inputs.
+
+Author(s): Cristina Mantilla Suarez, Raghav Kansal
+"""
+
 import numpy as np
 import awkward as ak
 import pandas as pd
@@ -23,14 +29,6 @@ P4 = {
     "mass": "mass",
     "pt": "pt",
 }
-
-
-"""
-TODOs:
-    - More signal labels
-    - Is saving as parquet the way to go? Could also potentially save to root files?
-        - If yes to parquet, need to update ak_to_pandas function
-"""
 
 
 class TaggerInputSkimmer(ProcessorABC):
@@ -296,8 +294,6 @@ class TaggerInputSkimmer(ProcessorABC):
 
         # save to parquet
         self.dump_table(df, fname + ".parquet")
-        # save to root (now
-        # self.dump_root(jet_vars, fname + ".root")
 
         print(f"dumped: {time.time() - start:.1f}s")
 

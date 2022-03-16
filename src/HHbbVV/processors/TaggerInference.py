@@ -1,3 +1,9 @@
+"""
+Methods for deriving input variables for the tagger and running inference.
+
+Author(s): Raghav Kansal, Cristina Mantilla Suarez
+"""
+
 from typing import Optional, List, Dict
 
 import numpy as np
@@ -19,6 +25,7 @@ from tqdm import tqdm
 from .utils import pad_val
 
 
+# For old PFNano
 def get_pfcands_features_old(
     tagger_vars: dict, preselected_events: NanoEventsArray, jet_idx: int
 ) -> Dict[str, np.ndarray]:
@@ -363,7 +370,7 @@ def get_svs_features(
     return feature_dict
 
 
-# from https://github.com/lgray/hgg-coffea/blob/triton-bdts/src/hgg_coffea/tools/chained_quantile.py
+# adapted from https://github.com/lgray/hgg-coffea/blob/triton-bdts/src/hgg_coffea/tools/chained_quantile.py
 class wrapped_triton:
     def __init__(
         self,
@@ -381,7 +388,6 @@ class wrapped_triton:
         self._version = version
 
         self._batch_size = batch_size
-
         self._torchscript = torchscript
 
     def __call__(self, input_dict: Dict[str, np.ndarray]) -> np.ndarray:
@@ -468,6 +474,8 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
             for key in tagger_vars[input_name]["var_names"]:
                 np.expand_dims(feature_dict[key], 1)
 
+        # # Old ONNX naming scheme (no indices at the end of input names):
+        #
         # tagger_inputs.append(
         #     {
         #         f"{input_name}": np.concatenate(
@@ -529,6 +537,8 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
                 }
             )
 
+        # # Old classes:
+        #
         # if len(tagger_outputs[jet_idx]):
         #     pnet_vars_list.append(
         #         {

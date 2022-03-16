@@ -1,7 +1,7 @@
 """
 Gen selection functions for skimmer.
 
-Author(s): Raghav Kansal
+Author(s): Raghav Kansal, Cristina Mantilla Suarez
 """
 
 import numpy as np
