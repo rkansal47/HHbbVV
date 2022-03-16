@@ -116,7 +116,7 @@ def main(args):
             args.processor, args.year, args.samples, args.subsamples, args.starti, args.endi
         )
         if not len(args.files)
-        else args.files
+        else {f"{args.year}_files": args.files}
     )
 
     if args.executor == "dask":
