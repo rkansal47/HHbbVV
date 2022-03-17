@@ -182,37 +182,40 @@ def main(args):
         pickle.dump(out, filehandler)
         filehandler.close()
 
-        import pandas as pd
-        import pyarrow.parquet as pq
-        import pyarrow as pa
+        if args.processor == "skimmer" or args.processor == "input":
+            import pandas as pd
+            import pyarrow.parquet as pq
+            import pyarrow as pa
 
-        print("reading parquet")
+            print("reading parquet")
 
-        pddf = pd.read_parquet(local_parquet_dir)
-        print(pddf)
+            pddf = pd.read_parquet(local_parquet_dir)
+            print(pddf)
 
-        print("read parquet")
-        # need to write with pyarrow as pd.to_parquet doesn't support different types in
-        # multi-index column names
-        table = pa.Table.from_pandas(pddf)
-        pq.write_table(table, f"{local_dir}/{args.starti}-{args.endi}.parquet")
+            print("read parquet")
 
-        print("dumped parquet")
+            if args.processor == "skimmer":
+                # need to write with pyarrow as pd.to_parquet doesn't support different types in
+                # multi-index column names
+                table = pa.Table.from_pandas(pddf)
+                pq.write_table(table, f"{local_dir}/{args.starti}-{args.endi}.parquet")
 
-        if args.processor == "input":
-            # save as root files for input skimmer
+                print("dumped parquet")
 
-            import awkward as ak
+            if args.processor == "input":
+                # save as root files for input skimmer
 
-            with uproot.recreate(
-                f"{local_dir}/nano_skim_{args.starti}-{args.endi}.root",
-                compression=uproot.LZ4(4),
-            ) as rfile:
-                rfile["Events"] = ak.Array(
-                    {key: pddf[key].values for key in pddf.columns.levels[0]}
-                )
+                import awkward as ak
 
-            print("dumped root")
+                with uproot.recreate(
+                    f"{local_dir}/nano_skim_{args.starti}-{args.endi}.root",
+                    compression=uproot.LZ4(4),
+                ) as rfile:
+                    rfile["Events"] = ak.Array(
+                        {key: pddf[key].values for key in pddf.columns.levels[0]}
+                    )
+
+                print("dumped root")
 
 
 if __name__ == "__main__":
