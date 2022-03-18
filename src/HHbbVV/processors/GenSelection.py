@@ -258,6 +258,10 @@ def tagger_gen_H_matching(
     matched_higgs_children = matched_higgs.children
 
     if "VV" in decays:
+        # select only VV children
+        children_mask = get_pid_mask(matched_higgs_children, [W_PDGID, Z_PDGID], byall=False)
+        matched_higgs_children = matched_higgs_children[children_mask]
+
         children_mass = matched_higgs_children.mass
 
         # select lower mass child as V* and higher as V
