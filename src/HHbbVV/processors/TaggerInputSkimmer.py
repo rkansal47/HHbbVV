@@ -121,9 +121,12 @@ class TaggerInputSkimmer(ProcessorABC):
                 "sv_points": {"var_length": 7},  # number of svs to select or pad up to
             },
         }
-        self.fatjet_label = "FatJetAK15"
-        self.pfcands_label = "FatJetAK15PFCands"
-        self.svs_label = "JetSVsAK15"
+
+        self.ak15 = "AK15" in self.label
+        self.fatjet_label = "FatJetAK15" if self.ak15 else "FatJet"
+        self.pfcands_label = "FatJetAK15PFCands" if self.ak15 else "FatJetPFCands"
+        self.svs_label = "JetSVsAK15" if self.ak15 else "FatJetSVs"
+
         self.num_jets = num_jets
         self.label = label
 
@@ -218,19 +221,28 @@ class TaggerInputSkimmer(ProcessorABC):
                 for (var, key) in self.skim_vars["FatJet"].items()
             }
 
-            FatJetVars["fj_PN_XbbvsQCD"] = fatjets.ParticleNetMD_probXbb / (
-                fatjets.ParticleNetMD_probQCD + fatjets.ParticleNetMD_probXbb
-            )
-
-            if "ParticleNet_probHqqqq" in fatjets:
-                FatJetVars["fj_PN_H4qvsQCD"] = fatjets.ParticleNet_probHqqqq / (
-                    fatjets.ParticleNet_probHqqqq
-                    + fatjets.ParticleNet_probQCDb
-                    + fatjets.ParticleNet_probQCDbb
-                    + fatjets.ParticleNet_probQCDc
-                    + fatjets.ParticleNet_probQCDcc
-                    + fatjets.ParticleNet_probQCDothers
+            # standard PN tagger scores
+            if self.ak15:
+                FatJetVars["fj_PN_XbbvsQCD"] = fatjets.ParticleNetMD_probXbb / (
+                    fatjets.ParticleNetMD_probQCD + fatjets.ParticleNetMD_probXbb
                 )
+
+                if "ParticleNet_probHqqqq" in fatjets:
+                    FatJetVars["fj_PN_H4qvsQCD"] = fatjets.ParticleNet_probHqqqq / (
+                        fatjets.ParticleNet_probHqqqq
+                        + fatjets.ParticleNet_probQCDb
+                        + fatjets.ParticleNet_probQCDbb
+                        + fatjets.ParticleNet_probQCDc
+                        + fatjets.ParticleNet_probQCDcc
+                        + fatjets.ParticleNet_probQCDothers
+                    )
+            else:
+                FatJetVars["fj_PN_XbbvsQCD"] = fatjets.particleNetMD_Xbb / (
+                    fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb
+                )
+
+                if "particleNet_H4qvsQCD" in fatjets:
+                    FatJetVars["fj_PN_H4qvsQCD"] = fatjets.particleNet_H4qvsQCD
 
             print(f"fat jet vars: {time.time() - start:.1f}s")
 
