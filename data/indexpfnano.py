@@ -48,7 +48,7 @@ folders_to_index = [
     "/store/user/lpcpfnano/yihan/v2_2/2016/QCD",
     "/store/user/lpcpfnano/yihan/v2_2/2016APV/QCD",
     # "/store/user/lpcpfnano/jekrupa/v2_2/2017/QCD",
-    "/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017/QCD/"
+    "/store/user/lpchbb/cmantill/v2_2/2017/QCD/",
     "/store/user/lpcpfnano/jekrupa/v2_2/2018/QCD",
     #
     "/store/user/lpcpfnano/jekrupa/v2_2/2016/WJetsToQQ",
@@ -106,7 +106,8 @@ folders_to_index = [
 # .......................f1........................|.......................f2..............................|..........f3.........|.....f4......|.f5.|....
 # /store/user/lpcpfnano/jekrupa/v2_2/2017/WJetsToQQ/WJetsToQQ_HT-800toInf_TuneCP5_13TeV-madgraphMLM-pythia8/WJetsToQQ_HT-800toInf/211108_171840/0000/*root
 
-for pyear in ["2016", "2016APV", "2017", "2018"]:
+# for pyear in ["2016", "2016APV", "2017", "2018"]:
+for pyear in ["2017"]:
     index = {}
     for f1 in folders_to_index:
         f1 = f1.rstrip("/")
