@@ -216,6 +216,7 @@ def main(args):
                     compression=uproot.LZ4(4),
                 ) as rfile:
                     rfile["Events"] = ak.Array(
+                        # take only top-level column names in multiindex df
                         {key: pddf[key].values for key in pddf.columns.levels[0]}
                     )
 
