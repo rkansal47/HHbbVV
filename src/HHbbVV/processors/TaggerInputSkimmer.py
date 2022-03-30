@@ -257,7 +257,7 @@ class TaggerInputSkimmer(ProcessorABC):
                     fatjets.ParticleNetMD_probQCD + fatjets.ParticleNetMD_probXbb
                 )
 
-                if "ParticleNet_probHqqqq" in fatjets:
+                if "ParticleNet_probHqqqq" in fatjets.fields:
                     FatJetVars["fj_PN_H4qvsQCD"] = fatjets.ParticleNet_probHqqqq / (
                         fatjets.ParticleNet_probHqqqq
                         + fatjets.ParticleNet_probQCDb
@@ -271,7 +271,7 @@ class TaggerInputSkimmer(ProcessorABC):
                     fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb
                 )
 
-                if "particleNet_H4qvsQCD" in fatjets:
+                if "particleNet_H4qvsQCD" in fatjets.fields:
                     FatJetVars["fj_PN_H4qvsQCD"] = fatjets.particleNet_H4qvsQCD
 
             print(f"fat jet vars: {time.time() - start:.1f}s")
