@@ -69,7 +69,9 @@ python3 src/condor/submit.py --processor input --tag ${TAG}_${JETS} --files-per-
 python3 src/condor/submit.py --processor input --tag ${TAG}_${JETS} --files-per-job 20 --samples HWWPrivate --subsamples jhu_HHbbWW GluGluToBulkGravitonToHHTo4W_JHUGen_M-2500_narrow jhu_HHbbZZ pythia_HHbbWW --label ${JETS}_H_VV --njets 2
 python3 src/condor/submit.py --processor input --tag ${TAG}_${JETS} --files-per-job 2 --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q --label ${JETS}_H_VV --njets 2
 python3 src/condor/submit.py --processor input --tag ${TAG}_${JETS} --files-per-job 1 --samples HWWPrivate --subsamples GluGluToHHTo4V_node_cHHH1 --label ${JETS}_H_VV --njets 2
+
+# Submit
+nohup bash -c 'for i in condor/'"${TAG}_${JETS}"'/*.jdl; do condor_submit $i; done' &> tmp/submitout.txt &
 ```
 
-
-Add `--submit` flag to submit.
+Or can add `--submit` flag to submit.
