@@ -20,6 +20,7 @@ def get_subfolders(parent):
             subfolders.append(x)
     return subfolders
 
+
 folders_to_index = [
     "/store/user/lpcpfnano/dryu/v2_2_1/2016/SingleMu2016",
     "/store/user/lpcpfnano/dryu/v2_2_1/2017/SingleMu2017",
@@ -46,7 +47,8 @@ folders_to_index = [
     #
     "/store/user/lpcpfnano/yihan/v2_2/2016/QCD",
     "/store/user/lpcpfnano/yihan/v2_2/2016APV/QCD",
-    "/store/user/lpcpfnano/jekrupa/v2_2/2017/QCD",
+    # "/store/user/lpcpfnano/jekrupa/v2_2/2017/QCD",
+    "/eos/uscms/store/user/lpchbb/cmantill/v2_2/2017/QCD/"
     "/store/user/lpcpfnano/jekrupa/v2_2/2018/QCD",
     #
     "/store/user/lpcpfnano/jekrupa/v2_2/2016/WJetsToQQ",
@@ -68,7 +70,7 @@ folders_to_index = [
     "/store/user/lpcpfnano/drankin/v2_2/2016APV/WJetsToLNu",
     "/store/user/lpcpfnano/drankin/v2_2/2017/WJetsToLNu",
     "/store/user/lpcpfnano/drankin/v2_2/2018/WJetsToLNu",
-    # 
+    #
     "/store/user/lpcpfnano/jdickins/v2_2/2016/Diboson/",
     "/store/user/lpcpfnano/jdickins/v2_2/2017/Diboson/",
     "/store/user/lpcpfnano/jdickins/v2_2/2018/Diboson/",
@@ -123,7 +125,7 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
             print(f"\t/{f2}")
             subsample_long = f2.replace("/", "")  # This should be the actual dataset name
             f2_subfolders = get_subfolders(f"{f1}/{f2}")
-            if len(f2_subfolders)==0:
+            if len(f2_subfolders) == 0:
                 root_files = [
                     f"{f1}/{f2}/{x}".replace("//", "/")
                     for x in get_children((f"{f1}/{f2}"))
@@ -132,7 +134,7 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                 if not subsample_long in index[year][sample_short]:
                     index[year][sample_short][subsample_long] = []
                 index[year][sample_short][subsample_long].extend(root_files)
-                
+
             for f3 in f2_subfolders:
                 print(f"\t\t/{f3}")
                 subsample_short = f3.replace("/", "")
