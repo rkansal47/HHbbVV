@@ -21,6 +21,7 @@ from typing import Dict
 import os
 import pathlib
 import json
+import itertools
 
 
 P4 = {
@@ -37,10 +38,15 @@ class TaggerInputSkimmer(ProcessorABC):
     """
 
     def __init__(self, label="AK15_H_VV", num_jets=2):
+        self.label = label
+
         self.skim_vars = {
             "FatJet": {
                 **P4,
                 "msoftdrop": "msoftdrop",
+            },
+            "SubJet": {
+                **P4,
             },
             "GenPart": [
                 "fj_genjetmsd",
@@ -52,14 +58,6 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_H_VV_taunuqq",
                 "fj_H_VV_unmatched",
                 "fj_dR_V",
-                "fj_genRes_pt",
-                "fj_genRes_eta",
-                "fj_genRes_phi",
-                "fj_genRes_mass",
-                "fj_genX_pt",
-                "fj_genX_eta",
-                "fj_genX_phi",
-                "fj_genX_mass",
                 "fj_genV_pt",
                 "fj_genV_eta",
                 "fj_genV_phi",
@@ -99,9 +97,15 @@ class TaggerInputSkimmer(ProcessorABC):
                         "pfcand_dzsig",
                         "pfcand_dxy",
                         "pfcand_dxysig",
+                        "pfcand_btagEtaRel",
+                        "pfcand_btagPtRatio",
+                        "pfcand_btagPParRatio",
+                        "pfcand_btagSip3dVal",
+                        "pfcand_btagSip3dSig",
+                        "pfcand_btagJetDistVal",
                     ],
                 },
-                "pf_points": {"var_length": 130},  # number of pf cands to select or pad up to
+                "pf_points": {"var_length": 100},  # number of pf cands to select or pad up to
                 "sv_features": {
                     "var_names": [
                         "sv_pt_log",
@@ -124,11 +128,13 @@ class TaggerInputSkimmer(ProcessorABC):
 
         self.ak15 = "AK15" in self.label
         self.fatjet_label = "FatJetAK15" if self.ak15 else "FatJet"
+        self.subjet_label = "FatJetAK15SubJet" if self.ak15 else "SubJet"
         self.pfcands_label = "FatJetAK15PFCands" if self.ak15 else "FatJetPFCands"
         self.svs_label = "JetSVsAK15" if self.ak15 else "FatJetSVs"
 
         self.num_jets = num_jets
-        self.label = label
+        self.num_subjets = 2
+        self.match_dR = 1.0  # max dR for object-jet-matching
 
         self.tagger_resources_path = (
             str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
@@ -205,7 +211,8 @@ class TaggerInputSkimmer(ProcessorABC):
 
         for jet_idx in range(self.num_jets):
             # objects
-            fatjets = ak.pad_none(events[self.fatjet_label], 2, axis=1)[:, jet_idx]
+            fatjets = ak.pad_none(events[self.fatjet_label], self.num_jets, axis=1)[:, jet_idx]
+            subjets = events[self.subjet_label]
             genparts = events.GenPart
 
             # selection
@@ -219,6 +226,21 @@ class TaggerInputSkimmer(ProcessorABC):
             FatJetVars = {
                 f"fj_{key}": ak.fill_none(fatjets[var], -99999)
                 for (var, key) in self.skim_vars["FatJet"].items()
+            }
+
+            # select subjets within self.match_dR of fatjet
+            matched_subjets = ak.pad_none(
+                subjets[fatjets.delta_r(subjets) < self.match_dR],
+                self.num_subjets,
+                axis=1,
+                clip=True,
+            )
+
+            SubJetVars = {
+                f"fj_subjet{i + 1}_{key}": ak.fill_none(matched_subjets[:, i][var], -99999)
+                for i, (var, key) in itertools.product(
+                    range(self.num_subjets), self.skim_vars["SubJet"].items()
+                )
             }
 
             # standard PN tagger scores
@@ -268,7 +290,12 @@ class TaggerInputSkimmer(ProcessorABC):
             print(f"PFSV vars: {time.time() - start:.1f}s")
 
             matched_mask, genVars = tagger_gen_matching(
-                events, genparts, fatjets, self.skim_vars["GenPart"], label=self.label, match_dR=1.0
+                events,
+                genparts,
+                fatjets,
+                self.skim_vars["GenPart"],
+                label=self.label,
+                match_dR=self.match_dR,
             )
 
             add_selection_no_cutflow("gen_match", matched_mask, selection)
@@ -279,7 +306,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 print("No jets pass selections")
                 continue
 
-            skimmed_vars = {**FatJetVars, **genVars, **PFSVVars}
+            skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars}
             # apply selections
             skimmed_vars = {
                 key: np.squeeze(np.array(value[selection.all(*selection.names)]))
@@ -289,7 +316,6 @@ class TaggerInputSkimmer(ProcessorABC):
             jet_vars.append(skimmed_vars)
 
             print(f"Jet {jet_idx + 1}: {time.time() - start:.1f}s")
-
         if len(jet_vars) > 1:
             # stack each set of jets
             jet_vars = {

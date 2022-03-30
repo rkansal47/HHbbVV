@@ -4,7 +4,7 @@ Methods for deriving input variables for the tagger and running inference.
 Author(s): Raghav Kansal, Cristina Mantilla Suarez
 """
 
-from typing import Optional, List, Dict
+from typing import Dict
 
 import numpy as np
 from scipy.special import softmax
@@ -23,6 +23,187 @@ import tritonclient.http as triton_http
 from tqdm import tqdm
 
 from .utils import pad_val
+
+
+def get_pfcands_features(
+    tagger_vars: dict,
+    preselected_events: NanoEventsArray,
+    jet_idx: int,
+    fatjet_label: str = "FatJetAK15",
+    pfcands_label: str = "FatJetAK15PFCands",
+    normalize: bool = True,
+) -> Dict[str, np.ndarray]:
+    """
+    Extracts the pf_candidate features specified in the ``tagger_vars`` dict from the
+    ``preselected_events`` and returns them as a dict of numpy arrays
+    """
+
+    feature_dict = {}
+
+    jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
+    jet_ak_pfcands = preselected_events[pfcands_label][
+        preselected_events[pfcands_label].jetIdx == jet_idx
+    ]
+    jet_pfcands = preselected_events.PFCands[jet_ak_pfcands.pFCandsIdx]
+
+    # get features
+
+    # negative eta jets have -1 sign, positive eta jets have +1
+    eta_sign = ak.values_astype(jet_pfcands.eta > 0, int) * 2 - 1
+    feature_dict["pfcand_etarel"] = eta_sign * (jet_pfcands.eta - jet.eta)
+    feature_dict["pfcand_phirel"] = jet_pfcands.delta_phi(jet)
+    feature_dict["pfcand_abseta"] = np.abs(jet_pfcands.eta)
+
+    feature_dict["pfcand_pt_log_nopuppi"] = np.log(jet_pfcands.pt)
+    feature_dict["pfcand_e_log_nopuppi"] = np.log(jet_pfcands.energy)
+
+    pdgIds = jet_pfcands.pdgId
+    feature_dict["pfcand_isEl"] = np.abs(pdgIds) == 11
+    feature_dict["pfcand_isMu"] = np.abs(pdgIds) == 13
+    feature_dict["pfcand_isChargedHad"] = np.abs(pdgIds) == 211
+    feature_dict["pfcand_isGamma"] = np.abs(pdgIds) == 22
+    feature_dict["pfcand_isNeutralHad"] = np.abs(pdgIds) == 130
+
+    feature_dict["pfcand_charge"] = jet_pfcands.charge
+    feature_dict["pfcand_VTX_ass"] = jet_pfcands.pvAssocQuality
+    feature_dict["pfcand_lostInnerHits"] = jet_pfcands.lostInnerHits
+    feature_dict["pfcand_quality"] = jet_pfcands.trkQuality
+
+    feature_dict["pfcand_normchi2"] = np.floor(jet_pfcands.trkChi2)
+
+    feature_dict["pfcand_dz"] = jet_pfcands.dz
+    feature_dict["pfcand_dxy"] = jet_pfcands.d0
+    feature_dict["pfcand_dzsig"] = jet_pfcands.dz / jet_pfcands.dzErr
+    feature_dict["pfcand_dxysig"] = jet_pfcands.d0 / jet_pfcands.d0Err
+
+    # btag vars
+    for var in tagger_vars["pf_features"]["var_names"]:
+        if "btag" in var:
+            feature_dict[var] = jet_ak_pfcands[var[len("pfcand_") :]]
+
+    feature_dict["pfcand_mask"] = (
+        ~(
+            ak.pad_none(
+                # padding to have at least one pf candidate in the graph
+                pad_val(feature_dict["pfcand_abseta"], 1, -1, axis=1, to_numpy=False, clip=False),
+                tagger_vars["pf_points"]["var_length"],
+                axis=1,
+                clip=True,
+            )
+            .to_numpy()
+            .mask
+        )
+    ).astype(np.float32)
+
+    # if no padding is needed, mask will = 1.0
+    if isinstance(feature_dict["pfcand_mask"], np.float32):
+        feature_dict["pfcand_mask"] = np.ones(
+            (len(feature_dict["pfcand_abseta"]), tagger_vars["pf_points"]["var_length"])
+        ).astype(np.float32)
+
+    # convert to numpy arrays and normalize features
+    for var in tagger_vars["pf_features"]["var_names"]:
+        a = (
+            ak.pad_none(
+                feature_dict[var], tagger_vars["pf_points"]["var_length"], axis=1, clip=True
+            )
+            .to_numpy()
+            .filled(fill_value=0)
+        ).astype(np.float32)
+
+        if normalize:
+            info = tagger_vars["pf_features"]["var_infos"][var]
+            a = (a - info["median"]) * info["norm_factor"]
+            a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
+
+        feature_dict[var] = a
+
+    if normalize:
+        var = "pfcand_normchi2"
+        info = tagger_vars["pf_features"]["var_infos"][var]
+        # finding what -1 transforms to
+        chi2_min = -1 - info["median"] * info["norm_factor"]
+        feature_dict[var][feature_dict[var] == chi2_min] = info["upper_bound"]
+
+    return feature_dict
+
+
+def get_svs_features(
+    tagger_vars: dict,
+    preselected_events: NanoEventsArray,
+    jet_idx: int,
+    fatjet_label: str = "FatJetAK15",
+    svs_label: str = "JetSVsAK15",
+    normalize: bool = True,
+) -> Dict[str, np.ndarray]:
+    """
+    Extracts the sv features specified in the ``tagger_vars`` dict from the
+    ``preselected_events`` and returns them as a dict of numpy arrays
+    """
+
+    feature_dict = {}
+
+    jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
+    jet_svs = preselected_events.SV[
+        preselected_events[svs_label].sVIdx[
+            (preselected_events[svs_label].sVIdx != -1)
+            * (preselected_events[svs_label].jetIdx == jet_idx)
+        ]
+    ]
+
+    # get features
+
+    # negative eta jets have -1 sign, positive eta jets have +1
+    eta_sign = ak.values_astype(jet_svs.eta > 0, int) * 2 - 1
+    feature_dict["sv_etarel"] = eta_sign * (jet_svs.eta - jet.eta)
+    feature_dict["sv_phirel"] = jet_svs.delta_phi(jet)
+    feature_dict["sv_abseta"] = np.abs(jet_svs.eta)
+    feature_dict["sv_mass"] = jet_svs.mass
+    feature_dict["sv_pt_log"] = np.log(jet_svs.pt)
+
+    feature_dict["sv_ntracks"] = jet_svs.ntracks
+    feature_dict["sv_normchi2"] = jet_svs.chi2
+    feature_dict["sv_dxy"] = jet_svs.dxy
+    feature_dict["sv_dxysig"] = jet_svs.dxySig
+    feature_dict["sv_d3d"] = jet_svs.dlen
+    feature_dict["sv_d3dsig"] = jet_svs.dlenSig
+    svpAngle = jet_svs.pAngle
+    feature_dict["sv_costhetasvpv"] = -np.cos(svpAngle)
+
+    feature_dict["sv_mask"] = (
+        ~(
+            ak.pad_none(
+                feature_dict["sv_etarel"], tagger_vars["sv_points"]["var_length"], axis=1, clip=True
+            )
+            .to_numpy()
+            .mask
+        )
+    ).astype(np.float32)
+
+    # if no padding is needed, mask will = 1.0
+    if isinstance(feature_dict["sv_mask"], np.float32):
+        feature_dict["sv_mask"] = np.ones(
+            (len(feature_dict["sv_abseta"]), tagger_vars["sv_points"]["var_length"])
+        ).astype(np.float32)
+
+    # convert to numpy arrays and normalize features
+    for var in tagger_vars["sv_features"]["var_names"]:
+        a = (
+            ak.pad_none(
+                feature_dict[var], tagger_vars["sv_points"]["var_length"], axis=1, clip=True
+            )
+            .to_numpy()
+            .filled(fill_value=0)
+        ).astype(np.float32)
+
+        if normalize:
+            info = tagger_vars["sv_features"]["var_infos"][var]
+            a = (a - info["median"]) * info["norm_factor"]
+            a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
+
+        feature_dict[var] = a
+
+    return feature_dict
 
 
 # For old PFNano
@@ -187,183 +368,6 @@ def get_svs_features_old(
         info = tagger_vars["sv_features"]["var_infos"][var]
         a = (a - info["median"]) * info["norm_factor"]
         a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
-
-        feature_dict[var] = a
-
-    return feature_dict
-
-
-def get_pfcands_features(
-    tagger_vars: dict,
-    preselected_events: NanoEventsArray,
-    jet_idx: int,
-    fatjet_label: str = "FatJetAK15",
-    pfcands_label: str = "FatJetAK15PFCands",
-    normalize: bool = True,
-) -> Dict[str, np.ndarray]:
-    """
-    Extracts the pf_candidate features specified in the ``tagger_vars`` dict from the
-    ``preselected_events`` and returns them as a dict of numpy arrays
-    """
-
-    feature_dict = {}
-
-    jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
-    jet_pfcands = preselected_events.PFCands[
-        preselected_events[pfcands_label].pFCandsIdx[
-            preselected_events[pfcands_label].jetIdx == jet_idx
-        ]
-    ]
-
-    # get features
-
-    # negative eta jets have -1 sign, positive eta jets have +1
-    eta_sign = ak.values_astype(jet_pfcands.eta > 0, int) * 2 - 1
-    feature_dict["pfcand_etarel"] = eta_sign * (jet_pfcands.eta - jet.eta)
-    feature_dict["pfcand_phirel"] = jet_pfcands.delta_phi(jet)
-    feature_dict["pfcand_abseta"] = np.abs(jet_pfcands.eta)
-
-    feature_dict["pfcand_pt_log_nopuppi"] = np.log(jet_pfcands.pt)
-    feature_dict["pfcand_e_log_nopuppi"] = np.log(jet_pfcands.energy)
-
-    pdgIds = jet_pfcands.pdgId
-    feature_dict["pfcand_isEl"] = np.abs(pdgIds) == 11
-    feature_dict["pfcand_isMu"] = np.abs(pdgIds) == 13
-    feature_dict["pfcand_isChargedHad"] = np.abs(pdgIds) == 211
-    feature_dict["pfcand_isGamma"] = np.abs(pdgIds) == 22
-    feature_dict["pfcand_isNeutralHad"] = np.abs(pdgIds) == 130
-
-    feature_dict["pfcand_charge"] = jet_pfcands.charge
-    feature_dict["pfcand_VTX_ass"] = jet_pfcands.pvAssocQuality
-    feature_dict["pfcand_lostInnerHits"] = jet_pfcands.lostInnerHits
-    feature_dict["pfcand_quality"] = jet_pfcands.trkQuality
-
-    feature_dict["pfcand_normchi2"] = np.floor(jet_pfcands.trkChi2)
-
-    feature_dict["pfcand_dz"] = jet_pfcands.dz
-    feature_dict["pfcand_dxy"] = jet_pfcands.d0
-    feature_dict["pfcand_dzsig"] = jet_pfcands.dz / jet_pfcands.dzErr
-    feature_dict["pfcand_dxysig"] = jet_pfcands.d0 / jet_pfcands.d0Err
-
-    feature_dict["pfcand_mask"] = (
-        ~(
-            ak.pad_none(
-                # padding to have at least one pf candidate in the graph
-                pad_val(feature_dict["pfcand_abseta"], 1, -1, axis=1, to_numpy=False, clip=False),
-                tagger_vars["pf_points"]["var_length"],
-                axis=1,
-                clip=True,
-            )
-            .to_numpy()
-            .mask
-        )
-    ).astype(np.float32)
-
-    # if no padding is needed, mask will = 1.0
-    if isinstance(feature_dict["pfcand_mask"], np.float32):
-        feature_dict["pfcand_mask"] = np.ones(
-            (len(feature_dict["pfcand_abseta"]), tagger_vars["pf_points"]["var_length"])
-        ).astype(np.float32)
-
-    # convert to numpy arrays and normalize features
-    for var in tagger_vars["pf_features"]["var_names"]:
-        a = (
-            ak.pad_none(
-                feature_dict[var], tagger_vars["pf_points"]["var_length"], axis=1, clip=True
-            )
-            .to_numpy()
-            .filled(fill_value=0)
-        ).astype(np.float32)
-
-        if normalize:
-            info = tagger_vars["pf_features"]["var_infos"][var]
-            a = (a - info["median"]) * info["norm_factor"]
-            a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
-
-        feature_dict[var] = a
-
-    if normalize:
-        var = "pfcand_normchi2"
-        info = tagger_vars["pf_features"]["var_infos"][var]
-        # finding what -1 transforms to
-        chi2_min = -1 - info["median"] * info["norm_factor"]
-        feature_dict[var][feature_dict[var] == chi2_min] = info["upper_bound"]
-
-    return feature_dict
-
-
-def get_svs_features(
-    tagger_vars: dict,
-    preselected_events: NanoEventsArray,
-    jet_idx: int,
-    fatjet_label: str = "FatJetAK15",
-    svs_label: str = "JetSVsAK15",
-    normalize: bool = True,
-) -> Dict[str, np.ndarray]:
-    """
-    Extracts the sv features specified in the ``tagger_vars`` dict from the
-    ``preselected_events`` and returns them as a dict of numpy arrays
-    """
-
-    feature_dict = {}
-
-    jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
-    jet_svs = preselected_events.SV[
-        preselected_events[svs_label].sVIdx[
-            (preselected_events[svs_label].sVIdx != -1)
-            * (preselected_events[svs_label].jetIdx == jet_idx)
-        ]
-    ]
-
-    # get features
-
-    # negative eta jets have -1 sign, positive eta jets have +1
-    eta_sign = ak.values_astype(jet_svs.eta > 0, int) * 2 - 1
-    feature_dict["sv_etarel"] = eta_sign * (jet_svs.eta - jet.eta)
-    feature_dict["sv_phirel"] = jet_svs.delta_phi(jet)
-    feature_dict["sv_abseta"] = np.abs(jet_svs.eta)
-    feature_dict["sv_mass"] = jet_svs.mass
-    feature_dict["sv_pt_log"] = np.log(jet_svs.pt)
-
-    feature_dict["sv_ntracks"] = jet_svs.ntracks
-    feature_dict["sv_normchi2"] = jet_svs.chi2
-    feature_dict["sv_dxy"] = jet_svs.dxy
-    feature_dict["sv_dxysig"] = jet_svs.dxySig
-    feature_dict["sv_d3d"] = jet_svs.dlen
-    feature_dict["sv_d3dsig"] = jet_svs.dlenSig
-    svpAngle = jet_svs.pAngle
-    feature_dict["sv_costhetasvpv"] = -np.cos(svpAngle)
-
-    feature_dict["sv_mask"] = (
-        ~(
-            ak.pad_none(
-                feature_dict["sv_etarel"], tagger_vars["sv_points"]["var_length"], axis=1, clip=True
-            )
-            .to_numpy()
-            .mask
-        )
-    ).astype(np.float32)
-
-    # if no padding is needed, mask will = 1.0
-    if isinstance(feature_dict["sv_mask"], np.float32):
-        feature_dict["sv_mask"] = np.ones(
-            (len(feature_dict["sv_abseta"]), tagger_vars["sv_points"]["var_length"])
-        ).astype(np.float32)
-
-    # convert to numpy arrays and normalize features
-    for var in tagger_vars["sv_features"]["var_names"]:
-        a = (
-            ak.pad_none(
-                feature_dict[var], tagger_vars["sv_points"]["var_length"], axis=1, clip=True
-            )
-            .to_numpy()
-            .filled(fill_value=0)
-        ).astype(np.float32)
-
-        if normalize:
-            info = tagger_vars["sv_features"]["var_infos"][var]
-            a = (a - info["median"]) * info["norm_factor"]
-            a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
 
         feature_dict[var] = a
 
