@@ -6,16 +6,17 @@ Runs coffea processors on the LPC via either condor or dask.
 Author(s): Cristina Mantilla Suarez, Raghav Kansal
 """
 
-import uproot
-from coffea import nanoevents
-from coffea import processor
 import pickle
 import os
 import json
-
 import argparse
-
 import warnings
+
+import numpy as np
+import uproot
+
+from coffea import nanoevents
+from coffea import processor
 
 from distributed.diagnostics.plugin import WorkerPlugin
 
@@ -217,7 +218,7 @@ def main(args):
                 ) as rfile:
                     rfile["Events"] = ak.Array(
                         # take only top-level column names in multiindex df
-                        {key: pddf[key].values for key in pddf.columns.levels[0]}
+                        {key: np.squeeze(pddf[key].values) for key in pddf.columns.levels[0]}
                     )
 
                 print("dumped root")
