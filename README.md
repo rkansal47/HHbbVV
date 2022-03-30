@@ -24,7 +24,6 @@ General note: Coffea-casa is faster and more convenient, however still somewhat 
 ```bash
 git clone https://github.com/rkansal47/HHbbVV/
 cd HHbbVV
-# replace 'rkansal' in homedir var in src/condor/submit.py and the proxy address in condor/submit.templ.jdl
 TAG=Aug18_skimmer
 python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20  # will need python3 (recommended to set up via miniconda)
 for i in condor/$TAG/*.jdl; do condor_submit $i; done
@@ -43,28 +42,34 @@ python -W ignore src/run.py --starti 0 --endi 1 --year 2017 --processor skimmer 
 
 ### bbVVSkimmer
 
-Applies pre-selection cuts, runs inference with our new HVV tagger, and saves unbinned branches as parquet files. 
+Applies pre-selection cuts, runs inference with our new HVV tagger, and saves unbinned branches as parquet files.
 
-Parquet and pickle files will be saved in the eos directory of specified user at path `~/eos/bbVV/skimmer/<tag>/<sample_name>/<parquet or pickles>`. Pickles are in the format `{'nevents': int, 'cutflow': Dict[str, int]}`. 
+Parquet and pickle files will be saved in the eos directory of specified user at path `~/eos/bbVV/skimmer/<tag>/<sample_name>/<parquet or pickles>`. Pickles are in the format `{'nevents': int, 'cutflow': Dict[str, int]}`.
 
 ### TaggerInputSkimmer
 
-Applies a loose pre-selection cut, saves ntuple with training inputs.
+Applies a loose pre-selection cut, saves ntuples with training inputs.
 
 To test locally (in singularity):
-```
+```bash
 python -W ignore src/run.py --year 2017 --starti 300 --endi 301 --samples HWWPrivate --subsamples jhu_HHbbWW --processor input
 python -W ignore src/run.py --year 2017 --starti 300 --endi 301 --samples QCD --subsamples QCD_Pt_1000to1400 --processor input --label AK15_QCD
 ```
 
 Jobs:
-```
+```bash
+TAG=Mar29
+JETS=AK15
+
 # Training
-python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 2 --samples QCD --label AK15_QCD --njets 1 --maxchunks 1 --subsamples QCD_Pt_300to470 QCD_Pt_470to600 QCD_Pt_600to800 QCD_Pt_800to1000 QCD_Pt_1000to1400
-python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 20 --samples HWWPrivate --subsamples BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2_ext1 BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2 --label AK15_H_VV --njets 2
+python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 1 --samples QCD --label ${JETS}_QCD --njets 1 --maxchunks 1 --subsamples QCD_Pt_300to470 QCD_Pt_470to600 QCD_Pt_600to800 QCD_Pt_800to1000 QCD_Pt_1000to1400
+python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 20 --samples HWWPrivate --subsamples BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2_ext1 BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2 --label ${JETS}_H_VV --njets 2
+
 # Validation
-python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 20 --samples HWWPrivate --subsamples jhu_HHbbWW GluGluToBulkGravitonToHHTo4W_JHUGen_M-2500_narrow jhu_HHbbZZ pythia_HHbbWW --label AK15_H_VV --njets 2
-python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 2 --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q --label AK15_H_VV --njets 2
-python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 1 --samples HWWPrivate --subsamples GluGluToHHTo4V_node_cHHH1 --label AK15_H_VV --njets 2
+python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 20 --samples HWWPrivate --subsamples jhu_HHbbWW GluGluToBulkGravitonToHHTo4W_JHUGen_M-2500_narrow jhu_HHbbZZ pythia_HHbbWW --label ${JETS}_H_VV --njets 2
+python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 2 --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q --label ${JETS}_H_VV --njets 2
+python3 src/condor/submit.py --processor input --tag $TAG --files-per-job 1 --samples HWWPrivate --subsamples GluGluToHHTo4V_node_cHHH1 --label ${JETS}_H_VV --njets 2
 ```
+
+
 Add `--submit` flag to submit.
