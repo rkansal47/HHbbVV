@@ -114,7 +114,9 @@
         "/store/user/lpcpfnano/jdickins/v2_2/2016/Diboson/WZ_TuneCP5_13TeV-pythia8/WZ/220310_204927/0000/nano_mc2016post_1-19.root",
         "/store/user/lpcpfnano/jdickins/v2_2/2016/Diboson/WZ_TuneCP5_13TeV-pythia8/WZ/220310_204927/0000/nano_mc2016post_1-2.root",
         "/store/user/lpcpfnano/jdickins/v2_2/2016/Diboson/WZ_TuneCP5_13TeV-pythia8/WZ/220310_204927/0000/nano_mc2016post_1-20.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/Diboson/WZ_TuneCP5_13TeV-pythia8/WZ/220310_204927/0000/nano_mc2016post_1-21.root",
         "/store/user/lpcpfnano/jdickins/v2_2/2016/Diboson/WZ_TuneCP5_13TeV-pythia8/WZ/220310_204927/0000/nano_mc2016post_1-22.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/Diboson/WZ_TuneCP5_13TeV-pythia8/WZ/220310_204927/0000/nano_mc2016post_1-23.root",
         "/store/user/lpcpfnano/jdickins/v2_2/2016/Diboson/WZ_TuneCP5_13TeV-pythia8/WZ/220310_204927/0000/nano_mc2016post_1-24.root",
         "/store/user/lpcpfnano/jdickins/v2_2/2016/Diboson/WZ_TuneCP5_13TeV-pythia8/WZ/220310_204927/0000/nano_mc2016post_1-25.root",
         "/store/user/lpcpfnano/jdickins/v2_2/2016/Diboson/WZ_TuneCP5_13TeV-pythia8/WZ/220310_204927/0000/nano_mc2016post_1-26.root",
@@ -19849,6 +19851,21 @@
         "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_TuneCP5_13TeV-powheg-pythia8/VBFHToBB/220310_204959/0000/nano_mc2016post_4.root",
         "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_TuneCP5_13TeV-powheg-pythia8/VBFHToBB/220310_204959/0000/nano_mc2016post_5.root",
         "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_TuneCP5_13TeV-powheg-pythia8/VBFHToBB/220310_204959/0000/nano_mc2016post_9.root"
+      ],
+      "VBFHToBBDipoleRecoilOn": [
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_1-1.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_1.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_10.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_11.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_12.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_2.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_3.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_4.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_5.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_6.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_7.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_8.root",
+        "/store/user/lpcpfnano/jdickins/v2_2/2016/VBFHToBB/VBFHToBB_M-125_dipoleRecoilOn_TuneCP5_13TeV-powheg-pythia8/VBFHToBBDipoleRecoilOn/220314_182648/0000/nano_mc2016post_9.root"
       ]
     },
     "WJetsToLNu": {
