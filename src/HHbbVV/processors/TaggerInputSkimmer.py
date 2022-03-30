@@ -79,7 +79,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_isQCDbb",
                 "fj_isQCDc",
                 "fj_isQCDcc",
-                "fj_isQCDlep",
+                # "fj_isQCDlep",
                 "fj_isQCDothers",
             ],
             # formatted to match weaver's preprocess.json
