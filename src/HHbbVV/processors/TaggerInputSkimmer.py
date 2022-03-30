@@ -58,6 +58,14 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_H_VV_taunuqq",
                 "fj_H_VV_unmatched",
                 "fj_dR_V",
+                "fj_genRes_pt",
+                "fj_genRes_eta",
+                "fj_genRes_phi",
+                "fj_genRes_mass",
+                "fj_genX_pt",
+                "fj_genX_eta",
+                "fj_genX_phi",
+                "fj_genX_mass",
                 "fj_genV_pt",
                 "fj_genV_eta",
                 "fj_genV_phi",
@@ -316,6 +324,7 @@ class TaggerInputSkimmer(ProcessorABC):
             jet_vars.append(skimmed_vars)
 
             print(f"Jet {jet_idx + 1}: {time.time() - start:.1f}s")
+
         if len(jet_vars) > 1:
             # stack each set of jets
             jet_vars = {

@@ -16,14 +16,21 @@ from typing import List, Dict, Tuple, Union
 from .utils import pad_val, add_selection
 
 
-B_PDGID = 5
+d_PDGID = 1
+b_PDGID = 5
+g_PDGID = 21
+
 Z_PDGID = 23
 W_PDGID = 24
 HIGGS_PDGID = 25
+
 ELE_PDGID = 11
 MU_PDGID = 13
 TAU_PDGID = 15
-B_PDGID = 5
+
+b_PDGIDS = [511, 521, 523]
+
+GRAV_PDGID = 39
 
 GEN_FLAGS = ["fromHardProcess", "isLastCopy"]
 
@@ -51,7 +58,7 @@ def gen_selection_HHbbVV(
     GenHiggsVars["GenHiggsChildren"] = abs(higgs_children.pdgId[:, :, 0]).to_numpy()
 
     # finding bb and VV children
-    is_bb = abs(higgs_children.pdgId) == B_PDGID
+    is_bb = abs(higgs_children.pdgId) == b_PDGID
     is_VV = (abs(higgs_children.pdgId) == W_PDGID) + (abs(higgs_children.pdgId) == Z_PDGID)
 
     # checking that there are 2 b's and 2 V's
@@ -77,7 +84,7 @@ def gen_selection_HHbbVV(
     # checking that each V has 2 q children
     VV_children = VV.children
 
-    quarks = abs(VV_children.pdgId) <= B_PDGID
+    quarks = abs(VV_children.pdgId) <= b_PDGID
     all_q = ak.all(ak.all(quarks, axis=2), axis=1)
     add_selection("all_q", all_q, selection, cutflow, False, signGenWeights)
 
@@ -129,7 +136,7 @@ def gen_selection_HH4V(
 
     VV_children = VV.children
 
-    quarks = abs(VV_children.pdgId) <= B_PDGID
+    quarks = abs(VV_children.pdgId) <= b_PDGID
     all_q = ak.all(ak.all(quarks, axis=2), axis=1)
     add_selection("all_q", all_q, selection, cutflow, False, signGenWeights)
 
@@ -180,7 +187,7 @@ def gen_selection_HVV(
 
     VV_children = VV.children
 
-    quarks = abs(VV_children.pdgId) <= B_PDGID
+    quarks = abs(VV_children.pdgId) <= b_PDGID
     all_q = ak.all(ak.all(quarks, axis=2), axis=1)
     add_selection("all_q", all_q, selection, cutflow, False, signGenWeights)
 
@@ -290,7 +297,7 @@ def tagger_gen_H_matching(
         # why checking pT > 0?
         decay = (
             # 2 quarks * 1
-            (ak.sum(daughters_pdgId <= B_PDGID, axis=1) == 2) * 1
+            (ak.sum(daughters_pdgId <= b_PDGID, axis=1) == 2) * 1
             # 1 electron * 3
             + (ak.sum(daughters_pdgId == ELE_PDGID, axis=1) == 1) * 3
             # 1 muon * 5
@@ -298,7 +305,7 @@ def tagger_gen_H_matching(
             # 1 tau * 7
             + (ak.sum(daughters_pdgId == TAU_PDGID, axis=1) == 1) * 7
             # 4 quarks * 11
-            + (ak.sum(daughters_pdgId <= B_PDGID, axis=1) == 4) * 11
+            + (ak.sum(daughters_pdgId <= b_PDGID, axis=1) == 4) * 11
         )
 
         matched_mask = matched_higgs_mask & matched_Vs_mask
@@ -327,25 +334,24 @@ def tagger_gen_QCD_matching(
     jet_dR: float,
     match_dR: float = 1.0,
 ) -> Tuple[np.array, Dict[str, np.array]]:
-
     """Gen matching for QCD samples, arguments as defined in ``tagger_gen_matching``"""
-    partons = genparts[get_pid_mask(genparts, [21, 1, 2, 3, 4, 5], ax=1, byall=False)]
-    matched_mask = ak.any(fatjets.delta_r(partons) < match_dR, axis=1)
-    btoleptons = genparts[
-        get_pid_mask(genparts, [511, 521, 523], ax=1, byall=False)
-        & get_pid_mask(genparts.children, [11, 13])
+    partons = genparts[
+        get_pid_mask(genparts, [g_PDGID] + list(range(1, b_PDGID + 1)), ax=1, byall=False)
     ]
-    matched_b = ak.any(fatjets.delta_r(btoleptons) < 0.5, axis=1)
+    matched_mask = ak.any(fatjets.delta_r(partons) < match_dR, axis=1)
+
+    # leptons = genparts[get_pid_mask(genparts, [ELE_PDGID, MU_PDGID], ax=1, byall=False)]
+    # matched_lepton = ak.any(fatjets.delta_r(leptons) < match_dR / 2, axis=1)
+
     genLabelVars = {
-        "fj_isQCDb": to_label(matched_mask & (fatjets.nBHadrons == 1) & ~matched_b),
-        "fj_isQCDbb": to_label(matched_mask & (fatjets.nBHadrons > 1) & ~matched_b),
-        "fj_isQCDc": to_label(matched_mask & (fatjets.nCHadrons == 1)),
-        "fj_isQCDcc": to_label(matched_mask & (fatjets.nCHadrons > 1)),
-        "fj_isQCDlep": to_label(matched_mask & matched_b),
+        "fj_isQCDb": (fatjets.nBHadrons == 1),
+        "fj_isQCDbb": (fatjets.nBHadrons > 1),
+        "fj_isQCDc": (fatjets.nCHadrons == 1) * (fatjets.nBHadrons == 0),
+        "fj_isQCDcc": (fatjets.nCHadrons > 1) * (fatjets.nBHadrons == 0),
+        "fj_isQCDothers": (fatjets.nBHadrons == 0) & (fatjets.nCHadrons == 0),
     }
-    genLabelVars["fj_isQCDothers"] = to_label(
-        matched_mask & (fatjets.nBHadrons == 0) & (fatjets.nBHadrons == 0) & ~matched_b
-    )
+
+    genLabelVars = {key: to_label(var) for key, var in genLabelVars.items()}
 
     return matched_mask, genLabelVars
 

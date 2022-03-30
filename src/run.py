@@ -35,6 +35,8 @@ nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
     "JetPFCandsAK15",
 )
 nanoevents.NanoAODSchema.mixins["FatJetAK15"] = "FatJet"
+nanoevents.NanoAODSchema.mixins["FatJetAK15SubJet"] = "FatJet"
+nanoevents.NanoAODSchema.mixins["SubJet"] = "FatJet"
 nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
 
 
@@ -51,6 +53,8 @@ class NanoeventsSchemaPlugin(WorkerPlugin):
             "JetPFCandsAK15",
         )
         nanoevents.NanoAODSchema.mixins["FatJetAK15"] = "FatJet"
+        nanoevents.NanoAODSchema.mixins["FatJetAK15SubJet"] = "FatJet"
+        nanoevents.NanoAODSchema.mixins["SubJet"] = "FatJet"
         nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
 
 
