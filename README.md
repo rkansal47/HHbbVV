@@ -80,4 +80,4 @@ Command for copying directories to PRP in background ([krsync](https://serverfau
 ```bash
 cd ~/eos/bbVV/input/${TAG}_${JETS}/
 mkdir ../copy_logs
-for i in *; do echo $i && sleep 3 && (nohup sh -c "krsync -av --progress --stats $i/root hwwtaggerdep-66468dbdd8-dwr4l:/hwwtaggervol/training/[FOLDER]/$i && echo $i" &> ../copy_logs/$i.txt &) done```
+for i in *; do echo $i && sleep 3 && (nohup sh -c "krsync -av --progress --stats $i/root hwwtaggerdep-66468dbdd8-dwr4l:/hwwtaggervol/training/[FOLDER]/$i" &> ../copy_logs/$i.txt &) done```
