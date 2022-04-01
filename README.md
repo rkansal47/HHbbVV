@@ -77,5 +77,7 @@ nohup bash -c 'for i in condor/'"${TAG}_${JETS}"'/*.jdl; do condor_submit $i; do
 Or can add `--submit` flag to submit.
 
 Command for copying directories to PRP in background 
-```bash 
-for i in *; do echo $i && sleep 5 && nohup sh -c "kubectl cp $i hwwtaggerdep-66468dbdd8-dwr4l:/hwwtaggervol/training/ak8_Mar29/ && echo $i" &> $i.txt & done```
+```bash
+cd ~/eos/bbVV/input/${TAG}_${JETS}/
+mkdir ../copy_logs
+for i in *; do echo $i && sleep 3 && (nohup sh -c "krsync -av --progress --stats $i/root hwwtaggerdep-66468dbdd8-dwr4l:/hwwtaggervol/training/[FOLDER]/$i && echo $i" &> ../copy_logs/$i.txt &) done```
