@@ -456,7 +456,7 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
     # tagger_resources_path = "HHbbVV/processors/tagger_resources"
 
     # with open(f"{tagger_resources_path}/pnetmd_ak15_hww4q_preprocess.json") as f:
-    with open(f"{tagger_resources_path}/pyg_ef_ul_cw_8_2_preprocess.json") as f:
+    with open(f"{tagger_resources_path}/03_28_ul_pnet_4_layers.json") as f:
         tagger_vars = json.load(f)
 
     with open(f"{tagger_resources_path}/triton_config.json") as f:
@@ -521,12 +521,12 @@ def runInferenceTriton(tagger_resources_path: str, events: NanoEventsArray) -> d
             pnet_vars_list.append(
                 {
                     "ak15FatJetParticleNetHWWMD_probQCD": np.sum(
-                        tagger_outputs[jet_idx][:, :6], axis=1
+                        tagger_outputs[jet_idx][:, :5], axis=1
                     ),
-                    "ak15FatJetParticleNetHWWMD_probHWW3q": tagger_outputs[jet_idx][:, 6],
-                    "ak15FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, 7],
+                    "ak15FatJetParticleNetHWWMD_probHWW3q": tagger_outputs[jet_idx][:, -2],
+                    "ak15FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, -1],
                     "ak15FatJetParticleNetHWWMD_THWW4q": (
-                        tagger_outputs[jet_idx][:, 6] + tagger_outputs[jet_idx][:, 7]
+                        tagger_outputs[jet_idx][:, -2] + tagger_outputs[jet_idx][:, -1]
                     )
                     / np.sum(tagger_outputs[jet_idx], axis=1),
                 }
