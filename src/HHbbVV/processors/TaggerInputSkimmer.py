@@ -305,16 +305,20 @@ class TaggerInputSkimmer(ProcessorABC):
                 label=self.label,
                 match_dR=self.match_dR,
             )
-
+            print(preselection_cut)
+            print(matched_mask)
             add_selection_no_cutflow("gen_match", matched_mask, selection)
 
             print(f"Gen vars: {time.time() - start:.1f}s")
+
+            print(selection.all(*selection.names))
 
             if np.sum(selection.all(*selection.names)) == 0:
                 print("No jets pass selections")
                 continue
 
-            skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars}
+            #skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars}
+            skimmed_vars = {**genVars}
             # apply selections
             skimmed_vars = {
                 key: np.squeeze(np.array(value[selection.all(*selection.names)]))
