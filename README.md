@@ -51,7 +51,7 @@ Jobs
 TAG=Apr14
 
 # Training
-python -W ignore src/run.py --starti 0 --endi 1 --year 2017 --processor skimmer --executor iterative --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q
+python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20 --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q
 python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20 --samples QCD
 python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20 --samples TTbar --subsamples TTToHadronic TTToSemiLeptonic
 python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20 --samples SingleTop --subsamples ST_tW_antitop_5f_inclusiveDecays ST_tW_top_5f_inclusiveDecays
