@@ -19,6 +19,7 @@ from .utils import pad_val, add_selection
 d_PDGID = 1
 b_PDGID = 5
 g_PDGID = 21
+TOP_PDGID = 6
 
 Z_PDGID = 23
 W_PDGID = 24
@@ -294,7 +295,6 @@ def tagger_gen_H_matching(
 
         nprongs = ak.sum(fatjets.delta_r(daughters) < jet_dR, axis=1)
 
-        # why checking pT > 0?
         decay = (
             # 2 quarks * 1
             (ak.sum(daughters_pdgId <= b_PDGID, axis=1) == 2) * 1
@@ -356,6 +356,104 @@ def tagger_gen_QCD_matching(
     return matched_mask, genLabelVars
 
 
+def tagger_gen_WJets_matching(
+    genparts: GenParticleArray,
+    fatjets: FatJetArray,
+    genlabels: List[str],
+    jet_dR: float,
+    match_dR: float = 1.0,
+) -> Tuple[np.array, Dict[str, np.array]]:
+    """Gen matching for WJets samples"""
+    ws = genparts[get_pid_mask(genparts, W_PDGID, byall=False) * genparts.hasFlags(GEN_FLAGS)]
+    matched_ws = ws[ak.argmin(fatjets.delta_r(ws), axis=1, keepdims=True)]
+    matched_ws_mask = ak.any(fatjets.delta_r(matched_ws) < match_dR, axis=1)
+    genResVars = {
+        f"fj_genRes_{key}": ak.fill_none(matched_ws[var], -99999) for (var, key) in P4.items()
+    }
+
+    daughters = ak.flatten(matched_ws.distinctChildren, axis=2)
+    daughters = daughters[daughters.hasFlags(GEN_FLAGS)]
+    daughters_pdgId = abs(daughters.pdgId)
+    nprongs = ak.sum(fatjets.delta_r(daughters) < jet_dR, axis=1)
+    decay = (
+        # 2 quarks * 1
+        (ak.sum(daughters_pdgId < b_PDGID, axis=1) == 2) * 1
+        # 1 electron * 3
+        + (ak.sum(daughters_pdgId == ELE_PDGID, axis=1) == 1) * 3
+        # 1 muon * 5
+        + (ak.sum(daughters_pdgId == MU_PDGID, axis=1) == 1) * 5
+        # 1 tau * 7
+        + (ak.sum(daughters_pdgId == TAU_PDGID, axis=1) == 1) * 7
+    )
+    matched_wdaus_mask = ak.any(fatjets.delta_r(daughters) < match_dR, axis=1)
+
+    matched_mask = matched_ws_mask & matched_wdaus_mask
+
+    genLabelVars = {
+        "fj_nprongs": nprongs,
+        "fj_W_2q": to_label(decay == 1),
+        "fj_W_elenu": to_label(decay == 3),
+        "fj_W_munu": to_label(decay == 5),
+        "fj_W_taunu": to_label(decay == 7),
+    }
+
+    genVars = {**genResVars, **genLabelVars}
+
+    return matched_mask, genVars
+
+
+def tagger_gen_Top_matching(
+    genparts: GenParticleArray,
+    fatjets: FatJetArray,
+    genlabels: List[str],
+    jet_dR: float,
+    match_dR: float = 1.0,
+) -> Tuple[np.array, Dict[str, np.array]]:
+    """Gen matching for TT samples"""
+    tops = genparts[get_pid_mask(genparts, TOP_PDGID, byall=False) * genparts.hasFlags(GEN_FLAGS)]
+    # matched_tops = ak.firsts(tops[ak.argmin(fatjets.delta_r(tops), axis=1, keepdims=True)])
+    matched_tops = tops[ak.argmin(fatjets.delta_r(tops), axis=1, keepdims=True)]
+    matched_tops_mask = ak.any(fatjets.delta_r(matched_tops) < match_dR, axis=1)
+    genResVars = {
+        f"fj_genRes_{key}": ak.fill_none(matched_tops[var], -99999) for (var, key) in P4.items()
+    }
+
+    daughters = ak.flatten(matched_tops.distinctChildren, axis=2)
+    daughters = daughters[daughters.hasFlags(GEN_FLAGS)]
+    daughters_pdgId = abs(daughters.pdgId)
+
+    wboson_daughters = ak.flatten(daughters[(daughters_pdgId == 24)].distinctChildren, axis=2)
+    wboson_daughters = wboson_daughters[wboson_daughters.hasFlags(GEN_FLAGS)]
+    wboson_daughters_pdgId = abs(wboson_daughters.pdgId)
+    decay = (
+        # 2 quarks
+        (ak.sum(wboson_daughters_pdgId < b_PDGID, axis=1) == 2) * 1
+        # 1 electron * 3
+        + (ak.sum(wboson_daughters_pdgId == ELE_PDGID, axis=1) == 1) * 3
+        # 1 muon * 5
+        + (ak.sum(wboson_daughters_pdgId == MU_PDGID, axis=1) == 1) * 5
+        # 1 tau * 7
+        + (ak.sum(wboson_daughters_pdgId == TAU_PDGID, axis=1) == 1) * 7
+    )
+
+    bquark = daughters[(daughters_pdgId == 5)]
+    matched_b = ak.sum(fatjets.delta_r(bquark) < jet_dR, axis=1)
+    nprongs = ak.sum(fatjets.delta_r(wboson_daughters) < jet_dR, axis=1) + matched_b
+    genLabelVars = {
+        "fj_nprongs": nprongs,
+        "fj_Top_bmerged": to_label(matched_b == 1),
+        "fj_Top_2q": to_label(decay == 1),
+        "fj_Top_elenu": to_label(decay == 3),
+        "fj_Top_munu": to_label(decay == 5),
+        "fj_Top_taunu": to_label(decay == 7),
+    }
+    matched_topdaus_mask = ak.any(fatjets.delta_r(daughters) < match_dR, axis=1)
+    matched_mask = matched_tops_mask & matched_topdaus_mask
+
+    genVars = {**genResVars, **genLabelVars}
+
+    return matched_mask, genVars
+
 def get_genjet_vars(
     events: NanoEventsArray, fatjets: FatJetArray, ak15: bool = True, match_dR: float = 1.0
 ):
@@ -367,23 +465,28 @@ def get_genjet_vars(
         # get closest gen jet
         matched_sdgen_jet = events.SoftDropGenJetAK15[ak.argmin(sdgen_dr, axis=1, keepdims=True)]
         # check that it is within ``match_dR`` of fat jet
-        matched_sdgen_jet_mask = fatjets.delta_r(matched_sdgen_jet) < match_dR
-        GenJetVars["fj_genjetmsd"] = matched_sdgen_jet.mass * ak.values_astype(
-            matched_sdgen_jet_mask, int
+        matched_sdgen_jet_mask = ak.flatten(
+            ak.fill_none(fatjets.delta_r(matched_sdgen_jet) < match_dR, [False], axis=None),
+            axis=None,
         )
+
+        GenJetVars["fj_genjetmsd"] = matched_sdgen_jet.mass
 
         gen_dr = fatjets.delta_r(events.GenJetAK15)
         matched_gen_jet = events.GenJetAK15[ak.argmin(gen_dr, axis=1, keepdims=True)]
-        matched_gen_jet_mask = fatjets.delta_r(matched_gen_jet) < match_dR
-        GenJetVars["fj_genjetmass"] = matched_gen_jet.mass * ak.values_astype(
-            matched_gen_jet_mask, int
+        matched_gen_jet_mask = ak.flatten(
+            ak.fill_none(fatjets.delta_r(matched_gen_jet) < match_dR, [False], axis=None), axis=None
         )
+        GenJetVars["fj_genjetmass"] = matched_gen_jet.mass
+
+        matched_gen_jet_mask = matched_sdgen_jet_mask * matched_gen_jet_mask
     else:
         # NanoAOD automatically matched ak8 fat jets
         # No soft dropped gen jets however
         GenJetVars["fj_genjetmass"] = fatjets.matched_gen.mass
+        matched_gen_jet_mask = np.ones(len(events), dtype="bool")
 
-    return GenJetVars
+    return matched_gen_jet_mask, GenJetVars
 
 
 def tagger_gen_matching(
@@ -423,11 +526,21 @@ def tagger_gen_matching(
         matched_mask, GenVars = tagger_gen_QCD_matching(
             genparts, fatjets, genlabels, jet_dR, match_dR
         )
+    elif "WJets" in label:
+        matched_mask, GenVars = tagger_gen_WJets_matching(
+            genparts, fatjets, genlabels, jet_dR, match_dR
+        )
+    elif "Top" in label:
+        matched_mask, GenVars = tagger_gen_Top_matching(
+            genparts, fatjets, genlabels, jet_dR, match_dR
+        )
 
-    GenVars = {**GenVars, **get_genjet_vars(events, fatjets, label.startswith("AK15"))}
+    matched_gen_jet_mask, genjet_vars = get_genjet_vars(events, fatjets, label.startswith("AK15"))
+
+    GenVars = {**GenVars, **genjet_vars}
 
     # if ``GenVars`` doesn't contain a gen var, that var is not applicable to this sample so fill with 0s
     GenVars = {
         key: GenVars[key] if key in GenVars.keys() else np.zeros(len(genparts)) for key in genlabels
     }
-    return matched_mask, GenVars
+    return matched_mask * matched_gen_jet_mask, GenVars
