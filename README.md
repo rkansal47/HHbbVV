@@ -65,7 +65,7 @@ JETS=AK15
 python3 src/condor/submit.py --processor input --tag ${TAG}_${JETS} --files-per-job 1 --samples QCD --label ${JETS}_QCD --njets 1 --maxchunks 1 --subsamples QCD_Pt_300to470 QCD_Pt_470to600 QCD_Pt_600to800 QCD_Pt_800to1000 QCD_Pt_1000to1400
 python3 src/condor/submit.py --processor input --tag ${TAG}_${JETS} --files-per-job 20 --samples HWWPrivate --subsamples BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2_ext1 BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2 --label ${JETS}_H_VV --njets 2
 python3 src/condor/submit.py --processor input --tag ${TAG}_${JETS} --files-per-job 5 --samples TTbar --label ${JETS}_Top --njets 2 --maxchunks 2 --subsamples TTToSemiLeptonic TTToHadronic 
-python3 src/condor/submit.py --processor input --tag ${TAG}_${JETS} --files-per-job 5 --samples	WJetsToLNu --label ${JETS}_WJets --njets 1 --maxchunks 2 --subsamples WJetsToLNu_HT-100To200 WJetsToLNu_HT-200To400 WJetsToLNu_HT-400To600 WJetsToLNu_HT-600ToInf
+python3 src/condor/submit.py --processor input --tag ${TAG}_${JETS} --files-per-job 5 --samples	WJetsToLNu --label ${JETS}_WJets --njets 1 --maxchunks 2 --subsamples WJetsToLNu_HT-200To400 WJetsToLNu_HT-400To600 WJetsToLNu_HT-600To800 WJetsToLNu_HT-800To1200 WJetsToLNu_HT-1200To2500 WJetsToLNu_HT-2500ToInf
 
 # Validation
 python3 src/condor/submit.py --processor input --tag ${TAG}_${JETS} --files-per-job 20 --samples HWWPrivate --subsamples jhu_HHbbWW GluGluToBulkGravitonToHHTo4W_JHUGen_M-2500_narrow jhu_HHbbZZ pythia_HHbbWW --label ${JETS}_H_VV --njets 2
