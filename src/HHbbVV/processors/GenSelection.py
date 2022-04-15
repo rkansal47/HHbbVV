@@ -413,27 +413,32 @@ def tagger_gen_Top_matching(
     tops = genparts[get_pid_mask(genparts, TOP_PDGID, byall=False) * genparts.hasFlags(GEN_FLAGS)]
     # matched_tops = ak.firsts(tops[ak.argmin(fatjets.delta_r(tops), axis=1, keepdims=True)])
     matched_tops = tops[ak.argmin(fatjets.delta_r(tops), axis=1, keepdims=True)]
-
     matched_tops_mask = ak.any(fatjets.delta_r(matched_tops) < match_dR, axis=1)
     genResVars = {
         f"fj_genRes_{key}": ak.fill_none(matched_tops[var], -99999) for (var, key) in P4.items()
     }
+
     daughters = ak.flatten(matched_tops.distinctChildren, axis=2)
     daughters = daughters[daughters.hasFlags(GEN_FLAGS)]
     daughters_pdgId = abs(daughters.pdgId)
-    nprongs = ak.sum(fatjets.delta_r(daughters) < jet_dR, axis=1)
+
+    wboson_daughters = ak.flatten(daughters[(daughters_pdgId == 24)].distinctChildren, axis=2)
+    wboson_daughters = wboson_daughters[wboson_daughters.hasFlags(GEN_FLAGS)]
+    wboson_daughters_pdgId = abs(wboson_daughters.pdgId)
     decay = (
         # 2 quarks
-        (ak.sum(daughters_pdgId < b_PDGID, axis=1) == 2) * 1
+        (ak.sum(wboson_daughters_pdgId < b_PDGID, axis=1) == 2) * 1
         # 1 electron * 3
-        + (ak.sum(daughters_pdgId == ELE_PDGID, axis=1) == 1) * 3
+        + (ak.sum(wboson_daughters_pdgId == ELE_PDGID, axis=1) == 1) * 3
         # 1 muon * 5
-        + (ak.sum(daughters_pdgId == MU_PDGID, axis=1) == 1) * 5
+        + (ak.sum(wboson_daughters_pdgId == MU_PDGID, axis=1) == 1) * 5
         # 1 tau * 7
-        + (ak.sum(daughters_pdgId == TAU_PDGID, axis=1) == 1) * 7
+        + (ak.sum(wboson_daughters_pdgId == TAU_PDGID, axis=1) == 1) * 7
     )
+
     bquark = daughters[(daughters_pdgId == 5)]
     matched_b = ak.sum(fatjets.delta_r(bquark) < jet_dR, axis=1)
+    nprongs = ak.sum(fatjets.delta_r(wboson_daughters) < jet_dR, axis=1) + matched_b
     genLabelVars = {
         "fj_nprongs": nprongs,
         "fj_Top_bmerged": to_label(matched_b == 1),
