@@ -233,7 +233,7 @@ class TaggerInputSkimmer(ProcessorABC):
 
             # selection
             selection = PackedSelection()
-            preselection_cut = (fatjets.pt > 250) * (fatjets.pt < 1500)
+            preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
             add_selection_no_cutflow("preselection", preselection_cut, selection)
 
             print(f"preselection: {time.time() - start:.1f}s")
