@@ -46,6 +46,21 @@ Applies pre-selection cuts, runs inference with our new HVV tagger, and saves un
 
 Parquet and pickle files will be saved in the eos directory of specified user at path `~/eos/bbVV/skimmer/<tag>/<sample_name>/<parquet or pickles>`. Pickles are in the format `{'nevents': int, 'cutflow': Dict[str, int]}`.
 
+Jobs
+```bash
+TAG=Apr14
+
+# Training
+python -W ignore src/run.py --starti 0 --endi 1 --year 2017 --processor skimmer --executor iterative --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q
+python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20 --samples QCD
+python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20 --samples TTbar --subsamples TTToHadronic TTToSemiLeptonic
+python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20 --samples SingleTop --subsamples ST_tW_antitop_5f_inclusiveDecays ST_tW_top_5f_inclusiveDecays
+
+# Submit
+nohup bash -c 'for i in condor/'"${TAG}"'/*.jdl; do condor_submit $i; done' &> tmp/submitout.txt &
+```
+
+
 ### TaggerInputSkimmer
 
 Applies a loose pre-selection cut, saves ntuples with training inputs.
