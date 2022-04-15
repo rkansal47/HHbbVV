@@ -444,15 +444,15 @@ def tagger_gen_Top_matching(
         "fj_Top_munu": to_label(decay == 5),
         "fj_Top_taunu": to_label(decay == 7),
     }
-    #matched_topdaus_mask = ak.any(fatjets.delta_r(daughters) < match_dR, axis=1)
-    matched_mask = matched_tops_mask#  & matched_topdaus_mask
+    matched_topdaus_mask = ak.any(fatjets.delta_r(daughters) < match_dR, axis=1)
+    matched_mask = matched_tops_mask & matched_topdaus_mask
 
     print(genLabelVars)
     print('genres ',genResVars)
     print('mask ',matched_mask)
     print('genresmask ', genResVars['fj_genRes_eta'][matched_mask])
 
-    genVars = {**genResVars} #, **genLabelVars}
+    genVars = {**genResVars, **genLabelVars}
 
     return matched_mask,genVars
 
