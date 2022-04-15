@@ -79,8 +79,16 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_isQCDbb",
                 "fj_isQCDc",
                 "fj_isQCDcc",
-                # "fj_isQCDlep",
                 "fj_isQCDothers",
+                "fj_W_2q",
+                "fj_W_elenu",
+                "fj_W_munu",
+                "fj_W_taunu",
+                "fj_Top_bmerged",
+                "fj_Top_2q",
+                "fj_Top_elenu",
+                "fj_Top_munu",
+                "fj_Top_taunu",
             ],
             # formatted to match weaver's preprocess.json
             "PFSV": {
@@ -225,7 +233,7 @@ class TaggerInputSkimmer(ProcessorABC):
 
             # selection
             selection = PackedSelection()
-            preselection_cut = (fatjets.pt > 250) * (fatjets.pt < 1500)
+            preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
             add_selection_no_cutflow("preselection", preselection_cut, selection)
 
             print(f"preselection: {time.time() - start:.1f}s")
@@ -315,6 +323,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 continue
 
             skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars}
+
             # apply selections
             skimmed_vars = {
                 key: np.squeeze(np.array(value[selection.all(*selection.names)]))
