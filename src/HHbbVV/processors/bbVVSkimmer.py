@@ -48,15 +48,17 @@ class bbVVSkimmer(ProcessorABC):
     Args:
         xsecs (dict, optional): sample cross sections,
           if sample not included no lumi and xsec will not be applied to weights
+        save_ak15 (bool, optional): save ak15 jets as well, for HVV candidate
     """
 
     # TODO: do ak8, ak15 sorting for hybrid case
 
-    def __init__(self, xsecs={}):
+    def __init__(self, xsecs={}, save_ak15=False):
         super(bbVVSkimmer, self).__init__()
 
         self.LUMI = {"2017": 40000}  # in pb^-1
         self.XSECS = xsecs  # in pb
+        self.save_ak15 = save_ak15
 
         self.HLTs = {
             "2017": [
@@ -201,28 +203,31 @@ class bbVVSkimmer(ProcessorABC):
 
         num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
 
-        preselection_cut = np.logical_or(
-            np.prod(
-                pad_val(
-                    (events.FatJet.pt > self.preselection_cut_vals["pt"])
-                    * (events.FatJet.msoftdrop > self.preselection_cut_vals["msd"]),
-                    num_jets,
-                    False,
-                    axis=1,
-                ),
+        preselection_cut = np.prod(
+            pad_val(
+                (events.FatJet.pt > self.preselection_cut_vals["pt"])
+                * (events.FatJet.msoftdrop > self.preselection_cut_vals["msd"]),
+                num_jets,
+                False,
                 axis=1,
             ),
-            np.prod(
-                pad_val(
-                    (events.FatJetAK15.pt > self.preselection_cut_vals["pt"])
-                    * (events.FatJetAK15.msoftdrop > self.preselection_cut_vals["msd"]),
-                    num_jets,
-                    False,
-                    axis=1,
-                ),
-                axis=1,
-            ),
+            axis=1,
         )
+
+        if self.save_ak15:
+            preselection_cut = np.logical_or(
+                preselection_cut,
+                np.prod(
+                    pad_val(
+                        (events.FatJetAK15.pt > self.preselection_cut_vals["pt"])
+                        * (events.FatJetAK15.msoftdrop > self.preselection_cut_vals["msd"]),
+                        num_jets,
+                        False,
+                        axis=1,
+                    ),
+                    axis=1,
+                ),
+            )
 
         add_selection("preselection", preselection_cut, selection, cutflow, isData, signGenWeights)
 
@@ -234,16 +239,19 @@ class bbVVSkimmer(ProcessorABC):
             f"ak8FatJet{key}": pad_val(events.FatJet[var], 2, -99999, axis=1)
             for (var, key) in self.skim_vars["FatJet"].items()
         }
-        ak15FatJetVars = {
-            f"ak15FatJet{key}": pad_val(events.FatJetAK15[var], 2, -99999, axis=1)
-            for (var, key) in self.skim_vars["FatJetAK15"].items()
-        }
         otherVars = {
             key: events[var.split("_")[0]]["_".join(var.split("_")[1:])].to_numpy()
             for (var, key) in self.skim_vars["other"].items()
         }
 
-        skimmed_events = {**skimmed_events, **ak8FatJetVars, **ak15FatJetVars, **otherVars}
+        skimmed_events = {**skimmed_events, **ak8FatJetVars, **otherVars}
+
+        if self.save_ak15:
+            ak15FatJetVars = {
+                f"ak15FatJet{key}": pad_val(events.FatJetAK15[var], 2, -99999, axis=1)
+                for (var, key) in self.skim_vars["FatJetAK15"].items()
+            }
+            skimmed_events = {**skimmed_events, **ak15FatJetVars}
 
         # particlenet h4q vs qcd, xbb vs qcd
 
@@ -254,27 +262,34 @@ class bbVVSkimmer(ProcessorABC):
             -1,
             axis=1,
         )
-        skimmed_events["ak15FatJetParticleNetMD_Txbb"] = pad_val(
-            events.FatJetAK15.ParticleNetMD_probXbb
-            / (events.FatJetAK15.ParticleNetMD_probQCD + events.FatJetAK15.ParticleNetMD_probXbb),
-            2,
-            -1,
-            axis=1,
-        )
-        # skimmed_events["ak15FatJetParticleNet_Th4q"] = pad_val(
-        #     events.FatJetAK15.ParticleNet_probHqqqq
-        #     / (
-        #         events.FatJetAK15.ParticleNet_probHqqqq
-        #         + events.FatJetAK15.ParticleNet_probQCDb
-        #         + events.FatJetAK15.ParticleNet_probQCDbb
-        #         + events.FatJetAK15.ParticleNet_probQCDc
-        #         + events.FatJetAK15.ParticleNet_probQCDcc
-        #         + events.FatJetAK15.ParticleNet_probQCDothers
-        #     ),
-        #     2,
-        #     -1,
-        #     axis=1,
-        # )
+
+        if self.save_ak15:
+            skimmed_events["ak15FatJetParticleNetMD_Txbb"] = pad_val(
+                events.FatJetAK15.ParticleNetMD_probXbb
+                / (
+                    events.FatJetAK15.ParticleNetMD_probQCD
+                    + events.FatJetAK15.ParticleNetMD_probXbb
+                ),
+                2,
+                -1,
+                axis=1,
+            )
+
+            if "ParticleNet_probHqqqq" in events.FatJetAK15.fields:
+                skimmed_events["ak15FatJetParticleNet_Th4q"] = pad_val(
+                    events.FatJetAK15.ParticleNet_probHqqqq
+                    / (
+                        events.FatJetAK15.ParticleNet_probHqqqq
+                        + events.FatJetAK15.ParticleNet_probQCDb
+                        + events.FatJetAK15.ParticleNet_probQCDbb
+                        + events.FatJetAK15.ParticleNet_probQCDc
+                        + events.FatJetAK15.ParticleNet_probQCDcc
+                        + events.FatJetAK15.ParticleNet_probQCDothers
+                    ),
+                    2,
+                    -1,
+                    axis=1,
+                )
 
         # calc weights
 
@@ -306,8 +321,13 @@ class bbVVSkimmer(ProcessorABC):
         print("pre-inference")
 
         pnet_vars = runInferenceTriton(
-            self.tagger_resources_path, events[selection.all(*selection.names)]
+            self.tagger_resources_path, events[selection.all(*selection.names)], ak15=False
         )
+
+        if self.save_ak15:
+            pnet_vars_ak15 = runInferenceTriton(
+                self.tagger_resources_path, events[selection.all(*selection.names)], ak15=True
+            )
 
         # pnet_vars = {}
 
@@ -316,6 +336,12 @@ class bbVVSkimmer(ProcessorABC):
             **skimmed_events,
             **{key: value for (key, value) in pnet_vars.items()},
         }
+
+        if self.save_ak15:
+            skimmed_events = {
+                **skimmed_events,
+                **{key: value for (key, value) in pnet_vars_ak15.items()},
+            }
 
         df = self.to_pandas(skimmed_events)
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
