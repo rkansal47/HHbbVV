@@ -454,6 +454,7 @@ def tagger_gen_Top_matching(
 
     return matched_mask, genVars
 
+
 def get_genjet_vars(
     events: NanoEventsArray, fatjets: FatJetArray, ak15: bool = True, match_dR: float = 1.0
 ):

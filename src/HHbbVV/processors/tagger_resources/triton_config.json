@@ -1,4 +1,5 @@
 {
-  "model_url": "triton+grpc://67.58.49.52:8001/particlenet_hww_ul_4q_3q_noqcdlep/1",
+  "model_name": "03_31_ak8",
+  "model_url": "triton+grpc://67.58.49.52:8001/particlenet_hww_ul_4q_3q_noqcdlep/2",
   "batch_size": 256
 }
