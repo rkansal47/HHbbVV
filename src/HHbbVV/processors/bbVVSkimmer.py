@@ -229,7 +229,14 @@ class bbVVSkimmer(ProcessorABC):
                 ),
             )
 
-        add_selection("preselection", preselection_cut, selection, cutflow, isData, signGenWeights)
+        add_selection(
+            "preselection",
+            preselection_cut.astype(bool),
+            selection,
+            cutflow,
+            isData,
+            signGenWeights,
+        )
 
         # TODO: trigger SFs
 
