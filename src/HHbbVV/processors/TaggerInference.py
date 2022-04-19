@@ -331,7 +331,7 @@ def runInferenceTriton(
     for jet_idx in range(2):
         print(f"Running inference for Jet {jet_idx + 1}")
         start = time.time()
-        tagger_outputs.append(triton_model(tagger_inputs[jet_idx]), axis=1)
+        tagger_outputs.append(triton_model(tagger_inputs[jet_idx]))
         time_taken = time.time() - start
         print(f"Inference took {time_taken:.1f}s")
 
