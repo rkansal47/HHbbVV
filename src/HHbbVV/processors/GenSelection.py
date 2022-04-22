@@ -541,9 +541,8 @@ def tagger_gen_matching(
     GenVars = {**GenVars, **genjet_vars}
 
     # if ``GenVars`` doesn't contain a gen var, that var is not applicable to this sample so fill with 0s
-    filled_genvar = ak.full_like(GenVars[next(iter(GenVars))],0)
     GenVars = {
-        key: GenVars[key] if key in GenVars.keys() else filled_genvar for key in genlabels
+        key: GenVars[key] if key in GenVars.keys() else np.zeros(len(genparts)) for key in genlabels
     }
     for key,item in GenVars.items():
         try:
