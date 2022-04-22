@@ -314,7 +314,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 label=self.label,
                 match_dR=self.match_dR,
             )
-            #add_selection_no_cutflow("gen_match", matched_mask, selection)
+            add_selection_no_cutflow("gen_match", matched_mask, selection)
 
             print(f"Gen vars: {time.time() - start:.1f}s")
 
@@ -324,20 +324,7 @@ class TaggerInputSkimmer(ProcessorABC):
 
             print(f"Jet {jet_idx + 1}")
 
-            skimmed_vars = {**genVars}
-
-            for key,val in skimmed_vars.items():
-                print(key)
-                print(preselection_cut)
-                print(selection.all(*selection.names))
-                print(val)
-                print(val[preselection_cut])
-                print(val[selection.all(*selection.names)])
-                print(np.squeeze(val[selection.all(*selection.names)].to_numpy()))
-                #print(np.array(val[selection.all(*selection.names)]))
-                #print(np.squeeze(np.array(val[selection.all(*selection.names)])))
-
-            #skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars}
+            skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars}
 
             # apply selections
             skimmed_vars = {
