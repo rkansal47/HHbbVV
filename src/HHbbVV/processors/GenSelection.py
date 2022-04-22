@@ -411,7 +411,6 @@ def tagger_gen_Top_matching(
 ) -> Tuple[np.array, Dict[str, np.array]]:
     """Gen matching for TT samples"""
     tops = genparts[get_pid_mask(genparts, TOP_PDGID, byall=False) * genparts.hasFlags(GEN_FLAGS)]
-    # matched_tops = ak.firsts(tops[ak.argmin(fatjets.delta_r(tops), axis=1, keepdims=True)])
     matched_tops = tops[ak.argmin(fatjets.delta_r(tops), axis=1, keepdims=True)]
     matched_tops_mask = ak.any(fatjets.delta_r(matched_tops) < match_dR, axis=1)
     genResVars = {
@@ -438,7 +437,9 @@ def tagger_gen_Top_matching(
 
     bquark = daughters[(daughters_pdgId == 5)]
     matched_b = ak.sum(fatjets.delta_r(bquark) < jet_dR, axis=1)
+
     nprongs = ak.sum(fatjets.delta_r(wboson_daughters) < jet_dR, axis=1) + matched_b
+
     genLabelVars = {
         "fj_nprongs": nprongs,
         "fj_Top_bmerged": to_label(matched_b == 1),
@@ -540,7 +541,14 @@ def tagger_gen_matching(
     GenVars = {**GenVars, **genjet_vars}
 
     # if ``GenVars`` doesn't contain a gen var, that var is not applicable to this sample so fill with 0s
+    filled_genvar = ak.full_like(GenVars[next(iter(GenVars))],0)
     GenVars = {
-        key: GenVars[key] if key in GenVars.keys() else np.zeros(len(genparts)) for key in genlabels
+        key: GenVars[key] if key in GenVars.keys() else filled_genvar for key in genlabels
     }
+    for key,item in GenVars.items():
+        try:
+            GenVars[key] = GenVars[key].to_numpy()
+        except:
+            continue
+
     return matched_mask * matched_gen_jet_mask, GenVars
