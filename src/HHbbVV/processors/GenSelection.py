@@ -546,5 +546,10 @@ def tagger_gen_matching(
     GenVars = {
         key: GenVars[key] if key in GenVars.keys() else filled_genvar for key in genlabels
     }
+    for key,item in GenVars.items():
+        try:
+            GenVars[key] = GenVars[key].to_numpy()
+        except:
+            continue
 
     return matched_mask * matched_gen_jet_mask, GenVars
