@@ -328,7 +328,7 @@ class TaggerInputSkimmer(ProcessorABC):
 
             # apply selections
             skimmed_vars = {
-                key: np.squeeze(value[selection.all(*selection.names)].to_numpy())
+                key: np.squeeze(np.array(value[selection.all(*selection.names)]))
                 for (key, value) in skimmed_vars.items()
             }
 
