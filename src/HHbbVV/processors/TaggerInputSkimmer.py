@@ -313,7 +313,6 @@ class TaggerInputSkimmer(ProcessorABC):
                 label=self.label,
                 match_dR=self.match_dR,
             )
-
             add_selection_no_cutflow("gen_match", matched_mask, selection)
 
             print(f"Gen vars: {time.time() - start:.1f}s")
