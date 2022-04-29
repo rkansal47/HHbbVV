@@ -161,10 +161,10 @@ LUMI = {"2017": 40000}
 SIG_KEY = "HHToBBVVToBBQQQQ"
 DATA_KEY = "JetHT"
 
-plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/Apr26"
+plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/Apr28"
 os.mkdir(plot_dir)
 
-samples_dir = f"{MAIN_DIR}/../temp_data/Apr21"
+samples_dir = f"{MAIN_DIR}/../temp_data/Apr28"
 xsecs = get_xsecs()
 
 year = "2017"
@@ -290,13 +290,13 @@ for bg_key in bg_keys:
             else:
                 events_dict[bg_key][var] = values
 
-for key in bg_keys:
-    print(key)
-    for var, num_idx in save_columns:
-        if num_idx == 1:
-            events_dict[key][var] = np.tile(events_dict[key][var][:, 0], 2).reshape(-1)
-        # else:
-        #     events_dict[key][var] = np.reshape(events_dict[key][var], -1)
+# for key in bg_keys:
+#     print(key)
+#     for var, num_idx in save_columns:
+#         if num_idx == 1:
+#             events_dict[key][var] = np.tile(events_dict[key][var][:, 0], 2).reshape(-1)
+# else:
+#     events_dict[key][var] = np.reshape(events_dict[key][var], -1)
 
 
 np.tile(events_dict["QCD"]["weight"][:, 0], 2).reshape(-1).shape
