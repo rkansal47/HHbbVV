@@ -254,7 +254,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--files-name",
-        type="str",
+        type=str,
         default="files",
         help="sample name of files being run on, if --files option used",
     )
