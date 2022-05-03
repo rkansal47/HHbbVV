@@ -254,9 +254,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--files-name",
+        type="str",
         default="files",
         help="sample name of files being run on, if --files option used",
-        nargs="*",
     )
     parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
