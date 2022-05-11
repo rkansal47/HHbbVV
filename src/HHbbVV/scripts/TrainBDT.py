@@ -16,7 +16,7 @@ import xgboost as xgb
 import utils
 import plotting
 
-from sample_labels import sig_key
+from sample_labels import sig_key, data_key
 
 
 weight_key = "finalWeight"
@@ -84,10 +84,12 @@ def main(args):
         "reg_lambda": 1.0,
     }
 
-    training_data = pd.read_parquet(args.data_path)
+    data = pd.read_parquet(args.data_path)
+    training_data = data[data["Dataset"] != data_key]
 
     if args.test:
         # 100 signal, 100 bg events
+        data = data[:100]
         training_data = pd.concat((training_data[:100], training_data[-100:]), axis=0)
 
     if args.equalize_weights:
@@ -121,7 +123,7 @@ def main(args):
         evaluate_model(model, args.model_dir, test)
 
     if not args.evaluate_only:
-        do_inference(model, args.model_dir, training_data)
+        do_inference(model, args.model_dir, data)
 
 
 def train_model(
@@ -166,22 +168,24 @@ def evaluate_model(
     preds = model.predict_proba(get_X(test))
 
     # sorting by importance
-    feature_importance = np.stack((bdtVars, model.feature_importances_)).T[
+    feature_importances = np.stack((bdtVars, model.feature_importances_)).T[
         np.argsort(model.feature_importances_)[::-1]
     ]
 
-    np.save(f"{model_dir}/feature_importance.np", feature_importance)
+    np.save(f"{model_dir}/feature_importances", feature_importances)
 
     print("Feature importance")
-    for feature, imp in feature_importance:
+    for feature, imp in feature_importances:
         print(f"{feature}: {imp}")
+
+    sig_effs = [0.15, 0.2]
 
     fpr, tpr, thresholds = roc_curve(Y_test, preds[:, 1], sample_weight=weights_test)
     plotting.rocCurve(
         fpr,
         tpr,
         auc(fpr, tpr),
-        sig_eff_lines=[0.15, 0.2],
+        sig_eff_lines=sig_effs,
         title="ROC Curve",
         plotdir=model_dir,
         name="bdtroccurve",
@@ -191,6 +195,10 @@ def evaluate_model(
     np.savetxt(f"{model_dir}/tpr.txt", tpr)
     np.savetxt(f"{model_dir}/thresholds.txt", thresholds)
 
+    for sig_eff in sig_effs:
+        thresh = thresholds[np.searchsorted(tpr, sig_eff)]
+        print(f"Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
+
     if txbb_threshold > 0:
         preds_txbb_threshold = preds[:, 1].copy()
         preds_txbb_threshold[test["bbFatJetParticleNetMD_Txbb"] < txbb_threshold] = 0
@@ -199,14 +207,11 @@ def evaluate_model(
             Y_test, preds_txbb_threshold, sample_weight=weights_test
         )
 
-        fpr_txbb_threshold[np.argmin(np.abs(tpr_txbb_threshold - 0.15))]
-        thresholds_txbb_threshold[np.argmin(np.abs(tpr_txbb_threshold - 0.15))]
-
         plotting.rocCurve(
             fpr_txbb_threshold,
             tpr_txbb_threshold,
             auc(fpr_txbb_threshold, tpr_txbb_threshold),
-            sig_eff_lines=[0.15, 0.2],
+            sig_eff_lines=sig_effs,
             title=f"ROC Curve Including Txbb > {txbb_threshold} Cut",
             plotdir=model_dir,
             name="bdtroccurve_txbb_cut",
@@ -216,6 +221,10 @@ def evaluate_model(
         np.savetxt(f"{model_dir}/tpr_txbb_threshold.txt", tpr_txbb_threshold)
         np.savetxt(f"{model_dir}/thresholds_txbb_threshold.txt", thresholds_txbb_threshold)
 
+        for sig_eff in sig_effs:
+            thresh = thresholds_txbb_threshold[np.searchsorted(tpr_txbb_threshold, sig_eff)]
+            print(f"Incl Txbb Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
+
 
 def do_inference(
     model: xgb.XGBClassifier,
@@ -224,7 +233,7 @@ def do_inference(
 ):
     """ """
     print("Running inference")
-    preds = model.predict_proba(get_X(data))
+    preds = model.predict_proba(get_X(data))[:, 1]
     np.save(f"{model_dir}/preds.npy", preds)
 
 
@@ -233,7 +242,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--data-path",
-        default="/hhbbvvvol/data/2017/bdt_training_data.parquet",
+        default="/hhbbvvvol/data/2017/bdt_data.parquet",
         help="path to training parquet",
         type=str,
     )

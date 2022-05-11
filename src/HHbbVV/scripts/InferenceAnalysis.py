@@ -17,7 +17,7 @@ import os
 from os import listdir
 import pickle
 
-from utils import *
+import utils
 
 
 # MAIN_DIR = "../../../"
@@ -32,15 +32,12 @@ plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/Apr28"
 os.mkdir(plot_dir)
 
 samples_dir = f"{MAIN_DIR}/../temp_data/Apr28"
-xsecs = get_xsecs()
 
 year = "2017"
 
 # (column name, number of subcolumns)
 save_columns = [
     ("weight", 1),
-    ("pileupWeight", 1),
-    ("genWeight", 1),
     ("ak8FatJetPt", 2),
     ("ak8FatJetMsd", 2),
     ("ak8FatJetParticleNet_Th4q", 2),
@@ -61,15 +58,15 @@ events_dict[sample_label] = {}
 
 events = pd.read_parquet(f"{samples_dir}/{year}/{sample_name}/parquet")
 pickles_path = f"{samples_dir}/{year}/{sample_name}/pickles"
-n_events = get_cutflow(pickles_path, year, sample_name)["has_4q"]
+n_events = utils.get_cutflow(pickles_path, year, sample_name)["has_4q"]
 events["weight"] /= n_events
 
 # get 4-vectors
 vec_keys = ["ak8FatJet", "GenHiggs", "Genbb", "GenVV", "Gen4q"]
-vectors = {vec_key: make_vector(events, vec_key) for vec_key in vec_keys}
+vectors = {vec_key: utils.make_vector(events, vec_key) for vec_key in vec_keys}
 
-is_HVV = getParticles(get_key(events, "GenHiggsChildren"), "V")
-is_Hbb = getParticles(get_key(events, "GenHiggsChildren"), "b")
+is_HVV = utils.getParticles(utils.get_feat(events, "GenHiggsChildren"), "V")
+is_Hbb = utils.getParticles(utils.get_feat(events, "GenHiggsChildren"), "b")
 
 genHVV = vectors["GenHiggs"][is_HVV]
 genHbb = vectors["GenHiggs"][is_Hbb]
@@ -110,39 +107,21 @@ for bg_key in bg_keys:
     for sample in full_samples_list:
         if bg_key not in sample:
             continue
-        print(sample)
+
         if "HH" in sample or "GluGluH" in sample:
             continue
 
-        # get rid of weird parquet formatting
-        with timer():
+        print(sample)
+
+        with utils.timer():
             events = pd.read_parquet(
                 f"{samples_dir}/{year}/{sample}/parquet",
                 columns=bg_column_labels,
             )
 
-        print("read file")
-
         pickles_path = f"{samples_dir}/{year}/{sample}/pickles"
-
-        with timer():
-            n_events = get_nevents(pickles_path, year, sample)
-
-        print("n events")
-
-        with timer():
-            if sample in xsecs:
-                events["weight"] = (
-                    xsecs[sample]
-                    # * events["pileupWeight"]
-                    * LUMI[year]
-                    * np.sign(events["genWeight"])
-                    / (n_events * np.mean(np.sign(get_key(events, "genWeight"))))
-                )
-            elif DATA_KEY not in sample:
-                print(f"Missing xsec for {sample}")
-
-        print("xsecs")
+        n_events = utils.get_nevents(pickles_path, year, sample)
+        events["weight"] /= n_events
 
         for var, num_idx in save_columns:
             if num_idx == 1:
