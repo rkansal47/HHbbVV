@@ -232,8 +232,12 @@ def do_inference(
     data: pd.DataFrame,
 ):
     """ """
-    print("Running inference")
+    import time
+
+    start = time.time()
+    print("Running inference ")
     preds = model.predict_proba(get_X(data))[:, 1]
+    print(f"Finished in {time.time() - start:.2f}s")
     np.save(f"{model_dir}/preds.npy", preds)
 
 
