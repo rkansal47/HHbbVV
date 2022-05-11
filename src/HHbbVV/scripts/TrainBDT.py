@@ -161,8 +161,6 @@ def evaluate_model(
         np.argsort(model.feature_importances_)[::-1]
     ]
 
-    print(feature_importance)
-
     np.save(f"{model_dir}/feature_importance.np", feature_importance)
 
     print("Feature importance")
