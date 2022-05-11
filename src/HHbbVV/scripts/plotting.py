@@ -16,17 +16,17 @@ from hist.intervals import ratio_uncertainty
 
 from typing import Dict, List
 
-sig_key = "HHbbVV"
+from sample_labels import sig_key, data_key
 
 colours = {"darkblue": "#1f78b4", "lightblue": "#a6cee3", "red": "#e31a1c", "orange": "#ff7f00"}
-bg_colours = ["lightblue", "orange", "darkblue"]
+bg_colours = {"QCD": "lightblue", "TT": "darkblue", "ST": "orange"}
 sig_colour = "red"
 
 
 def ratioHistPlot(
     hists: dict,
     bg_keys: List[str],
-    bg_colours: list[str] = bg_colours,
+    bg_colours: Dict[str, str] = bg_colours,
     sig_colour: str = sig_colour,
     blind_region: list = None,
     name: str = "",
@@ -48,7 +48,7 @@ def ratioHistPlot(
         histtype="fill",
         stack=True,
         label=bg_keys,
-        color=[colours[colour] for colour in bg_colours],
+        color=[bg_colours[sample] for sample in bg_keys],
     )
     hep.histplot(
         hists[sig_key, :] * sig_scale,
@@ -57,14 +57,19 @@ def ratioHistPlot(
         label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
         color=colours[sig_colour],
     )
-    hep.histplot(hists["Data", :], ax=ax, histtype="errorbar", label="Data", color="black")
+    hep.histplot(hists[data_key, :], ax=ax, histtype="errorbar", label=data_key, color="black")
     ax.legend()
     ax.set_ylim(0)
 
     bg_tot = sum([hists[sample, :] for sample in bg_keys])
-    yerr = ratio_uncertainty(hists["Data", :].values(), bg_tot.values(), "poisson")
+    yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")
     hep.histplot(
-        hists["Data", :] / bg_tot, yerr=yerr, ax=rax, histtype="errorbar", color="black", capsize=4
+        hists[data_key, :] / bg_tot,
+        yerr=yerr,
+        ax=rax,
+        histtype="errorbar",
+        color="black",
+        capsize=4,
     )
     rax.set_ylabel("Data/MC")
     rax.grid()
