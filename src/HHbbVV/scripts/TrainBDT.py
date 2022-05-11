@@ -214,7 +214,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--data-path",
-        default="/hhbbvvvol/data/2017_bdt_training_data.parquet",
+        default="/hhbbvvvol/data/2017/bdt_training_data.parquet",
         help="path to training parquet",
         type=str,
     )
