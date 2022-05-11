@@ -174,7 +174,7 @@ def evaluate_model(
 
     feature_importance_df = pd.DataFrame.from_dict({"Importance": feature_importances[:, 1]})
     feature_importance_df.index = feature_importances[:, 0]
-    feature_importance_df.to_csv("feature_importances.csv")
+    feature_importance_df.to_csv(f"{model_dir}/feature_importances.csv")
 
     print(feature_importance_df)
 
