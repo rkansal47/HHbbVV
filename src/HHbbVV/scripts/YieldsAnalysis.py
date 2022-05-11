@@ -209,7 +209,7 @@ cut_based_no_bb_mass_cutflow.to_csv("cutflows/cut_based_cutflow_bdtpresel.csv")
 # BDT Training Data
 ##################################################################################
 
-BDT_samples = [sig_key, "QCD", "TT"]
+BDT_samples = [sig_key, "QCD", "TT", "Data"]
 
 BDT_data_vars = [
     "MET_pt",
@@ -247,4 +247,8 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 
 table = pa.Table.from_pandas(bdt_events)
-pq.write_table(table, f"{data_dir}/bdt_training_data.parquet")
+
+
+##################################################################################
+# Yields with BDT
+##################################################################################
