@@ -4,6 +4,7 @@ Common plotting functions.
 Author(s): Raghav Kansal
 """
 
+import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
 
@@ -73,14 +74,34 @@ def ratioHistPlot(
         plt.savefig(name, bbox_inches="tight")
 
 
-def rocCurve(fpr, tpr, title=None, xlim=[0, 0.4], ylim=[1e-6, 1e-2], plotdir="", name=""):
+def rocCurve(
+    fpr,
+    tpr,
+    auc,
+    sig_eff_lines=[],
+    # bg_eff_lines=[],
+    title=None,
+    xlim=[0, 0.4],
+    ylim=[1e-6, 1e-2],
+    plotdir="",
+    name="",
+):
     """Plots a ROC curve"""
+    line_style = {"colors": "lightgrey", "linestyles": "dashed"}
+
     plt.figure(figsize=(12, 12))
-    plt.plot(tpr, fpr)
+    plt.plot(tpr, fpr, label=f"AUC: {auc:.2f}")
+
+    for sig_eff in sig_eff_lines:
+        y = fpr[np.searchsorted(tpr, sig_eff)]
+        plt.hlines(y=y, xmin=0, xmax=sig_eff, **line_style)
+        plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
+
     plt.yscale("log")
     plt.xlabel("Signal Eff.")
     plt.ylabel("BG Eff.")
     plt.title(title)
+    plt.legend()
     plt.xlim(*xlim)
     plt.ylim(*ylim)
     plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")

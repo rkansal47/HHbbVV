@@ -10,7 +10,7 @@ import os
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_curve
+from sklearn.metrics import roc_curve, auc
 import xgboost as xgb
 
 import utils
@@ -177,7 +177,15 @@ def evaluate_model(
         print(f"{feature}: {imp}")
 
     fpr, tpr, thresholds = roc_curve(Y_test, preds[:, 1], sample_weight=weights_test)
-    plotting.rocCurve(fpr, tpr, title="ROC Curve", plotdir=model_dir, name="bdtroccurve")
+    plotting.rocCurve(
+        fpr,
+        tpr,
+        auc(fpr, tpr),
+        sig_eff_lines=[0.15, 0.2],
+        title="ROC Curve",
+        plotdir=model_dir,
+        name="bdtroccurve",
+    )
 
     np.savetxt(f"{model_dir}/fpr.txt", fpr)
     np.savetxt(f"{model_dir}/tpr.txt", tpr)
@@ -197,7 +205,9 @@ def evaluate_model(
         plotting.rocCurve(
             fpr_txbb_threshold,
             tpr_txbb_threshold,
-            title=f"ROC Curve Including Txbb {txbb_threshold} Cut",
+            auc(fpr_txbb_threshold, tpr_txbb_threshold),
+            sig_eff_lines=[0.15, 0.2],
+            title=f"ROC Curve Including Txbb > {txbb_threshold} Cut",
             plotdir=model_dir,
             name="bdtroccurve_txbb_cut",
         )
