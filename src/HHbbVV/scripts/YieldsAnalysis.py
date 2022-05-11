@@ -247,8 +247,66 @@ import pyarrow.parquet as pq
 import pyarrow as pa
 
 table = pa.Table.from_pandas(bdt_events)
+pq.write_table(table, f"{data_dir}/bdt_data.parquet")
 
 
 ##################################################################################
 # Yields with BDT
 ##################################################################################
+
+"""
+Incl Txbb Threshold at 0.15 sig_eff: 0.9734
+Incl Txbb Threshold at 0.2 sig_eff: 0.9602
+"""
+
+bdt_preds = np.load(f"{data_dir}/absolute_weights_preds.npy")
+
+i = 0
+for sample in BDT_samples:
+    events = events_dict[sample]
+    num_events = len(events)
+    events["BDTScore"] = bdt_preds[i : i + num_events]
+    i += num_events
+
+
+bdt_cuts = {
+    "BDTScore": [0.9602, CUT_MAX_VAL],
+    "bbFatJetParticleNetMD_Txbb": [0.98, CUT_MAX_VAL],
+}
+
+bdt_selection, bdt_cutflow = utils.make_selection(
+    bdt_cuts, events_dict, bb_masks, prev_cutflow=overall_cutflow.drop("ST")
+)
+
+bdt_sig_yield, bdt_bg_yield = utils.getSigSidebandBGYields(
+    "bbFatJetMsd",
+    final_mass_sig_region,
+    events_dict,
+    bb_masks,
+    selection=bdt_selection,
+)
+
+bdt_cutflow
+bdt_sig_yield, bdt_bg_yield
+
+bdt_cutflow.to_csv("cutflows/bdt_cutflow.csv")
+
+
+post_bdt_cut_based_mass_hist = utils.singleVarHist(
+    events_dict,
+    "bbFatJetMsd",
+    [8, 50, 250],
+    r"$m^{bb}$ (GeV)",
+    selection=bdt_selection,
+    blind_region=final_mass_sig_region,
+)
+
+sig_scale = utils.getSignalPlotScaleFactor(events_dict, selection=bdt_selection)
+
+plotting.ratioHistPlot(
+    post_bdt_cut_based_mass_hist,
+    list(events_dict.keys())[1:-1],
+    sig_key,
+    name="post_bdt_cuts_bb_mass",
+    sig_scale=sig_scale,
+)

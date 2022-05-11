@@ -335,3 +335,15 @@ def getSigSidebandBGYields(
     bg_yield = np.sum(data_weight[low_data_cut]) + np.sum(data_weight[high_data_cut])
 
     return sig_yield, bg_yield
+
+
+def getSignalPlotScaleFactor(
+    events_dict: Dict[str, pd.DataFrame], weight_key: str = "finalWeight", selection: dict = None
+):
+    """Get scale factor for signal in histogram plots"""
+    if selection is None:
+        return np.sum(events_dict[data_key][weight_key]) / np.sum(events_dict[sig_key][weight_key])
+    else:
+        return np.sum(events_dict[data_key][weight_key][selection[data_key]]) / np.sum(
+            events_dict[sig_key][weight_key][selection[sig_key]]
+        )

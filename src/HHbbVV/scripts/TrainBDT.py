@@ -172,11 +172,11 @@ def evaluate_model(
         np.argsort(model.feature_importances_)[::-1]
     ]
 
-    np.save(f"{model_dir}/feature_importances", feature_importances)
+    feature_importance_df = pd.DataFrame.from_dict({"Importance": feature_importances[:, 1]})
+    feature_importance_df.index = feature_importances[:, 0]
+    feature_importance_df.to_csv("feature_importances.csv")
 
-    print("Feature importance")
-    for feature, imp in feature_importances:
-        print(f"{feature}: {imp}")
+    print(feature_importance_df)
 
     sig_effs = [0.15, 0.2]
 
