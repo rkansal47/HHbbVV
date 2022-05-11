@@ -48,8 +48,8 @@ def get_Y(data: pd.DataFrame):
     return (data["Dataset"] == sig_key).astype(int)
 
 
-def get_weights(data: pd.DataFrame):
-    return data[weight_key]
+def get_weights(data: pd.DataFrame, abs_weights: bool = True):
+    return np.abs(data[weight_key]) if abs_weights else data[weight_key]
 
 
 def remove_neg_weights(data: pd.DataFrame):
@@ -94,7 +94,9 @@ def main(args):
         equalize_weights(training_data)
 
     train, test = train_test_split(
-        remove_neg_weights(training_data), test_size=args.test_size, random_state=args.seed
+        remove_neg_weights(training_data) if not args.absolute_weights else training_data,
+        test_size=args.test_size,
+        random_state=args.seed,
     )
 
     if args.evaluate_only or args.inference_only:
@@ -107,8 +109,8 @@ def main(args):
             get_X(test),
             get_Y(train),
             get_Y(test),
-            get_weights(train),
-            get_weights(test),
+            get_weights(train, args.absolute_weights),
+            get_weights(test, args.absolute_weights),
             args.model_dir,
             use_sample_weights=args.use_sample_weights,
             early_stopping_rounds=args.early_stopping_rounds,
@@ -248,6 +250,12 @@ if __name__ == "__main__":
 
     utils.add_bool_arg(
         parser, "use-sample-weights", "Use properly scaled event weights", default=False
+    )
+    utils.add_bool_arg(
+        parser,
+        "absolute-weights",
+        "Use absolute weights if using sample weights (if false, will remove negative weights)",
+        default=False,
     )
     utils.add_bool_arg(
         parser, "equalize-weights", "Equalise signal and background weights", default=False
