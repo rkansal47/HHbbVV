@@ -26,12 +26,13 @@ from sample_labels import samples, sig_key, data_key
 import importlib
 
 _ = importlib.reload(utils)
+_ = importlib.reload(plotting)
 
 MAIN_DIR = "../../../"
 # MAIN_DIR = "./"
 LUMI = {"2017": 40000}
 
-plot_dir = f"{MAIN_DIR}/plots/ControlPlots/May9/"
+plot_dir = f"{MAIN_DIR}/plots/YieldsAnalysis/May9/"
 os.mkdir(plot_dir)
 
 data_dir = f"{MAIN_DIR}/../data/skimmer/Apr28/"
@@ -297,16 +298,20 @@ post_bdt_cut_based_mass_hist = utils.singleVarHist(
     "bbFatJetMsd",
     [8, 50, 250],
     r"$m^{bb}$ (GeV)",
+    bb_masks,
     selection=bdt_selection,
     blind_region=final_mass_sig_region,
 )
 
 sig_scale = utils.getSignalPlotScaleFactor(events_dict, selection=bdt_selection)
 
+list(events_dict.keys())[1:-1]
+
+_ = importlib.reload(plotting)
+
 plotting.ratioHistPlot(
     post_bdt_cut_based_mass_hist,
     list(events_dict.keys())[1:-1],
-    sig_key,
-    name="post_bdt_cuts_bb_mass",
-    sig_scale=sig_scale,
+    name=f"{plot_dir}/post_bdt_cuts_bb_mass.pdf",
+    sig_scale=sig_scale / 2,
 )
