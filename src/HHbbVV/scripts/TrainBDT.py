@@ -48,8 +48,12 @@ def get_Y(data: pd.DataFrame):
     return (data["Dataset"] == sig_key).astype(int)
 
 
-def get_weights(data: pd.DataFrame, equalize_weights: bool = False):
+def get_weights(data: pd.DataFrame):
     return data[weight_key]
+
+
+def remove_neg_weights(data: pd.DataFrame):
+    return data[data[weight_key] > 0]
 
 
 def equalize_weights(data: pd.DataFrame):
@@ -83,12 +87,15 @@ def main(args):
     training_data = pd.read_parquet(args.data_path)
 
     if args.test:
+        # 100 signal, 100 bg events
         training_data = pd.concat((training_data[:100], training_data[-100:]), axis=0)
 
     if args.equalize_weights:
         equalize_weights(training_data)
 
-    train, test = train_test_split(training_data, test_size=args.test_size, random_state=args.seed)
+    train, test = train_test_split(
+        remove_neg_weights(training_data), test_size=args.test_size, random_state=args.seed
+    )
 
     if args.evaluate_only or args.inference_only:
         model = xgb.XGBClassifier()
