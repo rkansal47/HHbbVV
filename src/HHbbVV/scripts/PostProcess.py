@@ -68,6 +68,7 @@ def main(args):
         os.system(f"mkdir -p {args.plot_dir}")
 
     overall_cutflow = pd.DataFrame(index=list(samples.keys()))
+
     events_dict = load_samples(args.data_dir, samples, args.year, overall_cutflow, filters)
     apply_weights(events_dict, args.year, overall_cutflow)
     bb_masks = bb_VV_assignment(events_dict)
@@ -80,8 +81,17 @@ def main(args):
         control_plots(events_dict, bb_masks, control_plot_vars, args.plot_dir)
 
     if args.templates:
-        templates = get_templates(events_dict, bb_masks, selection_regions, args.plot_dir)
-        save_templates(templates)
+        if args.bdt_preds != "":
+            templates = get_templates(
+                events_dict,
+                bb_masks,
+                selection_regions,
+                args.plot_dir,
+                prev_cutflow=overall_cutflow,
+            )
+            save_templates(templates)
+        else:
+            print("bdt-preds need to be given for templates")
 
 
 def load_samples(
@@ -316,8 +326,8 @@ def get_templates(
     bb_masks: Dict[str, pd.DataFrame],
     selection_regions: Dict[str, Dict],
     plot_dir: str,
+    prev_cutflow: pd.DataFrame,
     weight_key: str = "finalWeight",
-    prev_cutflow: pd.DataFrame = None,
 ) -> Dict[str, Hist]:
     """
     (1) Makes histograms for each region in the ``selection_regions`` dictionary,
@@ -404,10 +414,6 @@ if __name__ == "__main__":
         default="year",
         choices=["2016", "2016APV", "2017", "2018"],
         type=str,
-    )
-
-    utils.add_bool_arg(
-        parser, "save-bdt-data", "save parquet files for bdt training", default=False
     )
 
     parser.add_argument(
