@@ -85,6 +85,21 @@ folders_to_index = [
     "/store/user/lpcpfnano/jdickins/v2_2/2017/VBFHToBB/",
     "/store/user/lpcpfnano/jdickins/v2_2/2018/VBFHToBB/",
     #
+    "/store/user/lpcpfnano/jdickins/v2_2/2016/GluGluHToBB/",
+    "/store/user/lpcpfnano/jdickins/v2_2/2016APV/GluGluHToBB/",
+    "/store/user/lpcpfnano/jdickins/v2_2/2017/GluGluHToBB/",
+    "/store/user/lpcpfnano/jdickins/v2_2/2018/GluGluHToBB/",
+    #
+    "/store/user/lpcpfnano/jdickins/v2_2/2016/WHToBB/",
+    "/store/user/lpcpfnano/jdickins/v2_2/2016APV/WHToBB/",
+    "/store/user/lpcpfnano/jdickins/v2_2/2017/WHToBB/",
+    "/store/user/lpcpfnano/jdickins/v2_2/2018/WHToBB/",
+    #
+    "/store/user/lpcpfnano/jdickins/v2_2/2016/ZHToBB/",
+    "/store/user/lpcpfnano/jdickins/v2_2/2016APV/ZHToBB/",
+    "/store/user/lpcpfnano/jdickins/v2_2/2017/ZHToBB/",
+    "/store/user/lpcpfnano/jdickins/v2_2/2018/ZHToBB/",
+    #
     "/store/user/lpcpfnano/cmantill/v2_2/2016/HWW",
     "/store/user/lpcpfnano/cmantill/v2_2/2016APV/HWW",
     "/store/user/lpcpfnano/cmantill/v2_2/2017/HWW",
@@ -106,8 +121,8 @@ folders_to_index = [
 # .......................f1........................|.......................f2..............................|..........f3.........|.....f4......|.f5.|....
 # /store/user/lpcpfnano/jekrupa/v2_2/2017/WJetsToQQ/WJetsToQQ_HT-800toInf_TuneCP5_13TeV-madgraphMLM-pythia8/WJetsToQQ_HT-800toInf/211108_171840/0000/*root
 
-# for pyear in ["2016", "2016APV", "2017", "2018"]:
-for pyear in ["2017"]:
+for pyear in ["2016", "2016APV", "2017", "2018"]:
+# for pyear in ["2017"]:
     index = {}
     for f1 in folders_to_index:
         f1 = f1.rstrip("/")

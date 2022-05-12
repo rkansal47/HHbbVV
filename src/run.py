@@ -121,7 +121,7 @@ def main(args):
             args.processor, args.year, args.samples, args.subsamples, args.starti, args.endi
         )
         if not len(args.files)
-        else {f"{args.year}_files": args.files}
+        else {f"{args.year}_{args.files_name}": args.files}
     )
 
     if args.executor == "dask":
@@ -251,6 +251,12 @@ if __name__ == "__main__":
     parser.add_argument("--subsamples", default=[], help="subsamples", nargs="*")
     parser.add_argument(
         "--files", default=[], help="set of files to run on instead of samples", nargs="*"
+    )
+    parser.add_argument(
+        "--files-name",
+        type=str,
+        default="files",
+        help="sample name of files being run on, if --files option used",
     )
     parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
