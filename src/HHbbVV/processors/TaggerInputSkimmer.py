@@ -56,7 +56,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_H_VV_4q",
                 "fj_H_VV_elenuqq",
                 "fj_H_VV_munuqq",
-                "fj_H_VV_taunuqq",
+                # "fj_H_VV_taunuqq",
                 "fj_H_VV_leptauelvqq",
                 "fj_H_VV_leptaumuvqq",
                 "fj_H_VV_hadtauvqq",

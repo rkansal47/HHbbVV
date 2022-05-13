@@ -347,7 +347,7 @@ def tagger_gen_H_matching(
             "fj_H_VV_4q": to_label(decay == 11),
             "fj_H_VV_elenuqq": to_label(decay == 4),
             "fj_H_VV_munuqq": to_label(decay == 6),
-            "fj_H_VV_taunuqq": to_label(decay == 8),
+            # "fj_H_VV_taunuqq": to_label(decay == 8),
             "fj_H_VV_unmatched": to_label(~matched_mask),
             "fj_H_VV_leptauelvqq":to_label((decay==8) & (taudecay==3)),
             "fj_H_VV_leptaumuvqq":to_label((decay==8) & (taudecay==5)),
