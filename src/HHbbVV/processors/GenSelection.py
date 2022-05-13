@@ -313,29 +313,27 @@ def tagger_gen_H_matching(
             + (ak.sum(daughters_pdgId <= b_PDGID, axis=1) == 4) * 11
         )
 
-        #get tau decays from daughters
-        taus = daughters[(daughters_pdgId==TAU_PDGID)]
-        #match to fatjets
-        matched_taus = taus[ak.argmin(fatjets.delta_r(taus), axis=1, keepdims=True)]
-        taudaughters = ak.flatten(matched_taus.distinctChildren, axis=2)
-        taudaughters = taudaughters[taudaughters.hasFlags(GEN_FLAGS)]
-        taudaughters_pdgId = abs(taudaughters.pdgId)
-        
-        print(ak.sum(taudaughters))
-        taudecay=(
-            # 2 quarks * 1
-            (ak.sum(taudaughters_pdgId <= b_PDGID, axis=1) == 2) * 1
-            # 1 electron * 3
-            + (ak.sum(taudaughters_pdgId == ELE_PDGID, axis=1) == 1) * 3
-            # 1 muon * 5
-            + (ak.sum(taudaughters_pdgId == MU_PDGID, axis=1) == 1) * 5
-        )
 
-        for i, d in enumerate(decay):
-            # if d in [11,4,6,8]:
-            if d in [8]:
-                # print(len(taudecay[i]))
-                print(i, 'decay', d, 'nprongs',nprongs[i], 'lepinprongs',lepinprongs[i], 'taud', taudecay[i])
+        # get tau decays from daughters                                 
+        taudaughters = daughters[(daughters_pdgId==TAU_PDGID)].children
+        taudaughters = taudaughters[taudaughters.hasFlags(["isLastCopy"])]
+        taudaughters_pdgId = abs(taudaughters.pdgId)
+
+        taudecay=(
+            # pions/kaons (hadronic tau) * 1                                                                                                                                                          
+            (ak.sum((taudaughters_pdgId == ELE_PDGID) | (taudaughters_pdgId == MU_PDGID), axis=2) == 0) * 1
+            # 1 electron * 3 
+            + (ak.sum(taudaughters_pdgId == ELE_PDGID, axis=2) == 1) * 3
+            # 1 muon * 5     
+            + (ak.sum(taudaughters_pdgId == MU_PDGID, axis=2) == 1) * 5
+        )
+        # flatten taudecay - so painful                                                                     
+        taudecay = ak.sum(taudecay, axis=-1)
+
+        # for i, d in enumerate(decay):
+        #     if d in [8]:
+        #         print(i, 'decay', d, 'nprongs',nprongs[i], 'lepinprongs',lepinprongs[i], 'taud', taudecay[i])
+
         
         matched_mask = matched_higgs_mask & matched_Vs_mask
 
