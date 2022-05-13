@@ -293,14 +293,13 @@ def tagger_gen_H_matching(
         daughters = daughters[daughters.hasFlags(GEN_FLAGS)]
         daughters_pdgId = abs(daughters.pdgId)
 
-        granddaughters = ak.flatten(ak.flatten(daughters.distinctChildren, axis=2), axis=2)
-        granddaughters = granddaughters[granddaughters.hasFlags(GEN_FLAGS)]
-        granddaughters_pdgId = abs(granddaughters.pdgId)
-        
-        nprongs = ak.sum(fatjets.delta_r(daughters) < jet_dR, axis=1)
-        lepdaughters = daughters[(daughters_pdgId==ELE_PDGID or daughters_pdgId==MU_PDGID or daughters_pdgId==TAU_PDGID)]
-        lepinprongs = ak.sum(fatjets.delta_r(lepdaughters) < jet_dR, axis=1) #should be 0 or 1
-        
+        daughters_nov = daughters[( (daughters_pdgId!=12) & (daughters_pdgId!=14) & (daughters_pdgId!=16) )]#exclude neutrinos from nprongs count
+        nprongs = ak.sum(fatjets.delta_r(daughters_nov) < jet_dR, axis=1)
+
+        lepdaughters = daughters[( (daughters_pdgId==ELE_PDGID) | (daughters_pdgId==MU_PDGID) | (daughters_pdgId==TAU_PDGID) )]
+        lepinprongs = 0
+        if len(lepdaughters)>0:
+            lepinprongs = ak.sum(fatjets.delta_r(lepdaughters) < jet_dR, axis=1) #should be 0 or 1
         decay = (
             # 2 quarks * 1
             (ak.sum(daughters_pdgId <= b_PDGID, axis=1) == 2) * 1
@@ -314,17 +313,29 @@ def tagger_gen_H_matching(
             + (ak.sum(daughters_pdgId <= b_PDGID, axis=1) == 4) * 11
         )
 
-        if (decay==4 or decay==6 or decay==8):
-            nprongs-=1 #exclude neutrino
-
+        #get tau decays from daughters
+        taus = daughters[(daughters_pdgId==TAU_PDGID)]
+        #match to fatjets
+        matched_taus = taus[ak.argmin(fatjets.delta_r(taus), axis=1, keepdims=True)]
+        taudaughters = ak.flatten(matched_taus.distinctChildren, axis=2)
+        taudaughters = taudaughters[taudaughters.hasFlags(GEN_FLAGS)]
+        taudaughters_pdgId = abs(taudaughters.pdgId)
+        
+        print(ak.sum(taudaughters))
         taudecay=(
             # 2 quarks * 1
-            (ak.sum(granddaughters_pdgId <= b_PDGID, axis=1) == 2) * 1
+            (ak.sum(taudaughters_pdgId <= b_PDGID, axis=1) == 2) * 1
             # 1 electron * 3
-            + (ak.sum(granddaughters_pdgId == ELE_PDGID, axis=1) == 1) * 3
+            + (ak.sum(taudaughters_pdgId == ELE_PDGID, axis=1) == 1) * 3
             # 1 muon * 5
-            + (ak.sum(granddaughters_pdgId == MU_PDGID, axis=1) == 1) * 5
+            + (ak.sum(taudaughters_pdgId == MU_PDGID, axis=1) == 1) * 5
         )
+
+        for i, d in enumerate(decay):
+            # if d in [11,4,6,8]:
+            if d in [8]:
+                # print(len(taudecay[i]))
+                print(i, 'decay', d, 'nprongs',nprongs[i], 'lepinprongs',lepinprongs[i], 'taud', taudecay[i])
         
         matched_mask = matched_higgs_mask & matched_Vs_mask
 
@@ -340,9 +351,9 @@ def tagger_gen_H_matching(
             "fj_H_VV_munuqq": to_label(decay == 6),
             "fj_H_VV_taunuqq": to_label(decay == 8),
             "fj_H_VV_unmatched": to_label(~matched_mask),
-            "fj_H_VV_leptauelvqq":to_label(decay == 8 and taudecay == 3),
-            "fj_H_VV_leptaumuvqq":to_label(decay == 8 and taudecay == 5),
-            "fj_H_VV_hadtauvqq":to_label(decay == 8 and taudecay == 1),
+            "fj_H_VV_leptauelvqq":to_label((decay==8) & (taudecay==3)),
+            "fj_H_VV_leptaumuvqq":to_label((decay==8) & (taudecay==5)),
+            "fj_H_VV_hadtauvqq":to_label((decay==8) & (taudecay==1)),
         }
         genVars = {**genVars, **genVVars, **genVstarVars, **genLabelVars}
 
