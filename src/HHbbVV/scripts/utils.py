@@ -15,6 +15,7 @@ from hist import Hist
 from sample_labels import sig_key, data_key
 
 MAIN_DIR = "./"
+CUT_MAX_VAL = 9999.0
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
@@ -170,7 +171,7 @@ def singleVarHist(
     weight_key: str = "finalWeight",
     blind_region: list = None,
     selection: dict = None,
-):
+) -> Hist:
     """
     Makes and fills a histogram for variable `var` using data in the `events` dict.
 
@@ -223,7 +224,7 @@ def make_selection(
     weight_key: str = "finalWeight",
     prev_cutflow: dict = None,
     selection: dict = None,
-    MAX_VAL: float = 9999.0,
+    MAX_VAL: float = CUT_MAX_VAL,
 ):
     """
     Makes cuts defined in `var_cuts` for each sample in `events`.
