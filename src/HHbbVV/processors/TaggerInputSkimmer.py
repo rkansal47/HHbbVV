@@ -13,7 +13,7 @@ from coffea.processor import ProcessorABC, dict_accumulator
 from coffea.analysis_tools import PackedSelection
 
 from .utils import add_selection_no_cutflow
-from .TaggerInference import get_pfcands_features, get_svs_features
+from .TaggerInference import get_pfcands_features, get_svs_features, get_lep_features
 from .GenSelection import tagger_gen_matching
 
 from typing import Dict
@@ -143,6 +143,57 @@ class TaggerInputSkimmer(ProcessorABC):
                     ],
                 },
                 "sv_points": {"var_length": 7},  # number of svs to select or pad up to
+            },
+            "Lep": {
+                "el_features": {
+                    "var_names": [
+                        "elec_pt",
+                        "elec_eta",
+                        "elec_phi",
+                        "elec_mass",
+                        "elec_charge",
+                        "elec_convVeto",
+                        "elec_deltaEtaSC",
+                        "elec_dr03EcalRecHitSumEt",
+                        "elec_dr03HcalDepth1TowerSumEt",
+                        "elec_dr03HcalDepth1TowerSumEt",
+                        "elec_dr03TkSumPt",
+                        "elec_dxy",
+                        "elec_dxyErr",
+                        "elec_dz",
+                        "elec_dzErr",
+                        "elec_eInvMinusPInv",
+                        "elec_hoe",
+                        "elec_ip3d",
+                        "elec_lostHits",
+                        "elec_r9",
+                        "elec_sieie",
+                        "elec_sip3d",
+                    ],
+                },
+                "el_points": {"var_length": 2}, # number of electrons to select or pad up to  
+                "mu_features": {
+                    "var_names": [
+                        "muon_pt",
+                        "muon_eta",
+                        "muon_phi",
+                        "muon_mass",
+                        "muon_charge",
+                        "muon_dxy",
+                        "muon_dxyErr",
+                        "muon_dz",
+                        "muon_dzErr",
+                        "muon_ip3d",
+                        "muon_nStations",
+                        "muon_nTrackerLayers",
+                        "muon_pfRelIso03_all",
+                        "muon_pfRelIso03_chg",
+                        "muon_segmentComp",
+                        "muon_sip3d",
+                        "muon_tkRelIso",
+                    ],
+                },
+                "mu_points": {"var_length": 2},# number of muons to select or pad up to 
             },
         }
 
@@ -309,6 +360,19 @@ class TaggerInputSkimmer(ProcessorABC):
 
             print(f"PFSV vars: {time.time() - start:.1f}s")
 
+            LepVars = {
+                **get_lep_features(
+                    self.skim_vars["Lep"],
+                    events,
+                    jet_idx,
+                    self.fatjet_label,
+                    "Muon",
+                    "Electron",
+                    normalize=False,
+                ),
+            }
+
+            print(f"Lep vars: {time.time() - start:.1f}s")
             matched_mask, genVars = tagger_gen_matching(
                 events,
                 genparts,
