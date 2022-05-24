@@ -13,7 +13,7 @@ from coffea.processor import ProcessorABC, dict_accumulator
 from coffea.analysis_tools import PackedSelection
 
 from .utils import add_selection_no_cutflow
-from .TaggerInference import get_pfcands_features, get_svs_features, get_lep_features
+from .TaggerInference import get_pfcands_features, get_svs_features, get_lep_features, get_met_features
 from .GenSelection import tagger_gen_matching
 
 from typing import Dict
@@ -95,6 +95,15 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_Top_taunu",
             ],
             # formatted to match weaver's preprocess.json
+            "MET": {
+                "met_features": {
+                    "var_names": [
+                        "met_relpt",
+                        "met_relphi",
+                    ],
+                },
+                "met_points": {"var_length": 1},
+            },
             "PFSV": {
                 "pf_features": {
                     "var_names": [
@@ -202,7 +211,8 @@ class TaggerInputSkimmer(ProcessorABC):
         self.subjet_label = "FatJetAK15SubJet" if self.ak15 else "SubJet"
         self.pfcands_label = "FatJetAK15PFCands" if self.ak15 else "FatJetPFCands"
         self.svs_label = "JetSVsAK15" if self.ak15 else "FatJetSVs"
-
+        # self.met_label = "MET"
+        
         self.num_jets = num_jets
         self.num_subjets = 2
         self.match_dR = 1.0  # max dR for object-jet-matching
@@ -336,7 +346,7 @@ class TaggerInputSkimmer(ProcessorABC):
 
                 if "particleNet_H4qvsQCD" in fatjets.fields:
                     FatJetVars["fj_PN_H4qvsQCD"] = fatjets.particleNet_H4qvsQCD
-
+                        
             print(f"fat jet vars: {time.time() - start:.1f}s")
 
             PFSVVars = {
@@ -373,6 +383,20 @@ class TaggerInputSkimmer(ProcessorABC):
             }
 
             print(f"Lep vars: {time.time() - start:.1f}s")
+
+            METVars = {
+                **get_met_features(
+                    self.skim_vars["MET"],
+                    events,
+                    jet_idx,
+                    self.fatjet_label,
+                    "MET",
+                    normalize=False,
+                ),
+            }
+
+            print(f"MET vars: {time.time() - start:.1f}s")
+
             matched_mask, genVars = tagger_gen_matching(
                 events,
                 genparts,
@@ -389,7 +413,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 print("No jets pass selections")
                 continue
 
-            skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars}
+            skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars, **LepVars, **METVars}
 
             # apply selections
             skimmed_vars = {
