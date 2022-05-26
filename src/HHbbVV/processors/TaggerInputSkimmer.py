@@ -13,7 +13,12 @@ from coffea.processor import ProcessorABC, dict_accumulator
 from coffea.analysis_tools import PackedSelection
 
 from .utils import add_selection_no_cutflow
-from .TaggerInference import get_pfcands_features, get_svs_features, get_lep_features, get_met_features
+from .TaggerInference import (
+    get_pfcands_features,
+    get_svs_features,
+    get_lep_features,
+    get_met_features,
+)
 from .GenSelection import tagger_gen_matching
 
 from typing import Dict
@@ -181,7 +186,7 @@ class TaggerInputSkimmer(ProcessorABC):
                         "elec_sip3d",
                     ],
                 },
-                "el_points": {"var_length": 2}, # number of electrons to select or pad up to  
+                "el_points": {"var_length": 2},  # number of electrons to select or pad up to
                 "mu_features": {
                     "var_names": [
                         "muon_pt",
@@ -203,7 +208,7 @@ class TaggerInputSkimmer(ProcessorABC):
                         "muon_tkRelIso",
                     ],
                 },
-                "mu_points": {"var_length": 2},# number of muons to select or pad up to 
+                "mu_points": {"var_length": 2},  # number of muons to select or pad up to
             },
         }
 
@@ -213,7 +218,7 @@ class TaggerInputSkimmer(ProcessorABC):
         self.pfcands_label = "FatJetAK15PFCands" if self.ak15 else "FatJetPFCands"
         self.svs_label = "JetSVsAK15" if self.ak15 else "FatJetSVs"
         # self.met_label = "MET"
-        
+
         self.num_jets = num_jets
         self.num_subjets = 2
         self.match_dR = 1.0  # max dR for object-jet-matching
@@ -347,7 +352,7 @@ class TaggerInputSkimmer(ProcessorABC):
 
                 if "particleNet_H4qvsQCD" in fatjets.fields:
                     FatJetVars["fj_PN_H4qvsQCD"] = fatjets.particleNet_H4qvsQCD
-                        
+
             print(f"fat jet vars: {time.time() - start:.1f}s")
 
             PFSVVars = {
