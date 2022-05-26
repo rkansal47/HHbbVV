@@ -27,7 +27,7 @@ filters = [
     ],
 ]
 
-# var: (bins, label)
+# {var: (bins, label)}
 control_plot_vars = {
     "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
     "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
@@ -48,6 +48,7 @@ control_plot_vars = {
     "BDTScore": ([50, 0, 1], r"BDT Score"),
 }
 
+# {label: {cutvar: [min, max], ...}, ...}
 selection_regions = {
     "pass": {
         "BDTScore": [0.9602, CUT_MAX_VAL],
@@ -69,7 +70,9 @@ def main(args):
 
     overall_cutflow = pd.DataFrame(index=list(samples.keys()))
 
-    events_dict = load_samples(args.data_dir, samples, args.year, overall_cutflow, filters)
+    events_dict = utils.load_samples(args.data_dir, samples, args.year, filters)
+    utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", overall_cutflow)
+
     apply_weights(events_dict, args.year, overall_cutflow)
     bb_masks = bb_VV_assignment(events_dict)
     derive_variables(events_dict, bb_masks)
@@ -92,60 +95,6 @@ def main(args):
             save_templates(templates)
         else:
             print("bdt-preds need to be given for templates")
-
-
-def load_samples(
-    data_dir: str, samples: List[str], year: str, cutflow: pd.DataFrame = None, filters: List = None
-) -> Dict[str, pd.DataFrame]:
-    """
-    Loads events with an optional filter.
-    Reweights samples by nevents.
-
-    Args:
-        data_dir (str): path to data directory.
-        samples (List[str]): list of samples to load.
-        year (str): year.
-        cutflow (pd.DataFrame): Optional cutflow dataframe.
-        filters (List): Optional filters when loading data.
-
-    Returns:
-        Dict[str, pd.DataFrame]: ``events_dict`` dictionary of events dataframe for each sample.
-
-    """
-
-    from os import listdir
-
-    full_samples_list = listdir(f"{data_dir}/{year}")
-    events_dict = {}
-
-    for label, selector in samples.items():
-        print(label)
-        events_dict[label] = []
-        for sample in full_samples_list:
-            if not sample.startswith(selector):
-                continue
-
-            print(sample)
-
-            events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
-            pickles_path = f"{data_dir}/{year}/{sample}/pickles"
-
-            if label != data_key:
-                if label == sig_key:
-                    n_events = utils.get_cutflow(pickles_path, year, sample)["has_4q"]
-                else:
-                    n_events = utils.get_nevents(pickles_path, year, sample)
-
-                events["weight"] /= n_events
-
-            events_dict[label].append(events)
-
-        events_dict[label] = pd.concat(events_dict[label])
-
-    if cutflow is not None:
-        utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", cutflow)
-
-    return events_dict
 
 
 def apply_weights(
