@@ -1,7 +1,7 @@
 """
 Methods for deriving input variables for the tagger and running inference.
 
-Author(s): Raghav Kansal, Cristina Mantilla Suarez
+Author(s): Raghav Kansal, Cristina Mantilla Suarez, Melissa Quinnan
 """
 
 from typing import Dict
