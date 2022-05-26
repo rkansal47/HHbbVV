@@ -214,9 +214,9 @@ def get_met_features(
     met_label: str = "MET",
     normalize: bool = True,
 ) -> Dict[str, np.ndarray]:
-    """ 
-    Extracts the MET features specified in the ``tagger_vars`` dict from the                                                                                                                            
-    ``preselected_events`` and returns them as a dict of numpy arrays  
+    """
+    Extracts the MET features specified in the ``tagger_vars`` dict from the
+    ``preselected_events`` and returns them as a dict of numpy arrays
     """
     feature_dict = {}
 
@@ -232,7 +232,7 @@ def get_met_features(
             # ak.pad_none(
             #     feature_dict[var], tagger_vars["met_points"]["var_length"], axis=1, clip=True
             # )
-            feature_dict[var] #just 1d, no pad_none
+            feature_dict[var]  # just 1d, no pad_none
             .to_numpy()
             .filled(fill_value=0)
         ).astype(np.float32)
@@ -246,6 +246,7 @@ def get_met_features(
 
     return feature_dict
 
+
 def get_lep_features(
     tagger_vars: dict,
     preselected_events: NanoEventsArray,
@@ -255,15 +256,17 @@ def get_lep_features(
     electron_label: str = "Electron",
     normalize: bool = True,
 ) -> Dict[str, np.ndarray]:
-    """ 
-    Extracts the lepton features specified in the ``tagger_vars`` dict from the                                                                                                                            
-    ``preselected_events`` and returns them as a dict of numpy arrays  
+    """
+    Extracts the lepton features specified in the ``tagger_vars`` dict from the
+    ``preselected_events`` and returns them as a dict of numpy arrays
     """
     feature_dict = {}
 
     jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
-    jet_muons = preselected_events.Muon[preselected_events[muon_label].jetIdx == jet_idx]  
-    jet_electrons = preselected_events.Electron[preselected_events[electron_label].jetIdx == jet_idx]
+    jet_muons = preselected_events.Muon[preselected_events[muon_label].jetIdx == jet_idx]
+    jet_electrons = preselected_events.Electron[
+        preselected_events[electron_label].jetIdx == jet_idx
+    ]
 
     # get features
     feature_dict["muon_pt"] = jet_muons.pt / jet.pt
@@ -283,7 +286,7 @@ def get_lep_features(
     feature_dict["muon_segmentComp"] = jet_muons.segmentComp
     feature_dict["muon_sip3d"] = jet_muons.sip3d
     feature_dict["muon_tkRelIso"] = jet_muons.tkRelIso
-    
+
     feature_dict["elec_pt"] = jet_electrons.pt / jet.pt
     feature_dict["elec_eta"] = jet_electrons.eta - jet.eta
     feature_dict["elec_phi"] = jet_electrons.delta_phi(jet)
