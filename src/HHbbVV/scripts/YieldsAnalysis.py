@@ -21,7 +21,7 @@ import pickle
 import utils
 import plotting
 from sample_labels import samples, sig_key, data_key
-
+from utils import CUT_MAX_VAL
 
 import importlib
 
@@ -30,9 +30,8 @@ _ = importlib.reload(plotting)
 
 MAIN_DIR = "../../../"
 # MAIN_DIR = "./"
-LUMI = {"2017": 40000}
 
-plot_dir = f"{MAIN_DIR}/plots/YieldsAnalysis/May9/"
+plot_dir = f"{MAIN_DIR}/plots/YieldsAnalysis/May19/"
 os.mkdir(plot_dir)
 
 data_dir = f"{MAIN_DIR}/../data/skimmer/Apr28/"
@@ -59,32 +58,8 @@ filters = [
     ],
 ]
 
-full_samples_list = listdir(f"{data_dir}/{year}")
-events_dict = {}
 
-for label, selector in samples.items():
-    print(label)
-    events_dict[label] = []
-    for sample in full_samples_list:
-        if not sample.startswith(selector):
-            continue
-
-        print(sample)
-
-        events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
-        pickles_path = f"{data_dir}/{year}/{sample}/pickles"
-
-        if label != data_key:
-            if label == sig_key:
-                n_events = utils.get_cutflow(pickles_path, year, sample)["has_4q"]
-            else:
-                n_events = utils.get_nevents(pickles_path, year, sample)
-
-            events["weight"] /= n_events
-
-        events_dict[label].append(events)
-
-    events_dict[label] = pd.concat(events_dict[label])
+events_dict = utils.load_samples(data_dir, samples, year, filters)
 
 utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", overall_cutflow)
 overall_cutflow
@@ -252,7 +227,7 @@ pq.write_table(table, f"{data_dir}/bdt_data.parquet")
 
 
 ##################################################################################
-# Yields with BDT
+# Load BDT Preds
 ##################################################################################
 
 """
@@ -270,13 +245,85 @@ for sample in BDT_samples:
     i += num_events
 
 
-bdt_cuts = {
-    "BDTScore": [0.9602, CUT_MAX_VAL],
-    "bbFatJetParticleNetMD_Txbb": [0.98, CUT_MAX_VAL],
+##################################################################################
+# Scan cuts
+##################################################################################
+
+from itertools import product
+from tqdm import tqdm
+
+MIN_BDT_CUT = 0.97
+MIN_TXBB_CUT = 0.97
+
+tight_events_dict = {}
+tight_bb_masks = {}
+
+del events_dict["ST"]
+
+for sample in BDT_samples:
+    events = events_dict[sample]
+    sel = (utils.get_feat(events, "BDTScore") > MIN_BDT_CUT) * (
+        utils.get_feat(events, "bbFatJetParticleNetMD_Txbb", bb_masks[sample]) > MIN_TXBB_CUT
+    )
+    tight_events_dict[sample] = events[sel]
+    tight_bb_masks[sample] = bb_masks[sample][sel]
+
+
+# overall_cutflow = overall_cutflow.drop("ScanPreselection")
+utils.add_to_cutflow(tight_events_dict, "ScanPreselection", "finalWeight", overall_cutflow)
+overall_cutflow
+
+bdt_cuts = np.linspace(MIN_BDT_CUT, 1, 30, endpoint=False)
+txbb_cuts = np.linspace(MIN_BDT_CUT, 1, 30, endpoint=False)
+
+signs = []
+
+importlib.reload(utils)
+
+for bdt_cut in tqdm(bdt_cuts):
+    bsigns = []
+    for txbb_cut in txbb_cuts:
+        cuts = {
+            "BDTScore": [bdt_cut, CUT_MAX_VAL],
+            "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
+        }
+
+        bdt_selection, bdt_cutflow = utils.make_selection(
+            cuts, tight_events_dict, tight_bb_masks, prev_cutflow=overall_cutflow
+        )
+
+        bdt_sig_yield, bdt_bg_yield = utils.getSigSidebandBGYields(
+            "bbFatJetMsd",
+            final_mass_sig_region,
+            tight_events_dict,
+            tight_bb_masks,
+            selection=bdt_selection,
+        )
+
+        bsigns.append(bdt_sig_yield / np.sqrt(bdt_bg_yield))
+
+    signs.append(bsigns)
+
+
+signs = np.nan_to_num(signs, nan=0, posinf=0, neginf=0)
+np.max(signs)
+
+plt.figure(figsize=(15, 12))
+plt.imshow(signs[::-1], extent=[txbb_cuts[0], 1, bdt_cuts[0], 1], vmin=0.012, vmax=0.016)
+plt.ylabel("BDT Cut")
+plt.xlabel("Txbb Cut")
+plt.colorbar()
+plt.title("2017 Exp. Significances")
+# plt.savefig(f"{plot_dir}/bdt_txbb_sign_scan_097_097.pdf", bbox_inches="tight")
+
+
+bdt_txbb_cuts = {
+    "BDTScore": [0.985, CUT_MAX_VAL],
+    "bbFatJetParticleNetMD_Txbb": [0.977, CUT_MAX_VAL],
 }
 
 bdt_selection, bdt_cutflow = utils.make_selection(
-    bdt_cuts, events_dict, bb_masks, prev_cutflow=overall_cutflow.drop("ST")
+    bdt_txbb_cuts, events_dict, bb_masks, prev_cutflow=overall_cutflow
 )
 
 bdt_sig_yield, bdt_bg_yield = utils.getSigSidebandBGYields(
@@ -287,11 +334,10 @@ bdt_sig_yield, bdt_bg_yield = utils.getSigSidebandBGYields(
     selection=bdt_selection,
 )
 
-bdt_cutflow
 bdt_sig_yield, bdt_bg_yield
+bdt_sig_yield / np.sqrt(bdt_bg_yield)
 
-bdt_cutflow.to_csv("cutflows/bdt_cutflow.csv")
-
+# bdt_cutflow.to_csv("cutflows/_cutflow.csv")
 
 post_bdt_cut_based_mass_hist = utils.singleVarHist(
     events_dict,
@@ -305,13 +351,9 @@ post_bdt_cut_based_mass_hist = utils.singleVarHist(
 
 sig_scale = utils.getSignalPlotScaleFactor(events_dict, selection=bdt_selection)
 
-list(events_dict.keys())[1:-1]
-
-_ = importlib.reload(plotting)
-
 plotting.ratioHistPlot(
     post_bdt_cut_based_mass_hist,
     list(events_dict.keys())[1:-1],
-    name=f"{plot_dir}/post_bdt_cuts_bb_mass.pdf",
+    name=f"{plot_dir}/post_bdt_985_txbb_977_cuts_bb_mass.pdf",
     sig_scale=sig_scale / 2,
 )
