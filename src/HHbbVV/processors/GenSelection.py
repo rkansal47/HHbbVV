@@ -278,6 +278,7 @@ def tagger_gen_H_matching(
 
         genVars["fj_dR_V"] = fatjets.delta_r(v)
         genVars["fj_dR_Vstar"] = fatjets.delta_r(v_star)
+        genVars["fj_dR_V_Vstar"] = v.delta_r(v_star)
 
         # select event only if VV are within jet radius
         matched_Vs_mask = ak.any(fatjets.delta_r(v) < jet_dR, axis=1) & ak.any(

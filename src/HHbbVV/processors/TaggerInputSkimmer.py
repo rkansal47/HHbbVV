@@ -75,6 +75,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_genV_phi",
                 "fj_genV_mass",
                 "fj_dR_Vstar",
+                "fj_dR_V_Vstar",
                 "fj_genVstar_pt",
                 "fj_genVstar_eta",
                 "fj_genVstar_phi",
