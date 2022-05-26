@@ -1,7 +1,7 @@
 """
 Gen selection functions for skimmer.
 
-Author(s): Raghav Kansal, Cristina Mantilla Suarez
+Author(s): Raghav Kansal, Cristina Mantilla Suarez, Melissa Quinnan
 """
 
 import numpy as np
@@ -352,10 +352,6 @@ def tagger_gen_H_matching(
         # flatten taudecay - so painful
         taudecay = ak.sum(taudecay, axis=-1)
 
-        # for i, d in enumerate(decay):
-        #     if d in [8]:
-        #         print(i, 'decay', d, 'nprongs',nprongs[i], 'lepinprongs',lepinprongs[i], 'taud', taudecay[i])
-
         matched_mask = matched_higgs_mask & matched_Vs_mask
 
         genVVars = {
@@ -395,9 +391,6 @@ def tagger_gen_QCD_matching(
     ]
     matched_mask = ak.any(fatjets.delta_r(partons) < match_dR, axis=1)
 
-    # leptons = genparts[get_pid_mask(genparts, [ELE_PDGID, MU_PDGID], ax=1, byall=False)]
-    # matched_lepton = ak.any(fatjets.delta_r(leptons) < match_dR / 2, axis=1)
-
     genLabelVars = {
         "fj_isQCDb": (fatjets.nBHadrons == 1),
         "fj_isQCDbb": (fatjets.nBHadrons > 1),
@@ -419,6 +412,7 @@ def tagger_gen_VJets_matching(
     match_dR: float = 1.0,
 ) -> Tuple[np.array, Dict[str, np.array]]:
     """Gen matching for VJets samples"""
+
     vs = genparts[
         get_pid_mask(genparts, [W_PDGID, Z_PDGID], byall=False) * genparts.hasFlags(GEN_FLAGS)
     ]
@@ -490,6 +484,7 @@ def tagger_gen_Top_matching(
     match_dR: float = 1.0,
 ) -> Tuple[np.array, Dict[str, np.array]]:
     """Gen matching for TT samples"""
+
     tops = genparts[get_pid_mask(genparts, TOP_PDGID, byall=False) * genparts.hasFlags(GEN_FLAGS)]
     matched_tops = tops[ak.argmin(fatjets.delta_r(tops), axis=1, keepdims=True)]
     matched_tops_mask = ak.any(fatjets.delta_r(matched_tops) < match_dR, axis=1)
@@ -536,6 +531,7 @@ def tagger_gen_Top_matching(
             | (wboson_daughters_pdgId == TAU_PDGID)
         )
     ]
+
     lepinprongs = 0
     if len(lepdaughters) > 0:
         lepinprongs = ak.sum(fatjets.delta_r(lepdaughters) < jet_dR, axis=1)  # should be 0 or 1
