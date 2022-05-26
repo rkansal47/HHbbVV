@@ -92,6 +92,57 @@ def get_cutflow(pickles_path, year, sample_name):
     return cutflow
 
 
+def load_samples(
+    data_dir: str, samples: Dict[str, str], year: str, filters: List = None
+) -> Dict[str, pd.DataFrame]:
+    """
+    Loads events with an optional filter.
+    Reweights samples by nevents.
+
+    Args:
+        data_dir (str): path to data directory.
+        samples (Dict[str, str]): dictionary of samples and selectors to load.
+        year (str): year.
+        filters (List): Optional filters when loading data.
+
+    Returns:
+        Dict[str, pd.DataFrame]: ``events_dict`` dictionary of events dataframe for each sample.
+
+    """
+
+    from os import listdir
+
+    full_samples_list = listdir(f"{data_dir}/{year}")
+    events_dict = {}
+
+    for label, selector in samples.items():
+        print(f"Finding {label} samples")
+        events_dict[label] = []
+        for sample in full_samples_list:
+            if not sample.startswith(selector):
+                continue
+
+            print(f"Loading {sample}")
+
+            events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
+            pickles_path = f"{data_dir}/{year}/{sample}/pickles"
+
+            if label != data_key:
+                if label == sig_key:
+                    n_events = get_cutflow(pickles_path, year, sample)["has_4q"]
+                else:
+                    n_events = get_nevents(pickles_path, year, sample)
+
+                events["weight"] /= n_events
+
+            events_dict[label].append(events)
+            print(f"Loaded {len(events)} entries")
+
+        events_dict[label] = pd.concat(events_dict[label])
+
+    return events_dict
+
+
 def add_to_cutflow(
     events_dict: Dict[str, pd.DataFrame], key: str, weight_key: str, cutflow: pd.DataFrame
 ):
