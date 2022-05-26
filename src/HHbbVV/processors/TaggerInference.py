@@ -443,7 +443,7 @@ def runInferenceTriton(
         feature_dict = {
             **get_pfcands_features(tagger_vars, events, jet_idx, fatjet_label, pfcands_label),
             **get_svs_features(tagger_vars, events, jet_idx, fatjet_label, svs_label),
-            **get_lep_features(tagger_vars, events, jet_idx, fatjet_label, muon_label, electron_label),
+            # **get_lep_features(tagger_vars, events, jet_idx, fatjet_label, muon_label, electron_label),
         }
 
         for input_name in tagger_vars["input_names"]:
