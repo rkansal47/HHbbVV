@@ -213,6 +213,22 @@ def make_vector(events: dict, name: str, bb_mask: pd.DataFrame = None, mask=None
         )
 
 
+def blindBins(h: Hist, blind_region: List, blind_sample: str = None):
+    """
+    Blind (i.e. zero) bins in histogram ``h``.
+    If ``blind_sample`` specified, only blind that sample, else blinds all.
+    """
+    bins = h.axes[1].edges
+    lv = int(np.searchsorted(bins, blind_region[0], "right"))
+    rv = int(np.searchsorted(bins, blind_region[1], "left") + 1)
+
+    if blind_sample is not None:
+        data_key_index = np.where(np.array(list(h.axes[0])) == blind_sample)[0][0]
+        h.view(flow=True)[data_key_index][lv:rv] = 0
+    else:
+        h.view(flow=True)[:, lv:rv] = 0
+
+
 def singleVarHist(
     events_dict: Dict[str, pd.DataFrame],
     var: str,
@@ -220,8 +236,8 @@ def singleVarHist(
     label: str,
     bb_masks: Dict[str, pd.DataFrame],
     weight_key: str = "finalWeight",
-    blind_region: list = None,
-    selection: dict = None,
+    blind_region: List = None,
+    selection: Dict = None,
 ) -> Hist:
     """
     Makes and fills a histogram for variable `var` using data in the `events` dict.
@@ -252,12 +268,7 @@ def singleVarHist(
         h.fill(Sample=sample, **fill_data, weight=weight)
 
     if blind_region is not None:
-        bins = h.axes[1].edges
-        lv = int(np.searchsorted(bins, blind_region[0], "right"))
-        rv = int(np.searchsorted(bins, blind_region[1], "left") + 1)
-
-        data_key_index = np.where(np.array(list(h.axes[0])) == "Data")[0][0]
-        h.view(flow=True)[data_key_index][lv:rv] = 0
+        blindBins(h, blind_region, data_key)
 
     return h
 
