@@ -15,7 +15,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 import os
-from os import listdir
 import pickle
 
 import utils
@@ -31,7 +30,7 @@ _ = importlib.reload(plotting)
 MAIN_DIR = "../../../"
 # MAIN_DIR = "./"
 
-plot_dir = f"{MAIN_DIR}/plots/YieldsAnalysis/May19/"
+plot_dir = f"{MAIN_DIR}/plots/YieldsAnalysis/May26/"
 os.mkdir(plot_dir)
 
 data_dir = f"{MAIN_DIR}/../data/skimmer/Apr28/"
@@ -249,7 +248,6 @@ for sample in BDT_samples:
 # Scan cuts
 ##################################################################################
 
-from itertools import product
 from tqdm import tqdm
 
 MIN_BDT_CUT = 0.97
@@ -342,7 +340,7 @@ bdt_sig_yield / np.sqrt(bdt_bg_yield)
 post_bdt_cut_based_mass_hist = utils.singleVarHist(
     events_dict,
     "bbFatJetMsd",
-    [8, 50, 250],
+    [20, 50, 250],
     r"$m^{bb}$ (GeV)",
     bb_masks,
     selection=bdt_selection,
