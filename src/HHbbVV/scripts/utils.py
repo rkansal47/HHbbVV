@@ -224,9 +224,11 @@ def blindBins(h: Hist, blind_region: List, blind_sample: str = None):
 
     if blind_sample is not None:
         data_key_index = np.where(np.array(list(h.axes[0])) == blind_sample)[0][0]
-        h.view(flow=True)[data_key_index][lv:rv] = 0
+        h.view(flow=True)[data_key_index][lv:rv].value = 0
+        h.view(flow=True)[data_key_index][lv:rv].variance = 0
     else:
-        h.view(flow=True)[:, lv:rv] = 0
+        h.view(flow=True)[:, lv:rv].value = 0
+        h.view(flow=True)[:, lv:rv].variance = 0
 
 
 def singleVarHist(
@@ -243,17 +245,20 @@ def singleVarHist(
     Makes and fills a histogram for variable `var` using data in the `events` dict.
 
     Args:
-        events (dict): a dict of events of format {sample1: {var1: np.array, var2: np.array, ...}, sample2: ...}
+        events (dict): a dict of events of format
+          {sample1: {var1: np.array, var2: np.array, ...}, sample2: ...}
         var (str): variable inside the events dict to make a histogram of
         bins (list): bins in Hist format i.e. [num_bins, min_value, max_value]
         label (str): label for variable (shows up when plotting)
         weight_key (str, optional): which weight to use from events, if different from 'weight'
-        blind_region (list, optional): region to blind for data, in format [low_cut, high_cut]. Bins in this region will be set to 0 for data.
-        selection (dict, optional): if performing a selection first, dict of boolean arrays for each sample
+        blind_region (list, optional): region to blind for data, in format [low_cut, high_cut].
+          Bins in this region will be set to 0 for data.
+        selection (dict, optional): if performing a selection first, dict of boolean arrays for
+          each sample
     """
     samples = list(events_dict.keys())
 
-    h = Hist.new.StrCat(samples, name="Sample").Reg(*bins, name=var, label=label).Double()
+    h = Hist.new.StrCat(samples, name="Sample").Reg(*bins, name=var, label=label).Weight()
 
     for sample in samples:
         events = events_dict[sample]
