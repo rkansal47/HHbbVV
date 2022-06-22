@@ -257,9 +257,11 @@ post_bdt_cut_based_mass_hist = utils.singleVarHist(
     selection=post_bdt_cut_based_no_bb_mass_selection,
     blind_region=final_mass_sig_region,
 )
+
 sig_scale = utils.getSignalPlotScaleFactor(
     events, selection=post_bdt_cut_based_no_bb_mass_selection
 )
+
 plotting.ratioHistPlot(
     post_bdt_cut_based_mass_hist,
     bg_keys=utils.getBackgroundKeys(),

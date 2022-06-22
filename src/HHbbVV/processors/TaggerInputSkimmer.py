@@ -13,7 +13,12 @@ from coffea.processor import ProcessorABC, dict_accumulator
 from coffea.analysis_tools import PackedSelection
 
 from .utils import add_selection_no_cutflow
-from .TaggerInference import get_pfcands_features, get_svs_features
+from .TaggerInference import (
+    get_pfcands_features,
+    get_svs_features,
+    get_lep_features,
+    get_met_features,
+)
 from .GenSelection import tagger_gen_matching
 
 from typing import Dict
@@ -52,10 +57,14 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_genjetmsd",
                 "fj_genjetmass",
                 "fj_nprongs",
+                "fj_lepinprongs",
                 "fj_H_VV_4q",
                 "fj_H_VV_elenuqq",
                 "fj_H_VV_munuqq",
-                "fj_H_VV_taunuqq",
+                # "fj_H_VV_taunuqq",
+                "fj_H_VV_leptauelvqq",
+                "fj_H_VV_leptaumuvqq",
+                "fj_H_VV_hadtauvqq",
                 "fj_H_VV_unmatched",
                 "fj_dR_V",
                 "fj_genRes_pt",
@@ -71,6 +80,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_genV_phi",
                 "fj_genV_mass",
                 "fj_dR_Vstar",
+                "fj_dR_V_Vstar",
                 "fj_genVstar_pt",
                 "fj_genVstar_eta",
                 "fj_genVstar_phi",
@@ -80,10 +90,10 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_isQCDc",
                 "fj_isQCDcc",
                 "fj_isQCDothers",
-                "fj_W_2q",
-                "fj_W_elenu",
-                "fj_W_munu",
-                "fj_W_taunu",
+                "fj_V_2q",
+                "fj_V_elenu",
+                "fj_V_munu",
+                "fj_V_taunu",
                 "fj_Top_bmerged",
                 "fj_Top_2q",
                 "fj_Top_elenu",
@@ -91,6 +101,15 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_Top_taunu",
             ],
             # formatted to match weaver's preprocess.json
+            "MET": {
+                "met_features": {
+                    "var_names": [
+                        "met_relpt",
+                        "met_relphi",
+                    ],
+                },
+                "met_points": {"var_length": 1},
+            },
             "PFSV": {
                 "pf_features": {
                     "var_names": [
@@ -140,6 +159,57 @@ class TaggerInputSkimmer(ProcessorABC):
                 },
                 "sv_points": {"var_length": 7},  # number of svs to select or pad up to
             },
+            "Lep": {
+                "el_features": {
+                    "var_names": [
+                        "elec_pt",
+                        "elec_eta",
+                        "elec_phi",
+                        "elec_mass",
+                        "elec_charge",
+                        "elec_convVeto",
+                        "elec_deltaEtaSC",
+                        "elec_dr03EcalRecHitSumEt",
+                        "elec_dr03HcalDepth1TowerSumEt",
+                        "elec_dr03HcalDepth1TowerSumEt",
+                        "elec_dr03TkSumPt",
+                        "elec_dxy",
+                        "elec_dxyErr",
+                        "elec_dz",
+                        "elec_dzErr",
+                        "elec_eInvMinusPInv",
+                        "elec_hoe",
+                        "elec_ip3d",
+                        "elec_lostHits",
+                        "elec_r9",
+                        "elec_sieie",
+                        "elec_sip3d",
+                    ],
+                },
+                "el_points": {"var_length": 2},  # number of electrons to select or pad up to
+                "mu_features": {
+                    "var_names": [
+                        "muon_pt",
+                        "muon_eta",
+                        "muon_phi",
+                        "muon_mass",
+                        "muon_charge",
+                        "muon_dxy",
+                        "muon_dxyErr",
+                        "muon_dz",
+                        "muon_dzErr",
+                        "muon_ip3d",
+                        "muon_nStations",
+                        "muon_nTrackerLayers",
+                        "muon_pfRelIso03_all",
+                        "muon_pfRelIso03_chg",
+                        "muon_segmentComp",
+                        "muon_sip3d",
+                        "muon_tkRelIso",
+                    ],
+                },
+                "mu_points": {"var_length": 2},  # number of muons to select or pad up to
+            },
         }
 
         self.ak15 = "AK15" in self.label
@@ -147,6 +217,7 @@ class TaggerInputSkimmer(ProcessorABC):
         self.subjet_label = "FatJetAK15SubJet" if self.ak15 else "SubJet"
         self.pfcands_label = "FatJetAK15PFCands" if self.ak15 else "FatJetPFCands"
         self.svs_label = "JetSVsAK15" if self.ak15 else "FatJetSVs"
+        # self.met_label = "MET"
 
         self.num_jets = num_jets
         self.num_subjets = 2
@@ -305,6 +376,33 @@ class TaggerInputSkimmer(ProcessorABC):
 
             print(f"PFSV vars: {time.time() - start:.1f}s")
 
+            LepVars = {
+                **get_lep_features(
+                    self.skim_vars["Lep"],
+                    events,
+                    jet_idx,
+                    self.fatjet_label,
+                    "Muon",
+                    "Electron",
+                    normalize=False,
+                ),
+            }
+
+            print(f"Lep vars: {time.time() - start:.1f}s")
+
+            METVars = {
+                **get_met_features(
+                    self.skim_vars["MET"],
+                    events,
+                    jet_idx,
+                    self.fatjet_label,
+                    "MET",
+                    normalize=False,
+                ),
+            }
+
+            print(f"MET vars: {time.time() - start:.1f}s")
+
             matched_mask, genVars = tagger_gen_matching(
                 events,
                 genparts,
@@ -321,7 +419,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 print("No jets pass selections")
                 continue
 
-            skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars}
+            skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars, **LepVars, **METVars}
 
             # apply selections
             skimmed_vars = {
