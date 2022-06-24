@@ -1,3 +1,14 @@
+"""
+Creates datacards for Higgs Combine using hist.Hist templates output from PostProcess.py
+(1) Adds systematics for all samples,
+(2) Sets up data-driven QCD background estimate ('rhalphabet' method)
+
+Based on https://github.com/LPC-HH/combine-hh/blob/master/create_datacard.py
+
+Author: Raghav Kansal
+"""
+
+
 import os
 import numpy as np
 import pickle
@@ -10,16 +21,22 @@ import rhalphalib as rl
 
 rl.util.install_roofit_helpers()
 rl.ParametericSample.PreferRooParametricHist = False
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 logging.basicConfig(level=logging.INFO)
 adjust_posdef_yields = False
-
-print("rl stuff")
 
 # from utils import add_bool_arg
 from sample_labels import qcd_key, data_key
 
 LUMI = {"2017": 41.48}
+
+mc_samples = OrderedDict(
+    [
+        ("ggHH_kl_1_kt_1_hbbhww4q", "HHbbVV"),
+        ("ttbar", "TT"),
+    ]
+)
+
 
 # dictionary of nuisance params -> modifier
 nuisance_params = {"lumi_13TeV_2017": "lnN"}
@@ -44,10 +61,6 @@ args.nDataTF = 2
 
 # import importlib
 # importlib.reload(utils)
-# th = Hist.new.StrCat([sig_key], name="Sample").Reg(10, -5, 5, name="msd").Double()
-# str(type(th[sig_key, :]))
-#
-# th[sig_key, :].axes[0].name
 
 
 def main(args):
@@ -57,9 +70,7 @@ def main(args):
 
     # pass, fail x unblinded, blinded
     regions = [
-        f"{pf}_cat{args.cat}{blind_str}"
-        for pf in ["pass", "fail"]
-        for blind_str in ["", "_blinded"]
+        f"{pf}{blind_str}" for pf in [f"passCat{args.cat}", "fail"] for blind_str in ["", "Blinded"]
     ]
 
     with open(args.templates_file, "rb") as f:
@@ -78,8 +89,8 @@ def main(args):
 
     # QCD overall pass / fail efficiency
     qcd_eff = (
-        templates[f"pass_cat{args.cat}"][qcd_key, :].sum().value
-        / templates[f"fail_cat{args.cat}"][qcd_key, :].sum().value
+        templates[f"passCat{args.cat}"][qcd_key, :].sum().value
+        / templates[f"fail"][qcd_key, :].sum().value
     )
 
     # transfer factor
@@ -115,16 +126,13 @@ def main(args):
 
         # TODO: shape systs
 
-        mc_samples = list(region_templates.axes[0])
-        mc_samples.remove(data_key)
-
-        for sample_name in mc_samples:
+        for card_name, sample_name in mc_samples.items():
             logging.info("get templates for: %s" % sample_name)
 
             sample_template = region_templates[sample_name, :]
 
-            stype = rl.Sample.SIGNAL if "HH" in sample_name else rl.Sample.BACKGROUND
-            sample = rl.TemplateSample(ch.name + "_" + sample_name, stype, sample_template)
+            stype = rl.Sample.SIGNAL if "HH" in card_name else rl.Sample.BACKGROUND
+            sample = rl.TemplateSample(ch.name + "_" + card_name, stype, sample_template)
 
             # systematics
             sample.setParamEffect(nuisance_params_dict["lumi_13TeV_2017"], 1.02)
@@ -151,9 +159,9 @@ def main(args):
         # data observed
         ch.setObservation(region_templates[data_key, :])
 
-    for blind_str in ["", "_blinded"]:
-        passChName = f"pass_cat{args.cat}{blind_str}"
-        failChName = f"fail_cat{args.cat}{blind_str}"
+    for blind_str in ["", "Blinded"]:
+        passChName = f"passCat{args.cat}{blind_str}".replace("_", "")
+        failChName = f"fail{blind_str}".replace("_", "")
         logging.info(
             "setting transfer factor for pass region %s, fail region %s" % (passChName, failChName)
         )
@@ -192,13 +200,13 @@ def main(args):
         )
         passCh.addSample(pass_qcd)
 
-    os.system(f"mkdir -p {args.card_dir}")
+    os.system(f"mkdir -p {args.cards_dir}")
 
-    with open(os.path.join(str(args.card_dir), 'HHModel.pkl'), "wb") as fout:
+    logging.info("rendering combine model")
+    model.renderCombine(os.path.join(str(args.cards_dir), args.model_name))
+
+    with open(f"{args.cards_dir}/{args.model_name}/model.pkl", "wb") as fout:
         pickle.dump(model, fout, 2)  # use python 2 compatible protocol
-
-    logging.info('rendering combine model')
-    model.renderCombine(os.path.join(str(args.card_dir), 'HHModel'))
 
 
 if __name__ == "__main__":
@@ -211,7 +219,7 @@ if __name__ == "__main__":
         type=str,
         help="input pickle file of dict of hist.Hist templates",
     )
-    parser.add_argument("--card-dir", default="cards", type=str, help="output card directory")
+    parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
     parser.add_argument("--cat", default="1", type=str, choices=["1"], help="category")
     parser.add_argument(
         "--nDataTF",
@@ -220,6 +228,7 @@ if __name__ == "__main__":
         dest="nDataTF",
         help="order of polynomial for TF from Data",
     )
+    parser.add_argument("--model-name", default="HHModel", type=str, help="output model name")
     args = parser.parse_args()
 
     main(args)
