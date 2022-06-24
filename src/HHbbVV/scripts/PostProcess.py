@@ -11,6 +11,7 @@ Author(s): Raghav Kansal, Cristina Mantilla Suarez
 """
 
 import os
+import sys
 
 import numpy as np
 import pandas as pd
@@ -20,6 +21,7 @@ import utils
 import plotting
 
 from typing import Dict, List, Tuple
+from inspect import cleandoc
 
 from sample_labels import sig_key, data_key, qcd_key, bg_keys
 from utils import CUT_MAX_VAL
@@ -34,14 +36,14 @@ from utils import CUT_MAX_VAL
 # Both Jet's Msds > 50 & at least one jet with Txbb > 0.8
 filters = [
     [
-        ("('ak8FatJetMsd', '0')", ">=", "50"),
-        ("('ak8FatJetMsd', '1')", ">=", "50"),
-        ("('ak8FatJetParticleNetMD_Txbb', '0')", ">=", "0.8"),
+        ("('ak8FatJetMsd', '0')", ">=", 50),
+        ("('ak8FatJetMsd', '1')", ">=", 50),
+        ("('ak8FatJetParticleNetMD_Txbb', '0')", ">=", 0.8),
     ],
     [
-        ("('ak8FatJetMsd', '0')", ">=", "50"),
-        ("('ak8FatJetMsd', '1')", ">=", "50"),
-        ("('ak8FatJetParticleNetMD_Txbb', '1')", ">=", "0.8"),
+        ("('ak8FatJetMsd', '0')", ">=", 50),
+        ("('ak8FatJetMsd', '1')", ">=", 50),
+        ("('ak8FatJetParticleNetMD_Txbb', '1')", ">=", 0.8),
     ],
 ]
 
@@ -68,11 +70,11 @@ control_plot_vars = {
 
 # {label: {cutvar: [min, max], ...}, ...}
 selection_regions = {
-    "pass_cat1": {
+    "passCat1": {
         "BDTScore": [0.985, CUT_MAX_VAL],
         "bbFatJetParticleNetMD_Txbb": [0.977, CUT_MAX_VAL],
     },
-    "fail_cat1": {
+    "fail": {
         "bbFatJetParticleNetMD_Txbb": [0.8, 0.977],
     },
 }
@@ -103,16 +105,19 @@ def main(args):
 
     events_dict = utils.load_samples(args.data_dir, samples, args.year, filters)
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", overall_cutflow)
+    print("\nLoaded Events\n")
 
     apply_weights(events_dict, args.year, overall_cutflow)
     bb_masks = bb_VV_assignment(events_dict)
     derive_variables(events_dict, bb_masks)
+    print("\nWeights, masks, derived variables\n")
 
     if args.bdt_preds != "":
         load_bdt_preds(events_dict, args.bdt_preds, bdt_sample_order)
 
     if args.control_plots:
         control_plots(events_dict, bb_masks, control_plot_vars, args.plot_dir)
+        print("\nMade control plots\n")
 
     if args.templates:
         if args.bdt_preds != "":
@@ -123,10 +128,11 @@ def main(args):
                 shape_var,
                 shape_bins,
                 blind_window,
-                args.plot_dir,
+                plot_dir=args.plot_dir,
                 prev_cutflow=overall_cutflow,
             )
             save_templates(templates, blind_window, args.template_file)
+            print("\nMade and saved templates\n")
         else:
             print("bdt-preds need to be given for templates")
 
@@ -142,7 +148,7 @@ def make_dirs(args):
 
         if path.exists() and not args.overwrite_template:
             print("Template file already exists -- exiting!")
-            return
+            sys.exit()
 
         os.system(f"mkdir -p {path.parent}")
 
@@ -174,7 +180,6 @@ def apply_weights(
     )
 
     for sample in events_dict:
-        print(sample)
         events = events_dict[sample]
         if sample == data_key:
             events[weight_key] = events["weight"]
@@ -228,7 +233,6 @@ def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataF
 def derive_variables(events_dict: Dict[str, pd.DataFrame], bb_masks: Dict[str, pd.DataFrame]):
     """Derives more dijet kinematic variables for control plots."""
     for sample, events in events_dict.items():
-        print(sample)
         bb_mask = bb_masks[sample]
 
         fatjet_vectors = utils.make_vector(events, "ak8FatJet")
@@ -298,7 +302,6 @@ def control_plots(
             continue
 
         if var not in hists:
-            print(var)
             hists[var] = utils.singleVarHist(
                 events_dict, var, bins, label, bb_masks, weight_key=weight_key
             )
@@ -327,13 +330,13 @@ def get_templates(
     shape_var: Tuple[str],
     shape_bins: List[float],
     blind_window: List[float],
-    plot_dir: str,
-    prev_cutflow: pd.DataFrame,
+    plot_dir: str = "",
+    prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
 ) -> Dict[str, Hist]:
     """
     (1) Makes histograms for each region in the ``selection_regions`` dictionary,
-    (2) Saves a plot of each,
+    (2) Saves a plot of each (if ``plot_dir`` is not ""),
     (3) And for the Pass region calculates the signal and data-driven bg estimate.
 
     Args:
@@ -354,7 +357,8 @@ def get_templates(
         pass_region = label.startswith("pass")
 
         sel, cf = utils.make_selection(region, events_dict, bb_masks, prev_cutflow=prev_cutflow)
-        cf.to_csv(f"{plot_dir}/{label}_region_cutflow.csv")
+        if plot_dir != "":
+            cf.to_csv(f"{plot_dir}/{label}_cutflow.csv")
 
         template = utils.singleVarHist(
             events_dict,
@@ -368,12 +372,13 @@ def get_templates(
 
         sig_scale = utils.getSignalPlotScaleFactor(events_dict, selection=sel)
 
-        plotting.ratioHistPlot(
-            template,
-            bg_keys,
-            name=f"{plot_dir}/{label}_region_bb_mass.pdf",
-            sig_scale=sig_scale / 2,
-        )
+        if plot_dir != "":
+            plotting.ratioHistPlot(
+                template,
+                bg_keys,
+                name=f"{plot_dir}/{label}_region_bb_mass.pdf",
+                sig_scale=sig_scale / 2,
+            )
 
         if pass_region:
             pass_sig_yield, pass_bg_yield = utils.getSigSidebandBGYields(
@@ -385,8 +390,10 @@ def get_templates(
             )
 
             print(
-                f"""Pass region signal yield: {pass_sig_yield}
-                background yield from data in sidebands: {pass_bg_yield}"""
+                cleandoc(
+                    f"""Pass region signal yield: {pass_sig_yield}
+                    background yield from data in sidebands: {pass_bg_yield}"""
+                )
             )
 
         selections[label] = sel
@@ -405,7 +412,7 @@ def save_templates(templates: Dict[str, Hist], blind_window: List[float], templa
     for label, template in list(templates.items()):
         blinded_template = deepcopy(template)
         utils.blindBins(blinded_template, blind_window)
-        templates[f"{label}_blinded"] = blinded_template
+        templates[f"{label}Blinded"] = blinded_template
 
     with open(template_file, "wb") as f:
         pickle.dump(templates, f)
@@ -426,7 +433,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--year",
-        default="year",
+        default="2017",
         choices=["2016", "2016APV", "2017", "2018"],
         type=str,
     )
@@ -440,7 +447,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--plot-dir",
-        help="If making control plots, path to directory to save them in",
+        help="If making control or template plots, path to directory to save them in",
         default="",
         type=str,
     )
@@ -452,7 +459,7 @@ if __name__ == "__main__":
         type=str,
     )
 
-    utils.add_bool_arg(parser, "control-plots", "make control plots", default=True)
+    utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
     utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
     utils.add_bool_arg(
         parser, "overwrite-template", "if template file already exists, overwrite it", default=False
