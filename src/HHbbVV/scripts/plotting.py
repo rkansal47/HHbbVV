@@ -12,6 +12,7 @@ plt.rcParams.update({"font.size": 16})
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
 
+from hist import Hist
 from hist.intervals import ratio_uncertainty
 
 from typing import Dict, List
@@ -24,7 +25,7 @@ sig_colour = "red"
 
 
 def ratioHistPlot(
-    hists: dict,
+    hists: Hist,
     bg_keys: List[str],
     bg_colours: Dict[str, str] = bg_colours,
     sig_colour: str = sig_colour,
@@ -64,7 +65,7 @@ def ratioHistPlot(
     bg_tot = sum([hists[sample, :] for sample in bg_keys])
     yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")
     hep.histplot(
-        hists[data_key, :] / bg_tot,
+        hists[data_key, :] / bg_tot.values(),
         yerr=yerr,
         ax=rax,
         histtype="errorbar",
