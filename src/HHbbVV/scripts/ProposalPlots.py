@@ -1,16 +1,21 @@
 """
-Common plotting functions.
+Plots for proposal.
 
 Author(s): Raghav Kansal
 """
 
+import pickle
+
 import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
+import matplotlib.ticker as mticker
 
 plt.rcParams.update({"font.size": 16})
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
+formatter = mticker.ScalarFormatter(useMathText=True)
+formatter.set_powerlimits((-3, 3))
 
 from hist import Hist
 from hist.intervals import ratio_uncertainty
@@ -23,7 +28,18 @@ colours = {"darkblue": "#1f78b4", "lightblue": "#a6cee3", "red": "#e31a1c", "ora
 bg_colours = {"QCD": "lightblue", "TT": "darkblue", "ST": "orange"}
 sig_colour = "red"
 
+MAIN_DIR = "../../../"
+plot_dir = f"{MAIN_DIR}/plots/ControlPlots/Jun27/"
 
+sample_names = {"HHbbVV": r"$H\to VV\to 4q$", "QCD": "QCD", "TT": r"$t\bar{t}$"}
+
+
+# load hists
+with open(f"{plot_dir}/hists.pkl", "rb") as f:
+    hists = pickle.load(f)
+
+
+# control plots
 def ratioHistPlot(
     hists: Hist,
     bg_keys: List[str],
@@ -48,19 +64,24 @@ def ratioHistPlot(
         ax=ax,
         histtype="fill",
         stack=True,
-        label=bg_keys,
+        label=[sample_names[key] for key in bg_keys],
         color=[colours[bg_colours[sample]] for sample in bg_keys],
     )
     hep.histplot(
         hists[sig_key, :] * sig_scale,
         ax=ax,
         histtype="step",
-        label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
+        label=f"{sample_names[sig_key]} $\\times$ ${formatter.format_data(float(f'{sig_scale:.3g}'))}$"
+        if sig_scale != 1
+        else sig_key,
         color=colours[sig_colour],
     )
-    hep.histplot(hists[data_key, :], ax=ax, histtype="errorbar", label=data_key, color="black")
+    hep.histplot(
+        hists[data_key, :], ax=ax, yerr=True, histtype="errorbar", label=data_key, color="black"
+    )
     ax.legend()
     ax.set_ylim(0)
+    ax.yaxis.set_major_formatter(formatter)
 
     bg_tot = sum([hists[sample, :] for sample in bg_keys])
     yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")
@@ -75,39 +96,24 @@ def ratioHistPlot(
     rax.set_ylabel("Data/MC")
     rax.grid()
 
-    hep.cms.label("Work in Progress", data=True, lumi=40, year=2017, ax=ax)
+    hep.cms.label("Work in Progress", data=True, lumi=40, year=2017, ax=ax, pad=0.04)
     if len(name):
         plt.savefig(name, bbox_inches="tight")
 
 
-def rocCurve(
-    fpr,
-    tpr,
-    auc,
-    sig_eff_lines=[],
-    # bg_eff_lines=[],
-    title=None,
-    xlim=[0, 0.4],
-    ylim=[1e-6, 1e-2],
-    plotdir="",
-    name="",
-):
-    """Plots a ROC curve"""
-    line_style = {"colors": "lightgrey", "linestyles": "dashed"}
+# {var: (bins, label)}
+hist_vars = {
+    "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"Probability($H \to 4q$)"),
+    "VVFatJetParticleNetHWWMD_THWW4q": ([50, 0, 1], r"Probability($H \to VV \to 4q$)"),
+}
 
-    plt.figure(figsize=(12, 12))
-    plt.plot(tpr, fpr, label=f"AUC: {auc:.2f}")
+sig_scale = 11920061.740869733
 
-    for sig_eff in sig_eff_lines:
-        y = fpr[np.searchsorted(tpr, sig_eff)]
-        plt.hlines(y=y, xmin=0, xmax=sig_eff, **line_style)
-        plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
-
-    plt.yscale("log")
-    plt.xlabel("Signal Eff.")
-    plt.ylabel("BG Eff.")
-    plt.title(title)
-    plt.legend()
-    plt.xlim(*xlim)
-    plt.ylim(*ylim)
-    plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+for var in hist_vars:
+    name = f"{plot_dir}/{var}.pdf"
+    ratioHistPlot(
+        hists[var],
+        list(hists[var].axes[0])[1:-1],
+        name=name,
+        sig_scale=sig_scale,
+    )

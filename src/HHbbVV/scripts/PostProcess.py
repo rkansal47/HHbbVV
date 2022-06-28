@@ -12,6 +12,7 @@ Author(s): Raghav Kansal, Cristina Mantilla Suarez
 
 import os
 import sys
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -27,10 +28,10 @@ from sample_labels import sig_key, data_key, qcd_key, bg_keys
 from utils import CUT_MAX_VAL
 
 
-# import importlib
-#
-# importlib.reload(utils)
-# importlib.reload(plotting)
+import importlib
+
+_ = importlib.reload(utils)
+_ = importlib.reload(plotting)
 
 
 # Both Jet's Msds > 50 & at least one jet with Txbb > 0.8
@@ -49,23 +50,23 @@ filters = [
 
 # {var: (bins, label)}
 control_plot_vars = {
-    "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
-    "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
-    "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
-    "DijetMass": ([50, 0, 2500], r"$m^{jj}$ (GeV)"),
-    "bbFatJetEta": ([50, -3, 3], r"$\eta^{bb}$"),
-    "bbFatJetPt": ([50, 200, 1000], r"$p^{bb}_T$ (GeV)"),
-    "bbFatJetMsd": ([50, 20, 250], r"$m^{bb}$ (GeV)"),
-    "bbFatJetParticleNetMD_Txbb": ([50, 0, 1], r"$p^{bb}_{Txbb}$"),
-    "VVFatJetEta": ([50, -3, 3], r"$\eta^{VV}$"),
-    "VVFatJetPt": ([50, 200, 1000], r"$p^{VV}_T$ (GeV)"),
-    "VVFatJetMsd": ([50, 20, 500], r"$m^{VV}$ (GeV)"),
-    "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"$p^{VV}_{Th4q}$"),
-    "VVFatJetParticleNetHWWMD_THWW4q": ([50, 0, 1], r"$p^{VV}_{THVV4q}$"),
-    "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
-    "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
-    "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.5], r"$p^{VV}_T / p^{bb}_T$"),
-    "BDTScore": ([50, 0, 1], r"BDT Score"),
+    # "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
+    # "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
+    # "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
+    # "DijetMass": ([50, 0, 2500], r"$m^{jj}$ (GeV)"),
+    # "bbFatJetEta": ([50, -3, 3], r"$\eta^{bb}$"),
+    # "bbFatJetPt": ([50, 200, 1000], r"$p^{bb}_T$ (GeV)"),
+    # "bbFatJetMsd": ([50, 20, 250], r"$m^{bb}$ (GeV)"),
+    # "bbFatJetParticleNetMD_Txbb": ([50, 0, 1], r"$p^{bb}_{Txbb}$"),
+    # "VVFatJetEta": ([50, -3, 3], r"$\eta^{VV}$"),
+    # "VVFatJetPt": ([50, 200, 1000], r"$p^{VV}_T$ (GeV)"),
+    # "VVFatJetMsd": ([50, 20, 500], r"$m^{VV}$ (GeV)"),
+    "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"Probability($H\ to\ 4q$)"),
+    "VVFatJetParticleNetHWWMD_THWW4q": ([50, 0, 1], r"Probability($H\ to VV\ to\ 4q$)"),
+    # "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
+    # "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
+    # "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.5], r"$p^{VV}_T / p^{bb}_T$"),
+    # "BDTScore": ([50, 0, 1], r"BDT Score"),
 }
 
 # {label: {cutvar: [min, max], ...}, ...}
@@ -88,10 +89,13 @@ blind_window = [100, 150]
 # for local interactive testing
 args = type("test", (object,), {})()
 args.data_dir = "../../../../data/skimmer/Apr28/"
-args.plot_dir = "../../plots/05_26_testing"
+args.plot_dir = "../../../PostProcess/plots/27_06_javier_plots"
 args.year = "2017"
 args.bdt_preds = f"{args.data_dir}/absolute_weights_preds.npy"
 args.template_file = "templates/test.pkl"
+args.overwrite_template = True
+args.control_plots = False
+args.templates = False
 
 
 def main(args):
@@ -106,6 +110,8 @@ def main(args):
     events_dict = utils.load_samples(args.data_dir, samples, args.year, filters)
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", overall_cutflow)
     print("\nLoaded Events\n")
+
+    events_dict[sig_key]
 
     apply_weights(events_dict, args.year, overall_cutflow)
     bb_masks = bb_VV_assignment(events_dict)
@@ -168,7 +174,6 @@ def apply_weights(
 
     """
     from coffea.lookup_tools.dense_lookup import dense_lookup
-    import pickle
 
     with open(
         f"../corrections/trigEffs/AK8JetHTTriggerEfficiency_{year}.hist", "rb"
@@ -293,18 +298,18 @@ def control_plots(
     from PyPDF2 import PdfFileMerger
 
     sig_scale = np.sum(events_dict[data_key][weight_key]) / np.sum(events_dict[sig_key][weight_key])
+    print(f"{sig_scale = }")
 
     hists = {}
 
     for var, (bins, label) in control_plot_vars.items():
-        if var not in events_dict[sig_key]:
-            print(f"Control Plots: {var} not found in events, skipping)")
-            continue
-
         if var not in hists:
             hists[var] = utils.singleVarHist(
                 events_dict, var, bins, label, bb_masks, weight_key=weight_key
             )
+
+    with open(f"{args.plot_dir}/hists.pkl", "wb") as f:
+        pickle.dump(hists, f)
 
     merger_control_plots = PdfFileMerger()
 
@@ -313,7 +318,6 @@ def control_plots(
         plotting.ratioHistPlot(
             var_hist,
             bg_keys,
-            sig_key,
             name=name,
             sig_scale=sig_scale,
         )
@@ -407,7 +411,6 @@ def save_templates(templates: Dict[str, Hist], blind_window: List[float], templa
     """Creates blinded copies of each region's templates and saves a pickle of the templates"""
 
     from copy import deepcopy
-    import pickle
 
     for label, template in list(templates.items()):
         blinded_template = deepcopy(template)
