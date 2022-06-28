@@ -117,3 +117,61 @@ for var in hist_vars:
         name=name,
         sig_scale=sig_scale,
     )
+
+
+# ROCs
+plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/Jun27/"
+
+cut_labels = {
+    "pt_300_1500_msoftdrop_20_320": "$p_T$: [300, 1500] GeV\n$m_{SD}$: [20, 320] GeV",
+    "pt_400_600_msoftdrop_60_150": "$p_T$: [400, 600] GeV\n$m_{SD}$: [60, 150] GeV",
+}
+
+# roc vars
+roc_plot_vars = {
+    "th4q": {
+        "title": r"$H\to 4q$ Non-MD GNN tagger",
+        "score_label": "fj_PN_H4qvsQCD",
+        "colour": "orange",
+    },
+    "thvv4q": {
+        "title": r"$H\to VV\to 4q$ MD GNN tagger",
+        "score_label": "score_fj_THVV4q",
+        "colour": "green",
+    },
+}
+
+# load rocs
+with open(f"{plot_dir}/rocs.pkl", "rb") as f:
+    rocs = pickle.load(f)
+
+xlim = [0, 0.6]
+ylim = [1e-6, 1]
+
+for cutstr in cut_labels:
+    plt.figure(figsize=(12, 12))
+    for t, pvars in roc_plot_vars.items():
+        plt.plot(
+            rocs[cutstr][t]["tpr"],
+            rocs[cutstr][t]["fpr"],
+            label=f"{pvars['title']} AUC: {rocs[cutstr][t]['auc']:.2f}",
+            linewidth=2,
+            color=pvars["colour"],
+        )
+        plt.vlines(
+            x=rocs[cutstr][t]["tpr"][np.searchsorted(rocs[cutstr][t]["fpr"], 0.01)],
+            ymin=0,
+            ymax=0.01,
+            colors=pvars["colour"],
+            linestyles="dashed",
+        )
+    plt.hlines(y=0.01, xmin=0, xmax=1, colors="lightgrey", linestyles="dashed")
+    plt.yscale("log")
+    plt.xlabel("Signal Efficiency")
+    plt.ylabel("Background Efficiency")
+    # plt.suptitle("HVV FatJet ROC Curves", y=0.95)
+    plt.text(0.02, 0.27, cut_labels[cutstr], fontsize=20)
+    plt.xlim(*xlim)
+    plt.ylim(*ylim)
+    plt.legend()
+    plt.savefig(f"{plot_dir}/roccurve_{cutstr}.pdf", bbox_inches="tight")
