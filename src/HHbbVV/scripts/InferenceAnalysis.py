@@ -23,7 +23,7 @@ from sample_labels import samples, sig_key
 MAIN_DIR = "../../../"
 # MAIN_DIR = "./"
 
-plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/May19"
+plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/Jun27"
 os.mkdir(plot_dir)
 
 # samples_dir = f"{MAIN_DIR}/../temp_data/Apr18"
@@ -90,18 +90,33 @@ is_Hbb = utils.getParticles(utils.get_feat(events, "GenHiggsChildren"), "b")
 genHVV = vectors["GenHiggs"][is_HVV]
 genHbb = vectors["GenHiggs"][is_Hbb]
 
+# mask based on radius < 1.0
 dR = 1.0
 masks = []
 for i in range(2):
     masks.append(vectors["ak8FatJet"][:, i].deltaR(genHVV) < dR)
 
+# mask based on which fat jet is closer
+
+# masks = (vectors["ak8FatJet"][:, 0].deltaR(genHVV) < vectors["ak8FatJet"][:, 1].deltaR(genHVV))
+
+np.any(masks, axis=0)
+
+np.sum(np.any(masks, axis=0))
 HVV_masks = np.transpose(np.stack(masks))
+
+HVV_masks.shape
+events_dict[sig_key]
+
+np.tile(events[column].values, 2).shape
+
+HVV_masks.shape
 
 for column, num_idx in save_columns:
     if num_idx == 1:
-        events_dict[sample_label][column] = np.tile(events[column].values, 2)[HVV_masks]
+        events[column] = np.tile(events[column].values, 2)[HVV_masks]
     else:
-        events_dict[sample_label][column] = np.nan_to_num(
+        events_dict[sig_key][column] = np.nan_to_num(
             events[column].values[HVV_masks], copy=True, nan=0
         )
 
