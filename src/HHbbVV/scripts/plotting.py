@@ -7,10 +7,13 @@ Author(s): Raghav Kansal
 import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
+import matplotlib.ticker as mticker
 
 plt.rcParams.update({"font.size": 16})
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
+formatter = mticker.ScalarFormatter(useMathText=True)
+formatter.set_powerlimits((-3, 3))
 
 from hist import Hist
 from hist.intervals import ratio_uncertainty
