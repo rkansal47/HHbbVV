@@ -32,7 +32,7 @@ MAIN_DIR = "../../../"
 # MAIN_DIR = "./"
 LUMI = {"2017": 40000}
 
-plot_dir = f"{MAIN_DIR}/plots/ControlPlots/May3/"
+plot_dir = f"{MAIN_DIR}/plots/ControlPlots/Jun27/"
 os.mkdir(plot_dir)
 
 data_dir = f"{MAIN_DIR}/../data/skimmer/Apr28/"
@@ -226,25 +226,29 @@ for sample, events in events_dict.items():
 
 sig_scale = np.sum(events_dict["Data"]["finalWeight"]) / np.sum(events_dict[sig_key]["finalWeight"])
 
+sig_scale
+
 hists = {}
 
-hist_vars = {  # (bins, labels)
-    "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
-    "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
-    "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
-    "DijetMass": ([50, 0, 2500], r"$m^{jj}$ (GeV)"),
-    "bbFatJetEta": ([50, -3, 3], r"$\eta^{bb}$"),
-    "bbFatJetPt": ([50, 200, 1000], r"$p^{bb}_T$ (GeV)"),
-    "bbFatJetMsd": ([50, 20, 250], r"$m^{bb}$ (GeV)"),
-    "bbFatJetParticleNetMD_Txbb": ([50, 0, 1], r"$p^{bb}_{Txbb}$"),
-    "VVFatJetEta": ([50, -3, 3], r"$\eta^{VV}$"),
-    "VVFatJetPt": ([50, 200, 1000], r"$p^{VV}_T$ (GeV)"),
-    "VVFatJetMsd": ([50, 20, 500], r"$m^{VV}$ (GeV)"),
-    "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"$p^{VV}_{Th4q}$"),
-    "VVFatJetParticleNetHWWMD_THWW4q": ([50, 0, 1], r"$p^{VV}_{THVV4q}$"),
-    "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
-    "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
-    "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.5], r"$p^{VV}_T / p^{bb}_T$"),
+# {var: (bins, label)}
+hist_vars = {
+    # "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
+    # "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
+    # "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
+    # "DijetMass": ([50, 0, 2500], r"$m^{jj}$ (GeV)"),
+    # "bbFatJetEta": ([50, -3, 3], r"$\eta^{bb}$"),
+    # "bbFatJetPt": ([50, 200, 1000], r"$p^{bb}_T$ (GeV)"),
+    # "bbFatJetMsd": ([50, 20, 250], r"$m^{bb}$ (GeV)"),
+    # "bbFatJetParticleNetMD_Txbb": ([50, 0, 1], r"$p^{bb}_{Txbb}$"),
+    # "VVFatJetEta": ([50, -3, 3], r"$\eta^{VV}$"),
+    # "VVFatJetPt": ([50, 200, 1000], r"$p^{VV}_T$ (GeV)"),
+    # "VVFatJetMsd": ([50, 20, 500], r"$m^{VV}$ (GeV)"),
+    "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"Probability($H\to 4q$)"),
+    "VVFatJetParticleNetHWWMD_THWW4q": ([50, 0, 1], r"Probability($H\to VV\to 4q$)"),
+    # "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
+    # "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
+    # "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.5], r"$p^{VV}_T / p^{bb}_T$"),
+    # "BDTScore": ([50, 0, 1], r"BDT Score"),
 }
 
 for var, (bins, label) in hist_vars.items():
@@ -254,6 +258,8 @@ for var, (bins, label) in hist_vars.items():
             events_dict, var, bins, label, bb_masks, weight_key="finalWeight"
         )
 
+with open(f"{plot_dir}/hists.pkl", "wb") as f:
+    pickle.dump(hists, f)
 
 merger_control_plots = PdfFileMerger()
 
@@ -262,7 +268,6 @@ for var in hist_vars.keys():
     plotting.ratioHistPlot(
         hists[var],
         list(samples.keys())[1:-1],
-        sig_key,
         name=name,
         sig_scale=sig_scale,
     )
