@@ -23,4 +23,4 @@ echo "FitDiagnostic S=1"
 combine -M FitDiagnostics ${cards_dir}/${wsm}.root --setParameters mask_fail=1,mask_passCat1=1 --rMin 1 --rMax 1 --skipBOnlyFit --saveNormalizations --saveShapes --saveWithUncertainties --saveOverallShapes -n SBplusfailSfit --ignoreCovWarning
 
 echo "expected significance"
-combine -M Significance --signif -m 125 -n ${version} higgsCombineTest.MultiDimFit.mH125.root --snapshotName MultiDimFit -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit --setParameters mask_passCat1=0,mask_fail=0,mask_passCat1Blinded=1,mask_failBlinded=1 --floatParameters r --toysFrequentist
+combine higgsCombineTest.MultiDimFit.mH125.root -M Significance --significance -m 125 -n Cat1 --snapshotName MultiDimFit -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit --setParameters mask_passCat1=0,mask_fail=0,mask_passCat1Blinded=1,mask_failBlinded=1 --floatParameters r --toysFrequentist
