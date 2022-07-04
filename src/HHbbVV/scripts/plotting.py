@@ -35,6 +35,7 @@ def ratioHistPlot(
     blind_region: list = None,
     name: str = "",
     sig_scale: float = 1.0,
+    show: bool = True,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -68,7 +69,7 @@ def ratioHistPlot(
     bg_tot = sum([hists[sample, :] for sample in bg_keys])
     yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")
     hep.histplot(
-        hists[data_key, :] / bg_tot.values(),
+        hists[data_key, :] / (bg_tot.values() + 1e-5),
         yerr=yerr,
         ax=rax,
         histtype="errorbar",
@@ -81,6 +82,11 @@ def ratioHistPlot(
     hep.cms.label("Work in Progress", data=True, lumi=40, year=2017, ax=ax)
     if len(name):
         plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
 
 
 def rocCurve(
