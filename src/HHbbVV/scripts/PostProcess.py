@@ -23,10 +23,12 @@ import plotting
 
 from typing import Dict, List, Tuple
 from inspect import cleandoc
+from textwrap import dedent
 
 from sample_labels import sig_key, data_key, qcd_key, bg_keys
 from utils import CUT_MAX_VAL
 
+from pprint import pprint
 
 import importlib
 
@@ -50,23 +52,23 @@ filters = [
 
 # {var: (bins, label)}
 control_plot_vars = {
-    # "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
-    # "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
-    # "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
-    # "DijetMass": ([50, 0, 2500], r"$m^{jj}$ (GeV)"),
-    # "bbFatJetEta": ([50, -3, 3], r"$\eta^{bb}$"),
-    # "bbFatJetPt": ([50, 200, 1000], r"$p^{bb}_T$ (GeV)"),
-    # "bbFatJetMsd": ([50, 20, 250], r"$m^{bb}$ (GeV)"),
-    # "bbFatJetParticleNetMD_Txbb": ([50, 0, 1], r"$p^{bb}_{Txbb}$"),
-    # "VVFatJetEta": ([50, -3, 3], r"$\eta^{VV}$"),
-    # "VVFatJetPt": ([50, 200, 1000], r"$p^{VV}_T$ (GeV)"),
-    # "VVFatJetMsd": ([50, 20, 500], r"$m^{VV}$ (GeV)"),
-    "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"Probability($H\ to\ 4q$)"),
-    "VVFatJetParticleNetHWWMD_THWW4q": ([50, 0, 1], r"Probability($H\ to VV\ to\ 4q$)"),
-    # "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
-    # "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
-    # "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.5], r"$p^{VV}_T / p^{bb}_T$"),
-    # "BDTScore": ([50, 0, 1], r"BDT Score"),
+    "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
+    "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
+    "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
+    "DijetMass": ([50, 0, 2500], r"$m^{jj}$ (GeV)"),
+    "bbFatJetEta": ([50, -3, 3], r"$\eta^{bb}$"),
+    "bbFatJetPt": ([50, 200, 1000], r"$p^{bb}_T$ (GeV)"),
+    "bbFatJetMsd": ([50, 20, 250], r"$m^{bb}$ (GeV)"),
+    "bbFatJetParticleNetMD_Txbb": ([50, 0, 1], r"$p^{bb}_{Txbb}$"),
+    "VVFatJetEta": ([50, -3, 3], r"$\eta^{VV}$"),
+    "VVFatJetPt": ([50, 200, 1000], r"$p^{VV}_T$ (GeV)"),
+    "VVFatJetMsd": ([50, 20, 500], r"$m^{VV}$ (GeV)"),
+    "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"Probability($H \to 4q$)"),
+    "VVFatJetParticleNetHWWMD_THWW4q": ([50, 0, 1], r"Probability($H \to VV \to 4q$)"),
+    "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
+    "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
+    "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.5], r"$p^{VV}_T / p^{bb}_T$"),
+    "BDTScore": ([50, 0, 1], r"BDT Score"),
 }
 
 # {label: {cutvar: [min, max], ...}, ...}
@@ -80,6 +82,22 @@ selection_regions = {
     },
 }
 
+scan_regions = {}
+
+for bdtcut in np.arange(0.97, 1, 0.002):
+    for bbcut in np.arange(0.97, 1, 0.002):
+        cutstr = f"bdtcut_{bdtcut}_bbcut_{bbcut}"
+        scan_regions[cutstr] = {
+            "passCat1": {
+                "BDTScore": [bdtcut, CUT_MAX_VAL],
+                "bbFatJetParticleNetMD_Txbb": [bbcut, CUT_MAX_VAL],
+            },
+            "fail": {
+                "bbFatJetParticleNetMD_Txbb": [0.8, bbcut],
+            },
+        }
+
+
 # bb msd is final shape var
 shape_var = ("bbFatJetMsd", r"$m^{bb}$ (GeV)")
 shape_bins = [20, 50, 250]  # num bins, min, max
@@ -89,13 +107,14 @@ blind_window = [100, 150]
 # for local interactive testing
 args = type("test", (object,), {})()
 args.data_dir = "../../../../data/skimmer/Apr28/"
-args.plot_dir = "../../../PostProcess/plots/27_06_javier_plots"
+args.plot_dir = "../../../PostProcess/plots/04_07_scan"
 args.year = "2017"
 args.bdt_preds = f"{args.data_dir}/absolute_weights_preds.npy"
-args.template_file = "templates/test.pkl"
+args.template_file = "templates/04_07_scan"
 args.overwrite_template = True
 args.control_plots = False
 args.templates = False
+args.scan = True
 
 
 def main(args):
@@ -141,6 +160,26 @@ def main(args):
             print("\nMade and saved templates\n")
         else:
             print("bdt-preds need to be given for templates")
+
+    if args.scan:
+        os.system(f"mkdir -p {args.template_file}")
+
+        templates = {}
+
+        for cutstr, region in scan_regions.items():
+            print(cutstr)
+            templates[cutstr] = get_templates(
+                events_dict,
+                bb_masks,
+                region,
+                shape_var,
+                shape_bins,
+                blind_window,
+                plot_dir=args.plot_dir,
+                prev_cutflow=overall_cutflow,
+                cutstr=cutstr,
+            )
+            save_templates(templates[cutstr], blind_window, f"{args.template_file}/{cutstr}.pkl")
 
 
 def make_dirs(args):
@@ -337,6 +376,7 @@ def get_templates(
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
+    cutstr: str = "",
 ) -> Dict[str, Hist]:
     """
     (1) Makes histograms for each region in the ``selection_regions`` dictionary,
@@ -349,20 +389,24 @@ def get_templates(
         shape_var (Tuple[str]): final shape var: (var name, var plotting label).
         shape_bins (List[float]): binning for shape var: [num bins, min, max].
         blind_window (List[float]): signal window to blind: [min, max] (min, max should be bin edges).
+        cutstr (str): optional string to add to plot file names.
 
     Returns:
         Dict[str, Hist]: dictionary of templates, saved as hist.Hist objects.
 
     """
 
+    # print(selection_regions)
+
     selections, cutflows, templates = {}, {}, {}
 
     for label, region in selection_regions.items():
+        # print(region)
         pass_region = label.startswith("pass")
 
         sel, cf = utils.make_selection(region, events_dict, bb_masks, prev_cutflow=prev_cutflow)
         if plot_dir != "":
-            cf.to_csv(f"{plot_dir}/{label}_cutflow.csv")
+            cf.to_csv(f"{plot_dir}/{cutstr}{label}_cutflow.csv")
 
         template = utils.singleVarHist(
             events_dict,
@@ -380,8 +424,9 @@ def get_templates(
             plotting.ratioHistPlot(
                 template,
                 bg_keys,
-                name=f"{plot_dir}/{label}_region_bb_mass.pdf",
+                name=f"{plot_dir}/{cutstr}{label}_region_bb_mass.pdf",
                 sig_scale=sig_scale / 2,
+                show=False,
             )
 
         if pass_region:
@@ -393,6 +438,7 @@ def get_templates(
                 selection=sel,
             )
 
+            # cutstrn = cutstr + "\n" if cutstr != "" else ""
             print(
                 cleandoc(
                     f"""Pass region signal yield: {pass_sig_yield}
@@ -444,7 +490,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--bdt-preds",
         help="path to bdt predictions, if empty, don't load",
-        default="",
+        default="../../../../data/skimmer/Apr28/absolute_weights_preds.npy",
         type=str,
     )
 
@@ -457,7 +503,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--template-file",
-        help="If saving templates, path to file to save them in",
+        help="If saving templates, path to file to save them in. If scanning, directory to save in.",
         default="",
         type=str,
     )
@@ -467,6 +513,7 @@ if __name__ == "__main__":
     utils.add_bool_arg(
         parser, "overwrite-template", "if template file already exists, overwrite it", default=False
     )
+    utils.add_bool_arg(parser, "scan", "Scan BDT + Txbb cuts and save templates", default=False)
 
     args = parser.parse_args()
     main(args)
