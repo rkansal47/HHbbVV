@@ -31,15 +31,15 @@ with warnings.catch_warnings():
 
 
 # for running on condor
-nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
+nanoevents.PFNanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
     "FatJetAK15_nConstituents",
     "JetPFCandsAK15",
 )
-nanoevents.NanoAODSchema.mixins["FatJetAK15"] = "FatJet"
-nanoevents.NanoAODSchema.mixins["FatJetAK15SubJet"] = "FatJet"
-nanoevents.NanoAODSchema.mixins["SubJet"] = "FatJet"
-nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
-
+nanoevents.PFNanoAODSchema.mixins["FatJetAK15"] = "FatJet"
+nanoevents.PFNanoAODSchema.mixins["FatJetAK15SubJet"] = "FatJet"
+nanoevents.PFNanoAODSchema.mixins["SubJet"] = "FatJet"
+nanoevents.PFNanoAODSchema.mixins["PFCands"] = "PFCand"
+nanoevents.PFNanoAODSchema.mixins["SV"] = "PFCand"
 
 # for Dask executor
 class NanoeventsSchemaPlugin(WorkerPlugin):
@@ -49,15 +49,15 @@ class NanoeventsSchemaPlugin(WorkerPlugin):
     def setup(self, worker):
         from coffea import nanoevents
 
-        nanoevents.NanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
+        nanoevents.PFNanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
             "FatJetAK15_nConstituents",
             "JetPFCandsAK15",
         )
-        nanoevents.NanoAODSchema.mixins["FatJetAK15"] = "FatJet"
-        nanoevents.NanoAODSchema.mixins["FatJetAK15SubJet"] = "FatJet"
-        nanoevents.NanoAODSchema.mixins["SubJet"] = "FatJet"
-        nanoevents.NanoAODSchema.mixins["PFCands"] = "PFCand"
-
+        nanoevents.PFNanoAODSchema.mixins["FatJetAK15"] = "FatJet"
+        nanoevents.PFNanoAODSchema.mixins["FatJetAK15SubJet"] = "FatJet"
+        nanoevents.PFNanoAODSchema.mixins["SubJet"] = "FatJet"
+        nanoevents.PFNanoAODSchema.mixins["PFCands"] = "PFCand"
+        nanoevents.PFNanoAODSchema.mixins["SV"] = "PFCand"
 
 def get_fileset(processor, year, samples, subsamples, starti, endi):
     with open(f"data/pfnanoindex_{year}.json", "r") as f:
@@ -147,7 +147,7 @@ def main(args):
         run = processor.Runner(
             executor=executor,
             savemetrics=True,
-            schema=nanoevents.NanoAODSchema,
+            schema=nanoevents.PFNanoAODSchema,
             chunksize=args.chunksize,
         )
         out, metrics = run(
@@ -176,7 +176,7 @@ def main(args):
         run = processor.Runner(
             executor=executor,
             savemetrics=True,
-            schema=nanoevents.NanoAODSchema,
+            schema=nanoevents.PFNanoAODSchema,
             chunksize=args.chunksize,
             maxchunks=None if args.maxchunks == 0 else args.maxchunks,
         )
