@@ -160,6 +160,12 @@ class TaggerInputSkimmer(ProcessorABC):
                 "sv_points": {"var_length": 7},  # number of svs to select or pad up to
             },
             "Lep": {
+                "fj_features": {
+                    "fj_lep_dR",
+                    "fj_lep_pt",
+                    "fj_lep_iso",
+                    "fj_lep_miniiso",
+                },
                 "el_features": {
                     "var_names": [
                         "elec_pt",
@@ -294,17 +300,19 @@ class TaggerInputSkimmer(ProcessorABC):
 
         start = time.time()
 
+        isMC = hasattr(events, "genWeight")
+
         jet_vars = []
 
         for jet_idx in range(self.num_jets):
             # objects
             fatjets = ak.pad_none(events[self.fatjet_label], self.num_jets, axis=1)[:, jet_idx]
             subjets = events[self.subjet_label]
-            genparts = events.GenPart
 
             # selection
             selection = PackedSelection()
-            preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
+            #preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
+            preselection_cut = (fatjets.pt > 200) 
             add_selection_no_cutflow("preselection", preselection_cut, selection)
 
             print(f"preselection: {time.time() - start:.1f}s")
@@ -403,16 +411,21 @@ class TaggerInputSkimmer(ProcessorABC):
 
             print(f"MET vars: {time.time() - start:.1f}s")
 
-            matched_mask, genVars = tagger_gen_matching(
-                events,
-                genparts,
-                fatjets,
-                self.skim_vars["GenPart"],
-                label=self.label,
-                match_dR=self.match_dR,
-            )
-            add_selection_no_cutflow("gen_match", matched_mask, selection)
-
+            if isMC:
+                genparts = events.GenPart
+                matched_mask, genVars = tagger_gen_matching(
+                    events,
+                    genparts,
+                    fatjets,
+                    self.skim_vars["GenPart"],
+                    label=self.label,
+                    match_dR=self.match_dR,
+                )
+                add_selection_no_cutflow("gen_match", matched_mask, selection)
+            else:
+                genVars = {
+                    "fj_isData": ak.values_astype((fatjets.pt > 200), np.int32)
+                }
             print(f"Gen vars: {time.time() - start:.1f}s")
 
             if np.sum(selection.all(*selection.names)) == 0:
