@@ -182,7 +182,7 @@ if __name__ == "__main__":
         "--submit", dest="submit", action="store_true", help="submit jobs when created"
     )
 
-    add_bool_arg(parser, "save-ak15", default=False)
+    add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
 
     args = parser.parse_args()
 

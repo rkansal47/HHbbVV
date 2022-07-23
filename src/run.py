@@ -278,7 +278,7 @@ if __name__ == "__main__":
     parser.add_argument("--njets", default=2, help="njets", type=int)
     parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
 
-    add_bool_arg(parser, "save-ak15", default=False)
+    add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
 
     args = parser.parse_args()
 
