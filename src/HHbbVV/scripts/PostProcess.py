@@ -11,6 +11,8 @@ Author(s): Raghav Kansal, Cristina Mantilla Suarez
 """
 
 import os
+import sys
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -20,28 +22,31 @@ import utils
 import plotting
 
 from typing import Dict, List, Tuple
+from inspect import cleandoc
+from textwrap import dedent
 
 from sample_labels import sig_key, data_key, qcd_key, bg_keys
 from utils import CUT_MAX_VAL
 
+from pprint import pprint
 
-# import importlib
-#
-# importlib.reload(utils)
-# importlib.reload(plotting)
+import importlib
+
+_ = importlib.reload(utils)
+_ = importlib.reload(plotting)
 
 
 # Both Jet's Msds > 50 & at least one jet with Txbb > 0.8
 filters = [
     [
-        ("('ak8FatJetMsd', '0')", ">=", "50"),
-        ("('ak8FatJetMsd', '1')", ">=", "50"),
-        ("('ak8FatJetParticleNetMD_Txbb', '0')", ">=", "0.8"),
+        ("('ak8FatJetMsd', '0')", ">=", 50),
+        ("('ak8FatJetMsd', '1')", ">=", 50),
+        ("('ak8FatJetParticleNetMD_Txbb', '0')", ">=", 0.8),
     ],
     [
-        ("('ak8FatJetMsd', '0')", ">=", "50"),
-        ("('ak8FatJetMsd', '1')", ">=", "50"),
-        ("('ak8FatJetParticleNetMD_Txbb', '1')", ">=", "0.8"),
+        ("('ak8FatJetMsd', '0')", ">=", 50),
+        ("('ak8FatJetMsd', '1')", ">=", 50),
+        ("('ak8FatJetParticleNetMD_Txbb', '1')", ">=", 0.8),
     ],
 ]
 
@@ -58,8 +63,8 @@ control_plot_vars = {
     "VVFatJetEta": ([50, -3, 3], r"$\eta^{VV}$"),
     "VVFatJetPt": ([50, 200, 1000], r"$p^{VV}_T$ (GeV)"),
     "VVFatJetMsd": ([50, 20, 500], r"$m^{VV}$ (GeV)"),
-    "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"$p^{VV}_{Th4q}$"),
-    "VVFatJetParticleNetHWWMD_THWW4q": ([50, 0, 1], r"$p^{VV}_{THVV4q}$"),
+    "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"Probability($H \to 4q$)"),
+    "VVFatJetParticleNetHWWMD_THWW4q": ([50, 0, 1], r"Probability($H \to VV \to 4q$)"),
     "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
     "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
     "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.5], r"$p^{VV}_T / p^{bb}_T$"),
@@ -68,14 +73,30 @@ control_plot_vars = {
 
 # {label: {cutvar: [min, max], ...}, ...}
 selection_regions = {
-    "pass_cat1": {
+    "passCat1": {
         "BDTScore": [0.985, CUT_MAX_VAL],
         "bbFatJetParticleNetMD_Txbb": [0.977, CUT_MAX_VAL],
     },
-    "fail_cat1": {
+    "fail": {
         "bbFatJetParticleNetMD_Txbb": [0.8, 0.977],
     },
 }
+
+scan_regions = {}
+
+for bdtcut in np.arange(0.97, 1, 0.002):
+    for bbcut in np.arange(0.97, 1, 0.002):
+        cutstr = f"bdtcut_{bdtcut}_bbcut_{bbcut}"
+        scan_regions[cutstr] = {
+            "passCat1": {
+                "BDTScore": [bdtcut, CUT_MAX_VAL],
+                "bbFatJetParticleNetMD_Txbb": [bbcut, CUT_MAX_VAL],
+            },
+            "fail": {
+                "bbFatJetParticleNetMD_Txbb": [0.8, bbcut],
+            },
+        }
+
 
 # bb msd is final shape var
 shape_var = ("bbFatJetMsd", r"$m^{bb}$ (GeV)")
@@ -86,10 +107,14 @@ blind_window = [100, 150]
 # for local interactive testing
 args = type("test", (object,), {})()
 args.data_dir = "../../../../data/skimmer/Apr28/"
-args.plot_dir = "../../plots/05_26_testing"
+args.plot_dir = "../../../PostProcess/plots/04_07_scan"
 args.year = "2017"
 args.bdt_preds = f"{args.data_dir}/absolute_weights_preds.npy"
-args.template_file = "templates/test.pkl"
+args.template_file = "templates/04_07_scan"
+args.overwrite_template = True
+args.control_plots = False
+args.templates = False
+args.scan = True
 
 
 def main(args):
@@ -103,16 +128,21 @@ def main(args):
 
     events_dict = utils.load_samples(args.data_dir, samples, args.year, filters)
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", overall_cutflow)
+    print("\nLoaded Events\n")
+
+    events_dict[sig_key]
 
     apply_weights(events_dict, args.year, overall_cutflow)
     bb_masks = bb_VV_assignment(events_dict)
     derive_variables(events_dict, bb_masks)
+    print("\nWeights, masks, derived variables\n")
 
     if args.bdt_preds != "":
         load_bdt_preds(events_dict, args.bdt_preds, bdt_sample_order)
 
     if args.control_plots:
         control_plots(events_dict, bb_masks, control_plot_vars, args.plot_dir)
+        print("\nMade control plots\n")
 
     if args.templates:
         if args.bdt_preds != "":
@@ -123,12 +153,33 @@ def main(args):
                 shape_var,
                 shape_bins,
                 blind_window,
-                args.plot_dir,
+                plot_dir=args.plot_dir,
                 prev_cutflow=overall_cutflow,
             )
             save_templates(templates, blind_window, args.template_file)
+            print("\nMade and saved templates\n")
         else:
             print("bdt-preds need to be given for templates")
+
+    if args.scan:
+        os.system(f"mkdir -p {args.template_file}")
+
+        templates = {}
+
+        for cutstr, region in scan_regions.items():
+            print(cutstr)
+            templates[cutstr] = get_templates(
+                events_dict,
+                bb_masks,
+                region,
+                shape_var,
+                shape_bins,
+                blind_window,
+                plot_dir=args.plot_dir,
+                prev_cutflow=overall_cutflow,
+                cutstr=cutstr,
+            )
+            save_templates(templates[cutstr], blind_window, f"{args.template_file}/{cutstr}.pkl")
 
 
 def make_dirs(args):
@@ -142,7 +193,7 @@ def make_dirs(args):
 
         if path.exists() and not args.overwrite_template:
             print("Template file already exists -- exiting!")
-            return
+            sys.exit()
 
         os.system(f"mkdir -p {path.parent}")
 
@@ -162,7 +213,6 @@ def apply_weights(
 
     """
     from coffea.lookup_tools.dense_lookup import dense_lookup
-    import pickle
 
     with open(
         f"../corrections/trigEffs/AK8JetHTTriggerEfficiency_{year}.hist", "rb"
@@ -174,7 +224,6 @@ def apply_weights(
     )
 
     for sample in events_dict:
-        print(sample)
         events = events_dict[sample]
         if sample == data_key:
             events[weight_key] = events["weight"]
@@ -228,7 +277,6 @@ def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataF
 def derive_variables(events_dict: Dict[str, pd.DataFrame], bb_masks: Dict[str, pd.DataFrame]):
     """Derives more dijet kinematic variables for control plots."""
     for sample, events in events_dict.items():
-        print(sample)
         bb_mask = bb_masks[sample]
 
         fatjet_vectors = utils.make_vector(events, "ak8FatJet")
@@ -289,19 +337,18 @@ def control_plots(
     from PyPDF2 import PdfFileMerger
 
     sig_scale = np.sum(events_dict[data_key][weight_key]) / np.sum(events_dict[sig_key][weight_key])
+    print(f"{sig_scale = }")
 
     hists = {}
 
     for var, (bins, label) in control_plot_vars.items():
-        if var not in events_dict[sig_key]:
-            print(f"Control Plots: {var} not found in events, skipping)")
-            continue
-
         if var not in hists:
-            print(var)
             hists[var] = utils.singleVarHist(
                 events_dict, var, bins, label, bb_masks, weight_key=weight_key
             )
+
+    with open(f"{args.plot_dir}/hists.pkl", "wb") as f:
+        pickle.dump(hists, f)
 
     merger_control_plots = PdfFileMerger()
 
@@ -310,7 +357,6 @@ def control_plots(
         plotting.ratioHistPlot(
             var_hist,
             bg_keys,
-            sig_key,
             name=name,
             sig_scale=sig_scale,
         )
@@ -327,13 +373,14 @@ def get_templates(
     shape_var: Tuple[str],
     shape_bins: List[float],
     blind_window: List[float],
-    plot_dir: str,
-    prev_cutflow: pd.DataFrame,
+    plot_dir: str = "",
+    prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
+    cutstr: str = "",
 ) -> Dict[str, Hist]:
     """
     (1) Makes histograms for each region in the ``selection_regions`` dictionary,
-    (2) Saves a plot of each,
+    (2) Saves a plot of each (if ``plot_dir`` is not ""),
     (3) And for the Pass region calculates the signal and data-driven bg estimate.
 
     Args:
@@ -342,19 +389,24 @@ def get_templates(
         shape_var (Tuple[str]): final shape var: (var name, var plotting label).
         shape_bins (List[float]): binning for shape var: [num bins, min, max].
         blind_window (List[float]): signal window to blind: [min, max] (min, max should be bin edges).
+        cutstr (str): optional string to add to plot file names.
 
     Returns:
         Dict[str, Hist]: dictionary of templates, saved as hist.Hist objects.
 
     """
 
+    # print(selection_regions)
+
     selections, cutflows, templates = {}, {}, {}
 
     for label, region in selection_regions.items():
+        # print(region)
         pass_region = label.startswith("pass")
 
         sel, cf = utils.make_selection(region, events_dict, bb_masks, prev_cutflow=prev_cutflow)
-        cf.to_csv(f"{plot_dir}/{label}_region_cutflow.csv")
+        if plot_dir != "":
+            cf.to_csv(f"{plot_dir}/{cutstr}{label}_cutflow.csv")
 
         template = utils.singleVarHist(
             events_dict,
@@ -368,12 +420,14 @@ def get_templates(
 
         sig_scale = utils.getSignalPlotScaleFactor(events_dict, selection=sel)
 
-        plotting.ratioHistPlot(
-            template,
-            bg_keys,
-            name=f"{plot_dir}/{label}_region_bb_mass.pdf",
-            sig_scale=sig_scale / 2,
-        )
+        if plot_dir != "":
+            plotting.ratioHistPlot(
+                template,
+                bg_keys,
+                name=f"{plot_dir}/{cutstr}{label}_region_bb_mass.pdf",
+                sig_scale=sig_scale / 2,
+                show=False,
+            )
 
         if pass_region:
             pass_sig_yield, pass_bg_yield = utils.getSigSidebandBGYields(
@@ -384,9 +438,12 @@ def get_templates(
                 selection=sel,
             )
 
+            # cutstrn = cutstr + "\n" if cutstr != "" else ""
             print(
-                f"""Pass region signal yield: {pass_sig_yield}
-                background yield from data in sidebands: {pass_bg_yield}"""
+                cleandoc(
+                    f"""Pass region signal yield: {pass_sig_yield}
+                    background yield from data in sidebands: {pass_bg_yield}"""
+                )
             )
 
         selections[label] = sel
@@ -400,12 +457,11 @@ def save_templates(templates: Dict[str, Hist], blind_window: List[float], templa
     """Creates blinded copies of each region's templates and saves a pickle of the templates"""
 
     from copy import deepcopy
-    import pickle
 
     for label, template in list(templates.items()):
         blinded_template = deepcopy(template)
         utils.blindBins(blinded_template, blind_window)
-        templates[f"{label}_blinded"] = blinded_template
+        templates[f"{label}Blinded"] = blinded_template
 
     with open(template_file, "wb") as f:
         pickle.dump(templates, f)
@@ -426,7 +482,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--year",
-        default="year",
+        default="2017",
         choices=["2016", "2016APV", "2017", "2018"],
         type=str,
     )
@@ -434,29 +490,30 @@ if __name__ == "__main__":
     parser.add_argument(
         "--bdt-preds",
         help="path to bdt predictions, if empty, don't load",
-        default="",
+        default="../../../../data/skimmer/Apr28/absolute_weights_preds.npy",
         type=str,
     )
 
     parser.add_argument(
         "--plot-dir",
-        help="If making control plots, path to directory to save them in",
+        help="If making control or template plots, path to directory to save them in",
         default="",
         type=str,
     )
 
     parser.add_argument(
         "--template-file",
-        help="If saving templates, path to file to save them in",
+        help="If saving templates, path to file to save them in. If scanning, directory to save in.",
         default="",
         type=str,
     )
 
-    utils.add_bool_arg(parser, "control-plots", "make control plots", default=True)
+    utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
     utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
     utils.add_bool_arg(
         parser, "overwrite-template", "if template file already exists, overwrite it", default=False
     )
+    utils.add_bool_arg(parser, "scan", "Scan BDT + Txbb cuts and save templates", default=False)
 
     args = parser.parse_args()
     main(args)
