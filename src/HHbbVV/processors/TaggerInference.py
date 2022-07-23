@@ -426,7 +426,9 @@ def runInferenceTriton(
 ) -> dict:
     total_start = time.time()
 
-    with open(f"{tagger_resources_path}/triton_config.json") as f:
+    jet_label = "ak15" if ak15 else "ak8"
+
+    with open(f"{tagger_resources_path}/triton_config_{jet_label}.json") as f:
         triton_config = json.load(f)
 
     with open(f"{tagger_resources_path}/{triton_config['model_name']}.json") as f:
@@ -475,9 +477,7 @@ def runInferenceTriton(
         time_taken = time.time() - start
         print(f"Inference took {time_taken:.1f}s")
 
-    jet_label = "ak15" if ak15 else "ak8"
-
-    pnet_vars_list = []
+        pnet_vars_list = []
     for jet_idx in range(2):
         if len(tagger_outputs[jet_idx]):
             pnet_vars_list.append(

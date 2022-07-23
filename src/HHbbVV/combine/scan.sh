@@ -3,7 +3,7 @@
 dataset=data_obs
 cutstrs=($(ls -d *))
 
-for cutstr in custrs
+for cutstr in $cutstrs
 do
   echo $cutstr
   cd $cutstr
@@ -11,7 +11,10 @@ do
   ws=${cutstr}_combined
   wsm=${ws}_withmasks
 
+  echo "combining cards"
   combineCards.py fail=fail.txt failBlinded=failBlinded.txt passCat1=passCat1.txt passCat1Blinded=passCat1Blinded.txt > $ws.txt
+
+  echo "text2workspace"
   text2workspace.py -D $dataset $ws.txt --channel-masks -o $wsm.root
 
   echo "bkg-only fit"
@@ -24,3 +27,4 @@ do
   combine higgsCombineTest.MultiDimFit.mH125.root -M Significance --significance -m 125 -n Cat1 --snapshotName MultiDimFit -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit --setParameters mask_passCat1=0,mask_fail=0,mask_passCat1Blinded=1,mask_failBlinded=1 --floatParameters r --toysFrequentist | tee significance.txt
 
   cd ..
+done
