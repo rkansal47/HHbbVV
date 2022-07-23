@@ -30,6 +30,20 @@ with warnings.catch_warnings():
     fxn()
 
 
+def add_bool_arg(parser, name, help, default=False, no_name=None):
+    """Add a boolean command line argument for argparse"""
+    varname = "_".join(name.split("-"))  # change hyphens to underscores
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument("--" + name, dest=varname, action="store_true", help=help)
+    if no_name is None:
+        no_name = "no-" + name
+        no_help = "don't " + help
+    else:
+        no_help = help
+    group.add_argument("--" + no_name, dest=varname, action="store_false", help=no_help)
+    parser.set_defaults(**{varname: default})
+
+
 # for running on condor
 nanoevents.PFNanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
     "FatJetAK15_nConstituents",
@@ -58,6 +72,7 @@ class NanoeventsSchemaPlugin(WorkerPlugin):
         nanoevents.PFNanoAODSchema.mixins["SubJet"] = "FatJet"
         nanoevents.PFNanoAODSchema.mixins["PFCands"] = "PFCand"
         nanoevents.PFNanoAODSchema.mixins["SV"] = "PFCand"
+
 
 def get_fileset(processor, year, samples, subsamples, starti, endi):
     with open(f"data/pfnanoindex_{year}.json", "r") as f:
@@ -110,7 +125,7 @@ def main(args):
     elif args.processor == "skimmer":
         from HHbbVV.processors import bbVVSkimmer
 
-        p = bbVVSkimmer(xsecs=get_xsecs())
+        p = bbVVSkimmer(xsecs=get_xsecs(), save_ak15=args.save_ak15)
     elif args.processor == "input":
         from HHbbVV.processors import TaggerInputSkimmer
 
@@ -262,6 +277,9 @@ if __name__ == "__main__":
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
     parser.add_argument("--njets", default=2, help="njets", type=int)
     parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
+
+    add_bool_arg(parser, "save-ak15", default=False)
+
     args = parser.parse_args()
 
     main(args)
