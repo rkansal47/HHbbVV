@@ -10,7 +10,7 @@ import numpy as np
 from scipy.special import softmax
 import awkward as ak
 from coffea.nanoevents.methods.base import NanoEventsArray
-
+from coffea.nanoevents.methods import candidate,vector
 import json
 
 # import onnxruntime as ort
@@ -24,6 +24,18 @@ from tqdm import tqdm
 
 from .utils import pad_val
 
+def build_p4(cand):
+    return ak.zip(
+        {
+            "pt": cand.pt,
+            "eta": cand.eta,
+            "phi": cand.phi,
+            "mass": cand.mass,
+            "charge": cand.charge,
+        },
+        with_name="PtEtaPhiMCandidate",
+        behavior=candidate.behavior,
+    )
 
 def get_pfcands_features(
     tagger_vars: dict,
@@ -268,6 +280,27 @@ def get_lep_features(
         preselected_events[electron_label].jetIdx == jet_idx
     ]
 
+    # get features of leading leptons
+    leptons = ak.concatenate([jet_muons,jet_electrons], axis=1)
+    index_lep = ak.argsort(leptons.pt,ascending=False)
+    leptons = leptons[index_lep]
+    lepton_cand = ak.firsts(leptons)
+    lepton = build_p4(lepton_cand)
+
+    #print(ak.firsts(leptons).__repr__)
+    electron_iso = jet_electrons.pfRelIso03_all
+    electron_pdgid = np.abs(jet_electrons.charge)*11
+    muon_iso = jet_muons.pfRelIso04_all
+    muon_pdgid = np.abs(jet_muons.charge)*13
+    feature_dict["lep_iso"] = ak.firsts(ak.concatenate([muon_iso,electron_iso], axis=1)[index_lep]).to_numpy().filled(fill_value=0)
+    feature_dict["lep_pdgId"] = ak.firsts(ak.concatenate([muon_pdgid,electron_pdgid], axis=1)[index_lep]).to_numpy().filled(fill_value=0)
+    
+    # this is for features that are shared
+    feature_dict["lep_dR_fj"] = lepton.delta_r(jet).to_numpy().filled(fill_value=0)
+    feature_dict["lep_pt"] = (lepton.pt).to_numpy().filled(fill_value=0)
+    feature_dict["lep_pt_ratio"] = (lepton.pt/jet.pt).to_numpy().filled(fill_value=0)
+    feature_dict["lep_miniiso"] = lepton_cand.miniPFRelIso_all.to_numpy().filled(fill_value=0)
+
     # get features
     feature_dict["muon_pt"] = jet_muons.pt / jet.pt
     feature_dict["muon_eta"] = jet_muons.eta - jet.eta
@@ -426,7 +459,9 @@ def runInferenceTriton(
 ) -> dict:
     total_start = time.time()
 
-    with open(f"{tagger_resources_path}/triton_config.json") as f:
+    jet_label = "ak15" if ak15 else "ak8"
+
+    with open(f"{tagger_resources_path}/triton_config_{jet_label}.json") as f:
         triton_config = json.load(f)
 
     with open(f"{tagger_resources_path}/{triton_config['model_name']}.json") as f:
@@ -475,9 +510,7 @@ def runInferenceTriton(
         time_taken = time.time() - start
         print(f"Inference took {time_taken:.1f}s")
 
-    jet_label = "ak15" if ak15 else "ak8"
-
-    pnet_vars_list = []
+        pnet_vars_list = []
     for jet_idx in range(2):
         if len(tagger_outputs[jet_idx]):
             pnet_vars_list.append(
