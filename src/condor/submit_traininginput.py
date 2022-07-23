@@ -1,7 +1,7 @@
 import os
 import argparse
 
-from src.condor import submit
+import submit
 
 samples_to_submit = {
     "Training": {
@@ -22,10 +22,10 @@ samples_to_submit = {
         "QCD": {
             "subsamples": [
                 "QCD_Pt_300to470",
-                "QCD_Pt_470to600", # probably need to change chunk size because lots of memory errors
+                "QCD_Pt_470to600",  # probably need to change chunk size because lots of memory errors
                 "QCD_Pt_600to800",
                 "QCD_Pt_800to1000",
-                "QCD_Pt_1000to1400"
+                "QCD_Pt_1000to1400",
             ],
             "files_per_job": 1,
             "label": "_QCD",
@@ -36,7 +36,7 @@ samples_to_submit = {
             "subsamples": [
                 "WJetsToQQ_HT-400to600",
                 "WJetsToQQ_HT-600to800",
-                "WJetsToQQ_HT-800toInf"
+                "WJetsToQQ_HT-800toInf",
             ],
             "files_per_job": 2,
             "label": "_VJets",
@@ -50,13 +50,14 @@ samples_to_submit = {
                 "WJetsToLNu_HT-600To800",
                 "WJetsToLNu_HT-800To1200",
                 "WJetsToLNu_HT-1200To2500",
-                "WJetsToLNu_HT-2500ToInf"],
+                "WJetsToLNu_HT-2500ToInf",
+            ],
             "files_per_job": 5,
             "label": "_VJets",
             "njets": 1,
         },
         "TTbar": {
-            "subsamples": ["TTToSemiLeptonic","TTToHadronic"],
+            "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
             "files_per_job": 2,
             "label": "_Top",
             "njets": 2,
@@ -80,10 +81,14 @@ samples_to_submit = {
             "label": "_QCD",
             "njets": 1,
             "maxchunks": 2,
-        },            
+        },
         "XYH": {
-            "subsamples": ["NMSSM_XYH_WWbb_MX_1500_MY400","NMSSM_XYH_WWbb_MX_1300_MY200",
-                           "NMSSM_XYH_WWbb_MX_2000_MY400","NMSSM_XYH_WWbb_MX_3000_MY800",],
+            "subsamples": [
+                "NMSSM_XYH_WWbb_MX_1500_MY400",
+                "NMSSM_XYH_WWbb_MX_1300_MY200",
+                "NMSSM_XYH_WWbb_MX_2000_MY400",
+                "NMSSM_XYH_WWbb_MX_3000_MY800",
+            ],
             "files_per_job": 40,
             "label": "_H_VV",
             "njets": 2,
@@ -117,7 +122,7 @@ samples_to_submit = {
             "label": "_H_VV",
             "njets": 2,
         },
-    }
+    },
 }
 
 if __name__ == "__main__":
@@ -135,15 +140,15 @@ if __name__ == "__main__":
     args.outdir = "outfiles"
     args.test = False
     tag = args.tag
-    for key,tdict in samples_to_submit.items():
-        for sample,sdict in tdict.items():
+    for key, tdict in samples_to_submit.items():
+        for sample, sdict in tdict.items():
             args.samples = [sample]
             args.subsamples = sdict["subsamples"]
             args.files_per_job = sdict["files_per_job"]
             args.njets = sdict["njets"]
-            args.label = args.jet+sdict['label']
+            args.label = args.jet + sdict["label"]
             args.tag = tag
-            if key=="Validation":
+            if key == "Validation":
                 args.tag = f"{args.tag}_Validation"
             if "maxchuncks" in sdict.keys():
                 args.maxchunks = sdict["maxchunks"]
@@ -151,5 +156,3 @@ if __name__ == "__main__":
                 args.maxchunks = 0
             print(args)
             submit.main(args)
-
-    
