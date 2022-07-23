@@ -27,16 +27,20 @@ src/*
 !src/HHbbVV/scripts/**
 src/HHbbVV/scripts/data/*
 src/HHbbVV/scripts/*.pkl
+src/HHbbVV/scripts/cards
+src/HHbbVV/scripts/templates
+src/HHbbVV/scripts/*.txt
 
-!outPickles
-!outPickles/*.pickle
-outPickles/*skimmed*
+!src/HHbbVV/combine
+!src/HHbbVV/combine/**
 
 !data
 !data/*
 !data/*/**
 
 !.gitignore
+!pyproject.toml
+!.pre-commit-config.yaml
 !LICENSE
 !*.md
 
