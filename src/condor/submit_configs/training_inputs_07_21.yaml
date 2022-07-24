@@ -1,9 +1,4 @@
-import os
-import argparse
-
-import submit
-
-samples_to_submit = {
+{
     "Training": {
         "HWWPrivate": {
             "subsamples": [
@@ -22,7 +17,8 @@ samples_to_submit = {
         "QCD": {
             "subsamples": [
                 "QCD_Pt_300to470",
-                "QCD_Pt_470to600",  # probably need to change chunk size because lots of memory errors
+                # probably need to change chunk size because lots of memory errors
+                "QCD_Pt_470to600",
                 "QCD_Pt_600to800",
                 "QCD_Pt_800to1000",
                 "QCD_Pt_1000to1400",
@@ -57,15 +53,26 @@ samples_to_submit = {
             "njets": 1,
         },
         "TTbar": {
-            "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
+            "subsamples": [
+                "TTToSemiLeptonic",
+                "TTToHadronic"
+            ],
             "files_per_job": 2,
             "label": "_Top",
             "njets": 2,
             "maxchunks": 2,
         },
         "JetHT2017": {
-            # "subsamples": ["JetHT_Run2017B","JetHT_Run2017C","JetHT_Run2017D","JetHT_Run2017E","JetHT_Run2017F"],
-            "subsamples": ["JetHT_Run2017C"],
+            # "subsamples": [
+            #     "JetHT_Run2017C",
+            #     "JetHT_Run2017D",
+            #     "JetHT_Run2017B",
+            #     "JetHT_Run2017E",
+            #     "JetHT_Run2017F"
+            # ],
+            "subsamples": [
+                "JetHT_Run2017C"
+            ],
             "files_per_job": 2,
             "label": "_JetHTData",
             "njets": 1,
@@ -76,7 +83,9 @@ samples_to_submit = {
         # add private H4q sample ( need to get access to cmsconnect)
         # add VBF/H4q sample (resubmit crab miniaod)
         "QCDHerwig": {
-            "subsamples": ["QCD_Pt_150to3000_herwig"],
+            "subsamples": [
+                "QCD_Pt_150to3000_herwig"
+            ],
             "files_per_job": 1,
             "label": "_QCD",
             "njets": 1,
@@ -124,35 +133,3 @@ samples_to_submit = {
         },
     },
 }
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--year", default="2017", help="year", type=str)
-    parser.add_argument("--tag", default="Test", help="process tag", type=str)
-    parser.add_argument("--jet", default="AK8", help="jet", type=str)
-    parser.add_argument(
-        "--submit", dest="submit", action="store_true", help="submit jobs when created"
-    )
-    args = parser.parse_args()
-
-    args.script = "run.py"
-    args.processor = "input"
-    args.outdir = "outfiles"
-    args.test = False
-    tag = args.tag
-    for key, tdict in samples_to_submit.items():
-        for sample, sdict in tdict.items():
-            args.samples = [sample]
-            args.subsamples = sdict["subsamples"]
-            args.files_per_job = sdict["files_per_job"]
-            args.njets = sdict["njets"]
-            args.label = args.jet + sdict["label"]
-            args.tag = tag
-            if key == "Validation":
-                args.tag = f"{args.tag}_Validation"
-            if "maxchuncks" in sdict.keys():
-                args.maxchunks = sdict["maxchunks"]
-            else:
-                args.maxchunks = 0
-            print(args)
-            submit.main(args)
