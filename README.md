@@ -46,6 +46,10 @@ Applies pre-selection cuts, runs inference with our new HVV tagger, and saves un
 
 Parquet and pickle files will be saved in the eos directory of specified user at path `~/eos/bbVV/skimmer/<tag>/<sample_name>/<parquet or pickles>`. Pickles are in the format `{'nevents': int, 'cutflow': Dict[str, int]}`.
 
+To test locally:
+
+`python -W ignore src/run.py --processor skimmer --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q --save-ak15 --starti 0 --endi 1`
+
 Jobs
 ```bash
 TAG=Apr14
@@ -73,7 +77,7 @@ python -W ignore src/run.py --year 2017 --starti 300 --endi 301 --samples QCD --
 
 Jobs:
 ```
-python submit_traininginput.py --tag Mar29 --jets AK15
+python src/condor/submit_traininginput.py --tag Mar29 --jets AK15
 ```
 To submit add `--submit` flag.
 
