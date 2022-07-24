@@ -19,6 +19,7 @@ src/*
 
 !src/condor
 !src/condor/*
+!src/condor/submit_configs/*
 
 !src/binder
 !src/binder/*.ipynb
