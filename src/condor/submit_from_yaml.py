@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
             args.tag = tag
 
-            args.label = args.jet + sdict["label"] if "label" in sdict.keys() else ""
+            args.label = args.jet + sdict["label"] if "label" in sdict.keys() else "None"
 
             if key == "Validation":
                 args.tag = f"{args.tag}_Validation"
