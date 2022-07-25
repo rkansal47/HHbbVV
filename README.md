@@ -52,15 +52,9 @@ To test locally:
 
 Jobs
 ```bash
-TAG=Apr14
+python src/condor/submit_from_yaml.py --tag Jul24 --processor skimmer --save-ak15 --submit --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml 
 
-# Training
-python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20 --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q
-python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20 --samples QCD
-python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20 --samples TTbar --subsamples TTToHadronic TTToSemiLeptonic
-python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20 --samples SingleTop --subsamples ST_tW_antitop_5f_inclusiveDecays ST_tW_top_5f_inclusiveDecays
-
-# Submit
+# Submit (if not use --submit flag)
 nohup bash -c 'for i in condor/'"${TAG}"'/*.jdl; do condor_submit $i; done' &> tmp/submitout.txt &
 ```
 
@@ -77,7 +71,7 @@ python -W ignore src/run.py --year 2017 --starti 300 --endi 301 --samples QCD --
 
 Jobs:
 ```
-python src/condor/submit_traininginput.py --tag Mar29 --jets AK15
+python src/condor/submit_from_yaml.py --tag Jul21 --processor input --save-ak15 --yaml src/condor/submit_configs/tagger_inputs_07_21.yaml 
 ```
 To submit add `--submit` flag.
 
