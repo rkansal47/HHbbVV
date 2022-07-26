@@ -1,9 +1,11 @@
-{ "Skimmer": {
-            # "HWW":
-            #     {
-            #         "subsamples": ["GluGluToHHTobbVV_node_cHHH1_pn4q"],
-            #         "files_per_job": 20,
-            #     },
+{
+    "Skimmer":
+        {
+            "HWW":
+                {
+                    "subsamples": ["GluGluToHHTobbVV_node_cHHH1_pn4q"],
+                    "files_per_job": 20,
+                },
             "QCD": { "files_per_job": 20 },
             "WJetsToQQ": { "files_per_job": 20 },
             "TTbar":
@@ -12,4 +14,5 @@
                     "files_per_job": 20,
                 },
             "JetHT2017": { "files_per_job": 20 },
-        } }
+        },
+}
