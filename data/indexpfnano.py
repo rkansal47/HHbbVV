@@ -124,13 +124,14 @@ folders_to_index = [
 # /store/user/lpcpfnano/jekrupa/v2_2/2017/WJetsToQQ/WJetsToQQ_HT-800toInf_TuneCP5_13TeV-madgraphMLM-pythia8/WJetsToQQ_HT-800toInf/211108_171840/0000/*root
 
 for pyear in ["2016", "2016APV", "2017", "2018"]:
-#for pyear in ["2017"]:
+    # for pyear in ["2017"]:
     index = {}
     for f1 in folders_to_index:
         f1 = f1.rstrip("/")
         print(f1)
         year = f1.split("/")[-2]
-        if year=="2017v1": year = "2017"
+        if year == "2017v1":
+            year = "2017"
         sample_short = f1.split("/")[-1]
         if year != pyear:
             continue
@@ -166,7 +167,7 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                 for f4 in f3_subfolders:  # Timestamp
                     f4_subfolders = get_subfolders(f"{f1}/{f2}/{f3}/{f4}")
 
-                    #print(f4_subfolders)
+                    # print(f4_subfolders)
                     for f5 in f4_subfolders:  # 0000, 0001, ...
                         f5_children = get_children((f"{f1}/{f2}/{f3}/{f4}/{f5}"))
                         root_files = [
