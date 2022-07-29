@@ -12,12 +12,11 @@ scan_dir = '../cards/04_07_scan/'
 
 cut_dirs = [f.path for f in scandir(scan_dir) if f.is_dir()]
 
-sig_table = pd.DataFrame(columns=['BDT Cut', 'Txbb Cut', 'Sign.'])
-
 sigs = []
 
 for cut_dir in cut_dirs:
     sig_file = f"{cut_dir}/significance.txt"
+    lim_file = f"{cut_dir}/asymptoticlimits.txt"
 
     if not exists(sig_file):
         print(f"{cut_dir} Doesn't exist")
@@ -31,13 +30,20 @@ for cut_dir in cut_dirs:
         try:
             sig = float(f.readlines()[-2].split(' ')[-1])
         except:
-            print(f"{cut_dir} Error parsing")
+            print(f"{cut_dir} Error parsing significance")
             continue
 
-    sigs.append([bdt_cut, bb_cut, sig])
+    with open(lim_file, 'r') as f:
+        try:
+            lim = float(f.readlines()[-5].split(' ')[-1])
+        except:
+            print(f"{cut_dir} Error parsing limits")
+            continue
+
+    sigs.append([bdt_cut, bb_cut, sig, lim])
 
 print(len(sigs))
 
-sig_table = pd.DataFrame(sigs, columns=['BDT Cut', 'Txbb Cut', 'Sign.'])
+sig_table = pd.DataFrame(sigs, columns=['BDT Cut', 'Txbb Cut', 'Sign.', 'Limit'])
 sig_table.sort_values(['BDT Cut', 'Txbb Cut'], inplace=True)
-sig_table.to_csv(f"{scan_dir}/signs.csv")
+sig_table.to_csv(f"{scan_dir}/signs.csv", index=False)

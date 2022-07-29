@@ -311,8 +311,8 @@ class TaggerInputSkimmer(ProcessorABC):
 
             # selection
             selection = PackedSelection()
-            #preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
-            preselection_cut = (fatjets.pt > 200) 
+            # preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
+            preselection_cut = fatjets.pt > 200
             add_selection_no_cutflow("preselection", preselection_cut, selection)
 
             print(f"preselection: {time.time() - start:.1f}s")
@@ -423,9 +423,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 )
                 add_selection_no_cutflow("gen_match", matched_mask, selection)
             else:
-                genVars = {
-                    "fj_isData": ak.values_astype((fatjets.pt > 200), np.int32)
-                }
+                genVars = {"fj_isData": ak.values_astype((fatjets.pt > 200), np.int32)}
             print(f"Gen vars: {time.time() - start:.1f}s")
 
             if np.sum(selection.all(*selection.names)) == 0:
