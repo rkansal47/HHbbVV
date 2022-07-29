@@ -40,6 +40,8 @@ src/HHbbVV/scripts/*.txt
 !data/*/**
 
 !.gitignore
+!.github
+!.github/**
 !pyproject.toml
 !.pre-commit-config.yaml
 !LICENSE

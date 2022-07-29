@@ -25,8 +25,12 @@ with open(sig_pickle_path, "rb") as file:
     out_pickle = pickle.load(file)
     events = out_pickle["skimmed_events"]
 
-frac_not_bbVV_events = (out_pickle["cutflow"]["all"] - out_pickle["cutflow"]["has_bbVV"]) / out_pickle["cutflow"]["all"]
-frac_not_4q_events = (out_pickle["cutflow"]["has_bbVV"] - out_pickle["cutflow"]["has_4q"]) / out_pickle["cutflow"]["has_bbVV"]
+frac_not_bbVV_events = (
+    out_pickle["cutflow"]["all"] - out_pickle["cutflow"]["has_bbVV"]
+) / out_pickle["cutflow"]["all"]
+frac_not_4q_events = (
+    out_pickle["cutflow"]["has_bbVV"] - out_pickle["cutflow"]["has_4q"]
+) / out_pickle["cutflow"]["has_bbVV"]
 
 print(f"{frac_not_bbVV_events = }")
 print(f"{frac_not_4q_events = }")
@@ -40,10 +44,14 @@ print(f"events: {np.sum(events['weight']):.2f}")
 
 dR = 1
 
-jet1_bb_leading = events["ak8FatJetParticleNetMD_Txbb"][:, 0:1] >= events["ak8FatJetParticleNetMD_Txbb"][:, 1:2]
+jet1_bb_leading = (
+    events["ak8FatJetParticleNetMD_Txbb"][:, 0:1] >= events["ak8FatJetParticleNetMD_Txbb"][:, 1:2]
+)
 bb_mask = np.concatenate([jet1_bb_leading, ~jet1_bb_leading], axis=1)
 
-jet1_VV_leading = events["ak15FatJetParticleNet_Th4q"][:, 0:1] >= events["ak15FatJetParticleNet_Th4q"][:, 1:2]
+jet1_VV_leading = (
+    events["ak15FatJetParticleNet_Th4q"][:, 0:1] >= events["ak15FatJetParticleNet_Th4q"][:, 1:2]
+)
 VV_mask = ak.concatenate([jet1_VV_leading, ~jet1_VV_leading], axis=1)
 
 print("prelim masks")
@@ -114,8 +122,12 @@ print(f"fraction VV leading correct: {np.sum(VV_leading_correct) / tot_events}")
 print(f"fraction VV candidate correct: {np.sum(VV_cand_correct) / tot_events}")
 
 tot_bbVV_cut_events = np.sum(bbVV_cut)
-print(f"out of events with both tagger scores > 0.8, fraction bb candidate correct: {np.sum(bb_cand_correct[bbVV_cut]) / tot_bbVV_cut_events}")
-print(f"out of events with both tagger scores > 0.8, fraction VV candidate correct: {np.sum(VV_cand_correct[bbVV_cut]) / tot_bbVV_cut_events}")
+print(
+    f"out of events with both tagger scores > 0.8, fraction bb candidate correct: {np.sum(bb_cand_correct[bbVV_cut]) / tot_bbVV_cut_events}"
+)
+print(
+    f"out of events with both tagger scores > 0.8, fraction VV candidate correct: {np.sum(VV_cand_correct[bbVV_cut]) / tot_bbVV_cut_events}"
+)
 print(
     f"out of events with both tagger scores > 0.8, fraction of both candidates correct: {np.sum(bb_cand_correct[bbVV_cut] * VV_cand_correct[bbVV_cut]) / tot_bbVV_cut_events}"
 )
@@ -215,8 +227,18 @@ plotting.multiHistCutsPlot(
     events["ak8FatJetParticleNetMD_Txbb"],
     weights=np.repeat(events["weight"][:, np.newaxis], 2, 1),
     bins=tagger_bins,
-    cuts=[None, bb_mask, bb_mask * VV_cand_overlap[:, np.newaxis], bb_mask * (VV_cut * VV_cand_overlap)[:, np.newaxis]],
-    labels=["All events", "Leading by Txbb", "Leading jet overlapping with AK15 VV candidate", "Leading jet overlapping & VV cand Th4q > 0.8"],
+    cuts=[
+        None,
+        bb_mask,
+        bb_mask * VV_cand_overlap[:, np.newaxis],
+        bb_mask * (VV_cut * VV_cand_overlap)[:, np.newaxis],
+    ],
+    labels=[
+        "All events",
+        "Leading by Txbb",
+        "Leading jet overlapping with AK15 VV candidate",
+        "Leading jet overlapping & VV cand Th4q > 0.8",
+    ],
     xlabel="Txbb Score",
     ylabel="# Jets",
     title="AK8 Fat Jets",
@@ -230,8 +252,18 @@ plotting.multiHistCutsPlot(
     events["ak8FatJetParticleNet_Th4q"],
     weights=np.repeat(events["weight"][:, np.newaxis], 2, 1),
     bins=tagger_bins,
-    cuts=[None, VV_mask, VV_mask * VV_cand_overlap[:, np.newaxis], VV_mask * (bb_cut * VV_cand_overlap)[:, np.newaxis]],
-    labels=["All events", "Leading by Th4q", "Leading jet overlapping with AK8 bb candidate", "Leading jet overlapping & bb cand Txbb > 0.8"],
+    cuts=[
+        None,
+        VV_mask,
+        VV_mask * VV_cand_overlap[:, np.newaxis],
+        VV_mask * (bb_cut * VV_cand_overlap)[:, np.newaxis],
+    ],
+    labels=[
+        "All events",
+        "Leading by Th4q",
+        "Leading jet overlapping with AK8 bb candidate",
+        "Leading jet overlapping & bb cand Txbb > 0.8",
+    ],
     xlabel="Txbb Score",
     ylabel="# Jets",
     title="AK15 Fat Jets",
