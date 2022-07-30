@@ -1,6 +1,7 @@
 # HHbbVV
 
 [![Codestyle](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/rkansal47/HHbbVV/main.svg)](https://results.pre-commit.ci/latest/github/rkansal47/HHbbVV/main)
 
 <p align="left">
   <img width="300" src="https://raw.githubusercontent.com/rkansal47/HHbbVV/main/figure.png" />
@@ -79,4 +80,4 @@ Command for copying directories to PRP in background ([krsync](https://serverfau
 ```bash
 cd ~/eos/bbVV/input/${TAG}_${JETS}/2017
 mkdir ../copy_logs
-for i in *; do echo $i && sleep 3 && (nohup sh -c "krsync -av --progress --stats $i/root/ $HWWTAGGERDEP:/hwwtaggervol/training/$FOLDER/$i" &> ../copy_logs/$i.txt &) done```
+for i in *; do echo $i && sleep 3 && (nohup sh -c "krsync -av --progress --stats $i/root/ $HWWTAGGERDEP_POD:/hwwtaggervol/training/$FOLDER/$i" &> ../copy_logs/$i.txt &) done```
