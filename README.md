@@ -76,7 +76,9 @@ python src/condor/submit_from_yaml.py --tag Jul21 --processor input --save-ak15 
 ```
 To submit add `--submit` flag.
 
+
 Command for copying directories to PRP in background ([krsync](https://serverfault.com/a/887402))
+(you may need to install `rsync` in the PRP pod first if it's been restarted)
 ```bash
 cd ~/eos/bbVV/input/${TAG}_${JETS}/2017
 mkdir ../copy_logs
