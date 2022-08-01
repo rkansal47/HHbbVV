@@ -24,13 +24,13 @@ src/*
 !src/binder
 !src/binder/*.ipynb
 
-!src/HHbbVV/scripts
-!src/HHbbVV/scripts/**
-src/HHbbVV/scripts/data/*
-src/HHbbVV/scripts/*.pkl
-src/HHbbVV/scripts/cards
-src/HHbbVV/scripts/templates
-src/HHbbVV/scripts/*.txt
+!src/HHbbVV/postprocessing
+!src/HHbbVV/postprocessing/**
+src/HHbbVV/postprocessing/data/*
+src/HHbbVV/postprocessing/*.pkl
+src/HHbbVV/postprocessing/cards
+src/HHbbVV/postprocessing/templates
+src/HHbbVV/postprocessing/*.txt
 
 !src/HHbbVV/combine
 !src/HHbbVV/combine/**
