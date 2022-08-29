@@ -2,7 +2,7 @@
 
 dataset=data_obs
 cards_dir=cards
-model_name=test
+model_name=$1
 ws=${model_name}_combined
 wsm=${ws}_withmasks
 wsm_snapshot=higgsCombineSnapshot.MultiDimFit.mH125
