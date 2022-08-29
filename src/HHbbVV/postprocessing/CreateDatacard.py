@@ -70,7 +70,12 @@ def main(args):
 
     # pass, fail x unblinded, blinded
     regions = [
-        f"{pf}{blind_str}" for pf in [f"passCat{args.cat}", "fail"] for blind_str in ["", "Blinded"]
+        f"{pf}{blind_str}"
+        for pf in [f"passCat{args.cat}", "fail"]
+        for blind_str in ["", "Blinded"]
+        # f"{pf}{blind_str}"
+        # for pf in [f"passCat{args.cat}", "fail"]
+        # for blind_str in ["Blinded"]
     ]
 
     with open(args.templates_file, "rb") as f:
@@ -115,8 +120,6 @@ def main(args):
     # build actual fit model now
     model = rl.Model("HHModel")
 
-    region = regions[0]
-
     for region in regions:
         region_templates = templates[region]
 
@@ -151,7 +154,9 @@ def main(args):
 
             # set mc stat uncs
             logging.info("setting autoMCStats for %s in %s" % (sample_name, region))
-            sample.autoMCStats()
+
+            sample_name = region.split("Blinded")[0] + f"_{sample_name}"
+            sample.autoMCStats(sample_name=sample_name)
 
             # TODO: shape systematics
             ch.addSample(sample)
@@ -160,6 +165,7 @@ def main(args):
         ch.setObservation(region_templates[data_key, :])
 
     for blind_str in ["", "Blinded"]:
+        # for blind_str in ["Blinded"]:
         passChName = f"passCat{args.cat}{blind_str}".replace("_", "")
         failChName = f"fail{blind_str}".replace("_", "")
         logging.info(
