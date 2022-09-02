@@ -88,4 +88,5 @@ for shape, slabel in shapes.items():
             data_err=data_errs[shape][region],
             title=f"{rlabel} Region {slabel} Shapes",
             name=f"{args.plots_dir}/{shape}_{region}.pdf",
+            show=False,
         )
