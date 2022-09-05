@@ -414,6 +414,7 @@ def get_templates(
             shape_bins,
             shape_var[1],
             bb_masks,
+            weight_key=weight_key,
             selection=sel,
             blind_region=blind_window if pass_region else None,
         )
