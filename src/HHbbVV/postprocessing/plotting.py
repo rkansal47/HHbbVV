@@ -19,6 +19,7 @@ from hist import Hist
 from hist.intervals import ratio_uncertainty
 
 from typing import Dict, List
+from numpy.typing import ArrayLike
 
 from sample_labels import sig_key, data_key
 
@@ -32,6 +33,8 @@ def ratioHistPlot(
     bg_keys: List[str],
     bg_colours: Dict[str, str] = bg_colours,
     sig_colour: str = sig_colour,
+    data_err: ArrayLike | bool | None = None,
+    title: str = None,
     blind_region: list = None,
     name: str = "",
     sig_scale: float = 1.0,
@@ -62,7 +65,9 @@ def ratioHistPlot(
         label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
         color=colours[sig_colour],
     )
-    hep.histplot(hists[data_key, :], ax=ax, histtype="errorbar", label=data_key, color="black")
+    hep.histplot(
+        hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
+    )
     ax.legend()
     ax.set_ylim(0)
 
@@ -78,6 +83,9 @@ def ratioHistPlot(
     )
     rax.set_ylabel("Data/MC")
     rax.grid()
+
+    if title is not None:
+        ax.set_title(title, y=1.08)
 
     hep.cms.label("Work in Progress", data=True, lumi=40, year=2017, ax=ax)
     if len(name):
