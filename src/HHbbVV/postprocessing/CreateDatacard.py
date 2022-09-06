@@ -14,6 +14,7 @@ import numpy as np
 import pickle
 import logging
 from collections import OrderedDict
+import utils
 
 # import hist
 # from hist import Hist
@@ -156,12 +157,16 @@ def main(args):
             logging.info("setting autoMCStats for %s in %s" % (sample_name, region))
 
             sample_name = region.split("Blinded")[0] + f"_{sample_name}"
-            sample.autoMCStats(sample_name=sample_name)
+            if not args.bblite:
+                sample.autoMCStats(sample_name=sample_name)
 
             # TODO: shape systematics
             ch.addSample(sample)
 
         # data observed
+        if args.bblite:
+            channel_name = region.split("Blinded")[0]
+            ch.autoMCStats(channel_name=channel_name)
         ch.setObservation(region_templates[data_key, :])
 
     for blind_str in ["", "Blinded"]:
@@ -209,9 +214,15 @@ def main(args):
     os.system(f"mkdir -p {args.cards_dir}")
 
     logging.info("rendering combine model")
-    model.renderCombine(os.path.join(str(args.cards_dir), args.model_name))
 
-    with open(f"{args.cards_dir}/{args.model_name}/model.pkl", "wb") as fout:
+    if args.model_name is not None:
+        out_dir = os.path.join(str(args.cards_dir), args.model_name)
+    else:
+        out_dir = args.cards_dir
+
+    model.renderCombine(out_dir)
+
+    with open(f"{out_dir}/model.pkl", "wb") as fout:
         pickle.dump(model, fout, 2)  # use python 2 compatible protocol
 
 
@@ -234,7 +245,8 @@ if __name__ == "__main__":
         dest="nDataTF",
         help="order of polynomial for TF from Data",
     )
-    parser.add_argument("--model-name", default="HHModel", type=str, help="output model name")
+    parser.add_argument("--model-name", default=None, type=str, help="output model name")
+    utils.add_bool_arg(parser, "bblite", "use barlow-beeston-lite method")
     args = parser.parse_args()
 
     main(args)
