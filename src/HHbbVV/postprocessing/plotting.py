@@ -18,7 +18,7 @@ formatter.set_powerlimits((-3, 3))
 from hist import Hist
 from hist.intervals import ratio_uncertainty
 
-from typing import Dict, List
+from typing import Dict, List, Union
 from numpy.typing import ArrayLike
 
 from sample_labels import sig_key, data_key
@@ -33,7 +33,7 @@ def ratioHistPlot(
     bg_keys: List[str],
     bg_colours: Dict[str, str] = bg_colours,
     sig_colour: str = sig_colour,
-    data_err: ArrayLike | bool | None = None,
+    data_err: Union[ArrayLike, bool, None] = None,
     title: str = None,
     blind_region: list = None,
     name: str = "",
