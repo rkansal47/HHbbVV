@@ -87,8 +87,8 @@ for shape in shapes:
 
 import pickle
 
-with open(f"{args.plots_dir}/shapes.pkl", "wb") as f:
-    pickle.dump(shapes, f)
+with open(f"{args.plots_dir}/hists.pkl", "wb") as f:
+    pickle.dump(hists, f)
 
 with open(f"{args.plots_dir}/data_errs.pkl", "wb") as f:
     pickle.dump(data_errs, f)
