@@ -48,6 +48,11 @@ shapes = {
 
 file = uproot.open(args.fit_file)
 
+for key in list(shapes.keys()):
+    if key not in file:
+        print(f"{key} not found!")
+        del shapes[key]
+
 
 hists = {}
 data_errs = {}
@@ -80,13 +85,26 @@ for shape in shapes:
         )
 
 
-for shape, slabel in shapes.items():
-    for region, rlabel in regions.items():
-        plotting.ratioHistPlot(
-            hists[shape][region],
-            ["QCD", "TT"],
-            data_err=data_errs[shape][region],
-            title=f"{rlabel} Region {slabel} Shapes",
-            name=f"{args.plots_dir}/{shape}_{region}.pdf",
-            show=False,
-        )
+import pickle
+
+with open(f"{args.plots_dir}/shapes.pkl", "wb") as f:
+    pickle.dump(shapes, f)
+
+with open(f"{args.plots_dir}/data_errs.pkl", "wb") as f:
+    pickle.dump(data_errs, f)
+
+
+print("Saved pickles")
+
+# for shape, slabel in shapes.items():
+#     print(f"Plotting {shape}")
+
+#     for region, rlabel in regions.items():
+#         plotting.ratioHistPlot(
+#             hists[shape][region],
+#             ["QCD", "TT"],
+#             data_err=data_errs[shape][region],
+#             title=f"{rlabel} Region {slabel} Shapes",
+#             name=f"{args.plots_dir}/{shape}_{region}.pdf",
+#             show=False,
+#         )
