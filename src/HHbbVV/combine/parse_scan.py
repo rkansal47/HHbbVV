@@ -8,15 +8,22 @@ from os import scandir
 from os.path import exists
 import pandas as pd
 
-scan_dir = "../cards/04_07_scan/"
+import argparse
 
-cut_dirs = [f.path for f in scandir(scan_dir) if f.is_dir()]
+parser = argparse.ArgumentParser()
+
+parser.add_argument("--scan-dir", help="scan directory", type=str)
+
+args = parser.parse_args()
+
+
+cut_dirs = [f.path for f in scandir(args.scan_dir) if f.is_dir()]
 
 sigs = []
 
 for cut_dir in cut_dirs:
-    sig_file = f"{cut_dir}/significance.txt"
-    lim_file = f"{cut_dir}/asymptoticlimits.txt"
+    sig_file = f"{cut_dir}/outs/Significance.txt"
+    lim_file = f"{cut_dir}/outs/AsymptoticLimits.txt"
 
     if not exists(sig_file):
         print(f"{cut_dir} Doesn't exist")
@@ -46,4 +53,4 @@ print(len(sigs))
 
 sig_table = pd.DataFrame(sigs, columns=["BDT Cut", "Txbb Cut", "Sign.", "Limit"])
 sig_table.sort_values(["BDT Cut", "Txbb Cut"], inplace=True)
-sig_table.to_csv(f"{scan_dir}/signs.csv", index=False)
+sig_table.to_csv(f"{args.scan_dir}/signs.csv", index=False)
