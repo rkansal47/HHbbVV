@@ -72,7 +72,7 @@ python -W ignore src/run.py --year 2017 --starti 300 --endi 301 --samples QCD --
 
 Jobs:
 ```
-python src/condor/submit_from_yaml.py --tag Jul21 --processor input --save-ak15 --yaml src/condor/submit_configs/tagger_inputs_07_21.yaml 
+python src/condor/submit_from_yaml.py --tag Jul21 --processor input --save-ak15 --yaml src/condor/submit_configs/training_inputs_07_21.yaml 
 ```
 To submit add `--submit` flag.
 
