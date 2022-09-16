@@ -96,7 +96,18 @@ def get_pfcands_features(
         if "btag" in var:
             feature_dict[var] = jet_ak_pfcands[var[len("pfcand_") :]]
 
-    feature_dict["pfcand_mask"] = (~(ma.masked_invalid( ak.pad_none(feature_dict["pfcand_abseta"], tagger_vars["pf_points"]["var_length"], axis=1, clip=True).to_numpy() ).mask) ).astype(np.float32)
+    feature_dict["pfcand_mask"] = (
+        ~(
+            ma.masked_invalid(
+                ak.pad_none(
+                    feature_dict["pfcand_abseta"],
+                    tagger_vars["pf_points"]["var_length"],
+                    axis=1,
+                    clip=True,
+                ).to_numpy()
+            ).mask
+        )
+    ).astype(np.float32)
 
     # if no padding is needed, mask will = 1.0
     if isinstance(feature_dict["pfcand_mask"], np.float32):
@@ -173,7 +184,18 @@ def get_svs_features(
     svpAngle = jet_svs.pAngle
     feature_dict["sv_costhetasvpv"] = -np.cos(svpAngle)
 
-    feature_dict["sv_mask"] = (~(ma.masked_invalid( ak.pad_none(feature_dict["sv_etarel"], tagger_vars["sv_points"]["var_length"], axis=1, clip=True).to_numpy() ).mask) ).astype(np.float32)
+    feature_dict["sv_mask"] = (
+        ~(
+            ma.masked_invalid(
+                ak.pad_none(
+                    feature_dict["sv_etarel"],
+                    tagger_vars["sv_points"]["var_length"],
+                    axis=1,
+                    clip=True,
+                ).to_numpy()
+            ).mask
+        )
+    ).astype(np.float32)
 
     # if no padding is needed, mask will = 1.0
     if isinstance(feature_dict["sv_mask"], np.float32):
@@ -324,12 +346,12 @@ def get_lep_features(
                 .to_numpy()
                 .filled(fill_value=0)
             ).astype(np.float32)
-            
+
             if normalize:
                 info = tagger_vars["el_features"]["var_infos"][var]
                 a = (a - info["median"]) * info["norm_factor"]
                 a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
-                
+
             feature_dict[var] = a
 
     if "mu_features" in tagger_vars.keys():
@@ -359,12 +381,12 @@ def get_lep_features(
                 .to_numpy()
                 .filled(fill_value=0)
             ).astype(np.float32)
-            
+
             if normalize:
                 info = tagger_vars["mu_features"]["var_infos"][var]
                 a = (a - info["median"]) * info["norm_factor"]
                 a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
-                
+
             feature_dict[var] = a
 
     return feature_dict
