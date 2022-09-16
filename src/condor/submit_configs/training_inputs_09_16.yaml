@@ -24,7 +24,7 @@
             "label": "_QCD",
             "njets": 1,
             "maxchunks": 1,
-	    "chunksize": 800,
+            "chunksize": 800,
         },
         "WJetsToQQ": {
             "subsamples": [
