@@ -40,6 +40,7 @@ folders_to_index = [
     "/store/user/lpcpfnano/yihan/v2_2/2016/QCD",
     "/store/user/lpcpfnano/yihan/v2_2/2016APV/QCD",
     "/store/user/lpcpfnano/jekrupa/v2_2/2017/QCD",
+    "/store/user/lpchbb/cmantill/v2_2/2017v1/QCDHerwig",
     "/store/user/lpcpfnano/jekrupa/v2_2/2018/QCD",
     "/store/user/lpcpfnano/jekrupa/v2_2/2016/WJetsToQQ",
     "/store/user/lpcpfnano/jekrupa/v2_2/2016APV/WJetsToQQ",
@@ -110,6 +111,7 @@ index_APV = {}
 # /store/user/lpcpfnano/jekrupa/v2_2/2017/WJetsToQQ/WJetsToQQ_HT-800toInf_TuneCP5_13TeV-madgraphMLM-pythia8/WJetsToQQ_HT-800toInf/211108_171840/0000/*root
 
 for pyear in ["2016", "2016APV", "2017", "2018"]:
+#for pyear in ["2017"]:
     print(pyear)
     index = {}
     for f1 in folders_to_index:
@@ -117,9 +119,11 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
         # print(f1)
         year = f1.split("/")[-2]
         sample_short = f1.split("/")[-1]
+        if year=="2017v1":
+            year = "2017"
         if year != pyear:
             continue
-
+        
         sample_short = f1.split("/")[-1]
         print(f" {sample_short}")
 
