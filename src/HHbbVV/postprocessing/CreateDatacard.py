@@ -163,10 +163,11 @@ def main(args):
             # TODO: shape systematics
             ch.addSample(sample)
 
-        # data observed
         if args.bblite:
             channel_name = region.split("Blinded")[0]
             ch.autoMCStats(channel_name=channel_name)
+
+        # data observed
         ch.setObservation(region_templates[data_key, :])
 
     for blind_str in ["", "Blinded"]:
