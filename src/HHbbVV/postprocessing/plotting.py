@@ -73,6 +73,9 @@ def ratioHistPlot(
 
     bg_tot = sum([hists[sample, :] for sample in bg_keys])
     yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")
+
+    # print(hists[data_key, :] / (bg_tot.values() + 1e-5))
+
     hep.histplot(
         hists[data_key, :] / (bg_tot.values() + 1e-5),
         yerr=yerr,
