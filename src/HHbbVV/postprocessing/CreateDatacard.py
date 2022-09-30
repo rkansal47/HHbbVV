@@ -52,10 +52,10 @@ PARAMS_LABEL = "bbWW_boosted_ggf"
 # for local interactive testing
 args = type("test", (object,), {})()
 args.data_dir = "../../../../data/skimmer/Apr28/"
-args.plot_dir = "../../plots/05_26_testing"
+args.plot_dir = "../../../plots/05_26_testing"
 args.year = "2017"
 args.bdt_preds = f"{args.data_dir}/absolute_weights_preds.npy"
-args.templates_file = "templates/test.pkl"
+args.templates_file = "templates/test2.pkl"
 args.cat = "1"
 args.nDataTF = 2
 
@@ -163,10 +163,11 @@ def main(args):
             # TODO: shape systematics
             ch.addSample(sample)
 
-        # data observed
         if args.bblite:
             channel_name = region.split("Blinded")[0]
             ch.autoMCStats(channel_name=channel_name)
+
+        # data observed
         ch.setObservation(region_templates[data_key, :])
 
     for blind_str in ["", "Blinded"]:

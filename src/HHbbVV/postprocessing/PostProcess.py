@@ -25,7 +25,7 @@ from typing import Dict, List, Tuple
 from inspect import cleandoc
 from textwrap import dedent
 
-from sample_labels import sig_key, data_key, qcd_key, bg_keys
+from sample_labels import sig_key, data_key, qcd_key, bg_keys, samples, bdt_sample_order
 from utils import CUT_MAX_VAL
 
 from pprint import pprint
@@ -118,7 +118,9 @@ args.scan = True
 
 
 def main(args):
-    from sample_labels import samples, bdt_sample_order
+    if not (args.control_plots or args.templates or args.scan):
+        print("You need to pass at least one of --control-plots, --templates, or --scan")
+        return
 
     # make plot, template dirs if needed
     make_dirs(args)
