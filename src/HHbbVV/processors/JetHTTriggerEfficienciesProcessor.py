@@ -77,9 +77,11 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
     def process(self, events):
         """Returns pre- (den) and post- (num) trigger 2D (pT, msd) histograms from input NanoAOD events"""
 
+        year = events.metadata["dataset"][:4]
+
         # passing single-muon triggers
         muon_triggered = np.any(
-            np.array([events.HLT[trigger] for trigger in self.muon_HLTs[2017]]), axis=0
+            np.array([events.HLT[trigger] for trigger in self.muon_HLTs[year]]), axis=0
         )
 
         fatjets = events.FatJetAK15 if self.ak15 else events.FatJet
@@ -104,7 +106,7 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
         # passing all HLT triggers
         bbVV_triggered = np.any(
-            np.array([events.HLT[trigger] for trigger in self.HLTs[2017]]), axis=0
+            np.array([events.HLT[trigger] for trigger in self.HLTs[year]]), axis=0
         )
 
         num_selection = fatjet1bool * muon_triggered * bbVV_triggered
