@@ -44,16 +44,18 @@ def add_bool_arg(parser, name, help, default=False, no_name=None):
     parser.set_defaults(**{varname: default})
 
 
-# for running on condor
-nanoevents.PFNanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
-    "FatJetAK15_nConstituents",
-    "JetPFCandsAK15",
-)
-nanoevents.PFNanoAODSchema.mixins["FatJetAK15"] = "FatJet"
-nanoevents.PFNanoAODSchema.mixins["FatJetAK15SubJet"] = "FatJet"
-nanoevents.PFNanoAODSchema.mixins["SubJet"] = "FatJet"
-nanoevents.PFNanoAODSchema.mixins["PFCands"] = "PFCand"
-nanoevents.PFNanoAODSchema.mixins["SV"] = "PFCand"
+def add_mixins(nanoevents):
+    # for running on condor
+    nanoevents.PFNanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
+        "FatJetAK15_nConstituents",
+        "JetPFCandsAK15",
+    )
+    nanoevents.PFNanoAODSchema.mixins["FatJetAK15"] = "FatJet"
+    nanoevents.PFNanoAODSchema.mixins["FatJetAK15SubJet"] = "FatJet"
+    nanoevents.PFNanoAODSchema.mixins["SubJet"] = "FatJet"
+    nanoevents.PFNanoAODSchema.mixins["PFCands"] = "PFCand"
+    nanoevents.PFNanoAODSchema.mixins["SV"] = "PFCand"
+
 
 # for Dask executor
 class NanoeventsSchemaPlugin(WorkerPlugin):
@@ -63,19 +65,17 @@ class NanoeventsSchemaPlugin(WorkerPlugin):
     def setup(self, worker):
         from coffea import nanoevents
 
-        nanoevents.PFNanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
-            "FatJetAK15_nConstituents",
-            "JetPFCandsAK15",
-        )
-        nanoevents.PFNanoAODSchema.mixins["FatJetAK15"] = "FatJet"
-        nanoevents.PFNanoAODSchema.mixins["FatJetAK15SubJet"] = "FatJet"
-        nanoevents.PFNanoAODSchema.mixins["SubJet"] = "FatJet"
-        nanoevents.PFNanoAODSchema.mixins["PFCands"] = "PFCand"
-        nanoevents.PFNanoAODSchema.mixins["SV"] = "PFCand"
+        add_mixins(nanoevents)
 
 
-def get_fileset(processor, year, samples, subsamples, starti, endi):
-    with open(f"data/pfnanoindex_{year}.json", "r") as f:
+def get_fileset(processor: str, year: int, samples: list, subsamples: list, starti: int, endi: int):
+    if processor == "trigger":
+        index_file = f"data/singlemuon_pfnanoindex_{year}.json"
+        samples = [f"SingleMu{year}"]
+    else:
+        index_file = f"data/pfnanoindex_{year}.json"
+
+    with open(index_file, "r") as f:
         full_fileset = json.load(f)
 
     fileset = {}
@@ -91,15 +91,15 @@ def get_fileset(processor, year, samples, subsamples, starti, endi):
         if len(get_subsamples):
             sample_set = {subsample: sample_set[subsample] for subsample in get_subsamples}
 
-        sample_set = {
-            f"{year}_{subsample}": [
-                "root://cmsxrootd.fnal.gov//" + fname
-                for fname in sample_set[subsample][starti:endi]
-            ]
-            for subsample in sample_set
-        }
+        sample_fileset = {}
 
-        fileset = {**fileset, **sample_set}
+        for subsample, fnames in sample_set.items():
+            fnames = fnames[starti:] if endi < 0 else fnames[starti:endi]
+            sample_fileset[f"{year}_{subsample}"] = [
+                "root://cmsxrootd.fnal.gov//" + fname for fname in fnames
+            ]
+
+        fileset = {**fileset, **sample_fileset}
 
     return fileset
 
@@ -139,6 +139,7 @@ def main(args):
         else {f"{args.year}_{args.files_name}": args.files}
     )
 
+    # lpcjobqueue
     if args.executor == "dask":
         import time
         from distributed import Client
@@ -158,21 +159,28 @@ def main(args):
         client.wait_for_workers(1)
 
         # does treereduction help?
-        executor = processor.DaskExecutor(status=True, client=client, treereduction=2)
+        executor = processor.DaskExecutor(status=True, client=client)
         run = processor.Runner(
             executor=executor,
             savemetrics=True,
             schema=nanoevents.PFNanoAODSchema,
             chunksize=args.chunksize,
         )
-        out, metrics = run(
+        hists, metrics = run(
             {key: fileset[key] for key in args.samples}, "Events", processor_instance=p
         )
 
         elapsed = time.time() - tic
+        print(f"hists: {hists}")
         print(f"Metrics: {metrics}")
         print(f"Finished in {elapsed:.1f}s")
+
+        with open("hists.pkl", "wb") as f:
+            pickle.dump(hists, f)
+
+    # plain condor
     else:
+        add_mixins(nanoevents)
         local_dir = os.path.abspath(".")
         local_parquet_dir = os.path.abspath(os.path.join(".", "outparquet"))
 
@@ -207,20 +215,13 @@ def main(args):
             import pyarrow.parquet as pq
             import pyarrow as pa
 
-            print("reading parquet")
-
             pddf = pd.read_parquet(local_parquet_dir)
-            print(pddf)
-
-            print("read parquet")
 
             if args.processor == "skimmer":
                 # need to write with pyarrow as pd.to_parquet doesn't support different types in
                 # multi-index column names
                 table = pa.Table.from_pandas(pddf)
                 pq.write_table(table, f"{local_dir}/{args.starti}-{args.endi}.parquet")
-
-                print("dumped parquet")
 
             if args.processor == "input":
                 # save as root files for input skimmer
@@ -235,8 +236,6 @@ def main(args):
                         # take only top-level column names in multiindex df
                         {key: np.squeeze(pddf[key].values) for key in pddf.columns.levels[0]}
                     )
-
-                print("dumped root")
 
 
 if __name__ == "__main__":
