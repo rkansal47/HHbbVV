@@ -51,8 +51,6 @@ class bbVVSkimmer(ProcessorABC):
         save_ak15 (bool, optional): save ak15 jets as well, for HVV candidate
     """
 
-    # TODO: do ak8, ak15 sorting for hybrid case
-
     def __init__(self, xsecs={}, save_ak15=False):
         super(bbVVSkimmer, self).__init__()
 
@@ -82,31 +80,31 @@ class bbVVSkimmer(ProcessorABC):
                 "msoftdrop": "Msd",
                 "particleNetMD_QCD": "ParticleNetMD_QCD",
                 "particleNetMD_Xbb": "ParticleNetMD_Xbb",
-                "particleNetMD_Xcc": "ParticleNetMD_Xcc",
-                "particleNetMD_Xqq": "ParticleNetMD_Xqq",
+                # "particleNetMD_Xcc": "ParticleNetMD_Xcc",
+                # "particleNetMD_Xqq": "ParticleNetMD_Xqq",
                 "particleNet_H4qvsQCD": "ParticleNet_Th4q",
             },
-            "FatJetAK15": {
-                **P4,
-                "msoftdrop": "Msd",
-                "ParticleNetMD_probQCD": "ParticleNetMD_probQCD",
-                # "ParticleNetMD_probQCDb": "ParticleNetMD_probQCDb",
-                # "ParticleNetMD_probQCDbb": "ParticleNetMD_probQCDbb",
-                # "ParticleNetMD_probQCDc": "ParticleNetMD_probQCDc",
-                # "ParticleNetMD_probQCDcc": "ParticleNetMD_probQCDcc",
-                "ParticleNetMD_probXbb": "ParticleNetMD_probXbb",
-                "ParticleNetMD_probXcc": "ParticleNetMD_probXcc",
-                "ParticleNetMD_probXqq": "ParticleNetMD_probXqq",
-                # old non-md particlenet
-                # "ParticleNet_probHbb": "ParticleNet_probHbb",
-                # "ParticleNet_probHcc": "ParticleNet_probHcc",
-                # "ParticleNet_probHqqqq": "ParticleNet_probHqqqq",
-                # "ParticleNet_probQCDb": "ParticleNet_probQCDb",
-                # "ParticleNet_probQCDbb": "ParticleNet_probQCDbb",
-                # "ParticleNet_probQCDc": "ParticleNet_probQCDc",
-                # "ParticleNet_probQCDcc": "ParticleNet_probQCDcc",
-                # "ParticleNet_probQCDothers": "ParticleNet_probQCDothers",
-            },
+            # "FatJetAK15": {
+            #     **P4,
+            #     "msoftdrop": "Msd",
+            #     "ParticleNetMD_probQCD": "ParticleNetMD_probQCD",
+            #     # "ParticleNetMD_probQCDb": "ParticleNetMD_probQCDb",
+            #     # "ParticleNetMD_probQCDbb": "ParticleNetMD_probQCDbb",
+            #     # "ParticleNetMD_probQCDc": "ParticleNetMD_probQCDc",
+            #     # "ParticleNetMD_probQCDcc": "ParticleNetMD_probQCDcc",
+            #     "ParticleNetMD_probXbb": "ParticleNetMD_probXbb",
+            #     # "ParticleNetMD_probXcc": "ParticleNetMD_probXcc",
+            #     # "ParticleNetMD_probXqq": "ParticleNetMD_probXqq",
+            #     # old non-md particlenet
+            #     # "ParticleNet_probHbb": "ParticleNet_probHbb",
+            #     # "ParticleNet_probHcc": "ParticleNet_probHcc",
+            #     # "ParticleNet_probHqqqq": "ParticleNet_probHqqqq",
+            #     # "ParticleNet_probQCDb": "ParticleNet_probQCDb",
+            #     # "ParticleNet_probQCDbb": "ParticleNet_probQCDbb",
+            #     # "ParticleNet_probQCDc": "ParticleNet_probQCDc",
+            #     # "ParticleNet_probQCDcc": "ParticleNet_probQCDcc",
+            #     # "ParticleNet_probQCDothers": "ParticleNet_probQCDothers",
+            # },
             "GenHiggs": P4,
             "other": {"MET_pt": "MET_pt"},
         }
