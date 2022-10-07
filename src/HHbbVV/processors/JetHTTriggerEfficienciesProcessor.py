@@ -72,55 +72,69 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
             ],
         }
 
+        # step, min, max
+        self.pt_bins = (50, 0, 1000)
+        self.msd_bins = (15, 0, 300)
+
+        # edges
+        self.txbb_bins = [0.0, 0.9, 0.95, 0.98, 1.0]
+
         self.ak15 = ak15
 
     def process(self, events):
         """Returns pre- (den) and post- (num) trigger 2D (pT, msd) histograms from input NanoAOD events"""
 
-        year = events.metadata["dataset"][:4]
+        year = int(events.metadata["dataset"][:4])
 
         # passing single-muon triggers
         muon_triggered = np.any(
-            np.array([events.HLT[trigger] for trigger in self.muon_HLTs[year]]), axis=0
+            np.array([events.HLT[trigger] for trigger in self.muon_HLTs[year]]),
+            axis=0,
+        )
+
+        # passing our triggers
+        bbVV_triggered = np.any(
+            np.array(
+                [events.HLT[trigger] for trigger in self.HLTs[year] if trigger in events.HLT.fields]
+            ),
+            axis=0,
         )
 
         fatjets = events.FatJetAK15 if self.ak15 else events.FatJet
 
+        # TODO: AK15 jets have different names!
+        fatjets.txbb = fatjets.particleNetMD_Xbb / (
+            fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb
+        )
+
         # does event have a fat jet
         fatjet1bool = ak.any(fatjets.pt, axis=1)
 
-        # for denominator select events which pass the muon triggers and contain at least one fat jet
-        den_selection = fatjet1bool * muon_triggered
-
-        # denominator
-        den = (
-            Hist.new.Reg(50, 0, 1000, name="jet1pt", label="$p_T (GeV)$")
-            .Reg(15, 0, 300, name="jet1msd", label="MassSD (GeV)")
+        # initialize histograms
+        h = (
+            Hist.new.Var(self.txbb_bins, name="jet1txbb", label="$T_{Xbb}$ Score")
+            .Reg(*self.pt_bins, name="jet1pt", label="$p_T$ (GeV)")
+            .Reg(*self.msd_bins, name="jet1msd", label="$m_{SD}$ (GeV)")
             .Double()
-        ).fill(
-            jet1pt=fatjets.pt[den_selection][:, 0].to_numpy(),
-            jet1msd=fatjets.msoftdrop[den_selection][:, 0].to_numpy(),
         )
 
-        # numerator
+        selections = {
+            # select events which pass the muon triggers and contain at least one fat jet
+            "den": fatjet1bool * muon_triggered,
+            # add our triggers
+            "num": fatjet1bool * muon_triggered * bbVV_triggered,
+        }
 
-        # passing all HLT triggers
-        bbVV_triggered = np.any(
-            np.array([events.HLT[trigger] for trigger in self.HLTs[year]]), axis=0
-        )
+        hists = {}
 
-        num_selection = fatjet1bool * muon_triggered * bbVV_triggered
+        for key, selection in selections.items():
+            hists[key] = h.copy().fill(
+                jet1txbb=fatjets.txbb[selection][:, 0].to_numpy(),
+                jet1pt=fatjets.pt[selection][:, 0].to_numpy(),
+                jet1msd=fatjets.msoftdrop[selection][:, 0].to_numpy(),
+            )
 
-        num = (
-            Hist.new.Reg(50, 0, 1000, name="jet1pt", label="$p_T (GeV)$")
-            .Reg(15, 0, 300, name="jet1msd", label="MassSD (GeV)")
-            .Double()
-        ).fill(
-            jet1pt=fatjets.pt[num_selection][:, 0].to_numpy(),
-            jet1msd=fatjets.msoftdrop[num_selection][:, 0].to_numpy(),
-        )
-
-        return {"den": den, "num": num}
+        return hists
 
     def postprocess(self, accumulator):
         return accumulator
