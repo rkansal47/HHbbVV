@@ -77,7 +77,7 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         self.msd_bins = (15, 0, 300)
 
         # edges
-        self.txbb_bins = [0.0, 0.9, 0.95, 0.98, 1.0]
+        self.tagger_bins = [0.0, 0.9, 0.95, 0.98, 1.0]
 
         self.ak15 = ak15
 
@@ -112,7 +112,8 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
         # initialize histograms
         h = (
-            Hist.new.Var(self.txbb_bins, name="jet1txbb", label="$T_{Xbb}$ Score")
+            Hist.new.Var(self.tagger_bins, name="jet1txbb", label="$T_{Xbb}$ Score")
+            .Var(self.tagger_bins, name="jet1th4q", label="$T_{H4q}$ Score")
             .Reg(*self.pt_bins, name="jet1pt", label="$p_T$ (GeV)")
             .Reg(*self.msd_bins, name="jet1msd", label="$m_{SD}$ (GeV)")
             .Double()
@@ -130,6 +131,7 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         for key, selection in selections.items():
             hists[key] = h.copy().fill(
                 jet1txbb=fatjets.txbb[selection][:, 0].to_numpy(),
+                jet1th4q=fatjets.particleNet_H4qvsQCD[selection][:, 0].to_numpy(),
                 jet1pt=fatjets.pt[selection][:, 0].to_numpy(),
                 jet1msd=fatjets.msoftdrop[selection][:, 0].to_numpy(),
             )
