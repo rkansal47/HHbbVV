@@ -12,46 +12,12 @@ from math import ceil
 from string import Template
 import json
 
+import sys
 
-def add_bool_arg(parser, name, help, default=False, no_name=None):
-    """Add a boolean command line argument for argparse"""
-    varname = "_".join(name.split("-"))  # change hyphens to underscores
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument("--" + name, dest=varname, action="store_true", help=help)
-    if no_name is None:
-        no_name = "no-" + name
-        no_help = "don't " + help
-    else:
-        no_help = help
-    group.add_argument("--" + no_name, dest=varname, action="store_false", help=no_help)
-    parser.set_defaults(**{varname: default})
+# needed to import run_utils from parent directory
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
-
-def get_fileset(processor, year, samples, subsamples):
-    with open(f"data/pfnanoindex_{year}.json", "r") as f:
-        full_fileset = json.load(f)
-
-    fileset = {}
-
-    for sample in samples:
-        sample_set = full_fileset[year][sample]
-        set_subsamples = list(sample_set.keys())
-
-        # check if any subsamples for this sample have been specified
-        get_subsamples = set(set_subsamples).intersection(subsamples)
-
-        # if so keep only that subset
-        if len(get_subsamples):
-            sample_set = {subsample: sample_set[subsample] for subsample in get_subsamples}
-
-        sample_set = {
-            subsample: ["root://cmsxrootd.fnal.gov//" + fname for fname in sample_set[subsample]]
-            for subsample in sample_set
-        }
-
-        fileset[sample] = sample_set
-
-    return fileset
+import run_utils
 
 
 def write_template(templ_file: str, out_file: str, templ_args: dict):
@@ -84,7 +50,11 @@ def main(args):
     print("CONDOR work dir: " + outdir)
     os.system(f"mkdir -p /eos/uscms/{outdir}")
 
-    fileset = get_fileset(args.processor, args.year, args.samples, args.subsamples)
+    fileset = run_utils.get_fileset(
+        args.processor, args.year, args.samples, args.subsamples, get_num_files=True
+    )
+
+    print(f"fileset: {fileset}")
 
     jdl_templ = "src/condor/submit.templ.jdl"
     sh_templ = "src/condor/submit.templ.sh"
@@ -92,11 +62,10 @@ def main(args):
     # submit jobs
     nsubmit = 0
     for sample in fileset:
-        for subsample in fileset[sample]:
+        for subsample, tot_files in fileset[sample].items():
             print("Submitting " + subsample)
             os.system(f"mkdir -p /eos/uscms/{outdir}/{args.year}/{subsample}")
 
-            tot_files = len(fileset[sample][subsample])
             njobs = ceil(tot_files / args.files_per_job)
 
             eosoutput_dir = f"root://cmseos.fnal.gov/{outdir}/{args.year}/{subsample}/"
@@ -144,12 +113,6 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--script", default="run.py", help="script to run", type=str)
-    parser.add_argument(
-        "--test",
-        default=False,
-        help="test run or not - test run means only 2 jobs per sample will be created",
-        type=bool,
-    )
     parser.add_argument("--year", default="2017", help="year", type=str)
     parser.add_argument("--tag", default="Test", help="process tag", type=str)
     parser.add_argument(
@@ -178,11 +141,21 @@ if __name__ == "__main__":
     parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
     parser.add_argument("--njets", default=2, help="njets", type=int)
-    parser.add_argument(
-        "--submit", dest="submit", action="store_true", help="submit jobs when created"
+
+    run_utils.add_bool_arg(
+        parser,
+        "test",
+        default=False,
+        help="test run or not - test run means only 2 jobs per sample will be created",
     )
 
-    add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
+    run_utils.add_bool_arg(
+        parser, "submit", default=False, help="submit files as well as create them"
+    )
+
+    run_utils.add_bool_arg(
+        parser, "save-ak15", default=False, help="run inference for and save ak15 jets"
+    )
 
     args = parser.parse_args()
 
