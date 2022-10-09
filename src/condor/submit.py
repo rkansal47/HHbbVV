@@ -38,12 +38,12 @@ def main(args):
         exit(1)
 
     username = os.environ["USER"]
-    locdir = "condor/" + args.tag
+    local_dir = f"condor/{args.processor}/{args.tag}"
     homedir = f"/store/user/{username}/bbVV/{args.processor}/"
     outdir = homedir + args.tag + "/"
 
     # make local directory
-    logdir = locdir + "/logs"
+    logdir = local_dir + "/logs"
     os.system(f"mkdir -p {logdir}")
 
     # and condor directory
@@ -75,11 +75,11 @@ def main(args):
                     break
 
                 prefix = f"{args.year}_{subsample}"
-                localcondor = f"{locdir}/{prefix}_{j}.jdl"
-                jdl_args = {"dir": locdir, "prefix": prefix, "jobid": j, "proxy": proxy}
+                localcondor = f"{local_dir}/{prefix}_{j}.jdl"
+                jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": j, "proxy": proxy}
                 write_template(jdl_templ, localcondor, jdl_args)
 
-                localsh = f"{locdir}/{prefix}_{j}.sh"
+                localsh = f"{local_dir}/{prefix}_{j}.sh"
                 sh_args = {
                     "script": args.script,
                     "year": args.year,
