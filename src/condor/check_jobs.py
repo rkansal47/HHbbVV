@@ -31,7 +31,9 @@ samples = listdir(eosdir)
 jdls = [jdl for jdl in listdir(f"condor/{args.tag}/") if jdl.endswith(".jdl")]
 
 jdl_dict = {
-    sample: np.sort([int(jdl[:-4].split("_")[-1]) for jdl in jdls if sample in jdl])[-1]
+    sample: np.sort(
+        [int(jdl[:-4].split("_")[-1]) for jdl in jdls if "_".join(jdl.split("_")[1:-1]) == sample]
+    )[-1]
     for sample in samples
 }
 
@@ -45,8 +47,7 @@ for sample in samples:
     outs_pickles = [
         int(out.split(".")[0].split("_")[-1]) for out in listdir(f"{eosdir}/{sample}/pickles")
     ]
-    print(sample)
-    print(outs_pickles)
+    print(f"Checking {sample}")
 
     for i in range(jdl_dict[sample]):
         if i not in outs_pickles:
