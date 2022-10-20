@@ -13,6 +13,14 @@ import sys
 from tqdm import tqdm
 
 
+import sys
+
+# needed to import run_utils from parent directory
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+
+import run_utils
+
+
 def accumulate_files(files: list):
     """accumulates pickle files from files list via coffea.processor.accumulator.accumulate"""
 
@@ -29,28 +37,37 @@ def accumulate_files(files: list):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--indir", default="outfiles", help="directory which contains files to combine", type=str
+        "--indir",
+        default="outfiles",
+        help="eos directory which contains files to combine",
+        type=str,
     )
     parser.add_argument("--name", default="", help="name of combined files", type=str)
-    parser.add_argument(
-        "--r", default=False, help="combine files in subdirectories of indir", type=bool
+    run_utils.add_bool_arg(
+        parser, "r", default=False, help="combine files in sub and subsubdirectories of indir"
     )
     args = parser.parse_args()
 
-    files = [args.indir + "/" + file for file in listdir(args.indir) if file.endswith(".pkl")]
+    indir = f"/eos/uscms/store/user/rkansal/{args.indir}"
+
+    files = [indir + "/" + file for file in listdir(indir) if file.endswith(".pkl")]
 
     if args.r:
-        dirs = [
-            args.indir + "/" + d for d in listdir(args.indir) if os.path.isdir(args.indir + "/" + d)
-        ]
+        dirs = [indir + "/" + d for d in listdir(indir) if os.path.isdir(indir + "/" + d)]
+        print(dirs)
 
         for d in dirs:
             files += [d + "/" + file for file in listdir(d) if file.endswith(".pkl")]
+            subdirs = [d + "/" + sd for sd in listdir(d) if os.path.isdir(d + "/" + sd)]
+            for sd in subdirs:
+                files += [sd + "/" + file for file in listdir(sd) if file.endswith(".pkl")]
 
     print(f"Accumulating {len(files)} files")
     out = accumulate_files(files)
 
-    name = args.name if args.name != "" else "combined"
+    name = args.name if args.name != "" else f"combined"
 
-    with open(f"{args.indir}/{args.name}.pkl", "wb") as f:
+    with open(f"{indir}/{name}.pkl", "wb") as f:
         pickle.dump(out, f)
+
+    print(f"Saved to {indir}/{name}.pkl")
