@@ -32,6 +32,9 @@ src/HHbbVV/postprocessing/cards
 src/HHbbVV/postprocessing/templates
 src/HHbbVV/postprocessing/*.txt
 
+!src/HHbbVV/scale_factors
+!src/HHbbVV/scale_factors/**
+
 !src/HHbbVV/combine
 !src/HHbbVV/combine/**
 
