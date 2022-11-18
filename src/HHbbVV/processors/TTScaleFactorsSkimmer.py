@@ -149,15 +149,14 @@ def lund_SFs(
     return sf_nom_vals, sf_nom_errs
 
 
-class bbVVSkimmer(ProcessorABC):
+class TTScaleFactorsSkimmer(ProcessorABC):
     """
-    Skims nanoaod files, saving selected branches and events passing preselection cuts
-    (and triggers for data), for preliminary cut-based analysis and BDT studies.
+    Skims nanoaod files, saving selected branches and events passing selection cuts
+    (and triggers for data), in a top control region for validation Lund Plane SFs
 
     Args:
         xsecs (dict, optional): sample cross sections,
           if sample not included no lumi and xsec will not be applied to weights
-        save_ak15 (bool, optional): save ak15 jets as well, for HVV candidate
     """
 
     LUMI = {"2016": 38000, "2017": 40000, "2018": 60000}  # in pb^-1
@@ -220,12 +219,11 @@ class bbVVSkimmer(ProcessorABC):
 
     top_matchings = ["top_matched", "w_matched", "unmatched"]
 
-    def __init__(self, xsecs={}, save_ak15=False):
-        super(bbVVSkimmer, self).__init__()
+    def __init__(self, xsecs={}):
+        super(TTScaleFactorsSkimmer, self).__init__()
 
         # TODO: Check if this is correct
         self.XSECS = xsecs  # in pb
-        self.save_ak15 = save_ak15
 
         # find corrections path using this file's path
         package_path = str(pathlib.Path(__file__).parent.parent.resolve())

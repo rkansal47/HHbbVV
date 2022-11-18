@@ -119,3 +119,7 @@ def get_processor(processor: str, save_ak15: bool = None, label: str = None, nje
         from HHbbVV.processors import TaggerInputSkimmer
 
         return TaggerInputSkimmer(label, njets)
+    elif processor == "ttsfs":
+        from HHbbVV.processors import TTScaleFactorsSkimmer
+
+        return TTScaleFactorsSkimmer(xsecs=get_xsecs())
