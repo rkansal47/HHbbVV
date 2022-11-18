@@ -332,7 +332,9 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # objects
         num_jets = 1
         leading_fatjets = ak.pad_none(events.FatJet, num_jets, axis=1)[:, :num_jets]
-        leading_btag_jet = ak.flatten(ak.pad_none(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]], 1, axis=1))
+        leading_btag_jet = ak.flatten(
+            ak.pad_none(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]], 1, axis=1)
+        )
         muon = ak.pad_none(events.Muon, 1, axis=1)[:, 0]
         trigObj_muon = events.TrigObj[events.TrigObj.id == MU_PDGID]
         met = events.MET
@@ -497,7 +499,9 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         if len(skimmed_events["weight"]):
             df = self.to_pandas(skimmed_events)
-            fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
+            fname = (
+                events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
+            )
             self.dump_table(df, fname)
 
         return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
