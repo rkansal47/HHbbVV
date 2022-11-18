@@ -292,7 +292,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         year = events.metadata["dataset"][:4]
         dataset = events.metadata["dataset"][5:]
 
-        isData = "JetHT" in dataset
+        isData = ("JetHT" in dataset) or ("SingleMuon" in dataset)
         signGenWeights = None if isData else np.sign(events["genWeight"])
         n_events = len(events) if isData else int(np.sum(signGenWeights))
         selection = PackedSelection()
