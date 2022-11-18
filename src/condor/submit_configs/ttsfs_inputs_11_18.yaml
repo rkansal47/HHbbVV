@@ -1,0 +1,22 @@
+{
+    "TTbarScaleFactors":
+        {
+            "SingleMuon17": { "files_per_job": 20 },
+            "TTbar": { "files_per_job": 20 },
+            "SingleTop": { "files_per_job": 20 },
+            "QCD": { "files_per_job": 20 },
+            "WJetsToLNu": { "files_per_job": 20 },
+            "Diboson": { 
+                "subsamples": ["WW", "WZ", "ZZ"],
+                "files_per_job": 20, 
+            },
+        },
+}
+# "QCD": { "files_per_job": 20 },
+# "WJetsToQQ": { "files_per_job": 20 },
+# "TTbar":
+#     {
+#         "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
+#         "files_per_job": 20,
+#     },
+# "JetHT2017": { "files_per_job": 20 },

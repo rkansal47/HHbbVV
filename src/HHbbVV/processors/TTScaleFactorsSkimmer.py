@@ -287,7 +287,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
     def process(self, events: ak.Array):
         """Returns skimmed events which pass preselection cuts (and triggers if data) with the branches listed in ``self.skim_vars``"""
 
-        print("processing")
+        # print("processing")
 
         year = events.metadata["dataset"][:4]
         dataset = events.metadata["dataset"][5:]
@@ -332,7 +332,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # objects
         num_jets = 1
         leading_fatjets = ak.pad_none(events.FatJet, num_jets, axis=1)[:, :num_jets]
-        leading_btag_jet = ak.flatten(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]])
+        leading_btag_jet = ak.flatten(ak.pad_none(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]], 1, axis=1))
         muon = ak.pad_none(events.Muon, 1, axis=1)[:, 0]
         trigObj_muon = events.TrigObj[events.TrigObj.id == MU_PDGID]
         met = events.MET
@@ -482,7 +482,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         }
 
         # apply HWW4q tagger
-        print("pre-inference")
+        # print("pre-inference")
 
         # pnet_vars = runInferenceTriton(
         #     self.tagger_resources_path, events[selection.all(*selection.names)], ak15=False
@@ -490,16 +490,15 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         pnet_vars = {}
 
-        print("post-inference")
-
         skimmed_events = {
             **skimmed_events,
             **{key: value for (key, value) in pnet_vars.items()},
         }
 
-        df = self.to_pandas(skimmed_events)
-        fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
-        self.dump_table(df, fname)
+        if len(skimmed_events["weight"]):
+            df = self.to_pandas(skimmed_events)
+            fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
+            self.dump_table(df, fname)
 
         return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
 
