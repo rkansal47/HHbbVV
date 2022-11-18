@@ -1,7 +1,7 @@
 {
     "TTbarScaleFactors":
         {
-            "SingleMuon17": { "files_per_job": 20 },
+            "SingleMu2017": { "files_per_job": 20 },
             "TTbar": { "files_per_job": 20 },
             "SingleTop": { "files_per_job": 20 },
             "QCD": { "files_per_job": 20 },
