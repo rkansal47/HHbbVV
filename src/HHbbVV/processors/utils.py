@@ -35,7 +35,7 @@ def add_selection(
     signGenWeights: ak.Array,
 ):
     """adds selection to PackedSelection object and the cutflow dictionary"""
-    selection.add(name, sel)
+    selection.add(name, sel.astype(bool))
     cutflow[name] = (
         np.sum(selection.all(*selection.names))
         if isData

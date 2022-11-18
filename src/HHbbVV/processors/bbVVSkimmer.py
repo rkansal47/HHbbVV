@@ -212,7 +212,7 @@ class bbVVSkimmer(ProcessorABC):
         selection = PackedSelection()
 
         cutflow = {}
-        cutflow["all"] = len(events)
+        cutflow["all"] = n_events
 
         skimmed_events = {}
 
