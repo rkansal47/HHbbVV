@@ -684,7 +684,13 @@ def ttbar_scale_factor_matching(
         ak.all(had_ws.children.delta_r(leading_fatjet) < deltaR, axis=1), False
     )
     had_b_jet_match = ak.flatten(
-        pad_val(had_bs.delta_r(leading_fatjet) < deltaR, 1, False, axis=1, to_numpy=False)
+        pad_val(
+            ak.fill_none(had_bs.delta_r(leading_fatjet) < deltaR, [], axis=0),
+            1,
+            False,
+            axis=1,
+            to_numpy=False,
+        )
     )
 
     top_match_dict = {

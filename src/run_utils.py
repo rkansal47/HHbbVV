@@ -1,5 +1,5 @@
 import warnings
-from distributed.diagnostics.plugin import WorkerPlugin
+# from distributed.diagnostics.plugin import WorkerPlugin
 import json
 
 
@@ -31,14 +31,14 @@ def add_mixins(nanoevents):
 
 
 # for Dask executor
-class NanoeventsSchemaPlugin(WorkerPlugin):
-    def __init__(self):
-        pass
+# class NanoeventsSchemaPlugin(WorkerPlugin):
+#     def __init__(self):
+#         pass
 
-    def setup(self, worker):
-        from coffea import nanoevents
+#     def setup(self, worker):
+#         from coffea import nanoevents
 
-        add_mixins(nanoevents)
+#         add_mixins(nanoevents)
 
 
 def get_fileset(
