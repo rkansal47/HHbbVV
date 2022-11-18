@@ -52,20 +52,24 @@ def get_fileset(
     coffea_casa: str = False,
 ):
     if processor == "trigger":
-        index_file = f"data/singlemuon_pfnanoindex_{year}.json"
         samples = [f"SingleMu{year}"]
-    else:
-        index_file = f"data/pfnanoindex_{year}.json"
 
     redirector = "root://cmsxrootd.fnal.gov//" if not coffea_casa else "root://xcache//"
 
-    with open(index_file, "r") as f:
-        full_fileset = json.load(f)
+    with open(f"data/pfnanoindex_{year}.json", "r") as f:
+        full_fileset_pfnano = json.load(f)
+
+    with open(f"data/singlemuon_pfnanoindex_{year}.json", "r") as f:
+        full_fileset_singlemuon = json.load(f)
 
     fileset = {}
 
     for sample in samples:
-        sample_set = full_fileset[year][sample]
+        if sample.startswith("SingleMu"):
+            sample_set = full_fileset_singlemuon[year][sample]
+        else:
+            sample_set = full_fileset_pfnano[year][sample]
+
         set_subsamples = list(sample_set.keys())
 
         # check if any subsamples for this sample have been specified
