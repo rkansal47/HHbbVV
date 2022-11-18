@@ -649,3 +649,50 @@ def tagger_gen_matching(
             continue
 
     return matched_mask * matched_gen_jet_mask, GenVars
+
+
+def ttbar_scale_factor_matching(
+    events: NanoEventsArray, leading_fatjet: FatJetArray, selection_args: Tuple
+):
+    """
+    Classifies jets as top-matched, w-matched, or un-matched using gen info, as defined in
+    https://indico.cern.ch/event/1101433/contributions/4775247/
+    """
+    # finding the two gen tops
+    tops = events.GenPart[
+        (abs(events.GenPart.pdgId) == TOP_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)
+    ]
+
+    tops_children = tops.distinctChildren
+    tops_children = tops_children[tops_children.hasFlags(GEN_FLAGS)]
+
+    ws = ak.flatten(tops_children[np.abs(tops_children.pdgId) == W_PDGID], axis=2)
+
+    # get hadronic W and top
+    had_top_sel = np.all(np.abs(ws.children.pdgId) <= 5, axis=2)
+    had_ws = ak.flatten(ws[had_top_sel])
+    had_tops = ak.flatten(tops[had_top_sel])
+
+    # check for b's from top
+    had_top_children = ak.flatten(tops_children[had_top_sel], axis=1)
+    had_bs = had_top_children[np.abs(had_top_children.pdgId) == 5]
+    add_selection("top_has_bs", np.any(had_bs.pdgId, axis=1), *selection_args)
+
+    deltaR = 0.8
+
+    had_w_jet_match = ak.fill_none(
+        ak.all(had_ws.children.delta_r(leading_fatjet) < deltaR, axis=1), False
+    )
+    had_b_jet_match = ak.flatten(
+        pad_val(had_bs.delta_r(leading_fatjet) < deltaR, 1, False, axis=1, to_numpy=False)
+    )
+
+    top_match_dict = {
+        "top_matched": had_w_jet_match * had_b_jet_match,
+        "w_matched": had_w_jet_match * ~had_b_jet_match,
+        "unmatched": ~had_w_jet_match,
+    }
+
+    top_match_dict = {key: val.to_numpy().astype(int) for key, val in top_match_dict.items()}
+
+    return top_match_dict
