@@ -14,6 +14,9 @@ from coffea.nanoevents.methods import nanoaod
 from coffea.lookup_tools.dense_lookup import dense_lookup
 from coffea.nanoevents.methods.base import NanoEventsArray
 from coffea.nanoevents.methods.nanoaod import FatJetArray
+from coffea.nanoevents.methods import vector
+
+ak.behavior.update(vector.behavior)
 
 import uproot
 
@@ -376,9 +379,9 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # met
         met_selection = met.pt >= self.met_selection["pt"]
 
-        metfilters = np.ones(n_events, dtype="bool")
-        metfilterkey = "data" if self.isData else "mc"
-        for mf in self._metfilters[metfilterkey]:
+        metfilters = np.ones(len(events), dtype="bool")
+        metfilterkey = "data" if isData else "mc"
+        for mf in self.metfilters[year][metfilterkey]:
             if mf in events.Flag.fields:
                 metfilters = metfilters & events.Flag[mf]
 
@@ -449,8 +452,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             else:
                 skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
 
-        if dataset == "TTToSemiLeptonic":
-            match_dict = ttbar_scale_factor_matching(events, leading_fatjets, selection_args)
+        if dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"]:
+            match_dict = ttbar_scale_factor_matching(events, leading_fatjets[:, 0], selection_args)
             top_matched = match_dict["top_matched"].astype(bool)
 
             sf_nom, sf_err = lund_SFs(
@@ -465,7 +468,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             for key, val in list(sf_dict.items()):
                 arr = np.zeros(len(events))
                 arr[top_matched] = val
-                sf_dict[key] = val
+                sf_dict[key] = arr
 
         else:
             match_dict = {key: np.ones(len(events)) for key in self.top_matchings}
