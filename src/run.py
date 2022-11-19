@@ -68,8 +68,8 @@ def run(p: processor, fileset: dict, args):
     outdir = "./outfiles"
     os.system(f"mkdir -p {outdir}")
 
-    if args.processor == "skimmer" or args.processor == "input":
-        # these processors store intermediate files in the "./outparqest" local directory
+    if args.processor in ["skimmer", "input", "ttsfs"]:
+        # these processors store intermediate files in the "./outparquet" local directory
         local_dir = os.path.abspath(".")
         local_parquet_dir = os.path.abspath(os.path.join(".", "outparquet"))
 
@@ -101,14 +101,14 @@ def run(p: processor, fileset: dict, args):
 
     # need to combine all the files from these processors before transferring to EOS
     # otherwise it will complain about too many small files
-    if args.processor == "skimmer" or args.processor == "input":
+    if args.processor in ["skimmer", "input", "ttsfs"]:
         import pandas as pd
         import pyarrow.parquet as pq
         import pyarrow as pa
 
         pddf = pd.read_parquet(local_parquet_dir)
 
-        if args.processor == "skimmer":
+        if args.processor in ["skimmer", "ttsfs"]:
             # need to write with pyarrow as pd.to_parquet doesn't support different types in
             # multi-index column names
             table = pa.Table.from_pandas(pddf)
