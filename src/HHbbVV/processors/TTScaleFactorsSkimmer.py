@@ -468,9 +468,9 @@ class bbVVSkimmer(ProcessorABC):
                 arr = np.zeros(len(events))
                 arr[top_matched] = val
                 sf_dict[key] = val
-            
+
         else:
-            match_dict = {key: np.ones(len(events)) for key in self.top_matchings}
+            match_dict = {key: np.zeros(len(events)) for key in self.top_matchings}
             sf_dict = {"lp_sf": np.zeros(len(events)), "lp_sf_err": np.zeros(len(events))}
 
         skimmed_events = {**skimmed_events, **match_dict, **sf_dict}
