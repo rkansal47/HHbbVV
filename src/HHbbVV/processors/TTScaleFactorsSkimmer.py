@@ -14,6 +14,9 @@ from coffea.nanoevents.methods import nanoaod
 from coffea.lookup_tools.dense_lookup import dense_lookup
 from coffea.nanoevents.methods.base import NanoEventsArray
 from coffea.nanoevents.methods.nanoaod import FatJetArray
+from coffea.nanoevents.methods import vector
+
+ak.behavior.update(vector.behavior)
 
 import uproot
 
@@ -149,15 +152,14 @@ def lund_SFs(
     return sf_nom_vals, sf_nom_errs
 
 
-class bbVVSkimmer(ProcessorABC):
+class TTScaleFactorsSkimmer(ProcessorABC):
     """
-    Skims nanoaod files, saving selected branches and events passing preselection cuts
-    (and triggers for data), for preliminary cut-based analysis and BDT studies.
+    Skims nanoaod files, saving selected branches and events passing selection cuts
+    (and triggers for data), in a top control region for validation Lund Plane SFs
 
     Args:
         xsecs (dict, optional): sample cross sections,
           if sample not included no lumi and xsec will not be applied to weights
-        save_ak15 (bool, optional): save ak15 jets as well, for HVV candidate
     """
 
     LUMI = {"2016": 38000, "2017": 40000, "2018": 60000}  # in pb^-1
@@ -220,12 +222,11 @@ class bbVVSkimmer(ProcessorABC):
 
     top_matchings = ["top_matched", "w_matched", "unmatched"]
 
-    def __init__(self, xsecs={}, save_ak15=False):
-        super(bbVVSkimmer, self).__init__()
+    def __init__(self, xsecs={}):
+        super(TTScaleFactorsSkimmer, self).__init__()
 
         # TODO: Check if this is correct
         self.XSECS = xsecs  # in pb
-        self.save_ak15 = save_ak15
 
         # find corrections path using this file's path
         package_path = str(pathlib.Path(__file__).parent.parent.resolve())
@@ -286,12 +287,12 @@ class bbVVSkimmer(ProcessorABC):
     def process(self, events: ak.Array):
         """Returns skimmed events which pass preselection cuts (and triggers if data) with the branches listed in ``self.skim_vars``"""
 
-        print("processing")
+        # print("processing")
 
         year = events.metadata["dataset"][:4]
         dataset = events.metadata["dataset"][5:]
 
-        isData = "JetHT" in dataset
+        isData = ("JetHT" in dataset) or ("SingleMuon" in dataset)
         signGenWeights = None if isData else np.sign(events["genWeight"])
         n_events = len(events) if isData else int(np.sum(signGenWeights))
         selection = PackedSelection()
@@ -331,7 +332,9 @@ class bbVVSkimmer(ProcessorABC):
         # objects
         num_jets = 1
         leading_fatjets = ak.pad_none(events.FatJet, num_jets, axis=1)[:, :num_jets]
-        leading_btag_jet = ak.flatten(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]])
+        leading_btag_jet = ak.flatten(
+            ak.pad_none(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]], 1, axis=1)
+        )
         muon = ak.pad_none(events.Muon, 1, axis=1)[:, 0]
         trigObj_muon = events.TrigObj[events.TrigObj.id == MU_PDGID]
         met = events.MET
@@ -378,9 +381,9 @@ class bbVVSkimmer(ProcessorABC):
         # met
         met_selection = met.pt >= self.met_selection["pt"]
 
-        metfilters = np.ones(n_events, dtype="bool")
-        metfilterkey = "data" if self.isData else "mc"
-        for mf in self._metfilters[metfilterkey]:
+        metfilters = np.ones(len(events), dtype="bool")
+        metfilterkey = "data" if isData else "mc"
+        for mf in self.metfilters[year][metfilterkey]:
             if mf in events.Flag.fields:
                 metfilters = metfilters & events.Flag[mf]
 
@@ -451,8 +454,8 @@ class bbVVSkimmer(ProcessorABC):
             else:
                 skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
 
-        if dataset == "TTToSemiLeptonic":
-            match_dict = ttbar_scale_factor_matching(events, leading_fatjets, selection_args)
+        if dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"]:
+            match_dict = ttbar_scale_factor_matching(events, leading_fatjets[:, 0], selection_args)
             top_matched = match_dict["top_matched"].astype(bool)
 
             sf_nom, sf_err = lund_SFs(
@@ -467,7 +470,7 @@ class bbVVSkimmer(ProcessorABC):
             for key, val in list(sf_dict.items()):
                 arr = np.zeros(len(events))
                 arr[top_matched] = val
-                sf_dict[key] = val
+                sf_dict[key] = arr
 
         else:
             match_dict = {key: np.zeros(len(events)) for key in self.top_matchings}
@@ -481,7 +484,7 @@ class bbVVSkimmer(ProcessorABC):
         }
 
         # apply HWW4q tagger
-        print("pre-inference")
+        # print("pre-inference")
 
         # pnet_vars = runInferenceTriton(
         #     self.tagger_resources_path, events[selection.all(*selection.names)], ak15=False
@@ -489,16 +492,17 @@ class bbVVSkimmer(ProcessorABC):
 
         pnet_vars = {}
 
-        print("post-inference")
-
         skimmed_events = {
             **skimmed_events,
             **{key: value for (key, value) in pnet_vars.items()},
         }
 
-        df = self.to_pandas(skimmed_events)
-        fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
-        self.dump_table(df, fname)
+        if len(skimmed_events["weight"]):
+            df = self.to_pandas(skimmed_events)
+            fname = (
+                events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
+            )
+            self.dump_table(df, fname)
 
         return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
 
