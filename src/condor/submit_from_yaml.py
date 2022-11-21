@@ -32,7 +32,7 @@ if __name__ == "__main__":
         default="trigger",
         help="which processor",
         type=str,
-        choices=["trigger", "skimmer", "input"],
+        choices=["trigger", "skimmer", "input", "ttsfs"],
     )
     parser.add_argument("--yaml", default="", help="yaml file", type=str)
     add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
