@@ -103,6 +103,7 @@ def check_selector(sample: str, selector: Union[str, List[str]]):
 
     return False
 
+
 def load_samples(
     data_dir: str, samples: Dict[str, str], year: str, filters: List = None
 ) -> Dict[str, pd.DataFrame]:
@@ -135,7 +136,6 @@ def load_samples(
 
             print(f"Loading {sample}")
 
-            
             events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
             not_empty = len(events) > 0
             pickles_path = f"{data_dir}/{year}/{sample}/pickles"
@@ -341,6 +341,7 @@ def singleVarHistNoMask(
         blindBins(h, blind_region, data_key)
 
     return h
+
 
 def add_selection(name, sel, selection, cutflow, events, weight_key):
     """Adds selection to PackedSelection object and the cutflow"""

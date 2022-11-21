@@ -23,7 +23,15 @@ from numpy.typing import ArrayLike
 
 from sample_labels import sig_key, data_key
 
-colours = {"darkblue": "#1f78b4", "lightblue": "#a6cee3", "red": "#e31a1c", "orange": "#ff7f00", "green": "#7CB518", "darkgreen": "#064635", "darkred": "#990000"}
+colours = {
+    "darkblue": "#1f78b4",
+    "lightblue": "#a6cee3",
+    "red": "#e31a1c",
+    "orange": "#ff7f00",
+    "green": "#7CB518",
+    "darkgreen": "#064635",
+    "darkred": "#990000",
+}
 bg_colours = {"QCD": "lightblue", "TT": "darkblue", "ST": "orange"}
 
 bg_colours = {
