@@ -407,7 +407,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # select vars
 
         ak8FatJetVars = {
-            f"ak8FatJet{key}": pad_val(events.FatJet[var], 2, -99999, axis=1)
+            f"ak8FatJet{key}": pad_val(events.FatJet[var], num_jets, -99999, axis=1)
             for (var, key) in self.skim_vars["FatJet"].items()
         }
 
