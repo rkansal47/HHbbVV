@@ -23,7 +23,15 @@ from numpy.typing import ArrayLike
 
 from sample_labels import sig_key, data_key
 
-colours = {"darkblue": "#1f78b4", "lightblue": "#a6cee3", "red": "#e31a1c", "orange": "#ff7f00", "green": "#7CB518", "darkgreen": "#064635", "darkred": "#990000"}
+colours = {
+    "darkblue": "#1f78b4",
+    "lightblue": "#a6cee3",
+    "red": "#e31a1c",
+    "orange": "#ff7f00",
+    "green": "#7CB518",
+    "darkgreen": "#064635",
+    "darkred": "#990000",
+}
 bg_colours = {"QCD": "lightblue", "TT": "darkblue", "ST": "orange"}
 
 bg_colours = {
@@ -44,6 +52,7 @@ def ratioHistPlot(
     bg_keys: List[str],
     bg_colours: Dict[str, str] = bg_colours,
     sig_colour: str = sig_colour,
+    bg_err: np.ndarray = None,
     data_err: Union[ArrayLike, bool, None] = None,
     title: str = None,
     blind_region: list = None,
@@ -70,6 +79,19 @@ def ratioHistPlot(
         color=[colours[bg_colours[sample]] for sample in bg_keys],
     )
 
+    bg_tot = np.sum(hists[bg_keys, :].values(), axis=0)
+
+    if bg_err is not None:
+        ax.fill_between(
+            np.repeat(hists.axes[1].edges, 2)[1:-1],
+            np.repeat(bg_tot - bg_err, 2),
+            np.repeat(bg_tot + bg_err, 2),
+            color="black",
+            alpha=0.2,
+            hatch="//",
+            linewidth=0,
+        )
+
     if sig_key in hists:
         hep.histplot(
             hists[sig_key, :] * sig_scale,
@@ -81,23 +103,28 @@ def ratioHistPlot(
     hep.histplot(
         hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
     )
-    ax.legend()
-    ax.set_ylim(0)
+    ax.legend(ncol=2)
+    ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
 
-    bg_tot = sum([hists[sample, :] for sample in bg_keys])
-    yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")
+    mcdata_ratio = bg_tot / (hists[data_key, :].values() + 1e-5)
+
+    if bg_err is None:
+        yerr = ratio_uncertainty(bg_tot, hists[data_key, :].values(), "poisson")
+    else:
+        yerr = bg_err / (hists[data_key, :].values() + 1e-5)
 
     # print(hists[data_key, :] / (bg_tot.values() + 1e-5))
 
     hep.histplot(
-        hists[data_key, :] / (bg_tot.values() + 1e-5),
+        sum([hists[sample, :] for sample in bg_keys]) / (hists[data_key, :].values() + 1e-5),
         yerr=yerr,
         ax=rax,
         histtype="errorbar",
         color="black",
         capsize=4,
     )
-    rax.set_ylabel("Data/MC")
+    rax.set_ylabel("MC/Data")
+    rax.set_ylim(0.5, 1.5)
     rax.grid()
 
     if title is not None:
