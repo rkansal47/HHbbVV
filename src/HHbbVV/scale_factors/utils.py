@@ -12,7 +12,7 @@ from typing import Dict, List, Union
 from coffea.analysis_tools import PackedSelection
 from hist import Hist
 
-from sample_labels import sig_key, data_key
+from sample_labels import sig_key, data_key, ttsl_key
 
 MAIN_DIR = "./"
 CUT_MAX_VAL = 9999.0
@@ -103,6 +103,7 @@ def check_selector(sample: str, selector: Union[str, List[str]]):
 
     return False
 
+
 def load_samples(
     data_dir: str, samples: Dict[str, str], year: str, filters: List = None
 ) -> Dict[str, pd.DataFrame]:
@@ -135,7 +136,6 @@ def load_samples(
 
             print(f"Loading {sample}")
 
-            
             events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
             not_empty = len(events) > 0
             pickles_path = f"{data_dir}/{year}/{sample}/pickles"
@@ -143,6 +143,14 @@ def load_samples(
             if label != data_key:
                 if label == sig_key:
                     n_events = get_cutflow(pickles_path, year, sample)["has_4q"]
+                elif sample.startswith(ttsl_key):
+                    # have to divide TT semileptonic by # of events in normal and ext1 both
+                    n_events = sum(
+                        [
+                            get_nevents(f"{data_dir}/{year}/{skey}/pickles", year, skey)
+                            for skey in [ttsl_key, ttsl_key + "_ext1"]
+                        ]
+                    )
                 else:
                     n_events = get_nevents(pickles_path, year, sample)
 
@@ -151,6 +159,7 @@ def load_samples(
 
             if not_empty:
                 events_dict[label].append(events)
+
             print(f"Loaded {len(events)} entries")
 
         events_dict[label] = pd.concat(events_dict[label])
@@ -341,6 +350,7 @@ def singleVarHistNoMask(
         blindBins(h, blind_region, data_key)
 
     return h
+
 
 def add_selection(name, sel, selection, cutflow, events, weight_key):
     """Adds selection to PackedSelection object and the cutflow"""
