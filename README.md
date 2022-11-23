@@ -9,25 +9,42 @@
 
 Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to two beauty quarks (b) and two vector bosons (V). The majority of the analysis uses a columnar framework to process input tree-based [NanoAOD](https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookNanoAOD) files using the [coffea](https://coffeateam.github.io/coffea/) and [scikit-hep](https://scikit-hep.org) Python libraries.
 
+  - [Instructions for running coffea processors](#instructions-for-running-coffea-processors)
+    * [Coffea-Casa](#coffea-casa)
+    * [Condor](#condor)
+  - [Processors](#processors)
+    * [bbVVSkimmer](#bbvvskimmer)
+    * [TaggerInputSkimmer](#taggerinputskimmer)
+
+
 ## Instructions for running coffea processors
 
 General note: Coffea-casa is faster and more convenient, however still somewhat experimental so for large of inputs and/or processors which may require heavier cpu/memory usage (e.g. bbVVSkimmer) condor is recommended.
 
-### For [coffea-casa](https://coffea-casa.readthedocs.io/en/latest/cc_user.html):
+### [Coffea-Casa](https://coffea-casa.readthedocs.io/en/latest/cc_user.html)
 1. after following instructions ^ set up an account, open the coffea-casa GUI (https://cmsaf-jh.unl.edu) and create an image
 2. open `src/runCoffeaCasa.ipynb`
 3. import your desired processor, specify it in the `run_uproot_job` function, and specify your filelist
 4. run the first three cells
 
 
-### To submit with normal condor:
+### Condor
+
+Manually splits up the files into condor jobs.
 
 ```bash
 git clone https://github.com/rkansal47/HHbbVV/
 cd HHbbVV
 TAG=Aug18_skimmer
-python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20  # will need python3 (recommended to set up via miniconda)
+# will need python3 (recommended to set up via miniconda)
+python src/condor/submit.py --processor skimmer --tag $TAG --files-per-job 20  
 for i in condor/$TAG/*.jdl; do condor_submit $i; done
+```
+
+Alternatively, can be submitted from a yaml file:
+
+```bash
+python src/condor/submit_from_yaml.py --processor skimmer --tag $TAG --files-per-job 20 --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml 
 ```
 
 To test locally first (recommended), can do e.g.:
