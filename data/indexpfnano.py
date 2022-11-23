@@ -57,10 +57,10 @@ folders_to_index = [
     "/store/user/lpcpfnano/rkansal/v2_3/2017/SingleTop",
     "/store/user/lpcpfnano/cmantill/v2_3/2018/SingleTop",
     #
-    # "/store/user/lpcpfnano/cmantill/v2_3/2016/WJetsToLNu",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2016APV/WJetsToLNu",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2017/WJetsToLNu",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2018/WJetsToLNu",
+    "/store/user/lpcpfnano/drankin/v2_2/2016/WJetsToLNu",
+    "/store/user/lpcpfnano/drankin/v2_2/2016APV/WJetsToLNu",
+    "/store/user/lpcpfnano/drankin/v2_2/2017/WJetsToLNu",
+    "/store/user/lpcpfnano/drankin/v2_2/2018/WJetsToLNu",
     #
     "/store/user/lpcpfnano/rkansal/v2_3/2016/Diboson/",
     "/store/user/lpcpfnano/rkansal/v2_3/2016APV/Diboson/",
@@ -157,8 +157,14 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                 f3_subfolders = get_subfolders(f"{f1}/{f2}/{f3}")
                 if len(f3_subfolders) >= 2:
                     print(f"WARNING : Found multiple timestamps for {f1}/{f2}/{f3}")
+                    print(f3_subfolders)
 
                 for f4 in f3_subfolders:  # Timestamp
+                    if len(f3_subfolders) >= 2:
+                        if f4 == "220801_140806/":  # ignoring repeat of 2016H
+                            print(f"Ignoring {f4}")
+                            continue
+
                     f4_subfolders = get_subfolders(f"{f1}/{f2}/{f3}/{f4}")
 
                     # print(f4_subfolders)
