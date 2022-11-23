@@ -15,6 +15,8 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
   - [Processors](#processors)
     * [bbVVSkimmer](#bbvvskimmer)
     * [TaggerInputSkimmer](#taggerinputskimmer)
+    * [TTScaleFactorsSkimmer](#ttscalefactorsskimmer)
+  - [Misc](#misc)
 
 
 ## Instructions for running coffea processors
@@ -22,7 +24,7 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
 General note: Coffea-casa is faster and more convenient, however still somewhat experimental so for large of inputs and/or processors which may require heavier cpu/memory usage (e.g. bbVVSkimmer) condor is recommended.
 
 ### [Coffea-Casa](https://coffea-casa.readthedocs.io/en/latest/cc_user.html)
-1. after following instructions ^ set up an account, open the coffea-casa GUI (https://cmsaf-jh.unl.edu) and create an image
+1. after following instructions in the link ^ set up an account, open the coffea-casa GUI (https://cmsaf-jh.unl.edu) and create an image
 2. open `src/runCoffeaCasa.ipynb`
 3. import your desired processor, specify it in the `run_uproot_job` function, and specify your filelist
 4. run the first three cells
@@ -66,13 +68,13 @@ Parquet and pickle files will be saved in the eos directory of specified user at
 
 To test locally:
 
-`python -W ignore src/run.py --processor skimmer --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q --save-ak15 --starti 0 --endi 1`
+`python -W ignore src/run.py --processor skimmer --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q --starti 0 --endi 1`
 
 Jobs
 ```bash
-python src/condor/submit_from_yaml.py --tag Jul24 --processor skimmer --save-ak15 --submit --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml 
+nohup python src/condor/submit_from_yaml.py --tag Jul24 --processor skimmer --submit --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml &> tmp/submitou.txt &
 
-# Submit (if not use --submit flag)
+# Submit (if not using the --submit flag)
 nohup bash -c 'for i in condor/'"${TAG}"'/*.jdl; do condor_submit $i; done' &> tmp/submitout.txt &
 ```
 
@@ -81,18 +83,38 @@ nohup bash -c 'for i in condor/'"${TAG}"'/*.jdl; do condor_submit $i; done' &> t
 
 Applies a loose pre-selection cut, saves ntuples with training inputs.
 
-To test locally (in singularity):
+To test locally:
 ```bash
 python -W ignore src/run.py --year 2017 --starti 300 --endi 301 --samples HWWPrivate --subsamples jhu_HHbbWW --processor input --label AK15_H_VV
 python -W ignore src/run.py --year 2017 --starti 300 --endi 301 --samples QCD --subsamples QCD_Pt_1000to1400 --processor input --label AK15_QCD --njets 1 --maxchunks 1
 ```
 
 Jobs:
-```
+```bash
 python src/condor/submit_from_yaml.py --tag Jul21 --processor input --save-ak15 --yaml src/condor/submit_configs/tagger_inputs_07_21.yaml 
 ```
 To submit add `--submit` flag.
 
+
+### TTScaleFactorsSkimmer
+
+Applies cuts for a semi-leptonic ttbar control region, as defined for the [JMAR W SF](https://indico.cern.ch/event/1101433/contributions/4775247/) and [CASE Lund Plane SF](https://indico.cern.ch/event/1208247/#10-lund-plane-reweighting-for) measurements to validate Lund plane scale factors.
+
+Local testing:
+
+To test locally:
+```bash
+python -W ignore src/run.py --processor ttsfs --sample TTbar --subsamples TTToSemiLeptonic --starti 0 --endi 1
+```
+
+Jobs:
+```bash
+nohup python src/condor/submit_from_yaml.py --tag Nov23 --processor ttsfs --submit --yaml src/condor/submit_configs/ttsfs_inputs_11_18.yaml &> submitout.txt &
+```
+
+
+
+## Misc
 
 Command for copying directories to PRP in background ([krsync](https://serverfault.com/a/887402))
 (you may need to install `rsync` in the PRP pod first if it's been restarted)
