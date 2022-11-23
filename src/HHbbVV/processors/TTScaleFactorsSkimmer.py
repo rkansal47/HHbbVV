@@ -407,7 +407,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # select vars
 
         ak8FatJetVars = {
-            f"ak8FatJet{key}": pad_val(events.FatJet[var], 2, -99999, axis=1)
+            f"ak8FatJet{key}": pad_val(events.FatJet[var], num_jets, -99999, axis=1)
             for (var, key) in self.skim_vars["FatJet"].items()
         }
 
@@ -473,7 +473,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
                 sf_dict[key] = arr
 
         else:
-            match_dict = {key: np.ones(len(events)) for key in self.top_matchings}
+            match_dict = {key: np.zeros(len(events)) for key in self.top_matchings}
             sf_dict = {"lp_sf": np.zeros(len(events)), "lp_sf_err": np.zeros(len(events))}
 
         skimmed_events = {**skimmed_events, **match_dict, **sf_dict}
