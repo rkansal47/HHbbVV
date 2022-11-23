@@ -64,9 +64,7 @@ ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
 num_prongs = 3
 
 
-def lund_SFs(
-    events: NanoEventsArray, ratio_smeared_lookups: List[dense_lookup]
-) -> np.ndarray:
+def lund_SFs(events: NanoEventsArray, ratio_smeared_lookups: List[dense_lookup]) -> np.ndarray:
     """
     Calculates scale factors for the leading jet in events based on splittings in the primary Lund Plane.
 
@@ -120,8 +118,14 @@ def lund_SFs(
     # could be parallelised but not sure if memory / time trade-off is worth it
     for i, ratio_nom_lookup in enumerate(ratio_smeared_lookups):
         ratio_nom_vals = ratio_nom_lookup(flat_subjet_pt, flat_logD, flat_logkt)
-        reshaped_ratio_nom_vals = ak.Array(ak.layout.ListOffsetArray64(ld_offsets, ak.layout.NumpyArray(ratio_nom_vals)))
-        sf_vals.append(np.prod(ak.prod(reshaped_ratio_nom_vals, axis=1).to_numpy().reshape(-1, num_prongs), axis=1))
+        reshaped_ratio_nom_vals = ak.Array(
+            ak.layout.ListOffsetArray64(ld_offsets, ak.layout.NumpyArray(ratio_nom_vals))
+        )
+        sf_vals.append(
+            np.prod(
+                ak.prod(reshaped_ratio_nom_vals, axis=1).to_numpy().reshape(-1, num_prongs), axis=1
+            )
+        )
 
     sf_vals = np.array(sf_vals).T  # shape: ``[n_jets, n_sf_toys]``
 
@@ -218,13 +222,12 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
         )
 
-        
         # initialize lund plane scale factors lookups
         f = uproot.open(package_path + "/corrections/ratio_ktjets_nov7.root")
 
         # 3D histogram: [subjet_pt, ln(0.8/Delta), ln(kT/GeV)]
-        ratio_nom = f['ratio_nom'].to_numpy()
-        ratio_nom_errs = f['ratio_nom'].errors()
+        ratio_nom = f["ratio_nom"].to_numpy()
+        ratio_nom_errs = f["ratio_nom"].errors()
         ratio_nom_edges = ratio_nom[1:]
         ratio_nom = ratio_nom[0]
 
@@ -235,7 +238,9 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # produces array of shape ``[n_sf_toys, subjet_pt bins, ln(0.8/Delta) bins, ln(kT/GeV) bins]``
         ratio_nom_smeared = ratio_nom + (ratio_nom_errs * rand_noise)
         # save n_sf_toys lookups
-        self.ratio_smeared_lookups = [dense_lookup(ratio_nom_smeared[i], ratio_nom_edges) for i in range(n_sf_toys)]
+        self.ratio_smeared_lookups = [
+            dense_lookup(ratio_nom_smeared[i], ratio_nom_edges) for i in range(n_sf_toys)
+        ]
         self.n_sf_toys = n_sf_toys
 
         self._accumulator = dict_accumulator({})
@@ -445,10 +450,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             match_dict = ttbar_scale_factor_matching(events, leading_fatjets[:, 0], selection_args)
             top_matched = match_dict["top_matched"].astype(bool)
 
-            sf_vals = lund_SFs(
-                events[top_matched],
-                self.ratio_smeared_lookups
-            )
+            sf_vals = lund_SFs(events[top_matched], self.ratio_smeared_lookups)
 
             sf_dict = {"lp_sf": sf_vals}
 
