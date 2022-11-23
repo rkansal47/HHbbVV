@@ -54,7 +54,7 @@ gen_selection_dict = {
 }
 
 # deepcsv medium WP's https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation
-btagWPs = {"2016": 0.4168, "2017": 0.4506, "2018": 0.5847}
+btagWPs = {"2016APV": 0.6001, "2016": 0.5847, "2017": 0.4506, "2018": 0.4168}
 
 
 # jet definitions
@@ -118,16 +118,18 @@ def lund_SFs(events: NanoEventsArray, ratio_smeared_lookups: List[dense_lookup])
     # could be parallelised but not sure if memory / time trade-off is worth it
     for i, ratio_nom_lookup in enumerate(ratio_smeared_lookups):
         ratio_nom_vals = ratio_nom_lookup(flat_subjet_pt, flat_logD, flat_logkt)
+        # recover jagged event structure
         reshaped_ratio_nom_vals = ak.Array(
             ak.layout.ListOffsetArray64(ld_offsets, ak.layout.NumpyArray(ratio_nom_vals))
         )
+        # nominal values are product of all lund plane SFs
         sf_vals.append(
             np.prod(
                 ak.prod(reshaped_ratio_nom_vals, axis=1).to_numpy().reshape(-1, num_prongs), axis=1
             )
         )
 
-    sf_vals = np.array(sf_vals).T  # shape: ``[n_jets, n_sf_toys]``
+    sf_vals = np.array(sf_vals).T  # output shape: ``[n_jets, n_sf_toys]``
 
     return sf_vals
 
@@ -142,7 +144,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
           if sample not included no lumi and xsec will not be applied to weights
     """
 
-    LUMI = {"2016": 38000, "2017": 40000, "2018": 60000}  # in pb^-1
+    # from https://cds.cern.ch/record/2724492/files/DP2020_035.pdf
+    LUMI = {"2016APV": 20e3, "2016": 16e3, "2017": 41e3, "2018": 59e3}  # in pb^-1
 
     HLTs = {
         "2016": ["IsoTkMu50", "Mu50"],
