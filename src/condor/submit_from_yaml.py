@@ -53,6 +53,7 @@ if __name__ == "__main__":
             args.files_per_job = sdict["files_per_job"]
             args.njets = sdict.get("njets", 2)
             args.maxchunks = sdict.get("maxchunks", 0)
+            args.chunksize = sdict.get("chunksize", 1000)
 
             args.tag = tag
 

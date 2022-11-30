@@ -1,0 +1,121 @@
+{
+    "Training": {
+        "HWWPrivate": {
+            "subsamples": [
+                "BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2_ext1",
+                "BulkGravitonToHHTo4W_JHUGen_MX-600to6000_MH-15to250_v2",
+                "JHUVariableWMass_part1",
+                "JHUVariableWMass_part2",
+                "JHUVariableWMass_part3",
+            ],
+            "files_per_job": 20,
+            "label": "_H_VV",
+            "njets": 2,
+        },
+        "QCD": {
+            "subsamples": [
+                "QCD_Pt_300to470",
+                "QCD_Pt_470to600",
+                "QCD_Pt_600to800",
+                "QCD_Pt_800to1000",
+                "QCD_Pt_1000to1400",
+            ],
+            "files_per_job": 1,
+            "label": "_QCD",
+            "njets": 1,
+            "maxchunks": 1,
+            "chunksize": 800,
+        },
+        "WJetsToQQ": {
+            "subsamples": [
+                "WJetsToQQ_HT-400to600",
+                "WJetsToQQ_HT-600to800",
+                "WJetsToQQ_HT-800toInf",
+            ],
+            "files_per_job": 2,
+            "label": "_VJets",
+            "njets": 1,
+            "maxchunks": 10,
+        },
+        "WJetsToLNu": {
+            "subsamples": [
+                "WJetsToLNu_HT-200To400",
+                "WJetsToLNu_HT-400To600",
+                "WJetsToLNu_HT-600To800",
+                "WJetsToLNu_HT-800To1200",
+                "WJetsToLNu_HT-1200To2500",
+                "WJetsToLNu_HT-2500ToInf",
+            ],
+            "files_per_job": 5,
+            "label": "_VJets",
+            "njets": 1,
+        },
+        "TTbar": {
+            "subsamples": [
+                "TTToSemiLeptonic",
+                "TTToHadronic"
+            ],
+            "files_per_job": 2,
+            "label": "_Top",
+            "njets": 2,
+            "maxchunks": 2,
+        },
+        "JetHT2017": {
+            # "subsamples": [
+            #     "JetHT_Run2017C",
+            #     "JetHT_Run2017D",
+            #     "JetHT_Run2017B",
+            #     "JetHT_Run2017E",
+            #     "JetHT_Run2017F"
+            # ],
+            "subsamples": [
+                "JetHT_Run2017C"
+            ],
+            "files_per_job": 2,
+            "label": "_JetHTData",
+            "njets": 1,
+            "maxchunks": 10,
+        },
+    },
+    "Validation": {
+        "QCDHerwig": {
+            "subsamples": [
+                "QCD_Pt_150to3000_herwig"
+            ],
+            "files_per_job": 1,
+            "label": "_QCD",
+            "njets": 1,
+            "maxchunks": 2,
+        },
+        "XYH": {
+            "subsamples": [
+                "NMSSM_XYH_WWbb_MX_1500_MY400",
+                "NMSSM_XYH_WWbb_MX_1300_MY200",
+                "NMSSM_XYH_WWbb_MX_2000_MY400",
+                "NMSSM_XYH_WWbb_MX_3000_MY800",
+            ],
+            "files_per_job": 40,
+            "label": "_H_VV",
+            "njets": 2,
+        },
+        "HWWPrivate": {
+            "subsamples": [
+                "GluGluToBulkGravitonToHHTo4W_JHUGen_M-2500_narrow",
+            ],
+            "files_per_job": 20,
+            "label": "_H_VV",
+            "njets": 2,
+        },
+        "HWW": {
+            "subsamples": [
+                "GluGluHToWW_Pt-200ToInf_M-125",
+                "GluGluToHHTobbVV_node_cHHH1_pn4q",
+                "GluGluToHHTobbVV_node_cHHH5_pn4q",
+                "VBF_HHTobbVV_CV_1_C2V_2_C3_1_TuneCP5_13TeV-madgraph-pythia8",
+            ],
+            "files_per_job": 20,
+            "label": "_H_VV",
+            "njets": 2,
+        },
+    },
+}
