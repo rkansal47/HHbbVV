@@ -8,7 +8,7 @@ import awkward as ak
 import pandas as pd
 
 from coffea.processor import ProcessorABC, dict_accumulator
-from coffea.analysis_tools import PackedSelection
+from coffea.analysis_tools import Weights, PackedSelection
 
 import pathlib
 import pickle
@@ -20,6 +20,7 @@ from typing import Dict
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection
+from .corrections import add_pileup_weight
 
 
 P4 = {
@@ -51,28 +52,68 @@ class bbVVSkimmer(ProcessorABC):
         save_ak15 (bool, optional): save ak15 jets as well, for HVV candidate
     """
 
-    # TODO: do ak8, ak15 sorting for hybrid case
-
     def __init__(self, xsecs={}, save_ak15=False):
         super(bbVVSkimmer, self).__init__()
 
-        self.LUMI = {"2017": 40000}  # in pb^-1
+        # TODO: Check if this is correct
+        self.LUMI = {"2016": 38000, "2017": 40000, "2018": 60000}  # in pb^-1
         self.XSECS = xsecs  # in pb
         self.save_ak15 = save_ak15
 
         self.HLTs = {
-            "2017": [
+            2016: [
+                "AK8DiPFJet250_200_TrimMass30_BTagCSV_p20",
+                "AK8DiPFJet280_200_TrimMass30_BTagCSV_p20",
+                #
+                "AK8PFHT600_TrimR0p1PT0p03Mass50_BTagCSV_p20",
+                "AK8PFHT700_TrimR0p1PT0p03Mass50",
+                #
+                "AK8PFJet360_TrimMass30",
+                "AK8PFJet450",
+                "PFJet450",
+                #
+                "PFHT800",
+                "PFHT900",
+                "PFHT1050",
+                #
+                "PFHT750_4JetPt50",
+                "PFHT750_4JetPt70",
+                "PFHT800_4JetPt50",
+            ],
+            2017: [
+                "PFJet450",
                 "PFJet500",
+                #
                 "AK8PFJet400",
+                "AK8PFJet450",
                 "AK8PFJet500",
+                #
+                "AK8PFJet360_TrimMass30",
+                "AK8PFJet380_TrimMass30",
+                "AK8PFJet400_TrimMass30",
+                #
+                "AK8PFHT750_TrimMass50",
+                "AK8PFHT800_TrimMass50",
+                #
+                "PFHT1050",
+                #
+                "AK8PFJet330_PFAK8BTagCSV_p17",
+            ],
+            2018: [
+                "PFJet500",
+                #
+                "AK8PFJet500",
+                #
                 "AK8PFJet360_TrimMass30",
                 "AK8PFJet380_TrimMass30",
                 "AK8PFJet400_TrimMass30",
                 "AK8PFHT750_TrimMass50",
                 "AK8PFHT800_TrimMass50",
+                #
                 "PFHT1050",
-                # 'AK8PFJet330_PFAK8BTagCSV_p17'
-            ]
+                #
+                "HLT_AK8PFJet330_TrimMass30_PFAK8BTagCSV_p17_v",
+            ],
         }
 
         # key is name in nano files, value will be the name in the skimmed output
@@ -82,31 +123,31 @@ class bbVVSkimmer(ProcessorABC):
                 "msoftdrop": "Msd",
                 "particleNetMD_QCD": "ParticleNetMD_QCD",
                 "particleNetMD_Xbb": "ParticleNetMD_Xbb",
-                "particleNetMD_Xcc": "ParticleNetMD_Xcc",
-                "particleNetMD_Xqq": "ParticleNetMD_Xqq",
+                # "particleNetMD_Xcc": "ParticleNetMD_Xcc",
+                # "particleNetMD_Xqq": "ParticleNetMD_Xqq",
                 "particleNet_H4qvsQCD": "ParticleNet_Th4q",
             },
-            "FatJetAK15": {
-                **P4,
-                "msoftdrop": "Msd",
-                "ParticleNetMD_probQCD": "ParticleNetMD_probQCD",
-                # "ParticleNetMD_probQCDb": "ParticleNetMD_probQCDb",
-                # "ParticleNetMD_probQCDbb": "ParticleNetMD_probQCDbb",
-                # "ParticleNetMD_probQCDc": "ParticleNetMD_probQCDc",
-                # "ParticleNetMD_probQCDcc": "ParticleNetMD_probQCDcc",
-                "ParticleNetMD_probXbb": "ParticleNetMD_probXbb",
-                "ParticleNetMD_probXcc": "ParticleNetMD_probXcc",
-                "ParticleNetMD_probXqq": "ParticleNetMD_probXqq",
-                # old non-md particlenet
-                # "ParticleNet_probHbb": "ParticleNet_probHbb",
-                # "ParticleNet_probHcc": "ParticleNet_probHcc",
-                # "ParticleNet_probHqqqq": "ParticleNet_probHqqqq",
-                # "ParticleNet_probQCDb": "ParticleNet_probQCDb",
-                # "ParticleNet_probQCDbb": "ParticleNet_probQCDbb",
-                # "ParticleNet_probQCDc": "ParticleNet_probQCDc",
-                # "ParticleNet_probQCDcc": "ParticleNet_probQCDcc",
-                # "ParticleNet_probQCDothers": "ParticleNet_probQCDothers",
-            },
+            # "FatJetAK15": {
+            #     **P4,
+            #     "msoftdrop": "Msd",
+            #     "ParticleNetMD_probQCD": "ParticleNetMD_probQCD",
+            #     # "ParticleNetMD_probQCDb": "ParticleNetMD_probQCDb",
+            #     # "ParticleNetMD_probQCDbb": "ParticleNetMD_probQCDbb",
+            #     # "ParticleNetMD_probQCDc": "ParticleNetMD_probQCDc",
+            #     # "ParticleNetMD_probQCDcc": "ParticleNetMD_probQCDcc",
+            #     "ParticleNetMD_probXbb": "ParticleNetMD_probXbb",
+            #     # "ParticleNetMD_probXcc": "ParticleNetMD_probXcc",
+            #     # "ParticleNetMD_probXqq": "ParticleNetMD_probXqq",
+            #     # old non-md particlenet
+            #     # "ParticleNet_probHbb": "ParticleNet_probHbb",
+            #     # "ParticleNet_probHcc": "ParticleNet_probHcc",
+            #     # "ParticleNet_probHqqqq": "ParticleNet_probHqqqq",
+            #     # "ParticleNet_probQCDb": "ParticleNet_probQCDb",
+            #     # "ParticleNet_probQCDbb": "ParticleNet_probQCDbb",
+            #     # "ParticleNet_probQCDc": "ParticleNet_probQCDc",
+            #     # "ParticleNet_probQCDcc": "ParticleNet_probQCDcc",
+            #     # "ParticleNet_probQCDothers": "ParticleNet_probQCDothers",
+            # },
             "GenHiggs": P4,
             "other": {"MET_pt": "MET_pt"},
         }
@@ -170,9 +211,10 @@ class bbVVSkimmer(ProcessorABC):
         signGenWeights = None if isData else np.sign(events["genWeight"])
         n_events = len(events) if isData else int(np.sum(signGenWeights))
         selection = PackedSelection()
+        weights = Weights(len(events), storeIndividual=True)
 
         cutflow = {}
-        cutflow["all"] = len(events)
+        cutflow["all"] = n_events
 
         skimmed_events = {}
 
@@ -182,6 +224,8 @@ class bbVVSkimmer(ProcessorABC):
                 **skimmed_events,
                 **gen_selection_dict[dataset](events, selection, cutflow, signGenWeights, P4),
             }
+
+        # TODO: Apply JECs, save variations
 
         # triggers
         # OR-ing HLT triggers
@@ -304,19 +348,22 @@ class bbVVSkimmer(ProcessorABC):
             skimmed_events["weight"] = np.ones(n_events)
         else:
             skimmed_events["genWeight"] = events.genWeight.to_numpy()
-            skimmed_events["pileupWeight"] = self.corrections[f"{year}_pileupweight"](
-                events.Pileup.nPU
-            ).to_numpy()
+            add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
+            # TODO: theory uncertainties
+            # TODO: trigger SFs here once calculated properly
 
-            # TODO: add pileup and trigger SFs here once calculated properly
-            # this still needs to be normalized with the acceptance of the pre-selection
-
+            # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)
             if dataset in self.XSECS:
                 skimmed_events["weight"] = (
-                    np.sign(skimmed_events["genWeight"]) * self.XSECS[dataset] * self.LUMI[year]
+                    np.sign(skimmed_events["genWeight"])
+                    * self.XSECS[dataset]
+                    * self.LUMI[year]
+                    * weights.weight()
                 )
             else:
                 skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
+
+            skimmed_events = {**skimmed_events, **weights._weight, **weights._modifiers}
 
         # apply selections
 
