@@ -355,7 +355,10 @@ class bbVVSkimmer(ProcessorABC):
             # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)
             if dataset in self.XSECS:
                 skimmed_events["weight"] = (
-                    np.sign(skimmed_events["genWeight"]) * self.XSECS[dataset] * self.LUMI[year] * weights.weight()
+                    np.sign(skimmed_events["genWeight"])
+                    * self.XSECS[dataset]
+                    * self.LUMI[year]
+                    * weights.weight()
                 )
             else:
                 skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
