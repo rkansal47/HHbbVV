@@ -102,7 +102,7 @@ folders_to_index = [
     "/store/user/lpcpfnano/cmantill/v2_3/2016APV/HH",
     "/store/user/lpcpfnano/cmantill/v2_3/2017/HH",
     "/store/user/lpcpfnano/cmantill/v2_3/2018/HH",
-    # 
+    #
     "/store/user/lpcpfnano/rkansal/v2_3/2016/GluGluHToBB/",
     "/store/user/lpcpfnano/rkansal/v2_3/2016APV/GluGluHToBB/",
     "/store/user/lpcpfnano/rkansal/v2_3/2017/GluGluHToBB/",
