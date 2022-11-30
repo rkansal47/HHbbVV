@@ -46,6 +46,9 @@ bg_colours = {
 
 sig_colour = "red"
 
+# from https://cds.cern.ch/record/2724492/files/DP2020_035.pdf
+LUMI = {"2016APV": 20e3, "2016": 16e3, "2017": 41e3, "2018": 59e3}  # in pb^-1
+
 
 def ratioHistPlot(
     hists: Hist,
@@ -55,6 +58,7 @@ def ratioHistPlot(
     bg_err: np.ndarray = None,
     data_err: Union[ArrayLike, bool, None] = None,
     title: str = None,
+    year: str = "2017",
     blind_region: list = None,
     name: str = "",
     sig_scale: float = 1.0,
@@ -130,7 +134,7 @@ def ratioHistPlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    hep.cms.label("Work in Progress", data=True, lumi=40, year=2017, ax=ax)
+    hep.cms.label("Work in Progress", data=True, lumi=LUMI[year] * 1e-3, year=year, ax=ax)
     if len(name):
         plt.savefig(name, bbox_inches="tight")
 
