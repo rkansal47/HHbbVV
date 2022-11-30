@@ -100,6 +100,8 @@ To submit add `--submit` flag.
 
 Applies cuts for a semi-leptonic ttbar control region, as defined for the [JMAR W SF](https://indico.cern.ch/event/1101433/contributions/4775247/) and [CASE Lund Plane SF](https://indico.cern.ch/event/1208247/#10-lund-plane-reweighting-for) measurements to validate Lund plane scale factors.
 
+Lund plane scale factors are calculated for top-matched jets in semi-leptonic ttbar events.
+
 Local testing:
 
 To test locally:
