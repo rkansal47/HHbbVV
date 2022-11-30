@@ -32,7 +32,7 @@ from typing import Dict, Tuple, List
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, ttbar_scale_factor_matching
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection
-from .corrections import add_pileup_weight, add_lepton_weights
+from .corrections import add_pileup_weight, add_lepton_weights, add_top_pt_weight
 
 
 P4 = {

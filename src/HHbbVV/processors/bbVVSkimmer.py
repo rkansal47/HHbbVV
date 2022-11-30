@@ -8,7 +8,7 @@ import awkward as ak
 import pandas as pd
 
 from coffea.processor import ProcessorABC, dict_accumulator
-from coffea.analysis_tools import PackedSelection
+from coffea.analysis_tools import Weights, PackedSelection
 
 import pathlib
 import pickle
@@ -20,6 +20,7 @@ from typing import Dict
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection
+from .corrections import add_pileup_weight
 
 
 P4 = {
@@ -210,6 +211,7 @@ class bbVVSkimmer(ProcessorABC):
         signGenWeights = None if isData else np.sign(events["genWeight"])
         n_events = len(events) if isData else int(np.sum(signGenWeights))
         selection = PackedSelection()
+        weights = Weights(len(events), storeIndividual=True)
 
         cutflow = {}
         cutflow["all"] = n_events
@@ -222,6 +224,8 @@ class bbVVSkimmer(ProcessorABC):
                 **skimmed_events,
                 **gen_selection_dict[dataset](events, selection, cutflow, signGenWeights, P4),
             }
+
+        # TODO: Apply JECs, save variations
 
         # triggers
         # OR-ing HLT triggers
@@ -344,19 +348,19 @@ class bbVVSkimmer(ProcessorABC):
             skimmed_events["weight"] = np.ones(n_events)
         else:
             skimmed_events["genWeight"] = events.genWeight.to_numpy()
-            skimmed_events["pileupWeight"] = self.corrections[f"{year}_pileupweight"](
-                events.Pileup.nPU
-            ).to_numpy()
+            add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
+            # TODO: theory uncertainties
+            # TODO: trigger SFs here once calculated properly
 
-            # TODO: add pileup and trigger SFs here once calculated properly
-            # this still needs to be normalized with the acceptance of the pre-selection
-
+            # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)
             if dataset in self.XSECS:
                 skimmed_events["weight"] = (
-                    np.sign(skimmed_events["genWeight"]) * self.XSECS[dataset] * self.LUMI[year]
+                    np.sign(skimmed_events["genWeight"]) * self.XSECS[dataset] * self.LUMI[year] * weights.weight()
                 )
             else:
                 skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
+
+            skimmed_events = {**skimmed_events, **weights._weight, **weights._modifiers}
 
         # apply selections
 
