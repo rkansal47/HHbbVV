@@ -1,5 +1,5 @@
 """
-Skimmer for bbVV analysis.
+Skimmer for scale factors validation.
 Author(s): Raghav Kansal
 """
 
@@ -8,7 +8,7 @@ import awkward as ak
 import pandas as pd
 
 from coffea.processor import ProcessorABC, dict_accumulator
-from coffea.analysis_tools import PackedSelection
+from coffea.analysis_tools import Weights, PackedSelection
 from coffea.nanoevents.methods import nanoaod
 
 from coffea.lookup_tools.dense_lookup import dense_lookup
@@ -32,6 +32,7 @@ from typing import Dict, Tuple, List
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, ttbar_scale_factor_matching
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection
+from .corrections import add_pileup_weight, add_lepton_weights
 
 
 P4 = {
@@ -100,7 +101,9 @@ def lund_SFs(events: NanoEventsArray, ratio_smeared_lookups: List[dense_lookup])
     # save subjet pT
     kt_subjets_pt = np.sqrt(kt_subjets.px**2 + kt_subjets.py**2)
     # get constituents
-    kt_subjet_consts = kt_clustering.exclusive_jets_constituents(num_prongs)
+    kt_subjet_consts = kt_clustering.exclusive_jets_constituents(
+        num_prongs
+    )  # check this matching is correct
 
     # then re-cluster with CA
     # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
@@ -124,8 +127,11 @@ def lund_SFs(events: NanoEventsArray, ratio_smeared_lookups: List[dense_lookup])
         )
         # nominal values are product of all lund plane SFs
         sf_vals.append(
+            # multiply subjet SFs per jet
             np.prod(
-                ak.prod(reshaped_ratio_nom_vals, axis=1).to_numpy().reshape(-1, num_prongs), axis=1
+                # per-subjet SF
+                ak.prod(reshaped_ratio_nom_vals, axis=1).to_numpy().reshape(-1, num_prongs),
+                axis=1,
             )
         )
 
@@ -148,7 +154,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
     LUMI = {"2016APV": 20e3, "2016": 16e3, "2017": 41e3, "2018": 59e3}  # in pb^-1
 
     HLTs = {
-        "2016": ["IsoTkMu50", "Mu50"],
+        "2016": ["TkMu50", "Mu50"],
         "2017": ["Mu50", "OldMu100", "TkMu100"],
         "2018": ["Mu50", "OldMu100", "TkMu100"],
     }
@@ -181,8 +187,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
     }
 
     ak8_jet_selection = {
-        "pt": 250,
-        "msd": [20, 250],
+        "pt": 200,
+        "msd": [50, 250],
         "eta": 2.5,
         "delta_muon": 2,
         "jetId": nanoaod.FatJet.TIGHT,
@@ -240,6 +246,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         # produces array of shape ``[n_sf_toys, subjet_pt bins, ln(0.8/Delta) bins, ln(kT/GeV) bins]``
         ratio_nom_smeared = ratio_nom + (ratio_nom_errs * rand_noise)
+        ratio_nom_smeared = np.maximum()
         # save n_sf_toys lookups
         self.ratio_smeared_lookups = [
             dense_lookup(ratio_nom_smeared[i], ratio_nom_edges) for i in range(n_sf_toys)
@@ -291,6 +298,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         signGenWeights = None if isData else np.sign(events["genWeight"])
         n_events = len(events) if isData else int(np.sum(signGenWeights))
         selection = PackedSelection()
+        weights = Weights(len(events), storeIndividual=True)
 
         cutflow = {}
         cutflow["all"] = n_events
@@ -435,16 +443,19 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             skimmed_events["weight"] = np.ones(n_events)
         else:
             skimmed_events["genWeight"] = events.genWeight.to_numpy()
-            skimmed_events["pileupWeight"] = self.corrections[f"{year}_pileupweight"](
-                events.Pileup.nPU
-            ).to_numpy()
+            add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
+            add_lepton_weights(weights, year, muon)
 
-            # TODO: add pileup and trigger SFs here once calculated properly
-            # this still needs to be normalized with the acceptance of the pre-selection
+            if dataset.startswith("TTTo"):
+                add_top_pt_weight(weights, events)
 
+            # this still needs to be normalized with the acceptance of the pre-selection (done now in post processing)
             if dataset in self.XSECS:
                 skimmed_events["weight"] = (
-                    np.sign(skimmed_events["genWeight"]) * self.XSECS[dataset] * self.LUMI[year]
+                    np.sign(skimmed_events["genWeight"])
+                    * self.XSECS[dataset]
+                    * self.LUMI[year]
+                    * weights.weight()
                 )
             else:
                 skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
@@ -464,10 +475,6 @@ class TTScaleFactorsSkimmer(ProcessorABC):
                 sf_dict[key] = arr
 
             skimmed_events = {**skimmed_events, **match_dict, **sf_dict}
-
-        # else:
-        #     match_dict = {key: np.zeros(len(events)) for key in self.top_matchings}
-        #     sf_dict = {"lp_sf": np.zeros(len(events)), "lp_sf_err": np.zeros(len(events))}
 
         # apply selections
 
