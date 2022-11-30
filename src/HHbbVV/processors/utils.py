@@ -22,7 +22,7 @@ def pad_val(
     pads awkward array up to ``target`` index along axis ``axis`` with value ``value``,
     optionally converts to numpy array
     """
-    ret = ak.fill_none(ak.pad_none(arr, target, axis=axis, clip=clip), value, axis=None)
+    ret = ak.fill_none(ak.pad_none(arr, target, axis=axis, clip=clip), value, axis=axis)
     return ret.to_numpy() if to_numpy else ret
 
 
@@ -35,7 +35,10 @@ def add_selection(
     signGenWeights: ak.Array,
 ):
     """adds selection to PackedSelection object and the cutflow dictionary"""
-    selection.add(name, sel)
+    if isinstance(sel, ak.Array):
+        sel = sel.to_numpy()
+
+    selection.add(name, sel.astype(bool))
     cutflow[name] = (
         np.sum(selection.all(*selection.names))
         if isData

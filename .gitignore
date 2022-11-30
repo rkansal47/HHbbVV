@@ -17,6 +17,10 @@ src/*
 !src/HHbbVV/corrections/*
 !src/HHbbVV/corrections/*/**
 
+!src/HHbbVV/data
+!src/HHbbVV/data/*
+!src/HHbbVV/data/*/**
+
 !src/condor
 !src/condor/*
 !src/condor/submit_configs/*
@@ -32,12 +36,17 @@ src/HHbbVV/postprocessing/cards
 src/HHbbVV/postprocessing/templates
 src/HHbbVV/postprocessing/*.txt
 
+!src/HHbbVV/scale_factors
+!src/HHbbVV/scale_factors/**
+
 !src/HHbbVV/combine
 !src/HHbbVV/combine/**
 
 !data
 !data/*
 !data/*/**
+
+
 
 !.gitignore
 !.github
