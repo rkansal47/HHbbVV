@@ -60,16 +60,10 @@ def get_fileset(
     with open(f"data/pfnanoindex_{year}.json", "r") as f:
         full_fileset_pfnano = json.load(f)
 
-    with open(f"data/singlemuon_pfnanoindex_{year}.json", "r") as f:
-        full_fileset_singlemuon = json.load(f)
-
     fileset = {}
 
     for sample in samples:
-        if sample.startswith("SingleMu"):
-            sample_set = full_fileset_singlemuon[year][sample]
-        else:
-            sample_set = full_fileset_pfnano[year][sample]
+        sample_set = full_fileset_pfnano[year][sample]
 
         set_subsamples = list(sample_set.keys())
 

@@ -368,7 +368,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         # objects
         num_jets = 1
-        jec_fatjets = get_jec_jets(events, year)
+        jec_fatjets = get_jec_jets(events, year) if not isData else events.FatJet
         leading_fatjets = ak.pad_none(jec_fatjets, num_jets, axis=1)[:, :num_jets]
         leading_btag_jet = ak.flatten(
             ak.pad_none(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]], 1, axis=1)

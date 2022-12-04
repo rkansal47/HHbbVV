@@ -5,7 +5,7 @@ import pickle
 import correctionlib
 import awkward as ak
 from coffea.analysis_tools import Weights
-from coffea.nanoevents.methods.nanoaod import MuonArray, JetArray
+from coffea.nanoevents.methods.nanoaod import MuonArray, JetArray, FatJetArray
 from coffea.nanoevents.methods.base import NanoEventsArray
 import pathlib
 
@@ -21,7 +21,7 @@ pog_jsons = {
 }
 
 
-def get_vfp_year(year: str):
+def get_vfp_year(year: str) -> str:
     if year == "2016":
         year = "2016postVFP"
     elif year == "2016APV":
@@ -30,11 +30,11 @@ def get_vfp_year(year: str):
     return year
 
 
-def get_UL_year(year: str):
+def get_UL_year(year: str) -> str:
     return f"{get_vfp_year(year)}_UL"
 
 
-def get_pog_json(obj: str, year: str):
+def get_pog_json(obj: str, year: str) -> str:
     try:
         pog_json = pog_jsons[obj]
     except:
@@ -158,8 +158,8 @@ with gzip.open(package_path + "/data/jec_compiled.pkl.gz", "rb") as filehandler:
 fatjet_factory = jmestuff["fatjet_factory"]
 
 
-def _add_jec_variables(jets: JetArray, event_rho: ak.Array):
-    """variables needed for JECs"""
+def _add_jec_variables(jets: JetArray, event_rho: ak.Array) -> JetArray:
+    """add variables needed for JECs"""
     jets["pt_raw"] = (1 - jets.rawFactor) * jets.pt
     jets["mass_raw"] = (1 - jets.rawFactor) * jets.mass
     # gen pT needed for smearing
@@ -168,7 +168,7 @@ def _add_jec_variables(jets: JetArray, event_rho: ak.Array):
     return jets
 
 
-def get_jec_jets(events: NanoEventsArray, year: str):
+def get_jec_jets(events: NanoEventsArray, year: str) -> FatJetArray:
     """
     Based on https://github.com/nsmith-/boostedhiggs/blob/master/boostedhiggs/hbbprocessor.py
     Eventually update to V5 JECs once I figure out what's going on with the 2017 UL V5 JER scale factors
