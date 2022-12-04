@@ -102,7 +102,7 @@ def _get_lepton_clipped(lep_pt, lep_eta, lepton_type, corr=None):
         clip_pt = [30.0, 1000.0]
         clip_eta = [0.0, 2.3999]
         if corr == "trigger_noniso":
-            clip_pt = [52.0, 1000.0] 
+            clip_pt = [52.0, 1000.0]
     lepton_pt = np.clip(lep_pt, clip_pt[0], clip_pt[1])
     lepton_eta = np.clip(lep_eta, clip_eta[0], clip_eta[1])
     return lepton_pt, lepton_eta
@@ -174,6 +174,7 @@ def get_jec_jets(events: NanoEventsArray, year: str):
     Eventually update to V5 JECs once I figure out what's going on with the 2017 UL V5 JER scale factors
     """
     import cachetools
+
     jec_cache = cachetools.Cache(np.inf)
 
     corr_key = f"{get_vfp_year(year)}mc"
