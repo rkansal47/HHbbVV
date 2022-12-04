@@ -32,7 +32,7 @@ from typing import Dict, Tuple, List
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, ttbar_scale_factor_matching
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection
-from .corrections import add_pileup_weight, add_lepton_weights, add_top_pt_weight
+from .corrections import add_pileup_weight, add_lepton_weights, add_top_pt_weight, get_jec_jets
 
 
 P4 = {
@@ -101,9 +101,7 @@ def lund_SFs(events: NanoEventsArray, ratio_smeared_lookups: List[dense_lookup])
     # save subjet pT
     kt_subjets_pt = np.sqrt(kt_subjets.px**2 + kt_subjets.py**2)
     # get constituents
-    kt_subjet_consts = kt_clustering.exclusive_jets_constituents(
-        num_prongs
-    )  # check this matching is correct
+    kt_subjet_consts = kt_clustering.exclusive_jets_constituents(num_prongs)
 
     # then re-cluster with CA
     # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
@@ -334,7 +332,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         # objects
         num_jets = 1
-        leading_fatjets = ak.pad_none(events.FatJet, num_jets, axis=1)[:, :num_jets]
+        jec_fatjets = get_jec_jets(events, year)
+        leading_fatjets = ak.pad_none(jec_fatjets, num_jets, axis=1)[:, :num_jets]
         leading_btag_jet = ak.flatten(
             ak.pad_none(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]], 1, axis=1)
         )
@@ -410,14 +409,14 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # select vars
 
         ak8FatJetVars = {
-            f"ak8FatJet{key}": pad_val(events.FatJet[var], num_jets, -99999, axis=1)
+            f"ak8FatJet{key}": pad_val(jec_fatjets[var], num_jets, -99999, axis=1)
             for (var, key) in self.skim_vars["FatJet"].items()
         }
 
         for var in self.skim_vars["FatJetDerived"]:
             if var.startswith("tau"):
-                taunum = pad_val(events.FatJet[f"tau{var[3]}"], num_jets, -99999, axis=1)
-                tauden = pad_val(events.FatJet[f"tau{var[4]}"], num_jets, -99999, axis=1)
+                taunum = pad_val(jec_fatjets[f"tau{var[3]}"], num_jets, -99999, axis=1)
+                tauden = pad_val(jec_fatjets[f"tau{var[4]}"], num_jets, -99999, axis=1)
                 ak8FatJetVars[var] = taunum / tauden
 
         otherVars = {
@@ -430,8 +429,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # particlenet h4q vs qcd, xbb vs qcd
 
         skimmed_events["ak8FatJetParticleNetMD_Txbb"] = pad_val(
-            events.FatJet.particleNetMD_Xbb
-            / (events.FatJet.particleNetMD_QCD + events.FatJet.particleNetMD_Xbb),
+            jec_fatjets.particleNetMD_Xbb
+            / (jec_fatjets.particleNetMD_QCD + jec_fatjets.particleNetMD_Xbb),
             num_jets,
             -1,
             axis=1,
