@@ -187,6 +187,7 @@ def get_jec_jets(events: NanoEventsArray, year: str):
 
 
 # giving up on doing these myself for now because there's no 2017 UL V5 JER scale factors ???
+# https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/JME_fatJet_jerc_Run2_UL/
 # jec_stack_names = [
 #     "Summer19UL17_V5_MC_L1FastJet_AK8PFPuppi",
 #     "Summer19UL17_V5_MC_L2Relative_AK8PFPuppi",
