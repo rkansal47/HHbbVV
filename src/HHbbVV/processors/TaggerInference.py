@@ -7,6 +7,7 @@ Author(s): Raghav Kansal, Cristina Mantilla Suarez, Melissa Quinnan
 from typing import Dict
 
 import numpy as np
+import numpy.ma as ma
 from scipy.special import softmax
 import awkward as ak
 from coffea.nanoevents.methods.base import NanoEventsArray
@@ -97,15 +98,14 @@ def get_pfcands_features(
 
     feature_dict["pfcand_mask"] = (
         ~(
-            ak.pad_none(
-                # padding to have at least one pf candidate in the graph
-                pad_val(feature_dict["pfcand_abseta"], 1, -1, axis=1, to_numpy=False, clip=False),
-                tagger_vars["pf_points"]["var_length"],
-                axis=1,
-                clip=True,
-            )
-            .to_numpy()
-            .mask
+            ma.masked_invalid(
+                ak.pad_none(
+                    feature_dict["pfcand_abseta"],
+                    tagger_vars["pf_points"]["var_length"],
+                    axis=1,
+                    clip=True,
+                ).to_numpy()
+            ).mask
         )
     ).astype(np.float32)
 
@@ -186,11 +186,14 @@ def get_svs_features(
 
     feature_dict["sv_mask"] = (
         ~(
-            ak.pad_none(
-                feature_dict["sv_etarel"], tagger_vars["sv_points"]["var_length"], axis=1, clip=True
-            )
-            .to_numpy()
-            .mask
+            ma.masked_invalid(
+                ak.pad_none(
+                    feature_dict["sv_etarel"],
+                    tagger_vars["sv_points"]["var_length"],
+                    axis=1,
+                    clip=True,
+                ).to_numpy()
+            ).mask
         )
     ).astype(np.float32)
 
@@ -312,78 +315,79 @@ def get_lep_features(
     feature_dict["lep_miniiso"] = lepton_cand.miniPFRelIso_all.to_numpy().filled(fill_value=0)
 
     # get features
-    feature_dict["muon_pt"] = jet_muons.pt / jet.pt
-    feature_dict["muon_eta"] = jet_muons.eta - jet.eta
-    feature_dict["muon_phi"] = jet_muons.delta_phi(jet)
-    feature_dict["muon_mass"] = jet_muons.mass
-    feature_dict["muon_charge"] = jet_muons.charge
-    feature_dict["muon_dxy"] = jet_muons.dxy
-    feature_dict["muon_dxyErr"] = jet_muons.dxyErr
-    feature_dict["muon_dz"] = jet_muons.dz
-    feature_dict["muon_dzErr"] = jet_muons.dzErr
-    feature_dict["muon_ip3d"] = jet_muons.ip3d
-    feature_dict["muon_nStations"] = jet_muons.nStations
-    feature_dict["muon_nTrackerLayers"] = jet_muons.nTrackerLayers
-    feature_dict["muon_pfRelIso03_all"] = jet_muons.pfRelIso03_all
-    feature_dict["muon_pfRelIso03_chg"] = jet_muons.pfRelIso03_chg
-    feature_dict["muon_segmentComp"] = jet_muons.segmentComp
-    feature_dict["muon_sip3d"] = jet_muons.sip3d
-    feature_dict["muon_tkRelIso"] = jet_muons.tkRelIso
+    if "el_features" in tagger_vars.keys():
+        feature_dict["elec_pt"] = jet_electrons.pt / jet.pt
+        feature_dict["elec_eta"] = jet_electrons.eta - jet.eta
+        feature_dict["elec_phi"] = jet_electrons.delta_phi(jet)
+        feature_dict["elec_mass"] = jet_electrons.mass
+        feature_dict["elec_charge"] = jet_electrons.charge
+        feature_dict["elec_convVeto"] = jet_electrons.convVeto
+        feature_dict["elec_deltaEtaSC"] = jet_electrons.deltaEtaSC
+        feature_dict["elec_dr03EcalRecHitSumEt"] = jet_electrons.dr03EcalRecHitSumEt
+        feature_dict["elec_dr03HcalDepth1TowerSumEt"] = jet_electrons.dr03HcalDepth1TowerSumEt
+        feature_dict["elec_dr03TkSumPt"] = jet_electrons.dr03TkSumPt
+        feature_dict["elec_dxy"] = jet_electrons.dxy
+        feature_dict["elec_dxyErr"] = jet_electrons.dxyErr
+        feature_dict["elec_dz"] = jet_electrons.dz
+        feature_dict["elec_dzErr"] = jet_electrons.dzErr
+        feature_dict["elec_eInvMinusPInv"] = jet_electrons.eInvMinusPInv
+        feature_dict["elec_hoe"] = jet_electrons.hoe
+        feature_dict["elec_ip3d"] = jet_electrons.ip3d
+        feature_dict["elec_lostHits"] = jet_electrons.lostHits
+        feature_dict["elec_r9"] = jet_electrons.r9
+        feature_dict["elec_sieie"] = jet_electrons.sieie
+        feature_dict["elec_sip3d"] = jet_electrons.sip3d
+        # convert to numpy arrays and normalize features
+        for var in tagger_vars["el_features"]["var_names"]:
+            a = (
+                ak.pad_none(
+                    feature_dict[var], tagger_vars["el_points"]["var_length"], axis=1, clip=True
+                )
+                .to_numpy()
+                .filled(fill_value=0)
+            ).astype(np.float32)
 
-    feature_dict["elec_pt"] = jet_electrons.pt / jet.pt
-    feature_dict["elec_eta"] = jet_electrons.eta - jet.eta
-    feature_dict["elec_phi"] = jet_electrons.delta_phi(jet)
-    feature_dict["elec_mass"] = jet_electrons.mass
-    feature_dict["elec_charge"] = jet_electrons.charge
-    feature_dict["elec_convVeto"] = jet_electrons.convVeto
-    feature_dict["elec_deltaEtaSC"] = jet_electrons.deltaEtaSC
-    feature_dict["elec_dr03EcalRecHitSumEt"] = jet_electrons.dr03EcalRecHitSumEt
-    feature_dict["elec_dr03HcalDepth1TowerSumEt"] = jet_electrons.dr03HcalDepth1TowerSumEt
-    feature_dict["elec_dr03TkSumPt"] = jet_electrons.dr03TkSumPt
-    feature_dict["elec_dxy"] = jet_electrons.dxy
-    feature_dict["elec_dxyErr"] = jet_electrons.dxyErr
-    feature_dict["elec_dz"] = jet_electrons.dz
-    feature_dict["elec_dzErr"] = jet_electrons.dzErr
-    feature_dict["elec_eInvMinusPInv"] = jet_electrons.eInvMinusPInv
-    feature_dict["elec_hoe"] = jet_electrons.hoe
-    feature_dict["elec_ip3d"] = jet_electrons.ip3d
-    feature_dict["elec_lostHits"] = jet_electrons.lostHits
-    feature_dict["elec_r9"] = jet_electrons.r9
-    feature_dict["elec_sieie"] = jet_electrons.sieie
-    feature_dict["elec_sip3d"] = jet_electrons.sip3d
+            if normalize:
+                info = tagger_vars["el_features"]["var_infos"][var]
+                a = (a - info["median"]) * info["norm_factor"]
+                a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
 
-    # convert to numpy arrays and normalize features
-    for var in tagger_vars["el_features"]["var_names"]:
-        a = (
-            ak.pad_none(
-                feature_dict[var], tagger_vars["el_points"]["var_length"], axis=1, clip=True
-            )
-            .to_numpy()
-            .filled(fill_value=0)
-        ).astype(np.float32)
+            feature_dict[var] = a
 
-        if normalize:
-            info = tagger_vars["el_features"]["var_infos"][var]
-            a = (a - info["median"]) * info["norm_factor"]
-            a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
+    if "mu_features" in tagger_vars.keys():
+        feature_dict["muon_pt"] = jet_muons.pt / jet.pt
+        feature_dict["muon_eta"] = jet_muons.eta - jet.eta
+        feature_dict["muon_phi"] = jet_muons.delta_phi(jet)
+        feature_dict["muon_mass"] = jet_muons.mass
+        feature_dict["muon_charge"] = jet_muons.charge
+        feature_dict["muon_dxy"] = jet_muons.dxy
+        feature_dict["muon_dxyErr"] = jet_muons.dxyErr
+        feature_dict["muon_dz"] = jet_muons.dz
+        feature_dict["muon_dzErr"] = jet_muons.dzErr
+        feature_dict["muon_ip3d"] = jet_muons.ip3d
+        feature_dict["muon_nStations"] = jet_muons.nStations
+        feature_dict["muon_nTrackerLayers"] = jet_muons.nTrackerLayers
+        feature_dict["muon_pfRelIso03_all"] = jet_muons.pfRelIso03_all
+        feature_dict["muon_pfRelIso03_chg"] = jet_muons.pfRelIso03_chg
+        feature_dict["muon_segmentComp"] = jet_muons.segmentComp
+        feature_dict["muon_sip3d"] = jet_muons.sip3d
+        feature_dict["muon_tkRelIso"] = jet_muons.tkRelIso
+        # convert to numpy arrays and normalize features
+        for var in tagger_vars["mu_features"]["var_names"]:
+            a = (
+                ak.pad_none(
+                    feature_dict[var], tagger_vars["mu_points"]["var_length"], axis=1, clip=True
+                )
+                .to_numpy()
+                .filled(fill_value=0)
+            ).astype(np.float32)
 
-        feature_dict[var] = a
+            if normalize:
+                info = tagger_vars["mu_features"]["var_infos"][var]
+                a = (a - info["median"]) * info["norm_factor"]
+                a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
 
-    for var in tagger_vars["mu_features"]["var_names"]:
-        a = (
-            ak.pad_none(
-                feature_dict[var], tagger_vars["mu_points"]["var_length"], axis=1, clip=True
-            )
-            .to_numpy()
-            .filled(fill_value=0)
-        ).astype(np.float32)
-
-        if normalize:
-            info = tagger_vars["mu_features"]["var_infos"][var]
-            a = (a - info["median"]) * info["norm_factor"]
-            a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
-
-        feature_dict[var] = a
+            feature_dict[var] = a
 
     return feature_dict
 
