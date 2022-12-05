@@ -32,7 +32,7 @@ from typing import Dict, Tuple, List
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, ttbar_scale_factor_matching
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection
-from .corrections import add_pileup_weight, add_lepton_weights, add_top_pt_weight
+from .corrections import add_pileup_weight, add_lepton_weights, add_top_pt_weight, get_jec_jets
 
 
 P4 = {
@@ -65,7 +65,11 @@ ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
 num_prongs = 3
 
 
-def lund_SFs(events: NanoEventsArray, ratio_smeared_lookups: List[dense_lookup]) -> np.ndarray:
+def lund_SFs(
+    events: NanoEventsArray,
+    ratio_smeared_lookups: List[dense_lookup],
+    ratio_lnN_smeared_lookups: List[dense_lookup],
+) -> np.ndarray:
     """
     Calculates scale factors for the leading jet in events based on splittings in the primary Lund Plane.
 
@@ -101,9 +105,7 @@ def lund_SFs(events: NanoEventsArray, ratio_smeared_lookups: List[dense_lookup])
     # save subjet pT
     kt_subjets_pt = np.sqrt(kt_subjets.px**2 + kt_subjets.py**2)
     # get constituents
-    kt_subjet_consts = kt_clustering.exclusive_jets_constituents(
-        num_prongs
-    )  # check this matching is correct
+    kt_subjet_consts = kt_clustering.exclusive_jets_constituents(num_prongs)
 
     # then re-cluster with CA
     # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
@@ -137,7 +139,27 @@ def lund_SFs(events: NanoEventsArray, ratio_smeared_lookups: List[dense_lookup])
 
     sf_vals = np.array(sf_vals).T  # output shape: ``[n_jets, n_sf_toys]``
 
-    return sf_vals
+    sf_lnN_vals = []
+    # could be parallelised but not sure if memory / time trade-off is worth it
+    for i, ratio_nom_lookup in enumerate(ratio_lnN_smeared_lookups):
+        ratio_nom_vals = ratio_nom_lookup(flat_subjet_pt, flat_logD, flat_logkt)
+        # recover jagged event structure
+        reshaped_ratio_nom_vals = ak.Array(
+            ak.layout.ListOffsetArray64(ld_offsets, ak.layout.NumpyArray(ratio_nom_vals))
+        )
+        # nominal values are product of all lund plane SFs
+        sf_lnN_vals.append(
+            # multiply subjet SFs per jet
+            np.prod(
+                # per-subjet SF
+                ak.prod(reshaped_ratio_nom_vals, axis=1).to_numpy().reshape(-1, num_prongs),
+                axis=1,
+            )
+        )
+
+    sf_lnN_vals = np.array(sf_lnN_vals).T  # output shape: ``[n_jets, n_sf_toys]``
+
+    return sf_vals, sf_lnN_vals
 
 
 class TTScaleFactorsSkimmer(ProcessorABC):
@@ -246,11 +268,23 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         # produces array of shape ``[n_sf_toys, subjet_pt bins, ln(0.8/Delta) bins, ln(kT/GeV) bins]``
         ratio_nom_smeared = ratio_nom + (ratio_nom_errs * rand_noise)
-        ratio_nom_smeared = np.maximum()
+        ratio_nom_smeared = np.maximum(ratio_nom_smeared, 0)
         # save n_sf_toys lookups
         self.ratio_smeared_lookups = [
             dense_lookup(ratio_nom_smeared[i], ratio_nom_edges) for i in range(n_sf_toys)
         ]
+
+        # revised smearing (0s -> 1s, normal -> lnN)
+        zero_noms = ratio_nom == 0
+        ratio_nom[zero_noms] = 1
+        ratio_nom_errs[zero_noms] = 0
+
+        kappa = (ratio_nom + ratio_nom_errs) / ratio_nom
+        ratio_nom_smeared = ratio_nom * np.power(kappa, rand_noise)
+        self.ratio_lnN_smeared_lookups = [
+            dense_lookup(ratio_nom_smeared[i], ratio_nom_edges) for i in range(n_sf_toys)
+        ]
+
         self.n_sf_toys = n_sf_toys
 
         self._accumulator = dict_accumulator({})
@@ -334,7 +368,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         # objects
         num_jets = 1
-        leading_fatjets = ak.pad_none(events.FatJet, num_jets, axis=1)[:, :num_jets]
+        jec_fatjets = get_jec_jets(events, year) if not isData else events.FatJet
+        leading_fatjets = ak.pad_none(jec_fatjets, num_jets, axis=1)[:, :num_jets]
         leading_btag_jet = ak.flatten(
             ak.pad_none(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]], 1, axis=1)
         )
@@ -410,14 +445,14 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # select vars
 
         ak8FatJetVars = {
-            f"ak8FatJet{key}": pad_val(events.FatJet[var], num_jets, -99999, axis=1)
+            f"ak8FatJet{key}": pad_val(jec_fatjets[var], num_jets, -99999, axis=1)
             for (var, key) in self.skim_vars["FatJet"].items()
         }
 
         for var in self.skim_vars["FatJetDerived"]:
             if var.startswith("tau"):
-                taunum = pad_val(events.FatJet[f"tau{var[3]}"], num_jets, -99999, axis=1)
-                tauden = pad_val(events.FatJet[f"tau{var[4]}"], num_jets, -99999, axis=1)
+                taunum = pad_val(jec_fatjets[f"tau{var[3]}"], num_jets, -99999, axis=1)
+                tauden = pad_val(jec_fatjets[f"tau{var[4]}"], num_jets, -99999, axis=1)
                 ak8FatJetVars[var] = taunum / tauden
 
         otherVars = {
@@ -430,8 +465,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # particlenet h4q vs qcd, xbb vs qcd
 
         skimmed_events["ak8FatJetParticleNetMD_Txbb"] = pad_val(
-            events.FatJet.particleNetMD_Xbb
-            / (events.FatJet.particleNetMD_QCD + events.FatJet.particleNetMD_Xbb),
+            jec_fatjets.particleNetMD_Xbb
+            / (jec_fatjets.particleNetMD_QCD + jec_fatjets.particleNetMD_Xbb),
             num_jets,
             -1,
             axis=1,
@@ -464,9 +499,11 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             match_dict = ttbar_scale_factor_matching(events, leading_fatjets[:, 0], selection_args)
             top_matched = match_dict["top_matched"].astype(bool)
 
-            sf_vals = lund_SFs(events[top_matched], self.ratio_smeared_lookups)
+            sf_vals, sf_lnN_vals = lund_SFs(
+                events[top_matched], self.ratio_smeared_lookups, self.ratio_lnN_smeared_lookups
+            )
 
-            sf_dict = {"lp_sf": sf_vals}
+            sf_dict = {"lp_sf": sf_vals, "lp_sf_lnN": sf_lnN_vals}
 
             # fill zeros for all non-top-matched events
             for key, val in list(sf_dict.items()):

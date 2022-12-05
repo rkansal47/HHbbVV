@@ -5,8 +5,9 @@ import pickle
 import correctionlib
 import awkward as ak
 from coffea.analysis_tools import Weights
-from coffea.nanoevents.methods.nanoaod import MuonArray
+from coffea.nanoevents.methods.nanoaod import MuonArray, JetArray, FatJetArray
 from coffea.nanoevents.methods.base import NanoEventsArray
+import pathlib
 
 """
 CorrectionLib files are available from: /cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration - synced daily
@@ -16,6 +17,7 @@ pog_jsons = {
     "muon": ["MUO", "muon_Z.json.gz"],
     "electron": ["EGM", "electron.json.gz"],
     "pileup": ["LUM", "puWeights.json.gz"],
+    "jec": ["JME", "fatJet_jerc.json.gz"],
 }
 
 def get_jec_key(year: str):
@@ -26,16 +28,20 @@ def get_jec_key(year: str):
         thekey = "2016preVFPmc"
     return thekey
 
-def get_UL_year(year: str):
+def get_vfp_year(year: str) -> str:
     if year == "2016":
         year = "2016postVFP"
     elif year == "2016APV":
         year = "2016preVFP"
 
-    return f"{year}_UL"
+    return year
 
 
-def get_pog_json(obj: str, year: str):
+def get_UL_year(year: str) -> str:
+    return f"{get_vfp_year(year)}_UL"
+
+
+def get_pog_json(obj: str, year: str) -> str:
     try:
         pog_json = pog_jsons[obj]
     except:
@@ -153,29 +159,28 @@ lepton_corrections = {
 }
 
 
+def _get_lepton_clipped(lep_pt, lep_eta, lepton_type, corr=None):
+    """Some voodoo from cristina related to SF binning (needs comments!!)"""
+    clip_pt = [0.0, 2000]
+    clip_eta = [-2.4999, 2.4999]
+    if lepton_type == "electron":
+        clip_pt = [10.0, 499.999]
+        if corr == "reco":
+            clip_pt = [20.1, 499.999]
+    elif lepton_type == "muon":
+        clip_pt = [30.0, 1000.0]
+        clip_eta = [0.0, 2.3999]
+        if corr == "trigger_noniso":
+            clip_pt = [52.0, 1000.0]
+    lepton_pt = np.clip(lep_pt, clip_pt[0], clip_pt[1])
+    lepton_eta = np.clip(lep_eta, clip_eta[0], clip_eta[1])
+    return lepton_pt, lepton_eta
+
+
 def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_type: str = "muon"):
     ul_year = get_UL_year(year)
-    if lepton_type == "electron":
-        ul_year = ul_year.replace("_UL", "")
 
     cset = correctionlib.CorrectionSet.from_file(get_pog_json(lepton_type, year))
-
-    # some voodoo from cristina related to SF binning (needs comments!!)
-    def get_clip(lep_pt, lep_eta, lepton_type, corr=None):
-        clip_pt = [0.0, 2000]
-        clip_eta = [-2.4999, 2.4999]
-        if lepton_type == "electron":
-            clip_pt = [10.0, 499.999]
-            if corr == "reco":
-                clip_pt = [20.1, 499.999]
-        elif lepton_type == "muon":
-            clip_pt = [30.0, 1000.0]
-            clip_eta = [0.0, 2.3999]
-            if corr == "trigger_noniso":
-                clip_pt = [52.0, 1000.0]
-        lepton_pt = np.clip(lep_pt, clip_pt[0], clip_pt[1])
-        lepton_eta = np.clip(lep_eta, clip_eta[0], clip_eta[1])
-        return lepton_pt, lepton_eta
 
     lep_pt = np.array(ak.fill_none(lepton.pt, 0.0))
     lep_eta = np.abs(np.array(ak.fill_none(lepton.eta, 0.0)))
@@ -184,7 +189,7 @@ def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_ty
         json_map_name = corrDict[lepton_type][year]
 
         # some voodoo from cristina
-        lepton_pt, lepton_eta = get_clip(lep_pt, lep_eta, lepton_type, corr)
+        lepton_pt, lepton_eta = _get_lepton_clipped(lep_pt, lep_eta, lepton_type, corr)
 
         values = {}
         values["nominal"] = cset[json_map_name].evaluate(ul_year, lepton_eta, lepton_pt, "sf")
@@ -212,3 +217,49 @@ def add_top_pt_weight(weights: Weights, events: NanoEventsArray):
     # SF is geometric mean of both tops' weight
     tops_sf = np.sqrt(tops_sf[:, 0] * tops_sf[:, 1]).to_numpy()
     weights.add("top_pt", tops_sf)
+
+
+# find corrections path using this file's path
+package_path = str(pathlib.Path(__file__).parent.parent.resolve())
+with gzip.open(package_path + "/data/jec_compiled.pkl.gz", "rb") as filehandler:
+    jmestuff = pickle.load(filehandler)
+
+fatjet_factory = jmestuff["fatjet_factory"]
+
+
+def _add_jec_variables(jets: JetArray, event_rho: ak.Array) -> JetArray:
+    """add variables needed for JECs"""
+    jets["pt_raw"] = (1 - jets.rawFactor) * jets.pt
+    jets["mass_raw"] = (1 - jets.rawFactor) * jets.mass
+    # gen pT needed for smearing
+    jets["pt_gen"] = ak.values_astype(ak.fill_none(jets.matched_gen.pt, 0), np.float32)
+    jets["event_rho"] = ak.broadcast_arrays(event_rho, jets.pt)[0]
+    return jets
+
+
+def get_jec_jets(events: NanoEventsArray, year: str) -> FatJetArray:
+    """
+    Based on https://github.com/nsmith-/boostedhiggs/blob/master/boostedhiggs/hbbprocessor.py
+    Eventually update to V5 JECs once I figure out what's going on with the 2017 UL V5 JER scale factors
+    """
+    import cachetools
+
+    jec_cache = cachetools.Cache(np.inf)
+
+    corr_key = f"{get_vfp_year(year)}mc"
+
+    fatjets = fatjet_factory[corr_key].build(
+        _add_jec_variables(events.FatJet, events.fixedGridRhoFastjetAll), jec_cache
+    )
+
+    return fatjets
+
+
+# giving up on doing these myself for now because there's no 2017 UL V5 JER scale factors ???
+# https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/JME_fatJet_jerc_Run2_UL/
+# jec_stack_names = [
+#     "Summer19UL17_V5_MC_L1FastJet_AK8PFPuppi",
+#     "Summer19UL17_V5_MC_L2Relative_AK8PFPuppi",
+#     "Summer19UL17_V5_MC_L3Absolute_AK8PFPuppi",
+#     "Summer19UL17_V5_MC_L2L3Residual_AK8PFPuppi",
+# ]
