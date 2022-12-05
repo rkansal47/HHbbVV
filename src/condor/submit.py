@@ -112,8 +112,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--year", help="year", type=str, required=True)
     parser.add_argument("--script", default="run.py", help="script to run", type=str)
-    parser.add_argument("--year", default="2017", help="year", type=str)
     parser.add_argument("--tag", default="Test", help="process tag", type=str)
     parser.add_argument(
         "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
