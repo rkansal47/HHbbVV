@@ -20,7 +20,7 @@ from typing import Dict
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection
-from .corrections import add_pileup_weight
+from .corrections import add_pileup_weight, add_VJets_kFactors, get_jec_key
 
 
 P4 = {
@@ -55,8 +55,13 @@ class bbVVSkimmer(ProcessorABC):
     def __init__(self, xsecs={}, save_ak15=False):
         super(bbVVSkimmer, self).__init__()
 
-        # TODO: Check if this is correct
-        self.LUMI = {"2016": 38000, "2017": 40000, "2018": 60000}  # in pb^-1
+        # TODO: Check if this is correct for JetHT
+        self.LUMI = {
+            "2016": 16830.0,
+            "2016APV": 19500.0,
+            "2017": 41480.0,
+            "2018": 59830.0,
+        }  # in pb^-1
         self.XSECS = xsecs  # in pb
         self.save_ak15 = save_ak15
 
@@ -226,6 +231,14 @@ class bbVVSkimmer(ProcessorABC):
             }
 
         # TODO: Apply JECs, save variations
+        jec_cache = {}
+        thekey = get_jec_key(year)
+        fatjets = fatjet_factory[thekey].build(
+            add_jec_variables(events.FatJet, events.fixedGridRhoFastjetAll), jec_cache
+        )
+        jets = jet_factory[thekey].build(
+            add_jec_variables(events.Jet, events.fixedGridRhoFastjetAll), jec_cache
+        )
 
         # triggers
         # OR-ing HLT triggers
@@ -349,6 +362,8 @@ class bbVVSkimmer(ProcessorABC):
         else:
             skimmed_events["genWeight"] = events.genWeight.to_numpy()
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
+            add_VJets_kFactors(self.weights, events.GenPart, dataset)
+
             # TODO: theory uncertainties
             # TODO: trigger SFs here once calculated properly
 
