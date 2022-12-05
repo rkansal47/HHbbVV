@@ -31,12 +31,20 @@ def write_template(templ_file: str, out_file: str, templ_args: dict):
 
 
 def main(args):
-    try:
-        proxy = os.environ["X509_USER_PROXY"]
-    except:
-        print("No valid proxy. Exiting.")
-        exit(1)
+    if args.site == "lpc":
+        t2_local_prefix = "/eos/uscms/"
+        t2_prefix = "root://cmseos.fnal.gov"
 
+        try:
+            proxy = os.environ["X509_USER_PROXY"]
+        except:
+            print("No valid proxy. Exiting.")
+            exit(1)
+    elif args.site == "ucsd":
+        t2_local_prefix = "/ceph/cms/"
+        t2_prefix = "root://redirector.t2.ucsd.edu:1095"
+        proxy = "/home/users/rkansal/x509up_u31735"  
+    
     username = os.environ["USER"]
     local_dir = f"condor/{args.processor}/{args.tag}"
     homedir = f"/store/user/{username}/bbVV/{args.processor}/"
@@ -48,7 +56,7 @@ def main(args):
 
     # and condor directory
     print("CONDOR work dir: " + outdir)
-    os.system(f"mkdir -p /eos/uscms/{outdir}")
+    os.system(f"mkdir -p {t2_local_prefix}/{outdir}")
 
     fileset = run_utils.get_fileset(
         args.processor, args.year, args.samples, args.subsamples, get_num_files=True
@@ -64,11 +72,11 @@ def main(args):
     for sample in fileset:
         for subsample, tot_files in fileset[sample].items():
             print("Submitting " + subsample)
-            os.system(f"mkdir -p /eos/uscms/{outdir}/{args.year}/{subsample}")
+            os.system(f"mkdir -p {t2_local_prefix}/{outdir}/{args.year}/{subsample}")
 
             njobs = ceil(tot_files / args.files_per_job)
 
-            eosoutput_dir = f"root://cmseos.fnal.gov/{outdir}/{args.year}/{subsample}/"
+            eosoutput_dir = f"{t2_prefix}/{outdir}/{args.year}/{subsample}/"
 
             for j in range(njobs):
                 if args.test and j == 2:
@@ -124,6 +132,13 @@ if __name__ == "__main__":
         help="which processor",
         type=str,
         choices=["trigger", "skimmer", "input", "ttsfs"],
+    )
+    parser.add_argument(
+        "--site",
+        default="lpc",
+        help="computing cluster we're running this on",
+        type=str,
+        choices=["lpc", "ucsd"],
     )
     parser.add_argument(
         "--samples",
