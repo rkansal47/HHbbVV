@@ -43,8 +43,8 @@ def main(args):
     elif args.site == "ucsd":
         t2_local_prefix = "/ceph/cms/"
         t2_prefix = "root://redirector.t2.ucsd.edu:1095"
-        proxy = "/home/users/rkansal/x509up_u31735"  
-    
+        proxy = "/home/users/rkansal/x509up_u31735"
+
     username = os.environ["USER"]
     local_dir = f"condor/{args.processor}/{args.tag}"
     homedir = f"/store/user/{username}/bbVV/{args.processor}/"
