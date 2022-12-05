@@ -28,6 +28,13 @@ if __name__ == "__main__":
         "--submit", dest="submit", action="store_true", help="submit jobs when created"
     )
     parser.add_argument(
+        "--site",
+        default="lpc",
+        help="computing cluster we're running this on",
+        type=str,
+        choices=["lpc", "ucsd"],
+    )
+    parser.add_argument(
         "--processor",
         default="trigger",
         help="which processor",
