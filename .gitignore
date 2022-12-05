@@ -3,6 +3,7 @@
 !*.py
 !*.ipynb
 !figure.png
+!requirements.txt
 
 !src
 src/*

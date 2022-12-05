@@ -107,7 +107,7 @@ Local testing:
 
 To test locally:
 ```bash
-python -W ignore src/run.py --processor ttsfs --sample TTbar --subsamples TTToSemiLeptonic --starti 0 --endi 1
+python -W ignore src/run.py --year 2018 --processor ttsfs --sample TTbar --subsamples TTToSemiLeptonic --starti 0 --endi 1
 ```
 
 Jobs:
