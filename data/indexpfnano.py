@@ -131,7 +131,7 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
             year = "2017"
         if year != pyear:
             continue
-        
+
         print(f1)
 
         sample_short = f1.split("/")[-1]
