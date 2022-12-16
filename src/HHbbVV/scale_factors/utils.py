@@ -1,6 +1,7 @@
 import time
 import contextlib
 from os import listdir
+from os.path import exists
 import pickle
 from copy import deepcopy
 
@@ -134,8 +135,14 @@ def load_samples(
             if not check_selector(sample, selector):
                 continue
 
-            print(f"Loading {sample}")
+            if sample.startswith("QCD") and not sample.endswith("_PSWeights_madgraph"):
+                continue
 
+            if not exists(f"{data_dir}/{year}/{sample}/parquet"):
+                print(f"No parquet file for {sample}")
+                continue
+            
+            print(f"Loading {sample}")
             events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
             not_empty = len(events) > 0
             pickles_path = f"{data_dir}/{year}/{sample}/pickles"
@@ -143,14 +150,14 @@ def load_samples(
             if label != data_key:
                 if label == sig_key:
                     n_events = get_cutflow(pickles_path, year, sample)["has_4q"]
-                elif sample.startswith(ttsl_key):
-                    # have to divide TT semileptonic by # of events in normal and ext1 both
-                    n_events = sum(
-                        [
-                            get_nevents(f"{data_dir}/{year}/{skey}/pickles", year, skey)
-                            for skey in [ttsl_key, ttsl_key + "_ext1"]
-                        ]
-                    )
+                # elif sample.startswith(ttsl_key):
+                #     # have to divide TT semileptonic by # of events in normal and ext1 both
+                #     n_events = sum(
+                #         [
+                #             get_nevents(f"{data_dir}/{year}/{skey}/pickles", year, skey)
+                #             for skey in [ttsl_key, ttsl_key + "_ext1"]
+                #         ]
+                #     )
                 else:
                     n_events = get_nevents(pickles_path, year, sample)
 
