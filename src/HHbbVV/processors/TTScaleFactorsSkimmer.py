@@ -268,7 +268,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         # produces array of shape ``[n_sf_toys, subjet_pt bins, ln(0.8/Delta) bins, ln(kT/GeV) bins]``
         ratio_nom_smeared = ratio_nom + (ratio_nom_errs * rand_noise)
-        ratio_nom_smeared.insert(0, ratio_nom)
+        ratio_nom_smeared = np.vstack((ratio_nom[np.newaxis, ...], ratio_nom_smeared))
         ratio_nom_smeared = np.maximum(ratio_nom_smeared, 0)
         # save n_sf_toys lookups
         self.ratio_smeared_lookups = [
@@ -282,7 +282,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         kappa = (ratio_nom + ratio_nom_errs) / ratio_nom
         ratio_nom_smeared = ratio_nom * np.power(kappa, rand_noise)
-        ratio_nom_smeared.insert(0, ratio_nom)
+        ratio_nom_smeared = np.vstack((ratio_nom[np.newaxis, ...], ratio_nom_smeared))
         self.ratio_lnN_smeared_lookups = [
             dense_lookup(ratio_nom_smeared[i], ratio_nom_edges) for i in range(n_sf_toys)
         ]
