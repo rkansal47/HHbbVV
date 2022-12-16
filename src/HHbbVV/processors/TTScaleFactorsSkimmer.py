@@ -509,7 +509,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
             # fill zeros for all non-top-matched events
             for key, val in list(sf_dict.items()):
-                arr = np.zeros((len(events), self.n_sf_toys))
+                arr = np.zeros((len(events), self.n_sf_toys + 1))  # plus 1 for the nominal values
                 arr[top_matched] = val
                 sf_dict[key] = arr
 
