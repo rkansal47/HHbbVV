@@ -141,7 +141,7 @@ def load_samples(
             if not exists(f"{data_dir}/{year}/{sample}/parquet"):
                 print(f"No parquet file for {sample}")
                 continue
-            
+
             print(f"Loading {sample}")
             events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
             not_empty = len(events) > 0
