@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 import matplotlib.ticker as mticker
 
-plt.rcParams.update({"font.size": 16})
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
 formatter = mticker.ScalarFormatter(useMathText=True)
 formatter.set_powerlimits((-3, 3))
+plt.rcParams.update({"font.size": 16})
 
 from hist import Hist
 from hist.intervals import ratio_uncertainty
@@ -53,12 +53,12 @@ LUMI = {"2016APV": 20e3, "2016": 16e3, "2017": 41e3, "2018": 59e3}  # in pb^-1
 def ratioHistPlot(
     hists: Hist,
     bg_keys: List[str],
+    year: str,
     bg_colours: Dict[str, str] = bg_colours,
     sig_colour: str = sig_colour,
-    bg_err: np.ndarray = None,
+    bg_err: np.ndarray | str = None,
     data_err: Union[ArrayLike, bool, None] = None,
     title: str = None,
-    year: str = "2017",
     blind_region: list = None,
     name: str = "",
     sig_scale: float = 1.0,
@@ -68,6 +68,7 @@ def ratioHistPlot(
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
     scaled) with a data/mc ratio plot below
     """
+    plt.rcParams.update({"font.size": 24})
 
     fig, (ax, rax) = plt.subplots(
         2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
@@ -112,12 +113,108 @@ def ratioHistPlot(
 
     mcdata_ratio = bg_tot / (hists[data_key, :].values() + 1e-5)
 
-    if bg_err is None:
+    if bg_err == "ratio":
         yerr = ratio_uncertainty(bg_tot, hists[data_key, :].values(), "poisson")
+    elif bg_err is None:
+        yerr = 0
     else:
         yerr = bg_err / (hists[data_key, :].values() + 1e-5)
 
-    # print(hists[data_key, :] / (bg_tot.values() + 1e-5))
+    hep.histplot(
+        sum([hists[sample, :] for sample in bg_keys]) / (hists[data_key, :].values() + 1e-5),
+        yerr=yerr,
+        ax=rax,
+        histtype="errorbar",
+        color="black",
+        capsize=4,
+    )
+    rax.set_ylabel("MC/Data")
+    rax.set_ylim(0.5, 1.5)
+    rax.grid()
+
+    if title is not None:
+        ax.set_title(title, y=1.08)
+
+    hep.cms.label("Work in Progress", data=True, lumi=LUMI[year] * 1e-3, year=year, ax=ax)
+    if len(name):
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def ratioLinePlot(
+    hists: Hist,
+    bg_keys: List[str],
+    year: str,
+    bg_colours: Dict[str, str] = bg_colours,
+    sig_colour: str = sig_colour,
+    bg_err: np.ndarray | str = None,
+    data_err: Union[ArrayLike, bool, None] = None,
+    title: str = None,
+    blind_region: list = None,
+    name: str = "",
+    sig_scale: float = 1.0,
+    show: bool = True,
+):
+    """
+    Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
+    scaled) with a data/mc ratio plot below
+    """
+    plt.rcParams.update({"font.size": 24})
+
+    fig, (ax, rax) = plt.subplots(
+        2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
+    )
+
+    bg_tot = np.sum(hists[bg_keys, :].values(), axis=0)
+    plot_hists = [hists[sample, :] for sample in bg_keys]
+
+    ax.set_ylabel("Events")
+    hep.histplot(
+        plot_hists + [sum(plot_hists)],
+        ax=ax,
+        histtype="step",
+        label=bg_keys + ["Total"],
+        color=[colours[bg_colours[sample]] for sample in bg_keys] + ["black"],
+        yerr=0,
+    )
+
+    if bg_err is not None:
+        ax.fill_between(
+            np.repeat(hists.axes[1].edges, 2)[1:-1],
+            np.repeat(bg_tot - bg_err, 2),
+            np.repeat(bg_tot + bg_err, 2),
+            color="black",
+            alpha=0.2,
+            hatch="//",
+            linewidth=0,
+        )
+
+    if sig_key in hists:
+        hep.histplot(
+            hists[sig_key, :] * sig_scale,
+            ax=ax,
+            histtype="step",
+            label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
+            color=colours[sig_colour],
+        )
+    hep.histplot(
+        hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
+    )
+    ax.legend(ncol=2)
+    ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
+
+    mcdata_ratio = bg_tot / (hists[data_key, :].values() + 1e-5)
+
+    if bg_err == "ratio":
+        yerr = ratio_uncertainty(bg_tot, hists[data_key, :].values(), "poisson")
+    elif bg_err is None:
+        yerr = 0
+    else:
+        yerr = bg_err / (hists[data_key, :].values() + 1e-5)
 
     hep.histplot(
         sum([hists[sample, :] for sample in bg_keys]) / (hists[data_key, :].values() + 1e-5),
