@@ -173,6 +173,11 @@ def get_jec_jets(events: NanoEventsArray, year: str) -> FatJetArray:
     Based on https://github.com/nsmith-/boostedhiggs/blob/master/boostedhiggs/hbbprocessor.py
     Eventually update to V5 JECs once I figure out what's going on with the 2017 UL V5 JER scale factors
     """
+
+    # fatjet_factory.build gies an error if there are no fatjets in event
+    if not ak.any(events.FatJet):
+        return events.FatJet
+
     import cachetools
 
     jec_cache = cachetools.Cache(np.inf)
