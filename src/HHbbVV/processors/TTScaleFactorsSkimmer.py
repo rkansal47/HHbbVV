@@ -393,7 +393,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         muon = ak.pad_none(muon[muon_selector], 1, axis=1)[:, 0]
 
         muon_selector = ak.any(muon_selector, axis=1)
-        
+
         # 1024 - Mu50 trigger (https://algomez.web.cern.ch/algomez/testWeb/PFnano_content_v02.html#TrigObj)
         trigObj_muon = events.TrigObj[
             (events.TrigObj.id == MU_PDGID) * (events.TrigObj.filterBits >= 1024)
@@ -475,8 +475,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # particlenet h4q vs qcd, xbb vs qcd
 
         skimmed_events["ak8FatJetParticleNetMD_Txbb"] = pad_val(
-            fatjets.particleNetMD_Xbb
-            / (fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb),
+            fatjets.particleNetMD_Xbb / (fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb),
             num_jets,
             -1,
             axis=1,
