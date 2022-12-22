@@ -17,7 +17,7 @@ parser.add_argument(
     default="trigger",
     help="which processor",
     type=str,
-    choices=["trigger", "skimmer", "input"],
+    choices=["trigger", "skimmer", "input", "ttsfs"],
 )
 
 parser.add_argument("--tag", default="", help="tag for jobs", type=str)
