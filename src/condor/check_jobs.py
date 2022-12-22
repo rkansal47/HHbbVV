@@ -28,7 +28,7 @@ args = parser.parse_args()
 eosdir = f"/eos/uscms/store/user/rkansal/bbVV/{args.processor}/{args.tag}/{args.year}/"
 
 samples = listdir(eosdir)
-jdls = [jdl for jdl in listdir(f"condor/{args.tag}/") if jdl.endswith(".jdl")]
+jdls = [jdl for jdl in listdir(f"condor/{args.processor}/{args.tag}/") if jdl.endswith(".jdl")]
 
 jdl_dict = {
     sample: np.sort(
