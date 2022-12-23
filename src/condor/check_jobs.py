@@ -29,9 +29,7 @@ parser.add_argument(
 
 parser.add_argument("--tag", default="", help="tag for jobs", type=str)
 parser.add_argument("--year", default="2017", help="year", type=str)
-run_utils.add_bool_arg(
-    parser, "submit-missing", default=False, help="submit missing files"
-)
+run_utils.add_bool_arg(parser, "submit-missing", default=False, help="submit missing files")
 
 args = parser.parse_args()
 
@@ -47,6 +45,7 @@ jdl_dict = {
     )[-1]
     for sample in samples
 }
+
 
 def print_red(s):
     return print(f"{Fore.RED}{s}{Style.RESET_ALL}")
