@@ -101,6 +101,9 @@ def lund_SFs(
         with_name="PtEtaPhiMLorentzVector",
     )
 
+    print(pfcands_vector_ptetaphi)
+    print(ak.count(pfcands_vector_ptetaphi.eta, axis=1))
+
     # cluster first with kT
     kt_clustering = fastjet.ClusterSequence(pfcands_vector_ptetaphi, ktdef)
     kt_subjets = kt_clustering.exclusive_jets(num_prongs)
@@ -510,20 +513,27 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             match_dict = ttbar_scale_factor_matching(events, leading_fatjets[:, 0], selection_args)
             top_matched = match_dict["top_matched"].astype(bool) * selection.all(*selection.names)
 
-            sf_vals, sf_lnN_vals = lund_SFs(
-                events[top_matched],
-                fatjet_idx[top_matched],
-                self.ratio_smeared_lookups,
-                self.ratio_lnN_smeared_lookups,
-            )
+            if np.any(top_matched):
+                sf_vals, sf_lnN_vals = lund_SFs(
+                    events[top_matched],
+                    fatjet_idx[top_matched],
+                    self.ratio_smeared_lookups,
+                    self.ratio_lnN_smeared_lookups,
+                )
 
-            sf_dict = {"lp_sf": sf_vals, "lp_sf_lnN": sf_lnN_vals}
+                sf_dict = {"lp_sf": sf_vals, "lp_sf_lnN": sf_lnN_vals}
 
-            # fill zeros for all non-top-matched events
-            for key, val in list(sf_dict.items()):
-                arr = np.zeros((len(events), self.n_sf_toys + 1))  # plus 1 for the nominal values
-                arr[top_matched] = val
-                sf_dict[key] = arr
+                # fill zeros for all non-top-matched events
+                for key, val in list(sf_dict.items()):
+                    # plus 1 for the nominal values
+                    arr = np.zeros((len(events), self.n_sf_toys + 1))
+                    arr[top_matched] = val
+                    sf_dict[key] = arr
+            else:
+                sf_dict = {
+                    "lp_sf": np.zeros((len(events), self.n_sf_toys + 1)),
+                    "lp_sf_lnN": np.zeros((len(events), self.n_sf_toys + 1)),
+                }
 
             skimmed_events = {**skimmed_events, **match_dict, **sf_dict}
 
