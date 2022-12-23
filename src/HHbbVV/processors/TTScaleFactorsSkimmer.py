@@ -68,6 +68,7 @@ num_prongs = 3
 
 def lund_SFs(
     events: NanoEventsArray,
+    fatjet_idx: ak.Array,
     ratio_smeared_lookups: List[dense_lookup],
     ratio_lnN_smeared_lookups: List[dense_lookup],
 ) -> np.ndarray:
@@ -88,7 +89,7 @@ def lund_SFs(
 
     # get pfcands of the top-matched jets
     ak8_pfcands = events.FatJetPFCands
-    ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == 0]
+    ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == fatjet_idx]
     pfcands = events.PFCands[ak8_pfcands.pFCandsIdx]
 
     # need to convert to such a structure
@@ -417,6 +418,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         )
 
         leading_fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
+        fatjet_idx = ak.argmax(fatjet_selector, axis=1)  # gets first index which is true
         fatjet_selector = ak.any(fatjet_selector, axis=1)
 
         add_selection("ak8_jet", fatjet_selector, *selection_args)
@@ -506,10 +508,13 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         if dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"]:
             match_dict = ttbar_scale_factor_matching(events, leading_fatjets[:, 0], selection_args)
-            top_matched = match_dict["top_matched"].astype(bool)
+            top_matched = match_dict["top_matched"].astype(bool) * selection.all(*selection.names)
 
             sf_vals, sf_lnN_vals = lund_SFs(
-                events[top_matched], self.ratio_smeared_lookups, self.ratio_lnN_smeared_lookups
+                events[top_matched],
+                fatjet_idx[top_matched],
+                self.ratio_smeared_lookups,
+                self.ratio_lnN_smeared_lookups,
             )
 
             sf_dict = {"lp_sf": sf_vals, "lp_sf_lnN": sf_lnN_vals}
