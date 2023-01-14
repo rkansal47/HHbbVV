@@ -218,7 +218,7 @@ class bbVVSkimmer(ProcessorABC):
         selection = PackedSelection()
         weights = Weights(len(events), storeIndividual=True)
 
-        cutflow = {}
+        cutflow = OrderedDict()
         cutflow["all"] = n_events
 
         skimmed_events = {}

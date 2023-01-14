@@ -1,3 +1,9 @@
+"""
+Runs the submit script but with samples specified in a yaml file.
+
+Author(s): Raghav Kansal, Cristina Mantilla Suarez
+"""
+
 import os
 import argparse
 
