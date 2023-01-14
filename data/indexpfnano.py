@@ -116,10 +116,12 @@ index_APV = {}
 # /store/user/lpcpfnano/dryu/v2_2/2017/SingleMu2017/SingleMuon/SingleMuon_Run2017C/211102_162942/0000/*root
 #
 # MC path:
-# .......................f1........................|.......................f2..............................|..........f3.........|.....f4......|.f5.|....
+# .......................f1.........................|.......................f2..............................|..........f3.........|.....f4......|.f5.|....
 # /store/user/lpcpfnano/cmantill/v2_3/2017/WJetsToQQ/WJetsToQQ_HT-800toInf_TuneCP5_13TeV-madgraphMLM-pythia8/WJetsToQQ_HT-800toInf/211108_171840/0000/*root
 
 for pyear in ["2016", "2016APV", "2017", "2018"]:
+    # if pyear != "2018":
+    #    continue
     # for pyear in ["2017"]:
     print(pyear)
     index = {}
@@ -162,6 +164,13 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                 subsample_short = f3.replace("/", "")
                 if "ext1" in subsample_short:
                     print("   Ext1")
+
+                # skip non-PSWeights files, and rename PSWeights ones
+                if year == "2018" and subsample_short.startswith("QCD"):
+                    if not subsample_short.endswith("_PSWeights_madgraph"):
+                        continue
+                    else:
+                        subsample_short = subsample_short.replace("_PSWeights_madgraph", "")
 
                 subsample_short = subsample_short.replace("_ext1", "")
                 print(f"  {subsample_short}")

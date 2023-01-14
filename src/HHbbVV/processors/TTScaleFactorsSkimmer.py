@@ -3,6 +3,7 @@ Skimmer for scale factors validation.
 Author(s): Raghav Kansal
 """
 
+from collections import OrderedDict
 import numpy as np
 import awkward as ak
 import pandas as pd
@@ -67,6 +68,7 @@ num_prongs = 3
 
 def lund_SFs(
     events: NanoEventsArray,
+    fatjet_idx: ak.Array,
     ratio_smeared_lookups: List[dense_lookup],
     ratio_lnN_smeared_lookups: List[dense_lookup],
 ) -> np.ndarray:
@@ -87,7 +89,7 @@ def lund_SFs(
 
     # get pfcands of the top-matched jets
     ak8_pfcands = events.FatJetPFCands
-    ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == 0]
+    ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == fatjet_idx]
     pfcands = events.PFCands[ak8_pfcands.pFCandsIdx]
 
     # need to convert to such a structure
@@ -98,6 +100,9 @@ def lund_SFs(
         ],
         with_name="PtEtaPhiMLorentzVector",
     )
+
+    print(pfcands_vector_ptetaphi)
+    print(ak.count(pfcands_vector_ptetaphi.eta, axis=1))
 
     # cluster first with kT
     kt_clustering = fastjet.ClusterSequence(pfcands_vector_ptetaphi, ktdef)
@@ -212,14 +217,14 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         "pt": 200,
         "msd": [50, 250],
         "eta": 2.5,
-        "delta_muon": 2,
+        "delta_phi_muon": 2,
         "jetId": nanoaod.FatJet.TIGHT,
     }
 
     ak4_jet_selection = {
         "pt": 25,
         "eta": 2.4,
-        "delta_muon": 2,
+        "delta_phi_muon": 2,
         "jetId": nanoaod.Jet.TIGHT,
         "puId": 4,  # loose pileup ID
         "btagWP": btagWPs,
@@ -270,7 +275,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         ratio_nom_smeared = ratio_nom + (ratio_nom_errs * rand_noise)
         ratio_nom_smeared = np.maximum(ratio_nom_smeared, 0)
         # save n_sf_toys lookups
-        self.ratio_smeared_lookups = [
+        self.ratio_smeared_lookups = [dense_lookup(ratio_nom, ratio_nom_edges)] + [
             dense_lookup(ratio_nom_smeared[i], ratio_nom_edges) for i in range(n_sf_toys)
         ]
 
@@ -281,7 +286,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         kappa = (ratio_nom + ratio_nom_errs) / ratio_nom
         ratio_nom_smeared = ratio_nom * np.power(kappa, rand_noise)
-        self.ratio_lnN_smeared_lookups = [
+        self.ratio_lnN_smeared_lookups = [dense_lookup(ratio_nom, ratio_nom_edges)] + [
             dense_lookup(ratio_nom_smeared[i], ratio_nom_edges) for i in range(n_sf_toys)
         ]
 
@@ -334,7 +339,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         selection = PackedSelection()
         weights = Weights(len(events), storeIndividual=True)
 
-        cutflow = {}
+        cutflow = OrderedDict()
         cutflow["all"] = n_events
 
         selection_args = (selection, cutflow, isData, signGenWeights)
@@ -368,53 +373,58 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         # objects
         num_jets = 1
-        jec_fatjets = get_jec_jets(events, year) if not isData else events.FatJet
-        leading_fatjets = ak.pad_none(jec_fatjets, num_jets, axis=1)[:, :num_jets]
-        leading_btag_jet = ak.flatten(
-            ak.pad_none(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]], 1, axis=1)
-        )
-        muon = ak.pad_none(events.Muon, 1, axis=1)[:, 0]
-        trigObj_muon = events.TrigObj[events.TrigObj.id == MU_PDGID]
+        muon = events.Muon
+        fatjets = get_jec_jets(events, year) if not isData else events.FatJet
+        ak4_jets = events.Jet
         met = events.MET
 
         # at least one good reconstructed primary vertex
         add_selection("npvsGood", events.PV.npvsGood >= 1, *selection_args)
 
         # muon
-        muon_selection = (
+        muon_selector = (
             (muon[f"{self.muon_selection['Id']}Id"])
             * (muon.pt > self.muon_selection["pt"])
             * (np.abs(muon.eta) < self.muon_selection["eta"])
             * (muon.miniPFRelIso_all < self.muon_selection["miniPFRelIso_all"])
             * (np.abs(muon.dxy) < self.muon_selection["dxy"])
-            * (ak.count(events.Muon.pt, axis=1) == self.muon_selection["count"])
-            * (
-                ak.any(
-                    np.abs(muon.delta_r(trigObj_muon)) <= self.muon_selection["delta_trigObj"],
-                    axis=1,
-                )
-            )
         )
 
-        add_selection("muon", muon_selection, *selection_args)
+        muon_selector = (
+            muon_selector * ak.count(events.Muon.pt[muon_selector], axis=1)
+            == self.muon_selection["count"]
+        )
+        muon = ak.pad_none(muon[muon_selector], 1, axis=1)[:, 0]
 
-        # ak8 jet selection
-        jet_selection = np.prod(
-            pad_val(
-                (leading_fatjets.pt > self.ak8_jet_selection["pt"])
-                * (leading_fatjets.msoftdrop > self.ak8_jet_selection["msd"][0])
-                * (leading_fatjets.msoftdrop < self.ak8_jet_selection["msd"][1])
-                * (np.abs(leading_fatjets.eta) < self.ak8_jet_selection["eta"])
-                * (np.abs(leading_fatjets.delta_r(muon)) > self.ak8_jet_selection["delta_muon"])
-                * (leading_fatjets.jetId > self.ak8_jet_selection["jetId"]),
-                num_jets,
-                False,
-                axis=1,
-            ),
+        muon_selector = ak.any(muon_selector, axis=1)
+
+        # 1024 - Mu50 trigger (https://algomez.web.cern.ch/algomez/testWeb/PFnano_content_v02.html#TrigObj)
+        trigObj_muon = events.TrigObj[
+            (events.TrigObj.id == MU_PDGID) * (events.TrigObj.filterBits >= 1024)
+        ]
+
+        muon_selector = muon_selector * ak.any(
+            np.abs(muon.delta_r(trigObj_muon)) <= self.muon_selection["delta_trigObj"],
             axis=1,
         )
 
-        add_selection("ak8_jet", jet_selection, *selection_args)
+        add_selection("muon", muon_selector, *selection_args)
+
+        # ak8 jet selection
+        fatjet_selector = (
+            (fatjets.pt > self.ak8_jet_selection["pt"])
+            * (fatjets.msoftdrop > self.ak8_jet_selection["msd"][0])
+            * (fatjets.msoftdrop < self.ak8_jet_selection["msd"][1])
+            * (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"])
+            * (np.abs(fatjets.delta_phi(muon)) > self.ak8_jet_selection["delta_phi_muon"])
+            * (fatjets.jetId > self.ak8_jet_selection["jetId"])
+        )
+
+        leading_fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
+        fatjet_idx = ak.argmax(fatjet_selector, axis=1)  # gets first index which is true
+        fatjet_selector = ak.any(fatjet_selector, axis=1)
+
+        add_selection("ak8_jet", fatjet_selector, *selection_args)
 
         # met
         met_selection = met.pt >= self.met_selection["pt"]
@@ -431,28 +441,33 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         add_selection("lepW", (met + muon).pt >= self.lepW_selection["pt"], *selection_args)
 
         # ak4 jet
-        ak4_jet_selection = (
-            (leading_btag_jet.jetId > self.ak4_jet_selection["jetId"])
-            * (leading_btag_jet.puId >= self.ak4_jet_selection["puId"])
-            * (leading_btag_jet.pt > self.ak4_jet_selection["pt"])
-            * (np.abs(leading_btag_jet.eta) < self.ak4_jet_selection["eta"])
-            * (np.abs(leading_btag_jet.delta_r(muon)) < self.ak4_jet_selection["delta_muon"])
-            * (leading_btag_jet.btagDeepB > self.ak4_jet_selection["btagWP"][year])
+        # leading_btag_jet = ak.flatten(
+        #     ak.pad_none(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]], 1, axis=1)
+        # )
+
+        ak4_jet_selector = (
+            (ak4_jets.jetId > self.ak4_jet_selection["jetId"])
+            * (ak4_jets.puId >= self.ak4_jet_selection["puId"])
+            * (ak4_jets.pt > self.ak4_jet_selection["pt"])
+            * (np.abs(ak4_jets.eta) < self.ak4_jet_selection["eta"])
+            * (np.abs(ak4_jets.delta_phi(muon)) < self.ak4_jet_selection["delta_phi_muon"])
+            * (ak4_jets.btagDeepB > self.ak4_jet_selection["btagWP"]["2018"])
         )
 
-        add_selection("ak4_jet", ak4_jet_selection, *selection_args)
+        ak4_jet_selector = ak.any(ak4_jet_selector, axis=1)
+        add_selection("ak4_jet", ak4_jet_selector, *selection_args)
 
         # select vars
 
         ak8FatJetVars = {
-            f"ak8FatJet{key}": pad_val(jec_fatjets[var], num_jets, -99999, axis=1)
+            f"ak8FatJet{key}": pad_val(fatjets[var], num_jets, -99999, axis=1)
             for (var, key) in self.skim_vars["FatJet"].items()
         }
 
         for var in self.skim_vars["FatJetDerived"]:
             if var.startswith("tau"):
-                taunum = pad_val(jec_fatjets[f"tau{var[3]}"], num_jets, -99999, axis=1)
-                tauden = pad_val(jec_fatjets[f"tau{var[4]}"], num_jets, -99999, axis=1)
+                taunum = pad_val(fatjets[f"tau{var[3]}"], num_jets, -99999, axis=1)
+                tauden = pad_val(fatjets[f"tau{var[4]}"], num_jets, -99999, axis=1)
                 ak8FatJetVars[var] = taunum / tauden
 
         otherVars = {
@@ -465,8 +480,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # particlenet h4q vs qcd, xbb vs qcd
 
         skimmed_events["ak8FatJetParticleNetMD_Txbb"] = pad_val(
-            jec_fatjets.particleNetMD_Xbb
-            / (jec_fatjets.particleNetMD_QCD + jec_fatjets.particleNetMD_Xbb),
+            fatjets.particleNetMD_Xbb / (fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb),
             num_jets,
             -1,
             axis=1,
@@ -497,19 +511,29 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         if dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"]:
             match_dict = ttbar_scale_factor_matching(events, leading_fatjets[:, 0], selection_args)
-            top_matched = match_dict["top_matched"].astype(bool)
+            top_matched = match_dict["top_matched"].astype(bool) * selection.all(*selection.names)
 
-            sf_vals, sf_lnN_vals = lund_SFs(
-                events[top_matched], self.ratio_smeared_lookups, self.ratio_lnN_smeared_lookups
-            )
+            if np.any(top_matched):
+                sf_vals, sf_lnN_vals = lund_SFs(
+                    events[top_matched],
+                    fatjet_idx[top_matched],
+                    self.ratio_smeared_lookups,
+                    self.ratio_lnN_smeared_lookups,
+                )
 
-            sf_dict = {"lp_sf": sf_vals, "lp_sf_lnN": sf_lnN_vals}
+                sf_dict = {"lp_sf": sf_vals, "lp_sf_lnN": sf_lnN_vals}
 
-            # fill zeros for all non-top-matched events
-            for key, val in list(sf_dict.items()):
-                arr = np.zeros((len(events), self.n_sf_toys))
-                arr[top_matched] = val
-                sf_dict[key] = arr
+                # fill zeros for all non-top-matched events
+                for key, val in list(sf_dict.items()):
+                    # plus 1 for the nominal values
+                    arr = np.zeros((len(events), self.n_sf_toys + 1))
+                    arr[top_matched] = val
+                    sf_dict[key] = arr
+            else:
+                sf_dict = {
+                    "lp_sf": np.zeros((len(events), self.n_sf_toys + 1)),
+                    "lp_sf_lnN": np.zeros((len(events), self.n_sf_toys + 1)),
+                }
 
             skimmed_events = {**skimmed_events, **match_dict, **sf_dict}
 

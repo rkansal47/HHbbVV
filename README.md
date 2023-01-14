@@ -115,6 +115,12 @@ Jobs:
 nohup python src/condor/submit_from_yaml.py --year 2018 --tag Nov23 --processor ttsfs --submit --yaml src/condor/submit_configs/ttsfs_inputs_12_4.yaml &> submitout.txt &
 ```
 
+Or to submit only the signal:
+
+```bash
+python src/condor/submit.py --year 2018 --tag Dec16 --sample TTbar --subsamples TTToSemiLeptonic --processor ttsfs --submit
+```
+
 
 
 ## Misc
