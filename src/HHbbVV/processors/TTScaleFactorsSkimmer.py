@@ -211,7 +211,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
     }
 
     ak8_jet_selection = {
-        "pt": 200.,
+        "pt": 200.0,
         "msd": [50, 250],
         "eta": 2.5,
         "delta_phi_muon": 2,
@@ -431,10 +431,10 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             # * (fatjets.msoftdrop < self.ak8_jet_selection["msd"][1])
             * (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"])
             * (np.abs(fatjets.delta_phi(muon)) > self.ak8_jet_selection["delta_phi_muon"])
-            * (fatjets.jetId & self.ak8_jet_selection["jetId"] == self.ak8_jet_selection["jetId"])  # tight ID
+            * (
+                fatjets.jetId & self.ak8_jet_selection["jetId"] == self.ak8_jet_selection["jetId"]
+            )  # tight ID
         )
-
-        
 
         leading_fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
         fatjet_idx = ak.argmax(fatjet_selector, axis=1)  # gets first index which is true
@@ -448,7 +448,9 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # )
 
         ak4_jet_selector = (
-            (ak4_jets.jetId & self.ak4_jet_selection["jetId"] == self.ak4_jet_selection["jetId"])  # tight ID
+            (
+                ak4_jets.jetId & self.ak4_jet_selection["jetId"] == self.ak4_jet_selection["jetId"]
+            )  # tight ID
             # * (ak4_jets.puId >= self.ak4_jet_selection["puId"])
             * (ak4_jets.puId % 2 == 1)
             * (ak4_jets.pt > self.ak4_jet_selection["pt"])
