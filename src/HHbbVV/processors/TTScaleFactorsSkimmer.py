@@ -101,9 +101,6 @@ def lund_SFs(
         with_name="PtEtaPhiMLorentzVector",
     )
 
-    print(pfcands_vector_ptetaphi)
-    print(ak.count(pfcands_vector_ptetaphi.eta, axis=1))
-
     # cluster first with kT
     kt_clustering = fastjet.ClusterSequence(pfcands_vector_ptetaphi, ktdef)
     kt_subjets = kt_clustering.exclusive_jets(num_prongs)
