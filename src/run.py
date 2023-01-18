@@ -95,6 +95,8 @@ def run(p: processor, fileset: dict, args):
 
     out, metrics = run(fileset, "Events", processor_instance=p)
 
+    # print(out)
+
     filehandler = open(f"{outdir}/{args.starti}-{args.endi}.pkl", "wb")
     pickle.dump(out, filehandler)
     filehandler.close()

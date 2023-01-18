@@ -135,8 +135,8 @@ def load_samples(
             if not check_selector(sample, selector):
                 continue
 
-            if sample.startswith("QCD") and not sample.endswith("_PSWeights_madgraph"):
-                continue
+            # if sample.startswith("QCD") and not sample.endswith("_PSWeights_madgraph"):
+            #     continue
 
             if not exists(f"{data_dir}/{year}/{sample}/parquet"):
                 print(f"No parquet file for {sample}")
