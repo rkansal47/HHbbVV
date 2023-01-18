@@ -119,6 +119,10 @@ index_APV = {}
 # .......................f1.........................|.......................f2..............................|..........f3.........|.....f4......|.f5.|....
 # /store/user/lpcpfnano/cmantill/v2_3/2017/WJetsToQQ/WJetsToQQ_HT-800toInf_TuneCP5_13TeV-madgraphMLM-pythia8/WJetsToQQ_HT-800toInf/211108_171840/0000/*root
 
+ignore_files = [
+    "/store/user/lpcpfnano/cmantill/v2_3/2018/SingleTop/ST_t-channel_top_4f_InclusiveDecays_TuneCP5_13TeV-powheg-madspin-pythia8/ST_t-channel_top_4f_InclusiveDecays/220808_150919/0000/nano_mc2018_17.root"
+]
+
 for pyear in ["2016", "2016APV", "2017", "2018"]:
     if pyear != "2018":
        continue
@@ -196,7 +200,10 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                             f"{f1}/{f2}/{f3}/{f4}/{f5}/{x}".replace("//", "/")
                             for x in f5_children
                             if x[-5:] == ".root"
+                            and f"{f1}/{f2}/{f3}/{f4}/{f5}/{x}".replace("//", "/")
+                            not in ignore_files
                         ]
+
                         if year == "2016" and "HIPM" in subsample_short:
                             if not sample_short in index_APV:
                                 index_APV[sample_short] = {}

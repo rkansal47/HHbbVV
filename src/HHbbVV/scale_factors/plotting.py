@@ -37,9 +37,9 @@ bg_colours = {"QCD": "lightblue", "TT": "darkblue", "ST": "orange"}
 bg_colours = {
     "QCD": "lightblue",
     "Single Top": "darkblue",
-    "TT Unmatched": "orange",
+    "TT Unmatched": "darkgreen",
     "TT W Matched": "green",
-    "TT Top Matched": "darkgreen",
+    "TT Top Matched": "orange",
     "W+Jets": "darkred",
     "Diboson": "red",
 }
@@ -207,24 +207,24 @@ def ratioLinePlot(
     ax.legend(ncol=2)
     ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
 
-    mcdata_ratio = bg_tot / (hists[data_key, :].values() + 1e-5)
+    datamc_ratio = hists[data_key, :].values() / (bg_tot + 1e-5)
 
     if bg_err == "ratio":
-        yerr = ratio_uncertainty(bg_tot, hists[data_key, :].values(), "poisson")
+        yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot, "poisson")
     elif bg_err is None:
         yerr = 0
     else:
-        yerr = bg_err / (hists[data_key, :].values() + 1e-5)
+        yerr = datamc_ratio * (bg_err / (bg_tot + 1e-8))
 
     hep.histplot(
-        sum([hists[sample, :] for sample in bg_keys]) / (hists[data_key, :].values() + 1e-5),
+        hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
         yerr=yerr,
         ax=rax,
         histtype="errorbar",
         color="black",
         capsize=4,
     )
-    rax.set_ylabel("MC/Data")
+    rax.set_ylabel("Data/MC")
     rax.set_ylim(0.5, 1.5)
     rax.grid()
 
