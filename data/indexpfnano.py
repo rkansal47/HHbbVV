@@ -130,7 +130,7 @@ ignore_files = [
 ]
 
 for pyear in ["2016", "2016APV", "2017", "2018"]:
-    #if pyear != "2018":
+    # if pyear != "2018":
     #    continue
     print(pyear)
     index = {}
@@ -210,10 +210,16 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                             not in ignore_files
                         ]
 
-                        if len(root_files)==0:
+                        if len(root_files) == 0:
                             for f6 in f5_children:
                                 f6_children = get_children((f"{f1}/{f2}/{f3}/{f4}/{f5}/{f6}"))
-                                root_files.extend([f"{f1}/{f2}/{f3}/{f4}/{f5}/{f6}/{x}".replace("//", "/") for x in f6_children if x[-5:] == ".root"])
+                                root_files.extend(
+                                    [
+                                        f"{f1}/{f2}/{f3}/{f4}/{f5}/{f6}/{x}".replace("//", "/")
+                                        for x in f6_children
+                                        if x[-5:] == ".root"
+                                    ]
+                                )
 
                         if year == "2016" and "HIPM" in subsample_short:
                             if not sample_short in index_APV:

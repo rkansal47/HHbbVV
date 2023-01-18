@@ -20,6 +20,7 @@ pog_jsons = {
     "jec": ["JME", "fatJet_jerc.json.gz"],
 }
 
+
 def get_jec_key(year: str):
     thekey = f"{year}mc"
     if year == "2016":
@@ -27,6 +28,7 @@ def get_jec_key(year: str):
     elif year == "2016APV":
         thekey = "2016preVFPmc"
     return thekey
+
 
 def get_vfp_year(year: str) -> str:
     if year == "2016":
@@ -74,22 +76,27 @@ def add_pileup_weight(weights: Weights, year: str, nPU: np.ndarray):
     # add weights (for now only the nominal weight)
     weights.add("pileup", values["nominal"], values["up"], values["down"])
 
-def get_vpt(genpart,check_offshell=False):
-    """Only the leptonic samples have no resonance in the decay tree, and only                                                                                                                                                            
-    when M is beyond the configured Breit-Wigner cutoff (usually 15*width)                                                                                                                                                                
+
+def get_vpt(genpart, check_offshell=False):
+    """Only the leptonic samples have no resonance in the decay tree, and only
+    when M is beyond the configured Breit-Wigner cutoff (usually 15*width)
     """
-    boson = ak.firsts(genpart[
-        ((genpart.pdgId == 23)|(abs(genpart.pdgId) == 24))
-        & genpart.hasFlags(["fromHardProcess", "isLastCopy"])
-    ])
+    boson = ak.firsts(
+        genpart[
+            ((genpart.pdgId == 23) | (abs(genpart.pdgId) == 24))
+            & genpart.hasFlags(["fromHardProcess", "isLastCopy"])
+        ]
+    )
     if check_offshell:
         offshell = genpart[
             genpart.hasFlags(["fromHardProcess", "isLastCopy"])
             & ak.is_none(boson)
-            & (abs(genpart.pdgId) >= 11) & (abs(genpart.pdgId) <= 16)
+            & (abs(genpart.pdgId) >= 11)
+            & (abs(genpart.pdgId) <= 16)
         ].sum()
         return ak.where(ak.is_none(boson.pt), offshell.pt, boson.pt)
-    return np.array(ak.fill_none(boson.pt, 0.))
+    return np.array(ak.fill_none(boson.pt, 0.0))
+
 
 def add_VJets_kFactors(weights, genpart, dataset):
     """Revised version of add_VJets_NLOkFactor, for both NLO EW and ~NNLO QCD"""
@@ -119,7 +126,12 @@ def add_VJets_kFactors(weights, genpart, dataset):
         weights.add("vjets_nominal", qcdcorr * ewknom if qcdcorr is not None else ewknom)
         ones = np.ones_like(vpt)
         for syst in systlist:
-            weights.add(syst, ones, ewkcorr.evaluate(syst + "_up", vpt) / ewknom, ewkcorr.evaluate(syst + "_down", vpt) / ewknom)
+            weights.add(
+                syst,
+                ones,
+                ewkcorr.evaluate(syst + "_up", vpt) / ewknom,
+                ewkcorr.evaluate(syst + "_down", vpt) / ewknom,
+            )
 
     if "ZJetsToQQ_HT" in dataset:
         vpt = get_vpt(genpart)
@@ -136,6 +148,7 @@ def add_VJets_kFactors(weights, genpart, dataset):
         qcdcorr = vjets_kfactors["ULW_MLMtoFXFX"].evaluate(vpt)
         ewkcorr = vjets_kfactors["W_FixedOrderComponent"]
         add_systs(wsysts, qcdcorr, ewkcorr, vpt)
+
 
 # for scale factor validation region selection
 lepton_corrections = {
