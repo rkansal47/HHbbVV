@@ -41,6 +41,7 @@ GEN_FLAGS = ["fromHardProcess", "isLastCopy"]
 
 FILL_NONE_VALUE = -99999
 
+
 def gen_selection_HYbbVV(
     events: NanoEventsArray,
     selection: PackedSelection,
@@ -48,7 +49,7 @@ def gen_selection_HYbbVV(
     signGenWeights: ak.Array,
     skim_vars: dict,
 ):
-    """Gets HY, bb, VV, and 4q 4-vectors """
+    """Gets HY, bb, VV, and 4q 4-vectors"""
     higgs = events.GenPart[
         (abs(events.GenPart.pdgId) == HIGGS_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)
     ]
@@ -57,9 +58,7 @@ def gen_selection_HYbbVV(
     is_bb = abs(higgs.children.pdgId) == b_PDGID
     has_bb = ak.sum(ak.flatten(is_bb, axis=2), axis=1) == 2
 
-    ys = events.GenPart[
-        (abs(events.GenPart.pdgId) == Y_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)
-    ]
+    ys = events.GenPart[(abs(events.GenPart.pdgId) == Y_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)]
     GenYVars = {f"GenY{key}": ys[var].to_numpy() for (var, key) in skim_vars.items()}
     GenYVars["GenYChildren"] = abs(ys.children.pdgId[:, :, 0]).to_numpy()
     is_VV = (abs(ys.children.pdgId) == W_PDGID) + (abs(ys.children.pdgId) == Z_PDGID)
@@ -76,7 +75,7 @@ def gen_selection_HYbbVV(
     V_has_2q = ak.count(VV.children.pdgId, axis=2) == 2
     has_4q = ak.values_astype(ak.prod(V_has_2q, axis=1), np.bool)
     add_selection("has_4q", has_4q, selection, cutflow, False, signGenWeights)
-    
+
     Gen4qVars = {
         f"Gen4q{key}": ak.to_numpy(
             ak.fill_none(

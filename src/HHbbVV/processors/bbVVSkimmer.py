@@ -233,13 +233,13 @@ class bbVVSkimmer(ProcessorABC):
 
         # TODO: Apply JECs, save variations
         jec_cache = {}
-        #thekey = get_jec_key(year)
-        #fatjets = fatjet_factory[thekey].build(
+        # thekey = get_jec_key(year)
+        # fatjets = fatjet_factory[thekey].build(
         #    add_jec_variables(events.FatJet, events.fixedGridRhoFastjetAll), jec_cache
-        #)
-        #jets = jet_factory[thekey].build(
+        # )
+        # jets = jet_factory[thekey].build(
         #    add_jec_variables(events.Jet, events.fixedGridRhoFastjetAll), jec_cache
-        #)
+        # )
         fatjets = events.FatJet
         jets = events.Jet
 
@@ -392,12 +392,14 @@ class bbVVSkimmer(ProcessorABC):
         print("pre-inference")
 
         pnet_vars = runInferenceTriton(
-            self.tagger_resources_path, events[selection.all(*selection.names)], ak15=False, 
+            self.tagger_resources_path,
+            events[selection.all(*selection.names)],
+            ak15=False,
         )
-        #pnet_vars_v2 = runInferenceTriton(
+        # pnet_vars_v2 = runInferenceTriton(
         #    self.tagger_resources_path, events[selection.all(*selection.names)], ak15=False,
         #    tag = "_hww_inclv2", output = "output__0",
-        #)
+        # )
 
         if self.save_ak15:
             pnet_vars_ak15 = runInferenceTriton(
@@ -410,7 +412,7 @@ class bbVVSkimmer(ProcessorABC):
         skimmed_events = {
             **skimmed_events,
             **{key: value for (key, value) in pnet_vars.items()},
-            #**{key: value for (key, value) in pnet_vars_v2.items()},
+            # **{key: value for (key, value) in pnet_vars_v2.items()},
         }
 
         if self.save_ak15:
