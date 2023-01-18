@@ -120,8 +120,8 @@ index_APV = {}
 # /store/user/lpcpfnano/cmantill/v2_3/2017/WJetsToQQ/WJetsToQQ_HT-800toInf_TuneCP5_13TeV-madgraphMLM-pythia8/WJetsToQQ_HT-800toInf/211108_171840/0000/*root
 
 for pyear in ["2016", "2016APV", "2017", "2018"]:
-    # if pyear != "2018":
-    #    continue
+    if pyear != "2018":
+       continue
     # for pyear in ["2017"]:
     print(pyear)
     index = {}
