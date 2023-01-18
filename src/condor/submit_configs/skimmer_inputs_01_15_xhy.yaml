@@ -1,0 +1,25 @@
+{
+    "Skimmer":
+        {
+            "XHYPrivate":
+                {
+                    "subsamples": ["NMSSM_XToYH_MX1600_MY100_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY400_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY125_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY150_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY190_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY250_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY300_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY350_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY500_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY600_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY700_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY800_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY900_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY1000_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY1200_HTo2bYTo2W_hadronicDecay",
+                                   "NMSSM_XToYH_MX1600_MY1400_HTo2bYTo2W_hadronicDecay"],
+                    "files_per_job": 30,
+                },
+        },
+}
