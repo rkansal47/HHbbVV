@@ -67,6 +67,12 @@ folders_to_index = [
     #
     "/store/user/lpcpfnano/cmantill/v2_2/2017/HWWPrivate",
     #
+    "/store/user/lpcpfnano/cmantill/v2_3/2017/Hgg/",
+    #
+    "/store/user/lpcpfnano/cmantill/v2_3/2017/XHYPrivate",
+    "/store/user/lpcpfnano/ammitra/v2_3/2017/XHYPrivate",
+    "/store/user/lpcpfnano/rkansal/v2_3/2017/XHYPrivate",
+    #
     "/store/user/lpcpfnano/rkansal/v2_3/2016/Diboson/",
     "/store/user/lpcpfnano/rkansal/v2_3/2016APV/Diboson/",
     "/store/user/lpcpfnano/rkansal/v2_3/2017/Diboson/",
@@ -122,7 +128,7 @@ index_APV = {}
 for pyear in ["2016", "2016APV", "2017", "2018"]:
     # if pyear != "2018":
     #    continue
-    # for pyear in ["2017"]:
+    #for pyear in ["2017"]:
     print(pyear)
     index = {}
     for f1 in folders_to_index:
@@ -178,6 +184,7 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                 if not subsample_short in index[year][sample_short]:
                     index[year][sample_short][subsample_short] = []
                 f3_subfolders = get_subfolders(f"{f1}/{f2}/{f3}")
+
                 if len(f3_subfolders) >= 2:
                     print(f"WARNING : Found multiple timestamps for {f1}/{f2}/{f3}")
                     print(f3_subfolders)
@@ -197,6 +204,11 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                             for x in f5_children
                             if x[-5:] == ".root"
                         ]
+                        if len(root_files)==0:
+                            for f6 in f5_children:
+                                f6_children = get_children((f"{f1}/{f2}/{f3}/{f4}/{f5}/{f6}"))
+                                root_files.extend([f"{f1}/{f2}/{f3}/{f4}/{f5}/{f6}/{x}".replace("//", "/") for x in f6_children if x[-5:] == ".root"])
+
                         if year == "2016" and "HIPM" in subsample_short:
                             if not sample_short in index_APV:
                                 index_APV[sample_short] = {}
