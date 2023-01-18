@@ -101,9 +101,6 @@ def lund_SFs(
         with_name="PtEtaPhiMLorentzVector",
     )
 
-    print(pfcands_vector_ptetaphi)
-    print(ak.count(pfcands_vector_ptetaphi.eta, axis=1))
-
     # cluster first with kT
     kt_clustering = fastjet.ClusterSequence(pfcands_vector_ptetaphi, ktdef)
     kt_subjets = kt_clustering.exclusive_jets(num_prongs)
@@ -214,18 +211,18 @@ class TTScaleFactorsSkimmer(ProcessorABC):
     }
 
     ak8_jet_selection = {
-        "pt": 200,
+        "pt": 200.0,
         "msd": [50, 250],
         "eta": 2.5,
         "delta_phi_muon": 2,
-        "jetId": nanoaod.FatJet.TIGHT,
+        "jetId": 2,  # tight ID bit
     }
 
     ak4_jet_selection = {
         "pt": 25,
         "eta": 2.4,
         "delta_phi_muon": 2,
-        "jetId": nanoaod.Jet.TIGHT,
+        "jetId": 2,
         "puId": 4,  # loose pileup ID
         "btagWP": btagWPs,
     }
@@ -335,6 +332,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         isData = ("JetHT" in dataset) or ("SingleMuon" in dataset)
         signGenWeights = None if isData else np.sign(events["genWeight"])
+        # TODO: undo!!!!
+        # signGenWeights = np.ones(len(events))
         n_events = len(events) if isData else int(np.sum(signGenWeights))
         selection = PackedSelection()
         weights = Weights(len(events), storeIndividual=True)
@@ -358,7 +357,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         # triggers
         # OR-ing HLT triggers
-        if isData:
+        if isData or not isData:  # CASE uses triggers for MC too
             HLT_triggered = np.any(
                 np.array(
                     [
@@ -390,9 +389,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             * (np.abs(muon.dxy) < self.muon_selection["dxy"])
         )
 
-        muon_selector = (
-            muon_selector * ak.count(events.Muon.pt[muon_selector], axis=1)
-            == self.muon_selection["count"]
+        muon_selector = muon_selector * (
+            ak.count(events.Muon.pt[muon_selector], axis=1) == self.muon_selection["count"]
         )
         muon = ak.pad_none(muon[muon_selector], 1, axis=1)[:, 0]
 
@@ -410,22 +408,6 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         add_selection("muon", muon_selector, *selection_args)
 
-        # ak8 jet selection
-        fatjet_selector = (
-            (fatjets.pt > self.ak8_jet_selection["pt"])
-            * (fatjets.msoftdrop > self.ak8_jet_selection["msd"][0])
-            * (fatjets.msoftdrop < self.ak8_jet_selection["msd"][1])
-            * (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"])
-            * (np.abs(fatjets.delta_phi(muon)) > self.ak8_jet_selection["delta_phi_muon"])
-            * (fatjets.jetId > self.ak8_jet_selection["jetId"])
-        )
-
-        leading_fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
-        fatjet_idx = ak.argmax(fatjet_selector, axis=1)  # gets first index which is true
-        fatjet_selector = ak.any(fatjet_selector, axis=1)
-
-        add_selection("ak8_jet", fatjet_selector, *selection_args)
-
         # met
         met_selection = met.pt >= self.met_selection["pt"]
 
@@ -438,7 +420,26 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         add_selection("met", met_selection * metfilters, *selection_args)
 
         # leptonic W selection
-        add_selection("lepW", (met + muon).pt >= self.lepW_selection["pt"], *selection_args)
+        # add_selection("lepW", (met + muon).pt >= self.lepW_selection["pt"], *selection_args)
+        add_selection("lepW", met.pt + muon.pt >= self.lepW_selection["pt"], *selection_args)
+
+        # ak8 jet selection
+        fatjet_selector = (
+            (fatjets.pt > self.ak8_jet_selection["pt"])
+            # * (fatjets.msoftdrop > self.ak8_jet_selection["msd"][0])
+            # * (fatjets.msoftdrop < self.ak8_jet_selection["msd"][1])
+            * (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"])
+            * (np.abs(fatjets.delta_phi(muon)) > self.ak8_jet_selection["delta_phi_muon"])
+            * (
+                fatjets.jetId & self.ak8_jet_selection["jetId"] == self.ak8_jet_selection["jetId"]
+            )  # tight ID
+        )
+
+        leading_fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
+        fatjet_idx = ak.argmax(fatjet_selector, axis=1)  # gets first index which is true
+        fatjet_selector = ak.any(fatjet_selector, axis=1)
+
+        add_selection("ak8_jet", fatjet_selector, *selection_args)
 
         # ak4 jet
         # leading_btag_jet = ak.flatten(
@@ -446,8 +447,11 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # )
 
         ak4_jet_selector = (
-            (ak4_jets.jetId > self.ak4_jet_selection["jetId"])
-            * (ak4_jets.puId >= self.ak4_jet_selection["puId"])
+            (
+                ak4_jets.jetId & self.ak4_jet_selection["jetId"] == self.ak4_jet_selection["jetId"]
+            )  # tight ID
+            # * (ak4_jets.puId >= self.ak4_jet_selection["puId"])
+            * (ak4_jets.puId % 2 == 1)
             * (ak4_jets.pt > self.ak4_jet_selection["pt"])
             * (np.abs(ak4_jets.eta) < self.ak4_jet_selection["eta"])
             * (np.abs(ak4_jets.delta_phi(muon)) < self.ak4_jet_selection["delta_phi_muon"])
@@ -563,6 +567,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
                 events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
             )
             self.dump_table(df, fname)
+
+        # print(cutflow)
 
         return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
 
