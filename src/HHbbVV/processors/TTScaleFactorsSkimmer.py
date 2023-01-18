@@ -389,9 +389,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             * (np.abs(muon.dxy) < self.muon_selection["dxy"])
         )
 
-        muon_selector = (
-            muon_selector * ak.count(events.Muon.pt[muon_selector], axis=1)
-            == self.muon_selection["count"]
+        muon_selector = muon_selector * (
+            ak.count(events.Muon.pt[muon_selector], axis=1) == self.muon_selection["count"]
         )
         muon = ak.pad_none(muon[muon_selector], 1, axis=1)[:, 0]
 
