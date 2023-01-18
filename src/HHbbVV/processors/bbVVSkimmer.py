@@ -17,11 +17,11 @@ import os
 
 from typing import Dict
 
-from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V
+from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection
 from .corrections import add_pileup_weight, add_VJets_kFactors, get_jec_key
-
+from collections import OrderedDict
 
 P4 = {
     "eta": "Eta",
@@ -32,10 +32,10 @@ P4 = {
 
 # mapping samples to the appropriate function for doing gen-level selections
 gen_selection_dict = {
+    "HTo2bYTo2W": gen_selection_HYbbVV,
     "GluGluToHHTobbVV_node_cHHH1": gen_selection_HHbbVV,
-    "GluGluToHHTobbVV_node_cHHH1_pn4q": gen_selection_HHbbVV,
     "jhu_HHbbWW": gen_selection_HHbbVV,
-    "GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow": gen_selection_HH4V,
+    "GluGluToBulkGravitonToHHTo4W_JHUGen": gen_selection_HH4V,
     "GluGluToHHTo4V_node_cHHH1": gen_selection_HH4V,
     "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
 }
@@ -160,11 +160,11 @@ class bbVVSkimmer(ProcessorABC):
         self.preselection_cut_vals = {"pt": 250, "msd": 20}
 
         # find corrections path using this file's path
-        with gzip.open(
-            str(pathlib.Path(__file__).parent.parent.resolve()) + "/corrections/corrections.pkl.gz",
-            "rb",
-        ) as filehandler:
-            self.corrections = pickle.load(filehandler)
+        # with gzip.open(
+        #     str(pathlib.Path(__file__).parent.parent.resolve()) + "/corrections/corrections.pkl.gz",
+        #     "rb",
+        # ) as filehandler:
+        #     self.corrections = pickle.load(filehandler)
 
         # for tagger model and preprocessing dict
         self.tagger_resources_path = (
@@ -224,21 +224,24 @@ class bbVVSkimmer(ProcessorABC):
         skimmed_events = {}
 
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
-        if dataset in gen_selection_dict:
-            skimmed_events = {
-                **skimmed_events,
-                **gen_selection_dict[dataset](events, selection, cutflow, signGenWeights, P4),
-            }
+        for d in gen_selection_dict:
+            if d in dataset:
+                skimmed_events = {
+                    **skimmed_events,
+                    **gen_selection_dict[d](events, selection, cutflow, signGenWeights, P4),
+                }
 
         # TODO: Apply JECs, save variations
         jec_cache = {}
-        thekey = get_jec_key(year)
-        fatjets = fatjet_factory[thekey].build(
-            add_jec_variables(events.FatJet, events.fixedGridRhoFastjetAll), jec_cache
-        )
-        jets = jet_factory[thekey].build(
-            add_jec_variables(events.Jet, events.fixedGridRhoFastjetAll), jec_cache
-        )
+        #thekey = get_jec_key(year)
+        #fatjets = fatjet_factory[thekey].build(
+        #    add_jec_variables(events.FatJet, events.fixedGridRhoFastjetAll), jec_cache
+        #)
+        #jets = jet_factory[thekey].build(
+        #    add_jec_variables(events.Jet, events.fixedGridRhoFastjetAll), jec_cache
+        #)
+        fatjets = events.FatJet
+        jets = events.Jet
 
         # triggers
         # OR-ing HLT triggers
@@ -356,13 +359,12 @@ class bbVVSkimmer(ProcessorABC):
                 )
 
         # calc weights
-
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
         else:
             skimmed_events["genWeight"] = events.genWeight.to_numpy()
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
-            add_VJets_kFactors(self.weights, events.GenPart, dataset)
+            add_VJets_kFactors(weights, events.GenPart, dataset)
 
             # TODO: theory uncertainties
             # TODO: trigger SFs here once calculated properly
@@ -378,7 +380,7 @@ class bbVVSkimmer(ProcessorABC):
             else:
                 skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
 
-            skimmed_events = {**skimmed_events, **weights._weight, **weights._modifiers}
+            # TODO: can add uncertainties with weights._modifiers?
 
         # apply selections
 
@@ -390,8 +392,12 @@ class bbVVSkimmer(ProcessorABC):
         print("pre-inference")
 
         pnet_vars = runInferenceTriton(
-            self.tagger_resources_path, events[selection.all(*selection.names)], ak15=False
+            self.tagger_resources_path, events[selection.all(*selection.names)], ak15=False, 
         )
+        #pnet_vars_v2 = runInferenceTriton(
+        #    self.tagger_resources_path, events[selection.all(*selection.names)], ak15=False,
+        #    tag = "_hww_inclv2", output = "output__0",
+        #)
 
         if self.save_ak15:
             pnet_vars_ak15 = runInferenceTriton(
@@ -404,6 +410,7 @@ class bbVVSkimmer(ProcessorABC):
         skimmed_events = {
             **skimmed_events,
             **{key: value for (key, value) in pnet_vars.items()},
+            #**{key: value for (key, value) in pnet_vars_v2.items()},
         }
 
         if self.save_ak15:

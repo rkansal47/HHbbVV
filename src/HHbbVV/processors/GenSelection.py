@@ -31,6 +31,7 @@ vTAU_PDGID = 16
 Z_PDGID = 23
 W_PDGID = 24
 HIGGS_PDGID = 25
+Y_PDGID = 35
 
 b_PDGIDS = [511, 521, 523]
 
@@ -39,6 +40,56 @@ GRAV_PDGID = 39
 GEN_FLAGS = ["fromHardProcess", "isLastCopy"]
 
 FILL_NONE_VALUE = -99999
+
+def gen_selection_HYbbVV(
+    events: NanoEventsArray,
+    selection: PackedSelection,
+    cutflow: dict,
+    signGenWeights: ak.Array,
+    skim_vars: dict,
+):
+    """Gets HY, bb, VV, and 4q 4-vectors """
+    higgs = events.GenPart[
+        (abs(events.GenPart.pdgId) == HIGGS_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)
+    ]
+    GenHiggsVars = {f"GenHiggs{key}": higgs[var].to_numpy() for (var, key) in skim_vars.items()}
+    GenHiggsVars["GenHiggsChildren"] = abs(higgs.children.pdgId[:, :, 0]).to_numpy()
+    is_bb = abs(higgs.children.pdgId) == b_PDGID
+    has_bb = ak.sum(ak.flatten(is_bb, axis=2), axis=1) == 2
+
+    ys = events.GenPart[
+        (abs(events.GenPart.pdgId) == Y_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)
+    ]
+    GenYVars = {f"GenY{key}": ys[var].to_numpy() for (var, key) in skim_vars.items()}
+    GenYVars["GenYChildren"] = abs(ys.children.pdgId[:, :, 0]).to_numpy()
+    is_VV = (abs(ys.children.pdgId) == W_PDGID) + (abs(ys.children.pdgId) == Z_PDGID)
+    has_VV = ak.sum(ak.flatten(is_VV, axis=2), axis=1) == 2
+
+    add_selection("has_bbVV", has_bb * has_VV, selection, cutflow, False, signGenWeights)
+
+    VV = ak.flatten(ys.children[is_VV], axis=2)
+    GenVVVars = {f"GenVV{key}": VV[var][:, :2].to_numpy() for (var, key) in skim_vars.items()}
+    quarks = abs(VV.children.pdgId) <= b_PDGID
+    all_q = ak.all(ak.all(quarks, axis=2), axis=1)
+    add_selection("all_q", all_q, selection, cutflow, False, signGenWeights)
+
+    V_has_2q = ak.count(VV.children.pdgId, axis=2) == 2
+    has_4q = ak.values_astype(ak.prod(V_has_2q, axis=1), np.bool)
+    add_selection("has_4q", has_4q, selection, cutflow, False, signGenWeights)
+    
+    Gen4qVars = {
+        f"Gen4q{key}": ak.to_numpy(
+            ak.fill_none(
+                ak.pad_none(
+                    ak.pad_none(VV.children[var], 2, axis=1, clip=True), 2, axis=2, clip=True
+                ),
+                FILL_NONE_VALUE,
+            )
+        )
+        for (var, key) in skim_vars.items()
+    }
+
+    return {**GenHiggsVars, **GenYVars, **GenVVVars, **Gen4qVars}
 
 
 def gen_selection_HHbbVV(
