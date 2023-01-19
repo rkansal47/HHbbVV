@@ -49,10 +49,8 @@
             "njets": 2,
             "maxchunks": 2,
         },
-	"Hgg": {
-	    "subsamples": [
-	        "HJ_Nano2"
-            ],
+        "Hgg": {
+            "subsamples": ["HJ_Nano2"],
             "files_per_job": 20,
             "label": "_H_qq",
             "njets": 1,
@@ -71,11 +69,11 @@
         "XHYPrivate": {
             "subsamples": [
                 "NMSSM_XToYH_MX1600_MY100_HTo2bYTo2W_hadronicDecay",
-		"NMSSM_XToYH_MX1600_MY125_HTo2bYTo2W_hadronicDecay",
-		"NMSSM_XToYH_MX1600_MY190_HTo2bYTo2W_hadronicDecay",
-		"NMSSM_XToYH_MX1600_MY300_HTo2bYTo2W_hadronicDecay",
-		"NMSSM_XToYH_MX1600_MY600_HTo2bYTo2W_hadronicDecay",
-		"NMSSM_XToYH_MX1600_MY900_HTo2bYTo2W_hadronicDecay",
+                "NMSSM_XToYH_MX1600_MY125_HTo2bYTo2W_hadronicDecay",
+                "NMSSM_XToYH_MX1600_MY190_HTo2bYTo2W_hadronicDecay",
+                "NMSSM_XToYH_MX1600_MY300_HTo2bYTo2W_hadronicDecay",
+                "NMSSM_XToYH_MX1600_MY600_HTo2bYTo2W_hadronicDecay",
+                "NMSSM_XToYH_MX1600_MY900_HTo2bYTo2W_hadronicDecay",
             ],
             "files_per_job": 40,
             "label": "_Y_VV",
