@@ -525,7 +525,7 @@ def runInferenceTriton(
         tagger_vars = json.load(f)
 
     triton_model = wrapped_triton(
-        triton_config["model_url"], triton_config["batch_size"], torchscript=True
+        triton_config["model_url"], triton_config["batch_size"], torchscript=False
     )
 
     fatjet_label = "FatJetAK15" if ak15 else "FatJet"
