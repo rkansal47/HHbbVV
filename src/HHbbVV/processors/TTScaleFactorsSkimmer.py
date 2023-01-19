@@ -555,7 +555,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             events[selection.all(*selection.names)],
             num_jets=1,
             jet_idx=fatjet_idx[selection.all(*selection.names)],
-            jets=leading_fatjets[selection.all(*selection.names)]
+            jets=leading_fatjets[selection.all(*selection.names)],
         )
 
         print("post-inference")
