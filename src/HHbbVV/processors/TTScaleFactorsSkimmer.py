@@ -562,8 +562,6 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         print("post-inference")
 
-        pnet_vars = {}
-
         skimmed_events = {
             **skimmed_events,
             **{key: value for (key, value) in pnet_vars.items()},
