@@ -135,7 +135,6 @@ def get_pfcands_features(
     for var in set(
         tagger_vars["pf_features"]["var_names"] + tagger_vars["pf_vectors"]["var_names"]
     ):
-        print(var)
         a = (
             ak.pad_none(
                 feature_dict[var], tagger_vars["pf_features"]["var_length"], axis=1, clip=True
@@ -238,7 +237,6 @@ def get_svs_features(
     for var in set(
         tagger_vars["sv_features"]["var_names"] + tagger_vars["sv_vectors"]["var_names"]
     ):
-        print(var)
         a = (
             ak.pad_none(
                 feature_dict[var], tagger_vars["sv_features"]["var_length"], axis=1, clip=True
@@ -589,7 +587,11 @@ def runInferenceTriton(
             derived_vars[f"{jet_label}FatJetParTMD_THWW4q"] = (
                 derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
                 + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
-            ) / derived_vars[f"{jet_label}FatJetParTMD_probQCD"]
+            ) / (
+                derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
+                + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
+                + derived_vars[f"{jet_label}FatJetParTMD_probQCD"]
+            )
 
             pnet_vars_list.append(derived_vars)
         else:
