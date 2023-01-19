@@ -563,16 +563,16 @@ def runInferenceTriton(
 
     # run inference for both fat jets
     tagger_outputs = []
-    for jet_idx in range(2):
+    for jet_idx in range(num_jets):
         print(f"Running inference for Jet {jet_idx + 1}")
         start = time.time()
         tagger_outputs.append(triton_model(tagger_inputs[jet_idx]))
         time_taken = time.time() - start
         print(f"Inference took {time_taken:.1f}s")
 
-        pnet_vars_list = []
+    pnet_vars_list = []
 
-    for jet_idx in range(2):
+    for jet_idx in range(num_jets):
         if len(tagger_outputs[jet_idx]):
             derived_vars = {
                 f"{jet_label}FatJetParTMD_probQCD": np.sum(
@@ -602,12 +602,15 @@ def runInferenceTriton(
                 }
             )
 
-    pnet_vars_combined = {
-        key: np.concatenate(
-            [pnet_vars_list[0][key][:, np.newaxis], pnet_vars_list[1][key][:, np.newaxis]], axis=1
-        )
-        for key in pnet_vars_list[0]
-    }
-
     print(f"Total time taken: {time.time() - total_start:.1f}s")
-    return pnet_vars_combined
+
+    if num_jets == 2:
+        return {
+            key: np.concatenate(
+                [pnet_vars_list[0][key][:, np.newaxis], pnet_vars_list[1][key][:, np.newaxis]],
+                axis=1,
+            )
+            for key in pnet_vars_list[0]
+        }
+    else:
+        return pnet_vars_list[0]
