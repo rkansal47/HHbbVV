@@ -554,7 +554,11 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             self.tagger_resources_path,
             events[selection.all(*selection.names)],
             num_jets=1,
+<<<<<<< HEAD
             jet_idx=fatjet_idx[selection.all(*selection.names)],
+=======
+            jet_idx=fatjet_idx,
+>>>>>>> 1abc3107907199a4eda2cdabedbbe2c480460f81
         )
 
         print("post-inference")
