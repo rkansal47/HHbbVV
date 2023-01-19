@@ -68,15 +68,17 @@
             "njets": 1,
             "maxchunks": 2,
         },
-        "XYH": {
+        "XHYPrivate": {
             "subsamples": [
-                "NMSSM_XYH_WWbb_MX_1500_MY400",
-                "NMSSM_XYH_WWbb_MX_1300_MY200",
-                "NMSSM_XYH_WWbb_MX_2000_MY400",
-                "NMSSM_XYH_WWbb_MX_3000_MY800",
+                "NMSSM_XToYH_MX1600_MY100_HTo2bYTo2W_hadronicDecay",
+		"NMSSM_XToYH_MX1600_MY125_HTo2bYTo2W_hadronicDecay",
+		"NMSSM_XToYH_MX1600_MY190_HTo2bYTo2W_hadronicDecay",
+		"NMSSM_XToYH_MX1600_MY300_HTo2bYTo2W_hadronicDecay",
+		"NMSSM_XToYH_MX1600_MY600_HTo2bYTo2W_hadronicDecay",
+		"NMSSM_XToYH_MX1600_MY900_HTo2bYTo2W_hadronicDecay",
             ],
             "files_per_job": 40,
-            "label": "_H_VV",
+            "label": "_Y_VV",
             "njets": 2,
         },
         "HWWPrivate": {
