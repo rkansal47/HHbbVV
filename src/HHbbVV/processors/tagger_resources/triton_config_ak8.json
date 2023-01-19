@@ -1,5 +1,5 @@
 {
   "model_name": "ak8_MD_vminclv2ParT_manual_fixwrap",
-  "model_url": "triton+grpc://67.58.49.52:8001/ak8_MD_vminclv2ParT_manual_fixwrap/3",
+  "model_url": "triton+grpc://67.58.49.52:8001/ak8_MD_vminclv2ParT_manual_fixwrap/1",
   "batch_size": 256
 }
