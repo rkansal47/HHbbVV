@@ -42,8 +42,61 @@ class TaggerInputSkimmer(ProcessorABC):
     Produces a flat training ntuple from PFNano.
     """
 
-    def __init__(self, label="AK15_H_VV", num_jets=2):
+    def __init__(self, label, num_jets=2):
+        """
+        :label: should be jet_(type of decay)
+        e.g. AK15_H_VV for HVV AK15 decays
+             AK8_H_qq for Hqq AK8 decays
+        :type: str
+        """
+
         self.label = label
+
+        """
+        Skimming variables
+
+        Equivalence to other labels:
+        ====
+        (ignoring if V is W or Z)
+        label_H_WqqWqq_0c: ( (fj_H_VV_4q==1) & (fj_nprongs==4) & (fj_ncquarks==0) )
+        label_H_WqqWqq_1c: ( (fj_H_VV_4q==1) & (fj_nprongs==4) & (fj_ncquarks==1) )
+        label_H_WqqWqq_2c: ( (fj_H_VV_4q==1) & (fj_nprongs==4) & (fj_ncquarks==2) )
+        label_H_WqqWq_0c: ( (fj_H_VV_4q==1) & (fj_nprongs==3) & (fj_ncquarks==0) )
+        label_H_WqqWq_1c: ( (fj_H_VV_4q==1) & (fj_nprongs==3) & (fj_ncquarks==1) )
+        label_H_WqqWq_2c: ( (fj_H_VV_4q==1) & (fj_nprongs==3) & (fj_ncquarks==2) )
+        label_H_WqqWev_0c: ( (fj_H_VV_elenuqq==1) & (fj_ncquarks==0) )
+        label_H_WqqWev_1c: ( (fj_H_VV_elenuqq==1) & (fj_ncquarks==1) )
+        label_H_WqqWmv_0c: ( (fj_H_VV_munuqq==1) & (fj_ncquarks==0) )
+        label_H_WqqWmv_1c: ( (fj_H_VV_munuqq==1) & (fj_ncquarks==1) )
+
+        fj_H_VV_4q: ((label_H_WqqWqq_0c == 1) | (label_H_WqqWqq_1c == 1) | (label_H_WqqWqq_2c == 1) )
+        fj_H_VV_3q: ((label_H_WqqWq_0c == 1) | (label_H_WqqWq_1c == 1) | (label_H_WqqWq_2c == 1) )
+        fj_H_VV_elenuqq: ((label_H_WqqWev_0c == 1) | (label_H_WqqWev_1c == 1) )
+        fj_H_VV_munuqq: ((label_H_WqqWmv_0c == 1) | (label_H_WqqWmv_1c == 1) )
+        fj_H_VV_leptauelvqq: ((label_H_VqqVtauev_0c == 1) | (label_H_VqqVtauev_1c == 1) )
+        fj_H_VV_leptaumuvqq: ((label_H_VqqVtaumv_0c == 1) | (label_H_VqqVtaumv_1c == 1) )
+        fj_H_VV_hadtauvqq: ( (label_H_VqqVtauhv_0c == 0) | (label_H_VqqVtauhv_1c == 1) )
+        fj_H_VV_taunuqq: ( (label_H_VV_leptauelvqq == 1) | (label_H_VV_leptaumuvqq == 1) | (label_H_VV_hadtauvqq == 1) )
+
+        label_Top_bWqq_0c: ( (fj_Top_2q==1) & (fj_nprongs == 2)  & (fj_Top_bmerged==1) & (fj_ncquarks==0) ) 
+        label_Top_bWqq_1c: ( (fj_Top_2q==1) & (fj_nprongs == 2) & (fj_Top_bmerged==1) & (fj_ncquarks==1) ) 
+        label_Top_bWq_0c: ( (fj_Top_2q==1) & (fj_nprongs == 1) & (fj_Top_bmerged==1) & (fj_ncquarks==0) )
+        label_Top_bWq_1c: ( (fj_Top_2q==1) & fj_nprongs == 1) & (fj_Top_bmerged==1) & (fj_ncquarks==1) )
+        label_Top_bWev: ( (fj_Top_elenu==1) & (fj_Top_bmerged==1) )
+        label_Top_bWmv: ( (fj_Top_munu==1) & (fj_Top_bmerged==1) )
+        label_Top_bWtauhv: ( (fj_Top_hadtauvqq==1) & (fj_Top_bmerged==1) )
+        label_Top_bWtauev: ( (fj_Top_leptauelvnu==1) & (fj_Top_bmerged==1) )
+        label_Top_bWtaumv: ( (fj_Top_leptaumuvnu==1) & (fj_Top_bmerged==1) )
+        
+        fj_Top_taunu: ( (fj_Top_leptauelvnu == 1) | (fj_Top_leptaumuvnu == 1) | (fj_Top_hadtauvqq == 1) )
+        fj_Top_2q_1q: ( (fj_Top_2q == 1) & (fj_nprongs == 1) ) # with or without b merged
+        fj_Top_2q_2q: ( (fj_Top_2q == 1) & (fj_nprongs == 2) ) # with or without b merged
+        fj_ttbar_label: ( (fj_Top_2q==1) | (fj_Top_elenu==1) | (fj_Top_munu==1) | (fj_Top_taunu==1) )
+
+        fj_Vqq_1q: ((fj_V_2q==1) & (fj_nprongs==1))
+        fj_Vqq_2q: ((fj_V_2q==1) & (fj_nprongs==2))
+        fj_wjets_label: ((fj_V_2q==1) | (fj_V_elenu==1) | (fj_V_munu==1) | (fj_V_taunu==1))
+        """
 
         self.skim_vars = {
             "FatJet": {
@@ -56,17 +109,6 @@ class TaggerInputSkimmer(ProcessorABC):
             "GenPart": [
                 "fj_genjetmsd",
                 "fj_genjetmass",
-                "fj_nprongs",
-                "fj_lepinprongs",
-                "fj_H_VV_4q",
-                "fj_H_VV_elenuqq",
-                "fj_H_VV_munuqq",
-                # "fj_H_VV_taunuqq",
-                "fj_H_VV_leptauelvqq",
-                "fj_H_VV_leptaumuvqq",
-                "fj_H_VV_hadtauvqq",
-                "fj_H_VV_unmatched",
-                "fj_dR_V",
                 "fj_genRes_pt",
                 "fj_genRes_eta",
                 "fj_genRes_phi",
@@ -75,21 +117,36 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_genX_eta",
                 "fj_genX_phi",
                 "fj_genX_mass",
+                "fj_nprongs",
+                "fj_ncquarks"
+                "fj_lepinprongs",
+                "fj_H_VV_4q",
+                "fj_H_VV_elenuqq",
+                "fj_H_VV_munuqq",
+                "fj_H_VV_leptauelvqq",
+                "fj_H_VV_leptaumuvqq",
+                "fj_H_VV_hadtauvqq",
+                "fj_H_VV_unmatched",
                 "fj_genV_pt",
                 "fj_genV_eta",
                 "fj_genV_phi",
                 "fj_genV_mass",
+                "fj_dR_V",
                 "fj_dR_Vstar",
                 "fj_dR_V_Vstar",
                 "fj_genVstar_pt",
                 "fj_genVstar_eta",
                 "fj_genVstar_phi",
                 "fj_genVstar_mass",
-                "fj_isQCDb",
-                "fj_isQCDbb",
-                "fj_isQCDc",
-                "fj_isQCDcc",
-                "fj_isQCDothers",
+                "fj_H_gg",
+                "fj_H_qq",
+                "fj_H_bb",
+                "fj_H_cc",
+                "fj_QCDb",
+                "fj_QCDbb",
+                "fj_QCDc",
+                "fj_QCDcc",
+                "fj_QCDothers",
                 "fj_V_2q",
                 "fj_V_elenu",
                 "fj_V_munu",
@@ -98,7 +155,9 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_Top_2q",
                 "fj_Top_elenu",
                 "fj_Top_munu",
-                "fj_Top_taunu",
+                "fj_Top_hadtauvqq",
+                "fj_Top_leptauelvnu",
+                "fj_Top_leptaumuvnu",
             ],
             # formatted to match weaver's preprocess.json
             "MET": {

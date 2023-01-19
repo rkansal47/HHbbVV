@@ -15,8 +15,10 @@ from typing import List, Dict, Tuple, Union
 
 from .utils import pad_val, add_selection
 
-
 d_PDGID = 1
+u_PDGID = 2
+s_PDGID = 3
+c_PDGID = 4
 b_PDGID = 5
 g_PDGID = 21
 TOP_PDGID = 6
@@ -357,6 +359,7 @@ def tagger_gen_H_matching(
                 & (daughters_pdgId != vTAU_PDGID)
             )
         ]
+        # number of prongs inside the jet
         nprongs = ak.sum(fatjets.delta_r(daughters_nov) < jet_dR, axis=1)
 
         lepdaughters = daughters[
@@ -369,6 +372,7 @@ def tagger_gen_H_matching(
         lepinprongs = 0
         if len(lepdaughters) > 0:
             lepinprongs = ak.sum(fatjets.delta_r(lepdaughters) < jet_dR, axis=1)  # should be 0 or 1
+
         decay = (
             # 2 quarks * 1
             (ak.sum(daughters_pdgId <= b_PDGID, axis=1) == 2) * 1
@@ -411,19 +415,52 @@ def tagger_gen_H_matching(
             f"fj_genVstar_{key}": ak.fill_none(v_star[var], FILL_NONE_VALUE)
             for (var, key) in P4.items()
         }
+
+        # number of c quarks in V decay inside jet
+        cquarks = daughters_nov[ daughters_pdgId == c_PDGID ]
+        ncquarks = ak.sum(fatjets.delta_r(cquarks) < jet_dR, axis=1)
+
         genLabelVars = {
-            "fj_nprongs": nprongs,
-            "fj_lepinprongs": lepinprongs,
+            "fj_H_VV_nprongs": nprongs,
+            "fj_H_VV_ncquarks": ncquarks,
+            "fj_H_VV_lepinprongs": lepinprongs,
             "fj_H_VV_4q": to_label(decay == 11),
             "fj_H_VV_elenuqq": to_label(decay == 4),
             "fj_H_VV_munuqq": to_label(decay == 6),
-            # "fj_H_VV_taunuqq": to_label(decay == 8),
-            "fj_H_VV_unmatched": to_label(~matched_mask),
             "fj_H_VV_leptauelvqq": to_label((decay == 8) & (taudecay == 3)),
             "fj_H_VV_leptaumuvqq": to_label((decay == 8) & (taudecay == 5)),
             "fj_H_VV_hadtauvqq": to_label((decay == 8) & (taudecay == 1)),
+            "fj_H_VV_unmatched": to_label(~matched_mask),
         }
         genVars = {**genVars, **genVVars, **genVstarVars, **genLabelVars}
+
+    elif "qq" in decays:
+        children_mask = get_pid_mask(matched_higgs_children, [g_PDGID, b_PDGID, c_PDGID, s_PDGID, d_PDGID, u_PDGID], byall=False)
+        daughters = matched_higgs_children[children_mask]
+        daughters_pdgId = abs(matched_higgs_children.pdgId)
+        
+        nprongs = ak.sum(fatjets.delta_r(daughters) < jet_dR, axis=1)
+        
+        # higgs twp-prong decay
+        decay = (
+            # 2 b quarks * 1
+            ( (ak.sum(daughters_pdgId == b_PDGID, axis=1) == 2) & (nprongs==2) ) * 1
+            # 2 c quarks * 3
+            ( (ak.sum(daughters_pdgId == c_PDGID, axis=1) == 2) & (nprongs==2) ) * 3
+            # 2 light quarks * 5
+            ( (ak.sum(daughters_pdgId < c_PDGID, axis=1) == 2) & (nprongs==2) ) * 5
+            # 2 gluons * 7
+            ( (ak.sum(daughters_pdgId == g_PDGID, axis=1) == 2) & (nprongs==2) ) * 7
+        )
+
+        genLabelVars = {
+            "fj_H_bb": to_label(decay = 1),
+            "fj_H_cc": to_label(decay = 3), 
+            "fj_H_qq": to_label(decay = 5),
+            "fj_H_gg": to_label(decay = 7),
+        }
+
+        genVars = {**genVars, **genLabelVars}
 
     return matched_mask, genVars
 
@@ -486,7 +523,11 @@ def tagger_gen_VJets_matching(
         )
     ]
     nprongs = ak.sum(fatjets.delta_r(daughters_nov) < jet_dR, axis=1)
-
+    
+    # number of c quarks in V decay inside jet
+    cquarks = daughters_nov[ daughters_pdgId == c_PDGID ]
+    ncquarks = ak.sum(fatjets.delta_r(cquarks) < jet_dR, axis=1)
+    
     lepdaughters = daughters[
         (
             (daughters_pdgId == ELE_PDGID)
@@ -515,6 +556,7 @@ def tagger_gen_VJets_matching(
     genLabelVars = {
         "fj_nprongs": nprongs,
         "fj_lepinprongs": lepinprongs,
+        "fj_ncquarks": ncquarks,
         "fj_V_2q": to_label(decay == 1),
         "fj_V_elenu": to_label(decay == 3),
         "fj_V_munu": to_label(decay == 5),
@@ -572,8 +614,13 @@ def tagger_gen_Top_matching(
             & (wboson_daughters_pdgId != vTAU_PDGID)
         )
     ]
+    # nprongs only includes the number of quarks from W decay (not b)
     nprongs = ak.sum(fatjets.delta_r(wboson_daughters_nov) < jet_dR, axis=1) + matched_b
 
+    # number of c quarks in V decay inside jet
+    cquarks = wboson_daughters_nov[ wboson_daughters_pdgId == c_PDGID ]
+    ncquarks = ak.sum(fatjets.delta_r(cquarks) < jet_dR, axis=1)
+    
     lepdaughters = wboson_daughters[
         (
             (wboson_daughters_pdgId == ELE_PDGID)
@@ -586,15 +633,39 @@ def tagger_gen_Top_matching(
     if len(lepdaughters) > 0:
         lepinprongs = ak.sum(fatjets.delta_r(lepdaughters) < jet_dR, axis=1)  # should be 0 or 1
 
+    # get tau decays from V daughters                                                                                                                                                                                                                                         
+    taudaughters = wboson_daughters[(wboson_daughters_pdgId == TAU_PDGID)].children
+    taudaughters = taudaughters[taudaughters.hasFlags(["isLastCopy"])]
+    taudaughters_pdgId = abs(taudaughters.pdgId)
+
+    taudecay = (
+        # pions/kaons (hadronic tau) * 1                                                                                                                                                                                                                                    
+        (
+            ak.sum((taudaughters_pdgId == ELE_PDGID) | (taudaughters_pdgId == MU_PDGID), axis=2)
+            == 0
+        )
+        * 1
+        # 1 electron * 3                                                                                                                                                                                                                                                    
+        + (ak.sum(taudaughters_pdgId == ELE_PDGID, axis=2) == 1) * 3
+        # 1 muon * 5                                                                                                                                                                                                                                                        
+        + (ak.sum(taudaughters_pdgId == MU_PDGID, axis=2) == 1) * 5
+    )
+    # flatten taudecay - so painful                                                                                                                                                                                                                                         
+    taudecay = ak.sum(taudecay, axis=-1)
+
     genLabelVars = {
         "fj_nprongs": nprongs,
         "fj_lepinprongs": lepinprongs,
+        "fj_ncquarks": ncquarks,
         "fj_Top_bmerged": to_label(matched_b == 1),
         "fj_Top_2q": to_label(decay == 1),
         "fj_Top_elenu": to_label(decay == 3),
         "fj_Top_munu": to_label(decay == 5),
-        "fj_Top_taunu": to_label(decay == 7),
+        "fj_Top_hadtauvqq": to_label((decay == 7) & (taudecay == 1)),
+        "fj_Top_leptauelvnu": to_label((decay == 7) & (taudecay == 3)),
+        "fj_Top_leptaumuvnu": to_label((decay == 7) & (taudecay == 5)),
     }
+
     matched_topdaus_mask = ak.any(fatjets.delta_r(daughters) < match_dR, axis=1)
     matched_mask = matched_tops_mask & matched_topdaus_mask
 
