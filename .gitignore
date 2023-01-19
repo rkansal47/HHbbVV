@@ -40,6 +40,9 @@ src/HHbbVV/postprocessing/*.txt
 !src/HHbbVV/scale_factors
 !src/HHbbVV/scale_factors/**
 
+!src/HHbbVV/triton
+!src/HHbbVV/triton/**
+
 !src/HHbbVV/combine
 !src/HHbbVV/combine/**
 
