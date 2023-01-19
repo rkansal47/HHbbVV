@@ -195,7 +195,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             "particleNet_H4qvsQCD": "ParticleNet_Th4q",
             "nConstituents": "nPFCands",
         },
-        "FatJetDerived": ["tau21", "tau32", "tau43"],
+        "FatJetDerived": ["tau21", "tau32", "tau43", "tau42", "tau41"],
         "GenHiggs": P4,
         "other": {"MET_pt": "MET_pt"},
     }
@@ -211,8 +211,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
     }
 
     ak8_jet_selection = {
-        "pt": 200.0,
-        "msd": [50, 250],
+        "pt": 400.0,
+        "msd": [125, 250],
         "eta": 2.5,
         "delta_phi_muon": 2,
         "jetId": 2,  # tight ID bit
@@ -464,7 +464,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # select vars
 
         ak8FatJetVars = {
-            f"ak8FatJet{key}": pad_val(fatjets[var], num_jets, -99999, axis=1)
+            f"ak8FatJet{key}": pad_val(leading_fatjets[var], num_jets, -99999, axis=1)
             for (var, key) in self.skim_vars["FatJet"].items()
         }
 
@@ -548,13 +548,17 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         }
 
         # apply HWW4q tagger
-        # print("pre-inference")
+        print("pre-inference")
 
-        # pnet_vars = runInferenceTriton(
-        #     self.tagger_resources_path, events[selection.all(*selection.names)], ak15=False
-        # )
+        pnet_vars = runInferenceTriton(
+            self.tagger_resources_path,
+            events[selection.all(*selection.names)],
+            num_jets=1,
+            jet_idx=fatjet_idx[selection.all(*selection.names)],
+            jets=ak.flatten(leading_fatjets[selection.all(*selection.names)]),
+        )
 
-        pnet_vars = {}
+        print("post-inference")
 
         skimmed_events = {
             **skimmed_events,

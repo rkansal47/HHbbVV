@@ -4,14 +4,19 @@ Methods for deriving input variables for the tagger and running inference.
 Author(s): Raghav Kansal, Cristina Mantilla Suarez, Melissa Quinnan
 """
 
-from typing import Dict
+from typing import Dict, Union
 
 import numpy as np
 import numpy.ma as ma
+from numpy.typing import ArrayLike
+
 from scipy.special import softmax
+
 import awkward as ak
 from coffea.nanoevents.methods.base import NanoEventsArray
 from coffea.nanoevents.methods import candidate, vector
+from coffea.nanoevents.methods.nanoaod import FatJetArray
+
 import json
 
 # import onnxruntime as ort
@@ -43,7 +48,8 @@ def build_p4(cand):
 def get_pfcands_features(
     tagger_vars: dict,
     preselected_events: NanoEventsArray,
-    jet_idx: int,
+    jet_idx: Union[int, ArrayLike],
+    jet: FatJetArray = None,
     fatjet_label: str = "FatJetAK15",
     pfcands_label: str = "FatJetAK15PFCands",
     normalize: bool = True,
@@ -55,7 +61,9 @@ def get_pfcands_features(
 
     feature_dict = {}
 
-    jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
+    if jet is None:
+        jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
+
     jet_ak_pfcands = preselected_events[pfcands_label][
         preselected_events[pfcands_label].jetIdx == jet_idx
     ]
@@ -91,6 +99,11 @@ def get_pfcands_features(
     feature_dict["pfcand_dzsig"] = jet_pfcands.dz / jet_pfcands.dzErr
     feature_dict["pfcand_dxysig"] = jet_pfcands.d0 / jet_pfcands.d0Err
 
+    feature_dict["pfcand_px"] = jet_pfcands.px
+    feature_dict["pfcand_py"] = jet_pfcands.py
+    feature_dict["pfcand_pz"] = jet_pfcands.pz
+    feature_dict["pfcand_energy"] = jet_pfcands.E
+
     # btag vars
     for var in tagger_vars["pf_features"]["var_names"]:
         if "btag" in var:
@@ -101,7 +114,7 @@ def get_pfcands_features(
             ma.masked_invalid(
                 ak.pad_none(
                     feature_dict["pfcand_abseta"],
-                    tagger_vars["pf_points"]["var_length"],
+                    tagger_vars["pf_features"]["var_length"],
                     axis=1,
                     clip=True,
                 ).to_numpy()
@@ -112,21 +125,29 @@ def get_pfcands_features(
     # if no padding is needed, mask will = 1.0
     if isinstance(feature_dict["pfcand_mask"], np.float32):
         feature_dict["pfcand_mask"] = np.ones(
-            (len(feature_dict["pfcand_abseta"]), tagger_vars["pf_points"]["var_length"])
+            (len(feature_dict["pfcand_abseta"]), tagger_vars["pf_features"]["var_length"])
         ).astype(np.float32)
 
     # convert to numpy arrays and normalize features
-    for var in tagger_vars["pf_features"]["var_names"]:
+    for var in set(
+        tagger_vars["pf_features"]["var_names"] + tagger_vars["pf_vectors"]["var_names"]
+    ):
         a = (
             ak.pad_none(
-                feature_dict[var], tagger_vars["pf_points"]["var_length"], axis=1, clip=True
+                feature_dict[var], tagger_vars["pf_features"]["var_length"], axis=1, clip=True
             )
             .to_numpy()
             .filled(fill_value=0)
         ).astype(np.float32)
 
+        a = np.nan_to_num(a)
+
         if normalize:
-            info = tagger_vars["pf_features"]["var_infos"][var]
+            if var in tagger_vars["pf_features"]["var_names"]:
+                info = tagger_vars["pf_features"]["var_infos"][var]
+            else:
+                info = tagger_vars["pf_vectors"]["var_infos"][var]
+
             a = (a - info["median"]) * info["norm_factor"]
             a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
 
@@ -145,7 +166,8 @@ def get_pfcands_features(
 def get_svs_features(
     tagger_vars: dict,
     preselected_events: NanoEventsArray,
-    jet_idx: int,
+    jet_idx: Union[int, ArrayLike],
+    jet: FatJetArray = None,
     fatjet_label: str = "FatJetAK15",
     svs_label: str = "JetSVsAK15",
     normalize: bool = True,
@@ -157,7 +179,9 @@ def get_svs_features(
 
     feature_dict = {}
 
-    jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
+    if jet is None:
+        jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
+
     jet_svs = preselected_events.SV[
         preselected_events[svs_label].sVIdx[
             (preselected_events[svs_label].sVIdx != -1)
@@ -184,12 +208,17 @@ def get_svs_features(
     svpAngle = jet_svs.pAngle
     feature_dict["sv_costhetasvpv"] = -np.cos(svpAngle)
 
+    feature_dict["sv_px"] = jet_svs.px
+    feature_dict["sv_py"] = jet_svs.py
+    feature_dict["sv_pz"] = jet_svs.pz
+    feature_dict["sv_energy"] = jet_svs.E
+
     feature_dict["sv_mask"] = (
         ~(
             ma.masked_invalid(
                 ak.pad_none(
                     feature_dict["sv_etarel"],
-                    tagger_vars["sv_points"]["var_length"],
+                    tagger_vars["sv_features"]["var_length"],
                     axis=1,
                     clip=True,
                 ).to_numpy()
@@ -200,21 +229,29 @@ def get_svs_features(
     # if no padding is needed, mask will = 1.0
     if isinstance(feature_dict["sv_mask"], np.float32):
         feature_dict["sv_mask"] = np.ones(
-            (len(feature_dict["sv_abseta"]), tagger_vars["sv_points"]["var_length"])
+            (len(feature_dict["sv_abseta"]), tagger_vars["sv_features"]["var_length"])
         ).astype(np.float32)
 
     # convert to numpy arrays and normalize features
-    for var in tagger_vars["sv_features"]["var_names"]:
+    for var in set(
+        tagger_vars["sv_features"]["var_names"] + tagger_vars["sv_vectors"]["var_names"]
+    ):
         a = (
             ak.pad_none(
-                feature_dict[var], tagger_vars["sv_points"]["var_length"], axis=1, clip=True
+                feature_dict[var], tagger_vars["sv_features"]["var_length"], axis=1, clip=True
             )
             .to_numpy()
             .filled(fill_value=0)
         ).astype(np.float32)
 
+        a = np.nan_to_num(a)
+
         if normalize:
-            info = tagger_vars["sv_features"]["var_infos"][var]
+            if var in tagger_vars["sv_features"]["var_names"]:
+                info = tagger_vars["sv_features"]["var_infos"][var]
+            else:
+                info = tagger_vars["sv_vectors"]["var_infos"][var]
+
             a = (a - info["median"]) * info["norm_factor"]
             a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
 
@@ -247,7 +284,7 @@ def get_met_features(
     for var in tagger_vars["met_features"]["var_names"]:
         a = (
             # ak.pad_none(
-            #     feature_dict[var], tagger_vars["met_points"]["var_length"], axis=1, clip=True
+            #     feature_dict[var], tagger_vars["met_features"]["var_length"], axis=1, clip=True
             # )
             feature_dict[var]  # just 1d, no pad_none
             .to_numpy()
@@ -341,7 +378,7 @@ def get_lep_features(
         for var in tagger_vars["el_features"]["var_names"]:
             a = (
                 ak.pad_none(
-                    feature_dict[var], tagger_vars["el_points"]["var_length"], axis=1, clip=True
+                    feature_dict[var], tagger_vars["el_features"]["var_length"], axis=1, clip=True
                 )
                 .to_numpy()
                 .filled(fill_value=0)
@@ -376,7 +413,7 @@ def get_lep_features(
         for var in tagger_vars["mu_features"]["var_names"]:
             a = (
                 ak.pad_none(
-                    feature_dict[var], tagger_vars["mu_points"]["var_length"], axis=1, clip=True
+                    feature_dict[var], tagger_vars["mu_features"]["var_length"], axis=1, clip=True
                 )
                 .to_numpy()
                 .filled(fill_value=0)
@@ -469,7 +506,12 @@ class wrapped_triton:
 
 
 def runInferenceTriton(
-    tagger_resources_path: str, events: NanoEventsArray, ak15: bool = False
+    tagger_resources_path: str,
+    events: NanoEventsArray,
+    num_jets: int = 2,
+    jet_idx: ArrayLike = None,
+    jets: FatJetArray = None,
+    ak15: bool = False,
 ) -> dict:
     total_start = time.time()
 
@@ -482,19 +524,22 @@ def runInferenceTriton(
         tagger_vars = json.load(f)
 
     triton_model = wrapped_triton(
-        triton_config["model_url"], triton_config["batch_size"], torchscript=True
+        triton_config["model_url"], triton_config["batch_size"], torchscript=False
     )
 
     fatjet_label = "FatJetAK15" if ak15 else "FatJet"
     pfcands_label = "FatJetAK15PFCands" if ak15 else "FatJetPFCands"
     svs_label = "JetSVsAK15" if ak15 else "FatJetSVs"
 
-    # prepare inputs for both fat jets
+    # prepare inputs for fat jets
     tagger_inputs = []
-    for jet_idx in range(2):
+    for j in range(num_jets):
+        if jet_idx is None:
+            jet_idx = j
+
         feature_dict = {
-            **get_pfcands_features(tagger_vars, events, jet_idx, fatjet_label, pfcands_label),
-            **get_svs_features(tagger_vars, events, jet_idx, fatjet_label, svs_label),
+            **get_pfcands_features(tagger_vars, events, jet_idx, jets, fatjet_label, pfcands_label),
+            **get_svs_features(tagger_vars, events, jet_idx, jets, fatjet_label, svs_label),
             # **get_lep_features(tagger_vars, events, jet_idx, fatjet_label, muon_label, electron_label),
         }
 
@@ -504,7 +549,7 @@ def runInferenceTriton(
 
         tagger_inputs.append(
             {
-                f"{input_name}__{i}": np.concatenate(
+                f"{input_name}": np.concatenate(
                     [
                         np.expand_dims(feature_dict[key], 1)
                         for key in tagger_vars[input_name]["var_names"]
@@ -517,45 +562,58 @@ def runInferenceTriton(
 
     # run inference for both fat jets
     tagger_outputs = []
-    for jet_idx in range(2):
+    for jet_idx in range(num_jets):
         print(f"Running inference for Jet {jet_idx + 1}")
         start = time.time()
         tagger_outputs.append(triton_model(tagger_inputs[jet_idx]))
         time_taken = time.time() - start
         print(f"Inference took {time_taken:.1f}s")
 
-        pnet_vars_list = []
-    for jet_idx in range(2):
+    pnet_vars_list = []
+
+    for jet_idx in range(num_jets):
         if len(tagger_outputs[jet_idx]):
-            pnet_vars_list.append(
-                {
-                    f"{jet_label}FatJetParticleNetHWWMD_probQCD": np.sum(
-                        tagger_outputs[jet_idx][:, :5], axis=1
-                    ),
-                    f"{jet_label}FatJetParticleNetHWWMD_probHWW3q": tagger_outputs[jet_idx][:, -2],
-                    f"{jet_label}FatJetParticleNetHWWMD_probHWW4q": tagger_outputs[jet_idx][:, -1],
-                    f"{jet_label}FatJetParticleNetHWWMD_THWW4q": (
-                        tagger_outputs[jet_idx][:, -2] + tagger_outputs[jet_idx][:, -1]
-                    )
-                    / np.sum(tagger_outputs[jet_idx], axis=1),
-                }
+            derived_vars = {
+                f"{jet_label}FatJetParTMD_probQCD": np.sum(
+                    tagger_outputs[jet_idx][:, 23:28], axis=1
+                ),
+                f"{jet_label}FatJetParTMD_probHWW3q": np.sum(
+                    tagger_outputs[jet_idx][:, 0:3], axis=1
+                ),
+                f"{jet_label}FatJetParTMD_probHWW4q": np.sum(
+                    tagger_outputs[jet_idx][:, 3:6], axis=1
+                ),
+            }
+
+            derived_vars[f"{jet_label}FatJetParTMD_THWW4q"] = (
+                derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
+                + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
+            ) / (
+                derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
+                + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
+                + derived_vars[f"{jet_label}FatJetParTMD_probQCD"]
             )
+
+            pnet_vars_list.append(derived_vars)
         else:
             pnet_vars_list.append(
                 {
-                    f"{jet_label}FatJetParticleNetHWWMD_probQCD": np.array([]),
-                    f"{jet_label}FatJetParticleNetHWWMD_probHWW3q": np.array([]),
-                    f"{jet_label}FatJetParticleNetHWWMD_probHWW4q": np.array([]),
-                    f"{jet_label}FatJetParticleNetHWWMD_THWW4q": np.array([]),
+                    f"{jet_label}FatJetParTMD_probQCD": np.array([]),
+                    f"{jet_label}FatJetParTMD_probHWW3q": np.array([]),
+                    f"{jet_label}FatJetParTMD_probHWW4q": np.array([]),
+                    f"{jet_label}FatJetParTMD_THWW4q": np.array([]),
                 }
             )
 
-    pnet_vars_combined = {
-        key: np.concatenate(
-            [pnet_vars_list[0][key][:, np.newaxis], pnet_vars_list[1][key][:, np.newaxis]], axis=1
-        )
-        for key in pnet_vars_list[0]
-    }
-
     print(f"Total time taken: {time.time() - total_start:.1f}s")
-    return pnet_vars_combined
+
+    if num_jets == 2:
+        return {
+            key: np.concatenate(
+                [pnet_vars_list[0][key][:, np.newaxis], pnet_vars_list[1][key][:, np.newaxis]],
+                axis=1,
+            )
+            for key in pnet_vars_list[0]
+        }
+    else:
+        return pnet_vars_list[0]
