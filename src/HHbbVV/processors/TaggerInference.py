@@ -102,7 +102,7 @@ def get_pfcands_features(
     feature_dict["pfcand_px"] = jet_pfcands.px
     feature_dict["pfcand_py"] = jet_pfcands.py
     feature_dict["pfcand_pz"] = jet_pfcands.pz
-    feature_dict["pfcand_E"] = jet_pfcands.E
+    feature_dict["pfcand_energy"] = jet_pfcands.E
 
     # btag vars
     for var in tagger_vars["pf_features"]["var_names"]:
@@ -210,7 +210,7 @@ def get_svs_features(
     feature_dict["sv_px"] = jet_svs.px
     feature_dict["sv_py"] = jet_svs.py
     feature_dict["sv_pz"] = jet_svs.pz
-    feature_dict["sv_E"] = jet_svs.E
+    feature_dict["sv_energy"] = jet_svs.E
 
     feature_dict["sv_mask"] = (
         ~(
