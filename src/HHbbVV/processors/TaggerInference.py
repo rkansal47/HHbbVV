@@ -15,7 +15,7 @@ from scipy.special import softmax
 import awkward as ak
 from coffea.nanoevents.methods.base import NanoEventsArray
 from coffea.nanoevents.methods import candidate, vector
-
+from coffea.nanoevents.methods.nanoaod import FatJetArray
 
 import json
 
@@ -49,6 +49,7 @@ def get_pfcands_features(
     tagger_vars: dict,
     preselected_events: NanoEventsArray,
     jet_idx: Union[int, ArrayLike],
+    jet: FatJetArray = None,
     fatjet_label: str = "FatJetAK15",
     pfcands_label: str = "FatJetAK15PFCands",
     normalize: bool = True,
@@ -60,12 +61,8 @@ def get_pfcands_features(
 
     feature_dict = {}
 
-    if type(jet_idx) is int:
+    if jet is None:
         jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
-    else:
-        jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[
-            range(len(preselected_events)), jet_idx
-        ]
 
     jet_ak_pfcands = preselected_events[pfcands_label][
         preselected_events[pfcands_label].jetIdx == jet_idx
@@ -156,7 +153,8 @@ def get_pfcands_features(
 def get_svs_features(
     tagger_vars: dict,
     preselected_events: NanoEventsArray,
-    jet_idx: int,
+    jet_idx: Union[int, ArrayLike],
+    jet: FatJetArray = None,
     fatjet_label: str = "FatJetAK15",
     svs_label: str = "JetSVsAK15",
     normalize: bool = True,
@@ -168,7 +166,9 @@ def get_svs_features(
 
     feature_dict = {}
 
-    jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
+    if jet is None:
+        jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
+
     jet_svs = preselected_events.SV[
         preselected_events[svs_label].sVIdx[
             (preselected_events[svs_label].sVIdx != -1)
@@ -484,6 +484,7 @@ def runInferenceTriton(
     events: NanoEventsArray,
     num_jets: int = 2,
     jet_idx: ArrayLike = None,
+    jets: FatJetArray = None,
     ak15: bool = False,
 ) -> dict:
     total_start = time.time()
@@ -511,8 +512,8 @@ def runInferenceTriton(
             jet_idx = j
 
         feature_dict = {
-            **get_pfcands_features(tagger_vars, events, jet_idx, fatjet_label, pfcands_label),
-            **get_svs_features(tagger_vars, events, jet_idx, fatjet_label, svs_label),
+            **get_pfcands_features(tagger_vars, events, jet_idx, jets, fatjet_label, pfcands_label),
+            **get_svs_features(tagger_vars, events, jet_idx, jets, fatjet_label, svs_label),
             # **get_lep_features(tagger_vars, events, jet_idx, fatjet_label, muon_label, electron_label),
         }
 
