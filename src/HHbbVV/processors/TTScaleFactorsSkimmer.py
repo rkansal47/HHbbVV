@@ -551,7 +551,10 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         print("pre-inference")
 
         pnet_vars = runInferenceTriton(
-            self.tagger_resources_path, events[selection.all(*selection.names)], num_jets=1, jet_idx=fatjet_idx
+            self.tagger_resources_path,
+            events[selection.all(*selection.names)],
+            num_jets=1,
+            jet_idx=fatjet_idx[selection.all(*selection.names)],
         )
 
         print("post-inference")
