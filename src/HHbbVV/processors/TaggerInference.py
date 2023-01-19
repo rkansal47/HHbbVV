@@ -4,7 +4,7 @@ Methods for deriving input variables for the tagger and running inference.
 Author(s): Raghav Kansal, Cristina Mantilla Suarez, Melissa Quinnan
 """
 
-from typing import Dict
+from typing import Dict, Union
 
 import numpy as np
 import numpy.ma as ma
@@ -48,7 +48,7 @@ def build_p4(cand):
 def get_pfcands_features(
     tagger_vars: dict,
     preselected_events: NanoEventsArray,
-    jet_idx: int,
+    jet_idx: Union[int, ArrayLike],
     fatjet_label: str = "FatJetAK15",
     pfcands_label: str = "FatJetAK15PFCands",
     normalize: bool = True,
@@ -60,7 +60,13 @@ def get_pfcands_features(
 
     feature_dict = {}
 
-    jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
+    if type(jet_idx) is int:
+        jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
+    else:
+        jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[
+            range(len(preselected_events)), jet_idx
+        ]
+
     jet_ak_pfcands = preselected_events[pfcands_label][
         preselected_events[pfcands_label].jetIdx == jet_idx
     ]
