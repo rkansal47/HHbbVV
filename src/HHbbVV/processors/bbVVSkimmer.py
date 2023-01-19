@@ -16,12 +16,13 @@ import gzip
 import os
 
 from typing import Dict
+from collections import OrderedDict
 
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection
-from .corrections import add_pileup_weight, add_VJets_kFactors, get_jec_key
-from collections import OrderedDict
+from .corrections import add_pileup_weight, add_VJets_kFactors, get_jec_key, get_jec_jets
+
 
 P4 = {
     "eta": "Eta",
@@ -52,119 +53,92 @@ class bbVVSkimmer(ProcessorABC):
         save_ak15 (bool, optional): save ak15 jets as well, for HVV candidate
     """
 
+    # TODO: Check if this is correct for JetHT
+    LUMI = {  # in pb^-1
+        "2016": 16830.0,
+        "2016APV": 19500.0,
+        "2017": 41480.0,
+        "2018": 59830.0,
+    }
+
+    HLTs = {
+        2016: [
+            "AK8DiPFJet250_200_TrimMass30_BTagCSV_p20",
+            "AK8DiPFJet280_200_TrimMass30_BTagCSV_p20",
+            #
+            "AK8PFHT600_TrimR0p1PT0p03Mass50_BTagCSV_p20",
+            "AK8PFHT700_TrimR0p1PT0p03Mass50",
+            #
+            "AK8PFJet360_TrimMass30",
+            "AK8PFJet450",
+            "PFJet450",
+            #
+            "PFHT800",
+            "PFHT900",
+            "PFHT1050",
+            #
+            "PFHT750_4JetPt50",
+            "PFHT750_4JetPt70",
+            "PFHT800_4JetPt50",
+        ],
+        2017: [
+            "PFJet450",
+            "PFJet500",
+            #
+            "AK8PFJet400",
+            "AK8PFJet450",
+            "AK8PFJet500",
+            #
+            "AK8PFJet360_TrimMass30",
+            "AK8PFJet380_TrimMass30",
+            "AK8PFJet400_TrimMass30",
+            #
+            "AK8PFHT750_TrimMass50",
+            "AK8PFHT800_TrimMass50",
+            #
+            "PFHT1050",
+            #
+            "AK8PFJet330_PFAK8BTagCSV_p17",
+        ],
+        2018: [
+            "PFJet500",
+            #
+            "AK8PFJet500",
+            #
+            "AK8PFJet360_TrimMass30",
+            "AK8PFJet380_TrimMass30",
+            "AK8PFJet400_TrimMass30",
+            "AK8PFHT750_TrimMass50",
+            "AK8PFHT800_TrimMass50",
+            #
+            "PFHT1050",
+            #
+            "HLT_AK8PFJet330_TrimMass30_PFAK8BTagCSV_p17_v",
+        ],
+    }
+
+    # key is name in nano files, value will be the name in the skimmed output
+    skim_vars = {
+        "FatJet": {
+            **P4,
+            "msoftdrop": "Msd",
+            "particleNetMD_QCD": "ParticleNetMD_QCD",
+            "particleNetMD_Xbb": "ParticleNetMD_Xbb",
+            # "particleNetMD_Xcc": "ParticleNetMD_Xcc",
+            # "particleNetMD_Xqq": "ParticleNetMD_Xqq",
+            "particleNet_H4qvsQCD": "ParticleNet_Th4q",
+        },
+        "GenHiggs": P4,
+        "other": {"MET_pt": "MET_pt"},
+    }
+
+    preselection_cut_vals = {"pt": 250, "msd": 20}
+
     def __init__(self, xsecs={}, save_ak15=False):
         super(bbVVSkimmer, self).__init__()
 
-        # TODO: Check if this is correct for JetHT
-        self.LUMI = {
-            "2016": 16830.0,
-            "2016APV": 19500.0,
-            "2017": 41480.0,
-            "2018": 59830.0,
-        }  # in pb^-1
         self.XSECS = xsecs  # in pb
         self.save_ak15 = save_ak15
-
-        self.HLTs = {
-            2016: [
-                "AK8DiPFJet250_200_TrimMass30_BTagCSV_p20",
-                "AK8DiPFJet280_200_TrimMass30_BTagCSV_p20",
-                #
-                "AK8PFHT600_TrimR0p1PT0p03Mass50_BTagCSV_p20",
-                "AK8PFHT700_TrimR0p1PT0p03Mass50",
-                #
-                "AK8PFJet360_TrimMass30",
-                "AK8PFJet450",
-                "PFJet450",
-                #
-                "PFHT800",
-                "PFHT900",
-                "PFHT1050",
-                #
-                "PFHT750_4JetPt50",
-                "PFHT750_4JetPt70",
-                "PFHT800_4JetPt50",
-            ],
-            2017: [
-                "PFJet450",
-                "PFJet500",
-                #
-                "AK8PFJet400",
-                "AK8PFJet450",
-                "AK8PFJet500",
-                #
-                "AK8PFJet360_TrimMass30",
-                "AK8PFJet380_TrimMass30",
-                "AK8PFJet400_TrimMass30",
-                #
-                "AK8PFHT750_TrimMass50",
-                "AK8PFHT800_TrimMass50",
-                #
-                "PFHT1050",
-                #
-                "AK8PFJet330_PFAK8BTagCSV_p17",
-            ],
-            2018: [
-                "PFJet500",
-                #
-                "AK8PFJet500",
-                #
-                "AK8PFJet360_TrimMass30",
-                "AK8PFJet380_TrimMass30",
-                "AK8PFJet400_TrimMass30",
-                "AK8PFHT750_TrimMass50",
-                "AK8PFHT800_TrimMass50",
-                #
-                "PFHT1050",
-                #
-                "HLT_AK8PFJet330_TrimMass30_PFAK8BTagCSV_p17_v",
-            ],
-        }
-
-        # key is name in nano files, value will be the name in the skimmed output
-        self.skim_vars = {
-            "FatJet": {
-                **P4,
-                "msoftdrop": "Msd",
-                "particleNetMD_QCD": "ParticleNetMD_QCD",
-                "particleNetMD_Xbb": "ParticleNetMD_Xbb",
-                # "particleNetMD_Xcc": "ParticleNetMD_Xcc",
-                # "particleNetMD_Xqq": "ParticleNetMD_Xqq",
-                "particleNet_H4qvsQCD": "ParticleNet_Th4q",
-            },
-            # "FatJetAK15": {
-            #     **P4,
-            #     "msoftdrop": "Msd",
-            #     "ParticleNetMD_probQCD": "ParticleNetMD_probQCD",
-            #     # "ParticleNetMD_probQCDb": "ParticleNetMD_probQCDb",
-            #     # "ParticleNetMD_probQCDbb": "ParticleNetMD_probQCDbb",
-            #     # "ParticleNetMD_probQCDc": "ParticleNetMD_probQCDc",
-            #     # "ParticleNetMD_probQCDcc": "ParticleNetMD_probQCDcc",
-            #     "ParticleNetMD_probXbb": "ParticleNetMD_probXbb",
-            #     # "ParticleNetMD_probXcc": "ParticleNetMD_probXcc",
-            #     # "ParticleNetMD_probXqq": "ParticleNetMD_probXqq",
-            #     # old non-md particlenet
-            #     # "ParticleNet_probHbb": "ParticleNet_probHbb",
-            #     # "ParticleNet_probHcc": "ParticleNet_probHcc",
-            #     # "ParticleNet_probHqqqq": "ParticleNet_probHqqqq",
-            #     # "ParticleNet_probQCDb": "ParticleNet_probQCDb",
-            #     # "ParticleNet_probQCDbb": "ParticleNet_probQCDbb",
-            #     # "ParticleNet_probQCDc": "ParticleNet_probQCDc",
-            #     # "ParticleNet_probQCDcc": "ParticleNet_probQCDcc",
-            #     # "ParticleNet_probQCDothers": "ParticleNet_probQCDothers",
-            # },
-            "GenHiggs": P4,
-            "other": {"MET_pt": "MET_pt"},
-        }
-
-        self.preselection_cut_vals = {"pt": 250, "msd": 20}
-
-        # find corrections path using this file's path
-        # with gzip.open(
-        #     str(pathlib.Path(__file__).parent.parent.resolve()) + "/corrections/corrections.pkl.gz",
-        #     "rb",
-        # ) as filehandler:
-        #     self.corrections = pickle.load(filehandler)
 
         # for tagger model and preprocessing dict
         self.tagger_resources_path = (
@@ -231,18 +205,6 @@ class bbVVSkimmer(ProcessorABC):
                     **gen_selection_dict[d](events, selection, cutflow, signGenWeights, P4),
                 }
 
-        # TODO: Apply JECs, save variations
-        jec_cache = {}
-        # thekey = get_jec_key(year)
-        # fatjets = fatjet_factory[thekey].build(
-        #    add_jec_variables(events.FatJet, events.fixedGridRhoFastjetAll), jec_cache
-        # )
-        # jets = jet_factory[thekey].build(
-        #    add_jec_variables(events.Jet, events.fixedGridRhoFastjetAll), jec_cache
-        # )
-        fatjets = events.FatJet
-        jets = events.Jet
-
         # triggers
         # OR-ing HLT triggers
         if isData:
@@ -258,11 +220,12 @@ class bbVVSkimmer(ProcessorABC):
             )
             add_selection("trigger", HLT_triggered, selection, cutflow, isData, signGenWeights)
 
-        # pre-selection cuts
-        # ORing ak8 and ak15 cuts
+        # TODO: save variations (?)
+        fatjets = get_jec_jets(events, year) if not isData else events.FatJet
 
         num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
 
+        # pre-selection cuts
         preselection_cut = np.prod(
             pad_val(
                 (events.FatJet.pt > self.preselection_cut_vals["pt"])
@@ -273,21 +236,6 @@ class bbVVSkimmer(ProcessorABC):
             ),
             axis=1,
         )
-
-        if self.save_ak15:
-            preselection_cut = np.logical_or(
-                preselection_cut,
-                np.prod(
-                    pad_val(
-                        (events.FatJetAK15.pt > self.preselection_cut_vals["pt"])
-                        * (events.FatJetAK15.msoftdrop > self.preselection_cut_vals["msd"]),
-                        num_jets,
-                        False,
-                        axis=1,
-                    ),
-                    axis=1,
-                ),
-            )
 
         add_selection(
             "preselection",
@@ -313,14 +261,7 @@ class bbVVSkimmer(ProcessorABC):
 
         skimmed_events = {**skimmed_events, **ak8FatJetVars, **otherVars}
 
-        if self.save_ak15:
-            ak15FatJetVars = {
-                f"ak15FatJet{key}": pad_val(events.FatJetAK15[var], 2, -99999, axis=1)
-                for (var, key) in self.skim_vars["FatJetAK15"].items()
-            }
-            skimmed_events = {**skimmed_events, **ak15FatJetVars}
-
-        # particlenet h4q vs qcd, xbb vs qcd
+        # particlenet xbb vs qcd
 
         skimmed_events["ak8FatJetParticleNetMD_Txbb"] = pad_val(
             events.FatJet.particleNetMD_Xbb
@@ -329,34 +270,6 @@ class bbVVSkimmer(ProcessorABC):
             -1,
             axis=1,
         )
-
-        if self.save_ak15:
-            skimmed_events["ak15FatJetParticleNetMD_Txbb"] = pad_val(
-                events.FatJetAK15.ParticleNetMD_probXbb
-                / (
-                    events.FatJetAK15.ParticleNetMD_probQCD
-                    + events.FatJetAK15.ParticleNetMD_probXbb
-                ),
-                2,
-                -1,
-                axis=1,
-            )
-
-            if "ParticleNet_probHqqqq" in events.FatJetAK15.fields:
-                skimmed_events["ak15FatJetParticleNet_Th4q"] = pad_val(
-                    events.FatJetAK15.ParticleNet_probHqqqq
-                    / (
-                        events.FatJetAK15.ParticleNet_probHqqqq
-                        + events.FatJetAK15.ParticleNet_probQCDb
-                        + events.FatJetAK15.ParticleNet_probQCDbb
-                        + events.FatJetAK15.ParticleNet_probQCDc
-                        + events.FatJetAK15.ParticleNet_probQCDcc
-                        + events.FatJetAK15.ParticleNet_probQCDothers
-                    ),
-                    2,
-                    -1,
-                    axis=1,
-                )
 
         # calc weights
         if isData:
@@ -396,30 +309,15 @@ class bbVVSkimmer(ProcessorABC):
             events[selection.all(*selection.names)],
             ak15=False,
         )
-        # pnet_vars_v2 = runInferenceTriton(
-        #    self.tagger_resources_path, events[selection.all(*selection.names)], ak15=False,
-        #    tag = "_hww_inclv2", output = "output__0",
-        # )
-
-        if self.save_ak15:
-            pnet_vars_ak15 = runInferenceTriton(
-                self.tagger_resources_path, events[selection.all(*selection.names)], ak15=True
-            )
 
         # pnet_vars = {}
 
         print("post-inference")
+
         skimmed_events = {
             **skimmed_events,
             **{key: value for (key, value) in pnet_vars.items()},
-            # **{key: value for (key, value) in pnet_vars_v2.items()},
         }
-
-        if self.save_ak15:
-            skimmed_events = {
-                **skimmed_events,
-                **{key: value for (key, value) in pnet_vars_ak15.items()},
-            }
 
         df = self.to_pandas(skimmed_events)
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
