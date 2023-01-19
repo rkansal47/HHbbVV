@@ -572,8 +572,6 @@ def runInferenceTriton(
         time_taken = time.time() - start
         print(f"Inference took {time_taken:.1f}s")
 
-    print(tagger_outputs[0][-5:])
-
     pnet_vars_list = []
 
     for jet_idx in range(num_jets):
