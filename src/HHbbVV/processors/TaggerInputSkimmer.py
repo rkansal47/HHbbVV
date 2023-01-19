@@ -210,7 +210,7 @@ class TaggerInputSkimmer(ProcessorABC):
                         "pfcand_btagJetDistVal",
                     ],
                     # number of pf cands to select or pad up to
-                    "var_length": 128, 
+                    "var_length": 128,
                 },
                 "pf_vectors": {
                     "var_names": [
