@@ -300,11 +300,12 @@ def tagger_gen_H_matching(
     jet_dR: float,
     match_dR: float = 1.0,
     decays: str = "VV",
+    h_pdgid: int = HIGGS_PDGID
 ) -> Tuple[np.array, Dict[str, np.array]]:
     """Gen matching for Higgs samples, arguments as defined in ``tagger_gen_matching``"""
 
     higgs = genparts[
-        get_pid_mask(genparts, HIGGS_PDGID, byall=False) * genparts.hasFlags(GEN_FLAGS)
+        get_pid_mask(genparts, h_pdgid, byall=False) * genparts.hasFlags(GEN_FLAGS)
     ]
 
     # find closest higgs
@@ -417,7 +418,7 @@ def tagger_gen_H_matching(
         }
 
         # number of c quarks in V decay inside jet
-        cquarks = daughters_nov[ daughters_pdgId == c_PDGID ]
+        cquarks = daughters_nov[ abs(daughters_nov.pdgId) == c_PDGID ]
         ncquarks = ak.sum(fatjets.delta_r(cquarks) < jet_dR, axis=1)
 
         genLabelVars = {
@@ -619,8 +620,8 @@ def tagger_gen_Top_matching(
             & (wboson_daughters_pdgId != vTAU_PDGID)
         )
     ]
-    # nprongs only includes the number of quarks from W decay (not b)
-    nprongs = ak.sum(fatjets.delta_r(wboson_daughters_nov) < jet_dR, axis=1) + matched_b
+    # nprongs only includes the number of quarks from W decay (not b!)
+    nprongs = ak.sum(fatjets.delta_r(wboson_daughters_nov) < jet_dR, axis=1)
 
     # number of c quarks in V decay inside jet
     cquarks = wboson_daughters_nov[ wboson_daughters_pdgId == c_PDGID ]
@@ -746,6 +747,10 @@ def tagger_gen_matching(
     if "H_" in label:
         matched_mask, GenVars = tagger_gen_H_matching(
             genparts, fatjets, genlabels, jet_dR, match_dR, decays=label.split("_")[-1]
+        )
+    elif "Y_" in label:
+        matched_mask, GenVars = tagger_gen_H_matching(
+            genparts, fatjets, genlabels, jet_dR, match_dR, decays=label.split("_")[-1], h_pdgid=35
         )
     elif "QCD" in label:
         matched_mask, GenVars = tagger_gen_QCD_matching(

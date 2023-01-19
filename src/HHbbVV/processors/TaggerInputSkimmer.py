@@ -55,7 +55,7 @@ class TaggerInputSkimmer(ProcessorABC):
         """
         Skimming variables
 
-        Equivalence to other labels:
+        Equivalence to other labels present in training datasets:
         ====
         (ignoring if V is W or Z)
         label_H_WqqWqq_0c: ( (fj_H_VV_4q==1) & (fj_nprongs==4) & (fj_ncquarks==0) )
@@ -64,19 +64,27 @@ class TaggerInputSkimmer(ProcessorABC):
         label_H_WqqWq_0c: ( (fj_H_VV_4q==1) & (fj_nprongs==3) & (fj_ncquarks==0) )
         label_H_WqqWq_1c: ( (fj_H_VV_4q==1) & (fj_nprongs==3) & (fj_ncquarks==1) )
         label_H_WqqWq_2c: ( (fj_H_VV_4q==1) & (fj_nprongs==3) & (fj_ncquarks==2) )
-        label_H_WqqWev_0c: ( (fj_H_VV_elenuqq==1) & (fj_ncquarks==0) )
-        label_H_WqqWev_1c: ( (fj_H_VV_elenuqq==1) & (fj_ncquarks==1) )
-        label_H_WqqWmv_0c: ( (fj_H_VV_munuqq==1) & (fj_ncquarks==0) )
-        label_H_WqqWmv_1c: ( (fj_H_VV_munuqq==1) & (fj_ncquarks==1) )
+        label_H_WqqWev_0c: ( (fj_H_VV_elenuqq==1) & (fj_nprongs==2) & (fj_ncquarks==0) )
+        label_H_WqqWev_1c: ( (fj_H_VV_elenuqq==1) & (fj_nprongs==2) & (fj_ncquarks==1) )
+        label_H_WqqWmv_0c: ( (fj_H_VV_munuqq==1) & (fj_nprongs==2) & (fj_ncquarks==0) )
+        label_H_WqqWmv_1c: ( (fj_H_VV_munuqq==1) & (fj_nprongs==2) & (fj_ncquarks==1) )
+        label_H_WqqWtauev_0c: ( (fj_H_VV_leptauelvqq==1) & (fj_nprongs==2) & (fj_ncquarks==0) )
+        label_H_WqqWtauev_1c: ( (fj_H_VV_leptauelvqq==1) & (fj_nprongs==2) & (fj_ncquarks==1) )
+        label_H_WqqWtaumv_0c: ( (fj_H_VV_leptaumuvqq==1) & (fj_nprongs==2) & (fj_ncquarks==0) )
+        label_H_WqqWtaumv_1c: ( (fj_H_VV_leptaumuvqq==1) & (fj_nprongs==2) & (fj_ncquarks==1) )
+        label_H_WqqWtauhv_0c: ( (fj_H_VV_hadtauvqq==1) & (fj_nprongs==2) & (fj_ncquarks==0) )
+        label_H_WqqWtauhv_1c: ( (fj_H_VV_hadtauvqq==1) & (fj_nprongs==2) & (fj_ncquarks==1) )
 
+        rough equivalence of UCSD labels in terms of PKU labels:
         fj_H_VV_4q: ((label_H_WqqWqq_0c == 1) | (label_H_WqqWqq_1c == 1) | (label_H_WqqWqq_2c == 1) )
         fj_H_VV_3q: ((label_H_WqqWq_0c == 1) | (label_H_WqqWq_1c == 1) | (label_H_WqqWq_2c == 1) )
         fj_H_VV_elenuqq: ((label_H_WqqWev_0c == 1) | (label_H_WqqWev_1c == 1) )
         fj_H_VV_munuqq: ((label_H_WqqWmv_0c == 1) | (label_H_WqqWmv_1c == 1) )
-        fj_H_VV_leptauelvqq: ((label_H_VqqVtauev_0c == 1) | (label_H_VqqVtauev_1c == 1) )
-        fj_H_VV_leptaumuvqq: ((label_H_VqqVtaumv_0c == 1) | (label_H_VqqVtaumv_1c == 1) )
-        fj_H_VV_hadtauvqq: ( (label_H_VqqVtauhv_0c == 0) | (label_H_VqqVtauhv_1c == 1) )
-        fj_H_VV_taunuqq: ( (label_H_VV_leptauelvqq == 1) | (label_H_VV_leptaumuvqq == 1) | (label_H_VV_hadtauvqq == 1) )
+        fj_H_VV_leptauelvqq: ((label_H_WqqWtauev_0c == 1) | (label_H_WqqWtauev_1c == 1) )
+        fj_H_VV_leptaumuvqq: ((label_H_WqqWtaumv_0c == 1) | (label_H_WqqWtaumv_1c == 1) )
+        fj_H_VV_hadtauvqq: ( (label_H_WqqWtauhv_0c == 0) | (label_H_WqqWtauhv_1c == 1) )
+
+        fj_H_VV_taunuqq: ( (fj_H_VV_leptauelvqq == 1) | (fj_H_VV_leptaumuvqq == 1) | (fj_H_VV_hadtauvqq == 1) )
 
         label_Top_bWqq_0c: ( (fj_Top_2q==1) & (fj_nprongs == 2)  & (fj_Top_bmerged==1) & (fj_ncquarks==0) ) 
         label_Top_bWqq_1c: ( (fj_Top_2q==1) & (fj_nprongs == 2) & (fj_Top_bmerged==1) & (fj_ncquarks==1) ) 
@@ -458,7 +466,6 @@ class TaggerInputSkimmer(ProcessorABC):
             print(f"Gen vars: {time.time() - start:.1f}s")
 
             if np.sum(selection.all(*selection.names)) == 0:
-                print("No jets pass selections")
                 continue
 
             skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars, **METVars}
@@ -489,7 +496,10 @@ class TaggerInputSkimmer(ProcessorABC):
             # print(jet_vars)
 
         elif len(jet_vars) == 1:
-            jet_vars = jet_vars[0]
+            print("One jet passed selection")
+            return {}
+            # for now, avoid events that only have one jet - they are a pain
+            # jet_vars = jet_vars[0]
         else:
             print("No jets passed selection")
             return {}
