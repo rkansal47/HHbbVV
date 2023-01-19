@@ -547,6 +547,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             key: value[selection.all(*selection.names)] for (key, value) in skimmed_events.items()
         }
 
+        print(skimmed_events["ak8FatJetEta"])
+
         # apply HWW4q tagger
         print("pre-inference")
 
