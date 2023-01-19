@@ -21,6 +21,15 @@ pog_jsons = {
 }
 
 
+def get_jec_key(year: str):
+    thekey = f"{year}mc"
+    if year == "2016":
+        thekey = "2016postVFPmc"
+    elif year == "2016APV":
+        thekey = "2016preVFPmc"
+    return thekey
+
+
 def get_vfp_year(year: str) -> str:
     if year == "2016":
         year = "2016postVFP"
@@ -66,6 +75,79 @@ def add_pileup_weight(weights: Weights, year: str, nPU: np.ndarray):
 
     # add weights (for now only the nominal weight)
     weights.add("pileup", values["nominal"], values["up"], values["down"])
+
+
+def get_vpt(genpart, check_offshell=False):
+    """Only the leptonic samples have no resonance in the decay tree, and only
+    when M is beyond the configured Breit-Wigner cutoff (usually 15*width)
+    """
+    boson = ak.firsts(
+        genpart[
+            ((genpart.pdgId == 23) | (abs(genpart.pdgId) == 24))
+            & genpart.hasFlags(["fromHardProcess", "isLastCopy"])
+        ]
+    )
+    if check_offshell:
+        offshell = genpart[
+            genpart.hasFlags(["fromHardProcess", "isLastCopy"])
+            & ak.is_none(boson)
+            & (abs(genpart.pdgId) >= 11)
+            & (abs(genpart.pdgId) <= 16)
+        ].sum()
+        return ak.where(ak.is_none(boson.pt), offshell.pt, boson.pt)
+    return np.array(ak.fill_none(boson.pt, 0.0))
+
+
+def add_VJets_kFactors(weights, genpart, dataset):
+    """Revised version of add_VJets_NLOkFactor, for both NLO EW and ~NNLO QCD"""
+
+    common_systs = [
+        "d1K_NLO",
+        "d2K_NLO",
+        "d3K_NLO",
+        "d1kappa_EW",
+    ]
+    zsysts = common_systs + [
+        "Z_d2kappa_EW",
+        "Z_d3kappa_EW",
+    ]
+    znlosysts = [
+        "d1kappa_EW",
+        "Z_d2kappa_EW",
+        "Z_d3kappa_EW",
+    ]
+    wsysts = common_systs + [
+        "W_d2kappa_EW",
+        "W_d3kappa_EW",
+    ]
+
+    def add_systs(systlist, qcdcorr, ewkcorr, vpt):
+        ewknom = ewkcorr.evaluate("nominal", vpt)
+        weights.add("vjets_nominal", qcdcorr * ewknom if qcdcorr is not None else ewknom)
+        ones = np.ones_like(vpt)
+        for syst in systlist:
+            weights.add(
+                syst,
+                ones,
+                ewkcorr.evaluate(syst + "_up", vpt) / ewknom,
+                ewkcorr.evaluate(syst + "_down", vpt) / ewknom,
+            )
+
+    if "ZJetsToQQ_HT" in dataset:
+        vpt = get_vpt(genpart)
+        qcdcorr = vjets_kfactors["ULZ_MLMtoFXFX"].evaluate(vpt)
+        ewkcorr = vjets_kfactors["Z_FixedOrderComponent"]
+        add_systs(zsysts, qcdcorr, ewkcorr, vpt)
+    elif "DYJetsToLL" in dataset:
+        vpt = get_vpt(genpart)
+        qcdcorr = 1
+        ewkcorr = vjets_kfactors["Z_FixedOrderComponent"]
+        add_systs(znlosysts, qcdcorr, ewkcorr, vpt)
+    elif "WJetsToQQ_HT" in dataset or "WJetsToLNu" in dataset:
+        vpt = get_vpt(genpart)
+        qcdcorr = vjets_kfactors["ULW_MLMtoFXFX"].evaluate(vpt)
+        ewkcorr = vjets_kfactors["W_FixedOrderComponent"]
+        add_systs(wsysts, qcdcorr, ewkcorr, vpt)
 
 
 # for scale factor validation region selection
