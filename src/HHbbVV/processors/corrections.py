@@ -233,11 +233,13 @@ def add_top_pt_weight(weights: Weights, events: NanoEventsArray):
 
 
 # find corrections path using this file's path
-package_path = str(pathlib.Path(__file__).parent.parent.resolve())
-with gzip.open(package_path + "/data/jec_compiled.pkl.gz", "rb") as filehandler:
-    jmestuff = pickle.load(filehandler)
-
-fatjet_factory = jmestuff["fatjet_factory"]
+try:
+    package_path = str(pathlib.Path(__file__).parent.parent.resolve())
+    with gzip.open(package_path + "/data/jec_compiled.pkl.gz", "rb") as filehandler:
+        jmestuff = pickle.load(filehandler)
+    fatjet_factory = jmestuff["fatjet_factory"]
+except:
+    print("Failed loading compiled JECs")
 
 
 def _add_jec_variables(jets: JetArray, event_rho: ak.Array) -> JetArray:
