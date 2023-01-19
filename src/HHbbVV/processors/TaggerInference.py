@@ -73,6 +73,7 @@ def get_pfcands_features(
 
     # negative eta jets have -1 sign, positive eta jets have +1
     eta_sign = ak.values_astype(jet_pfcands.eta > 0, int) * 2 - 1
+    print(jet_pfcands)
     feature_dict["pfcand_etarel"] = eta_sign * (jet_pfcands.eta - jet.eta)
     feature_dict["pfcand_phirel"] = jet_pfcands.delta_phi(jet)
     feature_dict["pfcand_abseta"] = np.abs(jet_pfcands.eta)
@@ -108,6 +109,8 @@ def get_pfcands_features(
     for var in tagger_vars["pf_features"]["var_names"]:
         if "btag" in var:
             feature_dict[var] = jet_ak_pfcands[var[len("pfcand_") :]]
+
+    print(tagger_vars["pf_features"])
 
     feature_dict["pfcand_mask"] = (
         ~(

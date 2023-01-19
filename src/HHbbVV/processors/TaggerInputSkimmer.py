@@ -96,6 +96,9 @@ class TaggerInputSkimmer(ProcessorABC):
         fj_Vqq_1q: ((fj_V_2q==1) & (fj_nprongs==1))
         fj_Vqq_2q: ((fj_V_2q==1) & (fj_nprongs==2))
         fj_wjets_label: ((fj_V_2q==1) | (fj_V_elenu==1) | (fj_V_munu==1) | (fj_V_taunu==1))
+
+        Note: for two-prong decays make sure you require two prongs, e.g.:
+        fj_H_gg_2p: ((fj_H_gg==1) & (fj_nprongs==2))
         """
 
         self.skim_vars = {
@@ -118,7 +121,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 "fj_genX_phi",
                 "fj_genX_mass",
                 "fj_nprongs",
-                "fj_ncquarks"
+                "fj_ncquarks",
                 "fj_lepinprongs",
                 "fj_H_VV_4q",
                 "fj_H_VV_elenuqq",
@@ -198,8 +201,17 @@ class TaggerInputSkimmer(ProcessorABC):
                         "pfcand_btagSip3dSig",
                         "pfcand_btagJetDistVal",
                     ],
+                    # number of pf cands to select or pad up to
+                    "var_length": 128, 
                 },
-                "pf_points": {"var_length": 100},  # number of pf cands to select or pad up to
+                "pf_vectors": {
+                    "var_names": [
+                        "pfcand_px",
+                        "pfcand_py",
+                        "pfcand_pz",
+                        "pfcand_energy",
+                    ],
+                },
                 "sv_features": {
                     "var_names": [
                         "sv_pt_log",
@@ -215,8 +227,17 @@ class TaggerInputSkimmer(ProcessorABC):
                         "sv_d3dsig",
                         "sv_costhetasvpv",
                     ],
+                    # number of svs to select or pad up to
+                    "var_length": 10,
                 },
-                "sv_points": {"var_length": 7},  # number of svs to select or pad up to
+                "sv_vectors": {
+                    "var_names": [
+                        "sv_px",
+                        "sv_py",
+                        "sv_pz",
+                        "sv_energy",
+                    ],
+                },
             },
             "Lep": {
                 "fj_features": {
@@ -377,17 +398,17 @@ class TaggerInputSkimmer(ProcessorABC):
                 **get_pfcands_features(
                     self.skim_vars["PFSV"],
                     events,
-                    jet_idx,
-                    self.fatjet_label,
-                    self.pfcands_label,
+                    jet_idx=jet_idx,
+                    fatjet_label=self.fatjet_label,
+                    pfcands_label=self.pfcands_label,
                     normalize=False,
                 ),
                 **get_svs_features(
                     self.skim_vars["PFSV"],
                     events,
-                    jet_idx,
-                    self.fatjet_label,
-                    self.svs_label,
+                    jet_idx=jet_idx,
+                    fatjet_label=self.fatjet_label,
+                    svs_label=self.svs_label,
                     normalize=False,
                 ),
             }
@@ -440,7 +461,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 print("No jets pass selections")
                 continue
 
-            skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars, **LepVars, **METVars}
+            skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars, **METVars}
 
             # apply selections
             skimmed_vars = {
@@ -453,11 +474,20 @@ class TaggerInputSkimmer(ProcessorABC):
             print(f"Jet {jet_idx + 1}: {time.time() - start:.1f}s")
 
         if len(jet_vars) > 1:
+            # for debugging
+            # for var in jet_vars[0]:
+            #     for jet_var in jet_vars:
+            #         print(var,jet_var[var])
+            #         print(len(jet_var[var]))
+
             # stack each set of jets
             jet_vars = {
                 var: np.concatenate([jet_var[var] for jet_var in jet_vars], axis=0)
                 for var in jet_vars[0]
             }
+
+            # print(jet_vars)
+
         elif len(jet_vars) == 1:
             jet_vars = jet_vars[0]
         else:

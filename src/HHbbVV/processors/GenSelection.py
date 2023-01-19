@@ -361,7 +361,7 @@ def tagger_gen_H_matching(
         ]
         # number of prongs inside the jet
         nprongs = ak.sum(fatjets.delta_r(daughters_nov) < jet_dR, axis=1)
-
+        
         lepdaughters = daughters[
             (
                 (daughters_pdgId == ELE_PDGID)
@@ -421,9 +421,9 @@ def tagger_gen_H_matching(
         ncquarks = ak.sum(fatjets.delta_r(cquarks) < jet_dR, axis=1)
 
         genLabelVars = {
-            "fj_H_VV_nprongs": nprongs,
-            "fj_H_VV_ncquarks": ncquarks,
-            "fj_H_VV_lepinprongs": lepinprongs,
+            "fj_nprongs": nprongs,
+            "fj_ncquarks": ncquarks,
+            "fj_lepinprongs": lepinprongs,
             "fj_H_VV_4q": to_label(decay == 11),
             "fj_H_VV_elenuqq": to_label(decay == 4),
             "fj_H_VV_munuqq": to_label(decay == 6),
@@ -436,31 +436,36 @@ def tagger_gen_H_matching(
 
     elif "qq" in decays:
         children_mask = get_pid_mask(matched_higgs_children, [g_PDGID, b_PDGID, c_PDGID, s_PDGID, d_PDGID, u_PDGID], byall=False)
-        daughters = matched_higgs_children[children_mask]
-        daughters_pdgId = abs(matched_higgs_children.pdgId)
-        
+        daughters = ak.firsts(matched_higgs_children[children_mask])
+        daughters_pdgId = abs(daughters.pdgId)
+
         nprongs = ak.sum(fatjets.delta_r(daughters) < jet_dR, axis=1)
         
-        # higgs twp-prong decay
+        # higgs decay
         decay = (
             # 2 b quarks * 1
-            ( (ak.sum(daughters_pdgId == b_PDGID, axis=1) == 2) & (nprongs==2) ) * 1
+            ( (ak.sum(daughters_pdgId == b_PDGID, axis=1) == 2) ) * 1
             # 2 c quarks * 3
-            ( (ak.sum(daughters_pdgId == c_PDGID, axis=1) == 2) & (nprongs==2) ) * 3
+            + ( (ak.sum(daughters_pdgId == c_PDGID, axis=1) == 2) ) * 3
             # 2 light quarks * 5
-            ( (ak.sum(daughters_pdgId < c_PDGID, axis=1) == 2) & (nprongs==2) ) * 5
+            + ( (ak.sum(daughters_pdgId < c_PDGID, axis=1) == 2) ) * 5
             # 2 gluons * 7
-            ( (ak.sum(daughters_pdgId == g_PDGID, axis=1) == 2) & (nprongs==2) ) * 7
+            + ( (ak.sum(daughters_pdgId == g_PDGID, axis=1) == 2) ) * 7
         )
 
         genLabelVars = {
-            "fj_H_bb": to_label(decay = 1),
-            "fj_H_cc": to_label(decay = 3), 
-            "fj_H_qq": to_label(decay = 5),
-            "fj_H_gg": to_label(decay = 7),
+            "fj_nprongs": nprongs,
+            "fj_H_bb": to_label(decay == 1),
+            "fj_H_cc": to_label(decay == 3), 
+            "fj_H_qq": to_label(decay == 5),
+            "fj_H_gg": to_label(decay == 7),
         }
 
         genVars = {**genVars, **genLabelVars}
+
+        # select event only if any of the q/g decays are within jet radius
+        matched_qs_mask = ak.any(fatjets.delta_r(daughters) < jet_dR, axis=1)
+        matched_mask = matched_higgs_mask & matched_qs_mask
 
     return matched_mask, genVars
 
