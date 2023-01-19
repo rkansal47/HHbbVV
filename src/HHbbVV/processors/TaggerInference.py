@@ -99,6 +99,11 @@ def get_pfcands_features(
     feature_dict["pfcand_dzsig"] = jet_pfcands.dz / jet_pfcands.dzErr
     feature_dict["pfcand_dxysig"] = jet_pfcands.d0 / jet_pfcands.d0Err
 
+    feature_dict["pfcand_px"] = jet_pfcands.px
+    feature_dict["pfcand_py"] = jet_pfcands.py
+    feature_dict["pfcand_pz"] = jet_pfcands.pz
+    feature_dict["pfcand_E"] = jet_pfcands.E
+
     # btag vars
     for var in tagger_vars["pf_features"]["var_names"]:
         if "btag" in var:
@@ -109,7 +114,7 @@ def get_pfcands_features(
             ma.masked_invalid(
                 ak.pad_none(
                     feature_dict["pfcand_abseta"],
-                    tagger_vars["pf_points"]["var_length"],
+                    tagger_vars["pf_features"]["var_length"],
                     axis=1,
                     clip=True,
                 ).to_numpy()
@@ -120,14 +125,15 @@ def get_pfcands_features(
     # if no padding is needed, mask will = 1.0
     if isinstance(feature_dict["pfcand_mask"], np.float32):
         feature_dict["pfcand_mask"] = np.ones(
-            (len(feature_dict["pfcand_abseta"]), tagger_vars["pf_points"]["var_length"])
+            (len(feature_dict["pfcand_abseta"]), tagger_vars["pf_features"]["var_length"])
         ).astype(np.float32)
 
     # convert to numpy arrays and normalize features
-    for var in tagger_vars["pf_features"]["var_names"]:
+    for var in set(tagger_vars["pf_features"]["var_names"] + tagger_vars["pf_vectors"]["var_names"]):
+        print(var)
         a = (
             ak.pad_none(
-                feature_dict[var], tagger_vars["pf_points"]["var_length"], axis=1, clip=True
+                feature_dict[var], tagger_vars["pf_features"]["var_length"], axis=1, clip=True
             )
             .to_numpy()
             .filled(fill_value=0)
@@ -195,12 +201,17 @@ def get_svs_features(
     svpAngle = jet_svs.pAngle
     feature_dict["sv_costhetasvpv"] = -np.cos(svpAngle)
 
+    feature_dict["sv_px"] = jet_svs.px
+    feature_dict["sv_py"] = jet_svs.py
+    feature_dict["sv_pz"] = jet_svs.pz
+    feature_dict["sv_E"] = jet_svs.E
+
     feature_dict["sv_mask"] = (
         ~(
             ma.masked_invalid(
                 ak.pad_none(
                     feature_dict["sv_etarel"],
-                    tagger_vars["sv_points"]["var_length"],
+                    tagger_vars["sv_features"]["var_length"],
                     axis=1,
                     clip=True,
                 ).to_numpy()
@@ -211,14 +222,15 @@ def get_svs_features(
     # if no padding is needed, mask will = 1.0
     if isinstance(feature_dict["sv_mask"], np.float32):
         feature_dict["sv_mask"] = np.ones(
-            (len(feature_dict["sv_abseta"]), tagger_vars["sv_points"]["var_length"])
+            (len(feature_dict["sv_abseta"]), tagger_vars["sv_features"]["var_length"])
         ).astype(np.float32)
 
     # convert to numpy arrays and normalize features
-    for var in tagger_vars["sv_features"]["var_names"]:
+    for var in set(tagger_vars["sv_features"]["var_names"] + tagger_vars["sv_vectors"]["var_names"]):
+        print(var)
         a = (
             ak.pad_none(
-                feature_dict[var], tagger_vars["sv_points"]["var_length"], axis=1, clip=True
+                feature_dict[var], tagger_vars["sv_features"]["var_length"], axis=1, clip=True
             )
             .to_numpy()
             .filled(fill_value=0)
@@ -258,7 +270,7 @@ def get_met_features(
     for var in tagger_vars["met_features"]["var_names"]:
         a = (
             # ak.pad_none(
-            #     feature_dict[var], tagger_vars["met_points"]["var_length"], axis=1, clip=True
+            #     feature_dict[var], tagger_vars["met_features"]["var_length"], axis=1, clip=True
             # )
             feature_dict[var]  # just 1d, no pad_none
             .to_numpy()
@@ -352,7 +364,7 @@ def get_lep_features(
         for var in tagger_vars["el_features"]["var_names"]:
             a = (
                 ak.pad_none(
-                    feature_dict[var], tagger_vars["el_points"]["var_length"], axis=1, clip=True
+                    feature_dict[var], tagger_vars["el_features"]["var_length"], axis=1, clip=True
                 )
                 .to_numpy()
                 .filled(fill_value=0)
@@ -387,7 +399,7 @@ def get_lep_features(
         for var in tagger_vars["mu_features"]["var_names"]:
             a = (
                 ak.pad_none(
-                    feature_dict[var], tagger_vars["mu_points"]["var_length"], axis=1, clip=True
+                    feature_dict[var], tagger_vars["mu_features"]["var_length"], axis=1, clip=True
                 )
                 .to_numpy()
                 .filled(fill_value=0)
@@ -523,7 +535,7 @@ def runInferenceTriton(
 
         tagger_inputs.append(
             {
-                f"{input_name}__{i}": np.concatenate(
+                f"{input_name}": np.concatenate(
                     [
                         np.expand_dims(feature_dict[key], 1)
                         for key in tagger_vars[input_name]["var_names"]
