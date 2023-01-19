@@ -146,7 +146,7 @@ def get_pfcands_features(
                 info = tagger_vars["pf_features"]["var_infos"][var]
             else:
                 info = tagger_vars["pf_vectors"]["var_infos"][var]
-            
+
             a = (a - info["median"]) * info["norm_factor"]
             a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
 
@@ -249,7 +249,7 @@ def get_svs_features(
                 info = tagger_vars["sv_features"]["var_infos"][var]
             else:
                 info = tagger_vars["sv_vectors"]["var_infos"][var]
-            
+
             a = (a - info["median"]) * info["norm_factor"]
             a = np.clip(a, info.get("lower_bound", -5), info.get("upper_bound", 5))
 
