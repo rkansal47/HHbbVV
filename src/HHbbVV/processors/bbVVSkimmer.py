@@ -62,7 +62,7 @@ class bbVVSkimmer(ProcessorABC):
     }
 
     HLTs = {
-        2016: [
+        "2016": [
             "AK8DiPFJet250_200_TrimMass30_BTagCSV_p20",
             "AK8DiPFJet280_200_TrimMass30_BTagCSV_p20",
             #
@@ -81,7 +81,7 @@ class bbVVSkimmer(ProcessorABC):
             "PFHT750_4JetPt70",
             "PFHT800_4JetPt50",
         ],
-        2017: [
+        "2017": [
             "PFJet450",
             "PFJet500",
             #
@@ -100,7 +100,7 @@ class bbVVSkimmer(ProcessorABC):
             #
             "AK8PFJet330_PFAK8BTagCSV_p17",
         ],
-        2018: [
+        "2018": [
             "PFJet500",
             #
             "AK8PFJet500",
