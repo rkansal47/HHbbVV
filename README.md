@@ -68,7 +68,7 @@ Parquet and pickle files will be saved in the eos directory of specified user at
 
 To test locally:
 
-`python -W ignore src/run.py --processor skimmer --year 2017 --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q --starti 0 --endi 1`
+`python -W ignore src/run.py --processor skimmer --year 2017 --samples HH --subsamples GluGluToHHTobbVV_node_cHHH1 --starti 0 --endi 1`
 
 Jobs
 ```bash
