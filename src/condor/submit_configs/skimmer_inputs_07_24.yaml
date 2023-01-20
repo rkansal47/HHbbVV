@@ -1,18 +1,18 @@
 {
     "Skimmer":
         {
-            "HWW":
+            "HH":
                 {
-                    "subsamples": ["GluGluToHHTobbVV_node_cHHH1_pn4q"],
+                    "subsamples": ["GluGluToHHTobbVV_node_cHHH1"],
                     "files_per_job": 20,
                 },
+            "QCD": { "files_per_job": 20 },
+            "WJetsToQQ": { "files_per_job": 20 },
+            "TTbar":
+                {
+                    "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
+                    "files_per_job": 20,
+                },
+            "JetHT2017": { "files_per_job": 20 },
         },
-    "QCD": { "files_per_job": 20 },
-    "WJetsToQQ": { "files_per_job": 20 },
-    "TTbar":
-        {
-            "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
-            "files_per_job": 20,
-        },
-    "JetHT2017": { "files_per_job": 20 },
 }
