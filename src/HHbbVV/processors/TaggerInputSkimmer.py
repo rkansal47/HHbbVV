@@ -103,6 +103,8 @@ class TaggerInputSkimmer(ProcessorABC):
 
         fj_Vqq_1q: ((fj_V_2q==1) & (fj_nprongs==1))
         fj_Vqq_2q: ((fj_V_2q==1) & (fj_nprongs==2))
+        label_Wqq_jets_1c: ((fj_V_2q==1) & (fj_ncquarks==0) )
+        label_Wqq_jets_0c: ((fj_V_2q==1) & (fj_ncquarks==1) ) 
         fj_wjets_label: ((fj_V_2q==1) | (fj_V_elenu==1) | (fj_V_munu==1) | (fj_V_taunu==1))
 
         Note: for two-prong decays make sure you require two prongs, e.g.:
