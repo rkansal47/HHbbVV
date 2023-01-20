@@ -68,11 +68,11 @@ Parquet and pickle files will be saved in the eos directory of specified user at
 
 To test locally:
 
-`python -W ignore src/run.py --processor skimmer --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q --starti 0 --endi 1`
+`python -W ignore src/run.py --processor skimmer --year 2017 --samples HWW --subsamples GluGluToHHTobbVV_node_cHHH1_pn4q --starti 0 --endi 1`
 
 Jobs
 ```bash
-nohup python src/condor/submit_from_yaml.py --year 2017 --tag Jul24 --processor skimmer --submit --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml &> tmp/submitou.txt &
+nohup python src/condor/submit_from_yaml.py --year 2017 --tag Jul24 --processor skimmer --submit --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml &> tmp/submitout.txt &
 
 # Submit (if not using the --submit flag)
 nohup bash -c 'for i in condor/'"${TAG}"'/*.jdl; do condor_submit $i; done' &> tmp/submitout.txt &
