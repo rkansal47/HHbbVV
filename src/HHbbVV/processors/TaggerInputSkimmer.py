@@ -76,6 +76,8 @@ class TaggerInputSkimmer(ProcessorABC):
         label_H_WqqWtauhv_1c: ( (fj_H_VV_hadtauvqq==1) & (fj_nprongs==2) & (fj_ncquarks==1) )
 
         rough equivalence of UCSD labels in terms of PKU labels:
+        https://github.com/colizz/DNNTuples/blob/fa381ba419a8814390911dc980d0142c271ec166/FatJetHelpers/src/FatJetMatching.cc#L419-L441
+
         fj_H_VV_4q: ((label_H_WqqWqq_0c == 1) | (label_H_WqqWqq_1c == 1) | (label_H_WqqWqq_2c == 1) )
         fj_H_VV_3q: ((label_H_WqqWq_0c == 1) | (label_H_WqqWq_1c == 1) | (label_H_WqqWq_2c == 1) )
         fj_H_VV_elenuqq: ((label_H_WqqWev_0c == 1) | (label_H_WqqWev_1c == 1) )
@@ -499,9 +501,7 @@ class TaggerInputSkimmer(ProcessorABC):
 
         elif len(jet_vars) == 1:
             print("One jet passed selection")
-            return {}
-            # for now, avoid events that only have one jet - they are a pain
-            # jet_vars = jet_vars[0]
+            jet_vars = jet_vars[0]
         else:
             print("No jets passed selection")
             return {}
