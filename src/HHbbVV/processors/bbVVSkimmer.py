@@ -277,7 +277,7 @@ class bbVVSkimmer(ProcessorABC):
         else:
             skimmed_events["genWeight"] = events.genWeight.to_numpy()
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
-            add_VJets_kFactors(weights, events.GenPart, dataset)
+            # add_VJets_kFactors(weights, events.GenPart, dataset)
 
             # TODO: theory uncertainties
             # TODO: trigger SFs here once calculated properly
