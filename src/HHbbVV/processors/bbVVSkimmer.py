@@ -315,9 +315,12 @@ class bbVVSkimmer(ProcessorABC):
             **{key: value for (key, value) in pnet_vars.items()},
         }
 
-        df = self.to_pandas(skimmed_events)
-        fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
-        self.dump_table(df, fname)
+        if len(skimmed_events["weight"]):
+            df = self.to_pandas(skimmed_events)
+            fname = (
+                events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
+            )
+            self.dump_table(df, fname)
 
         return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
 
