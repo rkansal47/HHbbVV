@@ -461,7 +461,7 @@ def get_lund_SFs(
     """
     Calculates scale factors for jets based on splittings in the primary Lund Plane.
     Calculates random smearings for statistical uncertainties, and total up/down systematic variation
-    as well. 
+    as well.
 
     Args:
         events (NanoEventsArray): nano events

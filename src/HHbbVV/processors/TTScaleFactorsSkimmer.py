@@ -33,7 +33,13 @@ from typing import Dict, Tuple, List
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, ttbar_scale_factor_matching
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection
-from .corrections import add_pileup_weight, add_lepton_weights, add_top_pt_weight, get_jec_jets, get_lund_SFs
+from .corrections import (
+    add_pileup_weight,
+    add_lepton_weights,
+    add_top_pt_weight,
+    get_jec_jets,
+    get_lund_SFs,
+)
 
 
 MU_PDGID = 13
@@ -379,7 +385,13 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             skimmed_events = {**skimmed_events, **match_dict}
 
             if np.any(top_matched):
-                sf_dict = get_lund_SFs(events[top_matched], fatjet_idx[top_matched], num_prongs, trunc_gauss=True, lnN=True)
+                sf_dict = get_lund_SFs(
+                    events[top_matched],
+                    fatjet_idx[top_matched],
+                    num_prongs,
+                    trunc_gauss=True,
+                    lnN=True,
+                )
 
                 # fill zeros for all non-top-matched events
                 for key, val in list(sf_dict.items()):
@@ -392,9 +404,9 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             # else:
             #     sf_dict = {}
 
-                #     "lp_sf": np.zeros((len(events), self.n_sf_toys + 1)),
-                #     "lp_sf_lnN": np.zeros((len(events), self.n_sf_toys + 1)),
-                # }
+            #     "lp_sf": np.zeros((len(events), self.n_sf_toys + 1)),
+            #     "lp_sf_lnN": np.zeros((len(events), self.n_sf_toys + 1)),
+            # }
 
             # skimmed_events = {**skimmed_events, **match_dict, **sf_dict}
 
