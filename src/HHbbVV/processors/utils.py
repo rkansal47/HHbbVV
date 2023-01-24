@@ -10,6 +10,14 @@ import awkward as ak
 from coffea.analysis_tools import PackedSelection
 
 
+P4 = {
+    "eta": "Eta",
+    "phi": "Phi",
+    "mass": "Mass",
+    "pt": "Pt",
+}
+
+
 def pad_val(
     arr: ak.Array,
     target: int,
