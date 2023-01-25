@@ -32,7 +32,7 @@ from typing import Dict, Tuple, List
 
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, ttbar_scale_factor_matching
 from .TaggerInference import runInferenceTriton
-from .utils import pad_val, add_selection
+from .utils import pad_val, add_selection, P4
 from .corrections import (
     add_pileup_weight,
     add_lepton_weights,
@@ -151,8 +151,6 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         self.tagger_resources_path = (
             str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
         )
-
-        self.n_sf_toys = n_sf_toys
 
         self._accumulator = dict_accumulator({})
 
