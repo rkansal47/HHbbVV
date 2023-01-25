@@ -1,13 +1,25 @@
 import os
+from typing import Dict, List, Tuple
 import numpy as np
 import gzip
 import pickle
 import correctionlib
 import awkward as ak
+
 from coffea.analysis_tools import Weights
+from coffea.lookup_tools.dense_lookup import dense_lookup
 from coffea.nanoevents.methods.nanoaod import MuonArray, JetArray, FatJetArray
 from coffea.nanoevents.methods.base import NanoEventsArray
+
 import pathlib
+
+import fastjet
+
+from utils import P4
+
+
+package_path = str(pathlib.Path(__file__).parent.parent.resolve())
+
 
 """
 CorrectionLib files are available from: /cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration - synced daily
@@ -234,9 +246,9 @@ def add_top_pt_weight(weights: Weights, events: NanoEventsArray):
 
 # find corrections path using this file's path
 try:
-    package_path = str(pathlib.Path(__file__).parent.parent.resolve())
     with gzip.open(package_path + "/data/jec_compiled.pkl.gz", "rb") as filehandler:
         jmestuff = pickle.load(filehandler)
+
     fatjet_factory = jmestuff["fatjet_factory"]
 except:
     print("Failed loading compiled JECs")
@@ -283,3 +295,215 @@ def get_jec_jets(events: NanoEventsArray, year: str) -> FatJetArray:
 #     "Summer19UL17_V5_MC_L3Absolute_AK8PFPuppi",
 #     "Summer19UL17_V5_MC_L2L3Residual_AK8PFPuppi",
 # ]
+
+
+# jet definitions for LP SFs
+dR = 0.8
+cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
+ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
+n_LP_sf_toys = 100
+
+
+def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Tuple[int, ak.Array], num_prongs: int):
+    """
+    Gets the ``num_prongs`` subjet pTs and Delta and kT per primary LP splitting of fatjets at
+    ``fatjet_idx`` in each event.
+
+    Features are flattened (for now), and offsets are saved in ``ld_offsets`` to recover the event
+    structure.
+
+    Args:
+        events (NanoEventsArray): nano events
+        fatjet_idx (int | ak.Array): fatjet index
+        num_prongs (int): number of prongs / subjets per jet to reweight
+
+    Returns:
+        flat_logD, flat_logkt, flat_subjet_pt, ld_offsets
+    """
+
+    # get pfcands of the top-matched jets
+    ak8_pfcands = events.FatJetPFCands
+    ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == fatjet_idx]
+    pfcands = events.PFCands[ak8_pfcands.pFCandsIdx]
+
+    # need to convert to such a structure for FastJet
+    pfcands_vector_ptetaphi = ak.Array(
+        [
+            [{kin_key: cand[kin_key] for kin_key in P4} for cand in event_cands]
+            for event_cands in pfcands
+        ],
+        with_name="PtEtaPhiMLorentzVector",
+    )
+
+    # cluster first with kT
+    kt_clustering = fastjet.ClusterSequence(pfcands_vector_ptetaphi, ktdef)
+    kt_subjets = kt_clustering.exclusive_jets(num_prongs)
+    # save subjet pT
+    kt_subjets_pt = np.sqrt(kt_subjets.px**2 + kt_subjets.py**2)
+    # get constituents
+    kt_subjet_consts = kt_clustering.exclusive_jets_constituents(num_prongs)
+
+    # then re-cluster with CA
+    # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
+    ca_clustering = fastjet.ClusterSequence(ak.flatten(kt_subjet_consts, axis=1), cadef)
+    lds = ak.flatten(ca_clustering.exclusive_jets_lund_declusterings(1), axis=1)
+
+    # flatten and save offsets to unflatten afterwards
+    ld_offsets = lds.kt.layout.offsets
+    flat_logD = np.log(0.8 / ak.flatten(lds).Delta).to_numpy()
+    flat_logkt = np.log(ak.flatten(lds).kt).to_numpy()
+    # repeat subjet pt for each lund declustering
+    flat_subjet_pt = np.repeat(ak.flatten(kt_subjets_pt), ak.count(lds.kt, axis=1)).to_numpy()
+
+    return flat_logD, flat_logkt, flat_subjet_pt, ld_offsets
+
+
+def _calc_lund_SFs(
+    flat_logD: np.ndarray,
+    flat_logkt: np.ndarray,
+    flat_subjet_pt: np.ndarray,
+    ld_offsets: ak.Array,
+    num_prongs: int,
+    ratio_lookups: List[dense_lookup],
+) -> np.ndarray:
+    """
+    Calculates scale factors for jets based on splittings in the primary Lund Plane.
+
+    Lookup tables should be binned in [subjet_pt, ln(0.8/Delta), ln(kT/GeV)].
+
+    Returns nominal scale factors for each lookup table in the ``ratio_smeared_lookups`` list.
+
+    Args:
+        flat_logD, flat_logkt, flat_subjet_pt, ld_offsets: numpy arrays from the ``lund_arrays`` fn
+        num_prongs (int): number of prongs / subjets per jet to reweight
+        ratio_smeared_lookups (List[dense_lookup]): list of lookup tables with smeared values
+
+    Returns:
+        nd.ndarray: SF values per jet for each smearing, shape ``[n_jets, len(ratio_lookups)]``.
+    """
+
+    sf_vals = []
+    # could be parallelised but not sure if memory / time trade-off is worth it
+    for i, ratio_lookup in enumerate(ratio_lookups):
+        ratio_vals = ratio_lookup(flat_subjet_pt, flat_logD, flat_logkt)
+        # recover jagged event structure
+        reshaped_ratio_vals = ak.Array(
+            ak.layout.ListOffsetArray64(ld_offsets, ak.layout.NumpyArray(ratio_vals))
+        )
+        # nominal values are product of all lund plane SFs
+        sf_vals.append(
+            # multiply subjet SFs per jet
+            np.prod(
+                # per-subjet SF
+                ak.prod(reshaped_ratio_vals, axis=1).to_numpy().reshape(-1, num_prongs),
+                axis=1,
+            )
+        )
+
+    return np.array(sf_vals).T  # output shape: ``[n_jets, len(ratio_lookups)]``
+
+
+def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = False):
+
+    import uproot
+
+    # initialize lund plane scale factors lookups
+    f = uproot.open(package_path + "/corrections/lund_ratio_jan20.root")
+
+    # 3D histogram: [subjet_pt, ln(0.8/Delta), ln(kT/GeV)]
+    ratio_nom = f["ratio_nom"].to_numpy()
+    ratio_nom_errs = f["ratio_nom"].errors()
+    ratio_edges = ratio_nom[1:]
+    ratio_nom = ratio_nom[0]
+
+    ratio_sys_up = f["ratio_sys_tot_up"].to_numpy()[0]
+    ratio_sys_down = f["ratio_sys_tot_down"].to_numpy()[0]
+
+    np.random.seed(seed)
+    rand_noise = np.random.normal(size=[n_LP_sf_toys, *ratio_nom.shape])
+
+    if trunc_gauss:
+        # produces array of shape ``[n_sf_toys, subjet_pt bins, ln(0.8/Delta) bins, ln(kT/GeV) bins]``
+        ratio_nom_smeared = ratio_nom + (ratio_nom_errs * rand_noise)
+        ratio_nom_smeared = np.maximum(ratio_nom_smeared, 0)
+        # save n_sf_toys lookups
+        ratio_smeared_lookups = [dense_lookup(ratio_nom, ratio_edges)] + [
+            dense_lookup(ratio_nom_smeared[i], ratio_edges) for i in range(n_LP_sf_toys)
+        ]
+    else:
+        ratio_smeared_lookups = None
+
+    if lnN:
+        # revised smearing (0s -> 1s, normal -> lnN)
+        zero_noms = ratio_nom == 0
+        ratio_nom[zero_noms] = 1
+        ratio_nom_errs[zero_noms] = 0
+
+        kappa = (ratio_nom + ratio_nom_errs) / ratio_nom
+        ratio_nom_smeared = ratio_nom * np.power(kappa, rand_noise)
+        ratio_lnN_smeared_lookups = [dense_lookup(ratio_nom, ratio_edges)] + [
+            dense_lookup(ratio_nom_smeared[i], ratio_edges) for i in range(n_LP_sf_toys)
+        ]
+    else:
+        ratio_lnN_smeared_lookups = None
+
+    return ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down
+
+
+def get_lund_SFs(
+    events: NanoEventsArray,
+    fatjet_idx: Tuple[int, ak.Array],
+    num_prongs: int,
+    seed: int = 42,
+    trunc_gauss: bool = False,
+    lnN: bool = True,
+) -> Dict[str, np.ndarray]:
+    """
+    Calculates scale factors for jets based on splittings in the primary Lund Plane.
+    Calculates random smearings for statistical uncertainties, and total up/down systematic variation
+    as well.
+
+    Args:
+        events (NanoEventsArray): nano events
+        fatjet_idx (int | ak.Array): fatjet index
+        num_prongs (int): number of prongs / subjets per jet to r
+        seed (int, optional): seed for random smearings. Defaults to 42.
+        trunc_gauss (bool, optional): use truncated gaussians for smearing. Defaults to False.
+        lnN (bool, optional): use log normals for smearings. Defaults to True.
+
+    Returns:
+        Dict[str, np.ndarray]: dictionary with nominal weights per jet, sys variations, and (optionally) random smearings.
+    """
+
+    (
+        ratio_smeared_lookups,
+        ratio_lnN_smeared_lookups,
+        ratio_sys_up,
+        ratio_sys_down,
+    ) = _get_lund_lookups(seed, lnN, trunc_gauss)
+
+    flat_logD, flat_logkt, flat_subjet_pt, ld_offsets = _get_lund_arrays(
+        events, fatjet_idx, num_prongs
+    )
+
+    sfs = {}
+
+    if trunc_gauss:
+        sfs["lp_sf"] = _calc_lund_SFs(
+            flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, num_prongs, ratio_smeared_lookups
+        )
+
+    if lnN:
+        sfs["lp_sf_lnN"] = _calc_lund_SFs(
+            flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, num_prongs, ratio_lnN_smeared_lookups
+        )
+
+    sfs["lp_sf_sys_down"] = _calc_lund_SFs(
+        flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, num_prongs, [ratio_sys_down]
+    )
+
+    sfs["lp_sf_sys_up"] = _calc_lund_SFs(
+        flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, num_prongs, [ratio_sys_up]
+    )
+
+    return sfs
