@@ -8,8 +8,12 @@ import awkward as ak
 
 from coffea.analysis_tools import Weights
 from coffea.lookup_tools.dense_lookup import dense_lookup
-from coffea.nanoevents.methods.nanoaod import MuonArray, JetArray, FatJetArray
+from coffea.nanoevents.methods.nanoaod import MuonArray, JetArray, FatJetArray, GenParticleArray
 from coffea.nanoevents.methods.base import NanoEventsArray
+
+from coffea.nanoevents.methods import vector
+
+ak.behavior.update(vector.behavior)
 
 import pathlib
 
@@ -318,7 +322,7 @@ def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Tuple[int, ak.Array], 
         num_prongs (int): number of prongs / subjets per jet to reweight
 
     Returns:
-        flat_logD, flat_logkt, flat_subjet_pt, ld_offsets
+        flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, kt_subjets_vec
     """
 
     # get pfcands of the top-matched jets
@@ -338,8 +342,19 @@ def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Tuple[int, ak.Array], 
     # cluster first with kT
     kt_clustering = fastjet.ClusterSequence(pfcands_vector_ptetaphi, ktdef)
     kt_subjets = kt_clustering.exclusive_jets(num_prongs)
+
+    kt_subjets_vec = ak.zip(
+        {
+            "x": kt_subjets.px,
+            "y": kt_subjets.py,
+            "z": kt_subjets.pz,
+            "t": kt_subjets.E
+        },
+        with_name="LorentzVector"
+    )
+
     # save subjet pT
-    kt_subjets_pt = np.sqrt(kt_subjets.px**2 + kt_subjets.py**2)
+    kt_subjets_pt = kt_subjets_vec.pt
     # get constituents
     kt_subjet_consts = kt_clustering.exclusive_jets_constituents(num_prongs)
 
@@ -355,7 +370,7 @@ def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Tuple[int, ak.Array], 
     # repeat subjet pt for each lund declustering
     flat_subjet_pt = np.repeat(ak.flatten(kt_subjets_pt), ak.count(lds.kt, axis=1)).to_numpy()
 
-    return flat_logD, flat_logkt, flat_subjet_pt, ld_offsets
+    return flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, kt_subjets_vec
 
 
 def _calc_lund_SFs(
@@ -454,14 +469,15 @@ def get_lund_SFs(
     events: NanoEventsArray,
     fatjet_idx: Tuple[int, ak.Array],
     num_prongs: int,
+    gen_quarks: GenParticleArray,
     seed: int = 42,
     trunc_gauss: bool = False,
     lnN: bool = True,
 ) -> Dict[str, np.ndarray]:
     """
     Calculates scale factors for jets based on splittings in the primary Lund Plane.
-    Calculates random smearings for statistical uncertainties, and total up/down systematic variation
-    as well.
+    Calculates random smearings for statistical uncertainties, total up/down systematic variation, 
+    and subjet matching and pT extrapolation systematic uncertainties.
 
     Args:
         events (NanoEventsArray): nano events
@@ -482,11 +498,13 @@ def get_lund_SFs(
         ratio_sys_down,
     ) = _get_lund_lookups(seed, lnN, trunc_gauss)
 
-    flat_logD, flat_logkt, flat_subjet_pt, ld_offsets = _get_lund_arrays(
+    flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, kt_subjets_vec = _get_lund_arrays(
         events, fatjet_idx, num_prongs
     )
 
     sfs = {}
+
+    ### get scale factors per jet + smearings for stat unc. + syst. variations
 
     if trunc_gauss:
         sfs["lp_sf"] = _calc_lund_SFs(
@@ -505,5 +523,38 @@ def get_lund_SFs(
     sfs["lp_sf_sys_up"] = _calc_lund_SFs(
         flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, num_prongs, [ratio_sys_up]
     )
+
+    ### subjet matching and pT extrapoation uncertainties
+
+    matching_dR = 0.2
+    sj_matched = []
+    sj_matched_idx = []
+
+    # get dR between gen quarks and subjets
+    for i in range(num_prongs):
+        sj_q_dr = kt_subjets_vec.delta_r(gen_quarks[:, i])
+        # is quark matched to a subjet (dR < 0.2)
+        sj_matched.append(ak.min(sj_q_dr, axis=1) <= matching_dR)
+        # save index of closest subjet
+        sj_matched_idx.append(ak.argmin(sj_q_dr, axis=1))
+
+    sj_matched = np.array(sj_matched).T
+    sj_matched_idx = np.array(sj_matched_idx).T
+
+    # mask quarks which aren't matched to a subjet, to avoid overcounting events
+    sj_matched_idx_mask = np.copy(sj_matched_idx)
+    sj_matched_idx_mask[~sj_matched] = -1
+
+    # events which have more than one quark matched to the same subjet
+    sfs["lp_sf_double_matched_event"] = np.any(
+        [np.sum(sj_matched_idx_mask == i, axis=1) > 1 for i in range(3)], axis=0
+    ).astype(int)[:, np.newaxis]
+    
+    # number of quarks per event which aren't matched
+    sfs["lp_sf_unmatched_quarks"] = np.sum(~sj_matched, axis=1, keepdims=True)
+
+    # pT extrapolation uncertainty
+    sfs["lp_sf_num_sjpt_gt350"] = np.sum(kt_subjets_vec.pt > 350, axis=1, keepdims=True).to_numpy()
+
 
     return sfs
