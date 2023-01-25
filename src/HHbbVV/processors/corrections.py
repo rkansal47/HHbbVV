@@ -15,7 +15,7 @@ import pathlib
 
 import fastjet
 
-from utils import P4
+from .utils import P4
 
 
 package_path = str(pathlib.Path(__file__).parent.parent.resolve())
@@ -408,7 +408,7 @@ def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = Fals
     import uproot
 
     # initialize lund plane scale factors lookups
-    f = uproot.open(package_path + "/corrections/lund_ratio_jan20.root")
+    f = uproot.open(package_path + "/corrections/lp_ratio_jan20.root")
 
     # 3D histogram: [subjet_pt, ln(0.8/Delta), ln(kT/GeV)]
     ratio_nom = f["ratio_nom"].to_numpy()
@@ -416,8 +416,8 @@ def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = Fals
     ratio_edges = ratio_nom[1:]
     ratio_nom = ratio_nom[0]
 
-    ratio_sys_up = f["ratio_sys_tot_up"].to_numpy()[0]
-    ratio_sys_down = f["ratio_sys_tot_down"].to_numpy()[0]
+    ratio_sys_up = dense_lookup(f["ratio_sys_tot_up"].to_numpy()[0], ratio_edges)
+    ratio_sys_down = dense_lookup(f["ratio_sys_tot_down"].to_numpy()[0], ratio_edges)
 
     np.random.seed(seed)
     rand_noise = np.random.normal(size=[n_LP_sf_toys, *ratio_nom.shape])
