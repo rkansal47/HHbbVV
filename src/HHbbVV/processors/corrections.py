@@ -344,13 +344,8 @@ def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Tuple[int, ak.Array], 
     kt_subjets = kt_clustering.exclusive_jets(num_prongs)
 
     kt_subjets_vec = ak.zip(
-        {
-            "x": kt_subjets.px,
-            "y": kt_subjets.py,
-            "z": kt_subjets.pz,
-            "t": kt_subjets.E
-        },
-        with_name="LorentzVector"
+        {"x": kt_subjets.px, "y": kt_subjets.py, "z": kt_subjets.pz, "t": kt_subjets.E},
+        with_name="LorentzVector",
     )
 
     # save subjet pT
@@ -476,7 +471,7 @@ def get_lund_SFs(
 ) -> Dict[str, np.ndarray]:
     """
     Calculates scale factors for jets based on splittings in the primary Lund Plane.
-    Calculates random smearings for statistical uncertainties, total up/down systematic variation, 
+    Calculates random smearings for statistical uncertainties, total up/down systematic variation,
     and subjet matching and pT extrapolation systematic uncertainties.
 
     Args:
@@ -549,12 +544,11 @@ def get_lund_SFs(
     sfs["lp_sf_double_matched_event"] = np.any(
         [np.sum(sj_matched_idx_mask == i, axis=1) > 1 for i in range(3)], axis=0
     ).astype(int)[:, np.newaxis]
-    
+
     # number of quarks per event which aren't matched
     sfs["lp_sf_unmatched_quarks"] = np.sum(~sj_matched, axis=1, keepdims=True)
 
     # pT extrapolation uncertainty
     sfs["lp_sf_num_sjpt_gt350"] = np.sum(kt_subjets_vec.pt > 350, axis=1, keepdims=True).to_numpy()
-
 
     return sfs
