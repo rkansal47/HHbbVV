@@ -377,7 +377,9 @@ class TTScaleFactorsSkimmer(ProcessorABC):
                 skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
 
         if dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"]:
-            match_dict, gen_quarks = ttbar_scale_factor_matching(events, leading_fatjets[:, 0], selection_args)
+            match_dict, gen_quarks = ttbar_scale_factor_matching(
+                events, leading_fatjets[:, 0], selection_args
+            )
             top_matched = match_dict["top_matched"].astype(bool) * selection.all(*selection.names)
 
             skimmed_events = {**skimmed_events, **match_dict}
