@@ -962,6 +962,11 @@
         "/store/user/lpcpfnano/cmantill/v2_3/2016APV/HWW/GluGluHToWW_Pt-200ToInf_M-125_TuneCP5_MINLO_13TeV-powheg-pythia8/GluGluHToWW_Pt-200ToInf_M-125/220901_224934/0000/nano_mc2016pre_8.root",
         "/store/user/lpcpfnano/cmantill/v2_3/2016APV/HWW/GluGluHToWW_Pt-200ToInf_M-125_TuneCP5_MINLO_13TeV-powheg-pythia8/GluGluHToWW_Pt-200ToInf_M-125/220901_224934/0000/nano_mc2016pre_9.root"
       ],
+      "GluGluZH_HToWW_ZTo2L_M-125": [
+        "/store/user/lpcpfnano/cmantill/v2_3/2016APV/HWW/GluGluZH_HToWW_ZTo2L_M-125_TuneCP5_13TeV-powheg-pythia8/GluGluZH_HToWW_ZTo2L_M-125/230120_173332/0000/nano_mc2016pre_1.root",
+        "/store/user/lpcpfnano/cmantill/v2_3/2016APV/HWW/GluGluZH_HToWW_ZTo2L_M-125_TuneCP5_13TeV-powheg-pythia8/GluGluZH_HToWW_ZTo2L_M-125/230120_173332/0000/nano_mc2016pre_2.root",
+        "/store/user/lpcpfnano/cmantill/v2_3/2016APV/HWW/GluGluZH_HToWW_ZTo2L_M-125_TuneCP5_13TeV-powheg-pythia8/GluGluZH_HToWW_ZTo2L_M-125/230120_173332/0000/nano_mc2016pre_3.root"
+      ],
       "VBFHToWWToLNuQQ_M-125_withDipoleRecoil": [
         "/store/user/lpcpfnano/cmantill/v2_3/2016APV/HWW/VBFHToWWToLNuQQ_M-125_TuneCP5_withDipoleRecoil_13TeV_powheg_jhugen751_pythia8/VBFHToWWToLNuQQ_M-125_withDipoleRecoil/220902_185532/0000/nano_mc2016pre_1.root",
         "/store/user/lpcpfnano/cmantill/v2_3/2016APV/HWW/VBFHToWWToLNuQQ_M-125_TuneCP5_withDipoleRecoil_13TeV_powheg_jhugen751_pythia8/VBFHToWWToLNuQQ_M-125_withDipoleRecoil/220902_185532/0000/nano_mc2016pre_2.root",
