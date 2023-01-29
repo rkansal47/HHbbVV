@@ -32,16 +32,15 @@ from typing import Dict, Tuple, List
 
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, ttbar_scale_factor_matching
 from .TaggerInference import runInferenceTriton
-from .utils import pad_val, add_selection
-from .corrections import add_pileup_weight, add_lepton_weights, add_top_pt_weight, get_jec_jets
+from .utils import pad_val, add_selection, P4
+from .corrections import (
+    add_pileup_weight,
+    add_lepton_weights,
+    add_top_pt_weight,
+    get_jec_jets,
+    get_lund_SFs,
+)
 
-
-P4 = {
-    "eta": "Eta",
-    "phi": "Phi",
-    "mass": "Mass",
-    "pt": "Pt",
-}
 
 MU_PDGID = 13
 
@@ -59,109 +58,7 @@ gen_selection_dict = {
 btagWPs = {"2016APV": 0.6001, "2016": 0.5847, "2017": 0.4506, "2018": 0.4168}
 
 
-# jet definitions
-dR = 0.8
-cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
-ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
 num_prongs = 3
-
-
-def lund_SFs(
-    events: NanoEventsArray,
-    fatjet_idx: ak.Array,
-    ratio_smeared_lookups: List[dense_lookup],
-    ratio_lnN_smeared_lookups: List[dense_lookup],
-) -> np.ndarray:
-    """
-    Calculates scale factors for the leading jet in events based on splittings in the primary Lund Plane.
-
-    Lookup tables should be binned in [subjet_pt, ln(0.8/Delta), ln(kT/GeV)].
-
-    Returns nominal scale factors for each lookup table in the ``ratio_smeared_lookups`` list.
-
-    Args:
-        events (NanoEventsArray): nano events
-        ratio_smeared_lookups (List[dense_lookup]): list of lookup tables with smeared values
-
-    Returns:
-        nd.ndarray: SF values per jet for each smearing, shape ``[n_jets, n_sf_toys]``.
-    """
-
-    # get pfcands of the top-matched jets
-    ak8_pfcands = events.FatJetPFCands
-    ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == fatjet_idx]
-    pfcands = events.PFCands[ak8_pfcands.pFCandsIdx]
-
-    # need to convert to such a structure
-    pfcands_vector_ptetaphi = ak.Array(
-        [
-            [{kin_key: cand[kin_key] for kin_key in P4} for cand in event_cands]
-            for event_cands in pfcands
-        ],
-        with_name="PtEtaPhiMLorentzVector",
-    )
-
-    # cluster first with kT
-    kt_clustering = fastjet.ClusterSequence(pfcands_vector_ptetaphi, ktdef)
-    kt_subjets = kt_clustering.exclusive_jets(num_prongs)
-    # save subjet pT
-    kt_subjets_pt = np.sqrt(kt_subjets.px**2 + kt_subjets.py**2)
-    # get constituents
-    kt_subjet_consts = kt_clustering.exclusive_jets_constituents(num_prongs)
-
-    # then re-cluster with CA
-    # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
-    ca_clustering = fastjet.ClusterSequence(ak.flatten(kt_subjet_consts, axis=1), cadef)
-    lds = ak.flatten(ca_clustering.exclusive_jets_lund_declusterings(1), axis=1)
-
-    # flatten and save offsets to unflatten afterwards
-    ld_offsets = lds.kt.layout.offsets
-    flat_logD = np.log(0.8 / ak.flatten(lds).Delta).to_numpy()
-    flat_logkt = np.log(ak.flatten(lds).kt).to_numpy()
-    # repeat subjet pt for each lund declustering
-    flat_subjet_pt = np.repeat(ak.flatten(kt_subjets_pt), ak.count(lds.kt, axis=1)).to_numpy()
-
-    sf_vals = []
-    # could be parallelised but not sure if memory / time trade-off is worth it
-    for i, ratio_nom_lookup in enumerate(ratio_smeared_lookups):
-        ratio_nom_vals = ratio_nom_lookup(flat_subjet_pt, flat_logD, flat_logkt)
-        # recover jagged event structure
-        reshaped_ratio_nom_vals = ak.Array(
-            ak.layout.ListOffsetArray64(ld_offsets, ak.layout.NumpyArray(ratio_nom_vals))
-        )
-        # nominal values are product of all lund plane SFs
-        sf_vals.append(
-            # multiply subjet SFs per jet
-            np.prod(
-                # per-subjet SF
-                ak.prod(reshaped_ratio_nom_vals, axis=1).to_numpy().reshape(-1, num_prongs),
-                axis=1,
-            )
-        )
-
-    sf_vals = np.array(sf_vals).T  # output shape: ``[n_jets, n_sf_toys]``
-
-    sf_lnN_vals = []
-    # could be parallelised but not sure if memory / time trade-off is worth it
-    for i, ratio_nom_lookup in enumerate(ratio_lnN_smeared_lookups):
-        ratio_nom_vals = ratio_nom_lookup(flat_subjet_pt, flat_logD, flat_logkt)
-        # recover jagged event structure
-        reshaped_ratio_nom_vals = ak.Array(
-            ak.layout.ListOffsetArray64(ld_offsets, ak.layout.NumpyArray(ratio_nom_vals))
-        )
-        # nominal values are product of all lund plane SFs
-        sf_lnN_vals.append(
-            # multiply subjet SFs per jet
-            np.prod(
-                # per-subjet SF
-                ak.prod(reshaped_ratio_nom_vals, axis=1).to_numpy().reshape(-1, num_prongs),
-                axis=1,
-            )
-        )
-
-    sf_lnN_vals = np.array(sf_lnN_vals).T  # output shape: ``[n_jets, n_sf_toys]``
-
-    return sf_vals, sf_lnN_vals
 
 
 class TTScaleFactorsSkimmer(ProcessorABC):
@@ -254,40 +151,6 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         self.tagger_resources_path = (
             str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
         )
-
-        # initialize lund plane scale factors lookups
-        f = uproot.open(package_path + "/corrections/ratio_ktjets_nov7.root")
-
-        # 3D histogram: [subjet_pt, ln(0.8/Delta), ln(kT/GeV)]
-        ratio_nom = f["ratio_nom"].to_numpy()
-        ratio_nom_errs = f["ratio_nom"].errors()
-        ratio_nom_edges = ratio_nom[1:]
-        ratio_nom = ratio_nom[0]
-
-        n_sf_toys = 100
-        np.random.seed(42)
-        rand_noise = np.random.normal(size=[n_sf_toys, *ratio_nom.shape])
-
-        # produces array of shape ``[n_sf_toys, subjet_pt bins, ln(0.8/Delta) bins, ln(kT/GeV) bins]``
-        ratio_nom_smeared = ratio_nom + (ratio_nom_errs * rand_noise)
-        ratio_nom_smeared = np.maximum(ratio_nom_smeared, 0)
-        # save n_sf_toys lookups
-        self.ratio_smeared_lookups = [dense_lookup(ratio_nom, ratio_nom_edges)] + [
-            dense_lookup(ratio_nom_smeared[i], ratio_nom_edges) for i in range(n_sf_toys)
-        ]
-
-        # revised smearing (0s -> 1s, normal -> lnN)
-        zero_noms = ratio_nom == 0
-        ratio_nom[zero_noms] = 1
-        ratio_nom_errs[zero_noms] = 0
-
-        kappa = (ratio_nom + ratio_nom_errs) / ratio_nom
-        ratio_nom_smeared = ratio_nom * np.power(kappa, rand_noise)
-        self.ratio_lnN_smeared_lookups = [dense_lookup(ratio_nom, ratio_nom_edges)] + [
-            dense_lookup(ratio_nom_smeared[i], ratio_nom_edges) for i in range(n_sf_toys)
-        ]
-
-        self.n_sf_toys = n_sf_toys
 
         self._accumulator = dict_accumulator({})
 
@@ -514,32 +377,39 @@ class TTScaleFactorsSkimmer(ProcessorABC):
                 skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
 
         if dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"]:
-            match_dict = ttbar_scale_factor_matching(events, leading_fatjets[:, 0], selection_args)
+            match_dict, gen_quarks = ttbar_scale_factor_matching(
+                events, leading_fatjets[:, 0], selection_args
+            )
             top_matched = match_dict["top_matched"].astype(bool) * selection.all(*selection.names)
 
+            skimmed_events = {**skimmed_events, **match_dict}
+
             if np.any(top_matched):
-                sf_vals, sf_lnN_vals = lund_SFs(
+                sf_dict = get_lund_SFs(
                     events[top_matched],
                     fatjet_idx[top_matched],
-                    self.ratio_smeared_lookups,
-                    self.ratio_lnN_smeared_lookups,
+                    num_prongs,
+                    gen_quarks[top_matched],
+                    trunc_gauss=True,
+                    lnN=True,
                 )
-
-                sf_dict = {"lp_sf": sf_vals, "lp_sf_lnN": sf_lnN_vals}
 
                 # fill zeros for all non-top-matched events
                 for key, val in list(sf_dict.items()):
                     # plus 1 for the nominal values
-                    arr = np.zeros((len(events), self.n_sf_toys + 1))
+                    arr = np.zeros((len(events), val.shape[1]))
                     arr[top_matched] = val
                     sf_dict[key] = arr
-            else:
-                sf_dict = {
-                    "lp_sf": np.zeros((len(events), self.n_sf_toys + 1)),
-                    "lp_sf_lnN": np.zeros((len(events), self.n_sf_toys + 1)),
-                }
 
-            skimmed_events = {**skimmed_events, **match_dict, **sf_dict}
+                skimmed_events = {**skimmed_events, **sf_dict}
+            # else:
+            #     sf_dict = {}
+
+            #     "lp_sf": np.zeros((len(events), self.n_sf_toys + 1)),
+            #     "lp_sf_lnN": np.zeros((len(events), self.n_sf_toys + 1)),
+            # }
+
+            # skimmed_events = {**skimmed_events, **match_dict, **sf_dict}
 
         # apply selections
 

@@ -790,6 +790,8 @@ def ttbar_scale_factor_matching(
     """
     Classifies jets as top-matched, w-matched, or un-matched using gen info, as defined in
     https://indico.cern.ch/event/1101433/contributions/4775247/
+
+    Returns gen quarks as well for systematic uncertainties
     """
     # finding the two gen tops
     tops = events.GenPart[
@@ -804,6 +806,7 @@ def ttbar_scale_factor_matching(
     # get hadronic W and top
     had_top_sel = np.all(np.abs(ws.children.pdgId) <= 5, axis=2)
     had_ws = ak.flatten(ws[had_top_sel])
+    had_ws_children = had_ws.children
     had_tops = ak.flatten(tops[had_top_sel])
 
     # check for b's from top
@@ -811,10 +814,12 @@ def ttbar_scale_factor_matching(
     had_bs = had_top_children[np.abs(had_top_children.pdgId) == 5]
     add_selection("top_has_bs", np.any(had_bs.pdgId, axis=1), *selection_args)
 
+    gen_quarks = ak.concatenate([had_bs[:, :1], had_ws_children[:, :2]], axis=1)
+
     deltaR = 0.8
 
     had_w_jet_match = ak.fill_none(
-        ak.all(had_ws.children.delta_r(leading_fatjet) < deltaR, axis=1), False
+        ak.all(had_ws_children.delta_r(leading_fatjet) < deltaR, axis=1), False
     )
     had_b_jet_match = ak.flatten(
         pad_val(
@@ -834,4 +839,4 @@ def ttbar_scale_factor_matching(
 
     top_match_dict = {key: val.to_numpy().astype(int) for key, val in top_match_dict.items()}
 
-    return top_match_dict
+    return top_match_dict, gen_quarks
