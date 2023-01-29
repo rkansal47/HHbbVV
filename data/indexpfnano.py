@@ -130,7 +130,7 @@ ignore_files = [
 ]
 
 for pyear in ["2016", "2016APV", "2017", "2018"]:
-    #if pyear != "2017":
+    # if pyear != "2017":
     #    continue
     print(pyear)
     index = {}

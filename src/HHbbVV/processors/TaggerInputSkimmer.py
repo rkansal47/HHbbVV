@@ -274,8 +274,8 @@ class TaggerInputSkimmer(ProcessorABC):
         self.subjet_label = "FatJetAK15SubJet" if self.ak15 else "SubJet"
         self.pfcands_label = "FatJetAK15PFCands" if self.ak15 else "FatJetPFCands"
         self.svs_label = "JetSVsAK15" if self.ak15 else "FatJetSVs"
-        print(self.ak15,self.fatjet_label)
-        
+        print(self.ak15, self.fatjet_label)
+
         # self.met_label = "MET"
 
         self.num_jets = num_jets
@@ -364,9 +364,9 @@ class TaggerInputSkimmer(ProcessorABC):
 
             # selection
             selection = PackedSelection()
-            #preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
+            # preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
             # preselection_cut = fatjets.pt > 200
-            #add_selection_no_cutflow("preselection", preselection_cut, selection)
+            # add_selection_no_cutflow("preselection", preselection_cut, selection)
 
             print(f"preselection: {time.time() - start:.1f}s")
 
@@ -484,9 +484,9 @@ class TaggerInputSkimmer(ProcessorABC):
 
             skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars, **METVars}
 
-            #print(events["event"],jet_idx)
-            #print("here-elenuqq ",genVars["fj_H_VV_elenuqq"])
-            #print("here-munuqq ",genVars["fj_H_VV_munuqq"])
+            # print(events["event"],jet_idx)
+            # print("here-elenuqq ",genVars["fj_H_VV_elenuqq"])
+            # print("here-munuqq ",genVars["fj_H_VV_munuqq"])
 
             # apply selections
             skimmed_vars = {
@@ -501,35 +501,32 @@ class TaggerInputSkimmer(ProcessorABC):
         pnet_vars = runInferenceTriton(
             self.tagger_resources_path,
             events[selection.all(*selection.names)],
-            num_jets = self.num_jets,
+            num_jets=self.num_jets,
             ak15=False,
         )
 
         for jet_idx in range(self.num_jets):
-            pnet_vars_jet = {
-                **{key: value[jet_idx] for (key, value) in pnet_vars.items()}
-            }
-                   
+            pnet_vars_jet = {**{key: value[jet_idx] for (key, value) in pnet_vars.items()}}
+
             jet_vars[jet_idx] = {**jet_vars[jet_idx], **pnet_vars_jet}
 
         if len(jet_vars) > 1:
             # for debugging
-            #for var in ["pfcand_energy","pfcand_px"]:
+            # for var in ["pfcand_energy","pfcand_px"]:
             #    for jet_var in jet_vars:
             #        print(var,jet_var[var])
-            #print(len(jet_var[var]))
+            # print(len(jet_var[var]))
 
             # stack each set of jets
             jet_vars = {
                 var: np.concatenate([jet_var[var] for jet_var in jet_vars], axis=0)
                 for var in jet_vars[0]
             }
-            
 
             for var in jet_vars:
                 if "FatJetParTMD_" in var:
-                    print(var,jet_vars[var][1])
-                    print(var,jet_vars[var][3])
+                    print(var, jet_vars[var][1])
+                    print(var, jet_vars[var][3])
 
             # py is slightly off
             # all of these are off
