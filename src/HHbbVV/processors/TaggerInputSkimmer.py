@@ -20,6 +20,7 @@ from .TaggerInference import (
     get_met_features,
 )
 from .GenSelection import tagger_gen_matching
+from .TaggerInference import runInferenceTriton
 
 from typing import Dict
 
@@ -114,6 +115,9 @@ class TaggerInputSkimmer(ProcessorABC):
         """
 
         self.skim_vars = {
+            "Event": {
+                "event": "event",
+            },
             "FatJet": {
                 **P4,
                 "msoftdrop": "msoftdrop",
@@ -261,11 +265,17 @@ class TaggerInputSkimmer(ProcessorABC):
             },
         }
 
+        self.tagger_resources_path = (
+            str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
+        )
+
         self.ak15 = "AK15" in self.label
         self.fatjet_label = "FatJetAK15" if self.ak15 else "FatJet"
         self.subjet_label = "FatJetAK15SubJet" if self.ak15 else "SubJet"
         self.pfcands_label = "FatJetAK15PFCands" if self.ak15 else "FatJetPFCands"
         self.svs_label = "JetSVsAK15" if self.ak15 else "FatJetSVs"
+        print(self.ak15,self.fatjet_label)
+        
         # self.met_label = "MET"
 
         self.num_jets = num_jets
@@ -354,9 +364,9 @@ class TaggerInputSkimmer(ProcessorABC):
 
             # selection
             selection = PackedSelection()
-            preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
+            #preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
             # preselection_cut = fatjets.pt > 200
-            add_selection_no_cutflow("preselection", preselection_cut, selection)
+            #add_selection_no_cutflow("preselection", preselection_cut, selection)
 
             print(f"preselection: {time.time() - start:.1f}s")
 
@@ -474,6 +484,10 @@ class TaggerInputSkimmer(ProcessorABC):
 
             skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars, **METVars}
 
+            #print(events["event"],jet_idx)
+            #print("here-elenuqq ",genVars["fj_H_VV_elenuqq"])
+            #print("here-munuqq ",genVars["fj_H_VV_munuqq"])
+
             # apply selections
             skimmed_vars = {
                 key: np.squeeze(np.array(value[selection.all(*selection.names)]))
@@ -484,20 +498,56 @@ class TaggerInputSkimmer(ProcessorABC):
 
             print(f"Jet {jet_idx + 1}: {time.time() - start:.1f}s")
 
+        pnet_vars = runInferenceTriton(
+            self.tagger_resources_path,
+            events[selection.all(*selection.names)],
+            num_jets = self.num_jets,
+            ak15=False,
+        )
+
+        for jet_idx in range(self.num_jets):
+            pnet_vars_jet = {
+                **{key: value[jet_idx] for (key, value) in pnet_vars.items()}
+            }
+                   
+            jet_vars[jet_idx] = {**jet_vars[jet_idx], **pnet_vars_jet}
+
         if len(jet_vars) > 1:
             # for debugging
-            # for var in jet_vars[0]:
-            #     for jet_var in jet_vars:
-            #         print(var,jet_var[var])
-            #         print(len(jet_var[var]))
+            #for var in ["pfcand_energy","pfcand_px"]:
+            #    for jet_var in jet_vars:
+            #        print(var,jet_var[var])
+            #print(len(jet_var[var]))
 
             # stack each set of jets
             jet_vars = {
                 var: np.concatenate([jet_var[var] for jet_var in jet_vars], axis=0)
                 for var in jet_vars[0]
             }
+            
 
-            # print(jet_vars)
+            for var in jet_vars:
+                if "FatJetParTMD_" in var:
+                    print(var,jet_vars[var][1])
+                    print(var,jet_vars[var][3])
+
+            # py is slightly off
+            # all of these are off
+            # test_vars = ["pfcand_dz",
+            #              "pfcand_dzsig",
+            #              "pfcand_dxy",
+            #              "pfcand_dxysig",
+            #              "pfcand_btagEtaRel",
+            #              "pfcand_btagPtRatio",
+            #              "pfcand_btagPParRatio",
+            #              "pfcand_btagSip3dVal",
+            #              "pfcand_btagSip3dSig",
+            #              "pfcand_btagJetDistVal"]
+            # for var in test_vars:
+            #     print(var)
+            #     print(jet_vars[var][1])
+            #     print(jet_vars[var][3])
+            #     print("\n")
 
         elif len(jet_vars) == 1:
             print("One jet passed selection")
