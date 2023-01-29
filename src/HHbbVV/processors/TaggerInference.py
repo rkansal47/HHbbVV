@@ -67,19 +67,19 @@ def get_pfcands_features(
     if jet is not None:
         jet = ak.zip(
             {
-                "pt": jet.pt*(1.-jet.rawFactor),
+                "pt": jet.pt * (1.0 - jet.rawFactor),
                 "eta": jet.eta,
                 "phi": jet.phi,
-                "mass": jet.mass*(1.-jet.rawFactor),
+                "mass": jet.mass * (1.0 - jet.rawFactor),
             },
             with_name="PtEtaPhiMLorentzVector",
         )
-        
-        print('jpt ',jet.pt)
-        print('jphi ',jet.phi)
-        print('jeta ',jet.eta)
-        print('jmass ',jet.mass)
-        
+
+        print("jpt ", jet.pt)
+        print("jphi ", jet.phi)
+        print("jeta ", jet.eta)
+        print("jmass ", jet.mass)
+
     jet_ak_pfcands = preselected_events[pfcands_label][
         preselected_events[pfcands_label].jetIdx == jet_idx
     ]
@@ -98,12 +98,11 @@ def get_pfcands_features(
         with_name="PtEtaPhiELorentzVector",
     )
 
-
     # get features
 
     # negative eta jets have -1 sign, positive eta jets have +1
     eta_sign = ak.ones_like(jet_pfcands.eta)
-    eta_sign = eta_sign*(ak.values_astype(jet.eta>0, int) * 2 - 1)
+    eta_sign = eta_sign * (ak.values_astype(jet.eta > 0, int) * 2 - 1)
     feature_dict["pfcand_etarel"] = eta_sign * (jet_pfcands.eta - jet.eta)
     feature_dict["pfcand_phirel"] = jet_pfcands.delta_phi(jet)
     feature_dict["pfcand_abseta"] = np.abs(jet_pfcands.eta)
@@ -220,18 +219,18 @@ def get_svs_features(
     if jet is not None:
         jet = ak.zip(
             {
-                "pt": jet.pt*(1.-jet.rawFactor),
+                "pt": jet.pt * (1.0 - jet.rawFactor),
                 "eta": jet.eta,
                 "phi": jet.phi,
-                "mass": jet.mass*(1.-jet.rawFactor),
+                "mass": jet.mass * (1.0 - jet.rawFactor),
             },
             with_name="PtEtaPhiMLorentzVector",
         )
 
-        #print('jpt ',jet.pt)
-        #print('jphi ',jet.phi)
-        #print('jeta ',jet.eta)
-        #print('jmass ',jet.mass)
+        # print('jpt ',jet.pt)
+        # print('jphi ',jet.phi)
+        # print('jeta ',jet.eta)
+        # print('jmass ',jet.mass)
 
     jet_svs = preselected_events.SV[
         preselected_events[svs_label].sVIdx[
@@ -247,7 +246,7 @@ def get_svs_features(
 
     # negative eta jets have -1 sign, positive eta jets have +1
     eta_sign = ak.ones_like(jet_svs.eta)
-    eta_sign = eta_sign*(ak.values_astype(jet.eta>0, int) * 2 - 1)
+    eta_sign = eta_sign * (ak.values_astype(jet.eta > 0, int) * 2 - 1)
 
     feature_dict["sv_etarel"] = eta_sign * (jet_svs.eta - jet.eta)
     feature_dict["sv_phirel"] = jet_svs.delta_phi(jet)
@@ -652,9 +651,11 @@ def runInferenceTriton(
 
             pnet_vars_all = {}
             for i, output_name in enumerate(tagger_vars["output_names"]):
-                pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = tagger_outputs[jet_idx][:, i]
+                pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = tagger_outputs[jet_idx][
+                    :, i
+                ]
 
-            pvars = {**derived_vars,**pnet_vars_all}
+            pvars = {**derived_vars, **pnet_vars_all}
             pnet_vars_list.append(pvars)
 
         else:
@@ -668,7 +669,7 @@ def runInferenceTriton(
             for i, output_name in enumerate(tagger_vars["output_names"]):
                 pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = np.array([])
 
-            pvars = {**derived_vars,**pnet_vars_all}
+            pvars = {**derived_vars, **pnet_vars_all}
             pnet_vars_list.append(pvars)
 
     print(f"Total time taken: {time.time() - total_start:.1f}s")
