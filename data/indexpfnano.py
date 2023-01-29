@@ -113,8 +113,6 @@ folders_to_index = [
     "/store/user/lpcpfnano/rkansal/v2_3/2016APV/GluGluHToBB/",
     "/store/user/lpcpfnano/rkansal/v2_3/2017/GluGluHToBB/",
     "/store/user/lpcpfnano/rkansal/v2_3/2018/GluGluHToBB/",
-    # test
-    "/store/user/lpcpfnano/cmantill/custom/2017/HWWTest",
 ]
 
 index_APV = {}
