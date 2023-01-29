@@ -184,7 +184,7 @@ if __name__ == "__main__":
         help="sample name of files being run on, if --files option used",
     )
     parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
-    parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
+    parser.add_argument("--label", default="AK8_H_VV", help="label", type=str)
     parser.add_argument("--njets", default=2, help="njets", type=int)
     parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
 
