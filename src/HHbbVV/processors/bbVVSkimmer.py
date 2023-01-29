@@ -278,7 +278,7 @@ class bbVVSkimmer(ProcessorABC):
         else:
             skimmed_events["genWeight"] = events.genWeight.to_numpy()
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
-            add_VJets_kFactors(weights, events.GenPart, dataset)
+            # add_VJets_kFactors(weights, events.GenPart, dataset)
 
             # TODO: theory uncertainties
             # TODO: trigger SFs here once calculated properly
@@ -316,9 +316,12 @@ class bbVVSkimmer(ProcessorABC):
             **{key: value for (key, value) in pnet_vars.items()},
         }
 
-        df = self.to_pandas(skimmed_events)
-        fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
-        self.dump_table(df, fname)
+        if len(skimmed_events["weight"]):
+            df = self.to_pandas(skimmed_events)
+            fname = (
+                events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
+            )
+            self.dump_table(df, fname)
 
         return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
 
