@@ -385,6 +385,9 @@ def tagger_gen_H_matching(
             + (ak.sum(daughters_pdgId <= b_PDGID, axis=1) == 4) * 11
         )
 
+        # print("daughters " ,daughters_pdgId)
+        # print("decay ",decay)
+
         # get tau decays from daughters
         taudaughters = daughters[(daughters_pdgId == TAU_PDGID)].children
         taudaughters = taudaughters[taudaughters.hasFlags(["isLastCopy"])]
