@@ -64,22 +64,6 @@ def get_pfcands_features(
     if jet is None:
         jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
 
-    if jet is not None:
-        jet = ak.zip(
-            {
-                "pt": jet.pt * (1.0 - jet.rawFactor),
-                "eta": jet.eta,
-                "phi": jet.phi,
-                "mass": jet.mass * (1.0 - jet.rawFactor),
-            },
-            with_name="PtEtaPhiMLorentzVector",
-        )
-
-        print("jpt ", jet.pt)
-        print("jphi ", jet.phi)
-        print("jeta ", jet.eta)
-        print("jmass ", jet.mass)
-
     jet_ak_pfcands = preselected_events[pfcands_label][
         preselected_events[pfcands_label].jetIdx == jet_idx
     ]
@@ -87,16 +71,6 @@ def get_pfcands_features(
 
     # sort them by pt
     jet_pfcands = jet_pfcands[ak.argsort(jet_pfcands.pt, ascending=False)]
-
-    jet_pfcands_p4 = ak.zip(
-        {
-            "pt": jet_pfcands.pt,
-            "eta": jet_pfcands.eta,
-            "phi": jet_pfcands.delta_phi(jet),
-            "energy": jet_pfcands.energy,
-        },
-        with_name="PtEtaPhiELorentzVector",
-    )
 
     # get features
 
@@ -127,15 +101,16 @@ def get_pfcands_features(
     # need to replace 1s with 0!!!
     feature_dict["pfcand_dz"] = jet_pfcands.dz
     feature_dict["pfcand_dxy"] = jet_pfcands.d0
+
     # need to replace -1s with 0!!!
     feature_dict["pfcand_dzsig"] = jet_pfcands.dz / jet_pfcands.dzErr
     feature_dict["pfcand_dxysig"] = jet_pfcands.d0 / jet_pfcands.d0Err
 
     # py is slightly different than PKU but that is probably ok
-    feature_dict["pfcand_px"] = jet_pfcands_p4.px
-    feature_dict["pfcand_py"] = jet_pfcands_p4.py
-    feature_dict["pfcand_pz"] = jet_pfcands_p4.pz
-    feature_dict["pfcand_energy"] = jet_pfcands_p4.E
+    feature_dict["pfcand_px"] = jet_pfcands.px
+    feature_dict["pfcand_py"] = jet_pfcands.py
+    feature_dict["pfcand_pz"] = jet_pfcands.pz
+    feature_dict["pfcand_energy"] = jet_pfcands.E
 
     # btag vars
     # all the btag variables seem off!!!
@@ -162,6 +137,14 @@ def get_pfcands_features(
             (len(feature_dict["pfcand_abseta"]), tagger_vars["pf_features"]["var_length"])
         ).astype(np.float32)
 
+    repl_values_dict = {
+        "pfcand_normchi2": [-1, 999],
+        "pfcand_dz": [-1, 0],
+        "pfcand_dzsig": [1, 0],
+        "pfcand_dxy": [-1, 0],
+        "pfcand_dxysig": [1, 0],
+    }
+
     # convert to numpy arrays and normalize features
     for var in set(
         tagger_vars["pf_features"]["var_names"] + tagger_vars["pf_vectors"]["var_names"]
@@ -176,6 +159,13 @@ def get_pfcands_features(
 
         a = np.nan_to_num(a)
 
+        if var in repl_values_dict:
+            print(var)
+            vals = repl_values_dict[var]
+            print(a)
+            a[vals[0]] = vals[1]
+            print(a)
+
         if normalize:
             if var in tagger_vars["pf_features"]["var_names"]:
                 info = tagger_vars["pf_features"]["var_infos"][var]
@@ -187,12 +177,13 @@ def get_pfcands_features(
 
         feature_dict[var] = a
 
-    if normalize:
-        var = "pfcand_normchi2"
-        info = tagger_vars["pf_features"]["var_infos"][var]
-        # finding what -1 transforms to
-        chi2_min = -1 - info["median"] * info["norm_factor"]
-        feature_dict[var][feature_dict[var] == chi2_min] = info["upper_bound"]
+    # shouldn't be necessary now that -1 is replaced by 999 above
+    # if normalize:
+    #     var = "pfcand_normchi2"
+    #     info = tagger_vars["pf_features"]["var_infos"][var]
+    #     # finding what -1 transforms to
+    #     chi2_min = -1 - info["median"] * info["norm_factor"]
+    #     feature_dict[var][feature_dict[var] == chi2_min] = info["upper_bound"]
 
     return feature_dict
 
@@ -215,22 +206,6 @@ def get_svs_features(
 
     if jet is None:
         jet = ak.pad_none(preselected_events[fatjet_label], 2, axis=1)[:, jet_idx]
-
-    if jet is not None:
-        jet = ak.zip(
-            {
-                "pt": jet.pt * (1.0 - jet.rawFactor),
-                "eta": jet.eta,
-                "phi": jet.phi,
-                "mass": jet.mass * (1.0 - jet.rawFactor),
-            },
-            with_name="PtEtaPhiMLorentzVector",
-        )
-
-        # print('jpt ',jet.pt)
-        # print('jphi ',jet.phi)
-        # print('jeta ',jet.eta)
-        # print('jmass ',jet.mass)
 
     jet_svs = preselected_events.SV[
         preselected_events[svs_label].sVIdx[
@@ -567,6 +542,7 @@ def runInferenceTriton(
     jet_idx: ArrayLike = None,
     jets: FatJetArray = None,
     ak15: bool = False,
+    all_outputs: bool = True,
 ) -> dict:
     total_start = time.time()
 
@@ -650,10 +626,12 @@ def runInferenceTriton(
             )
 
             pnet_vars_all = {}
-            for i, output_name in enumerate(tagger_vars["output_names"]):
-                pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = tagger_outputs[jet_idx][
-                    :, i
-                ]
+
+            if all_outputs:
+                for i, output_name in enumerate(tagger_vars["output_names"]):
+                    pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = tagger_outputs[
+                        jet_idx
+                    ][:, i]
 
             pvars = {**derived_vars, **pnet_vars_all}
             pnet_vars_list.append(pvars)
@@ -666,8 +644,10 @@ def runInferenceTriton(
                 f"{jet_label}FatJetParTMD_THWW4q": np.array([]),
             }
             pnet_vars_all = {}
-            for i, output_name in enumerate(tagger_vars["output_names"]):
-                pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = np.array([])
+
+            if all_outputs:
+                for i, output_name in enumerate(tagger_vars["output_names"]):
+                    pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = np.array([])
 
             pvars = {**derived_vars, **pnet_vars_all}
             pnet_vars_list.append(pvars)

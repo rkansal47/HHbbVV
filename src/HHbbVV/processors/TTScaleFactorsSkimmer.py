@@ -426,6 +426,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             num_jets=1,
             jet_idx=fatjet_idx[selection.all(*selection.names)],
             jets=ak.flatten(leading_fatjets[selection.all(*selection.names)]),
+            all_outputs=False,
         )
 
         print("post-inference")
