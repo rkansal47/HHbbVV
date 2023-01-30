@@ -1,13 +1,14 @@
 import time
 import contextlib
 from os import listdir
+from os.path import exists
 import pickle
 from copy import deepcopy
 
 import numpy as np
 import pandas as pd
 
-from typing import Dict, List
+from typing import Dict, List, Union
 
 from coffea.analysis_tools import PackedSelection
 from hist import Hist
@@ -92,6 +93,18 @@ def get_cutflow(pickles_path, year, sample_name):
     return cutflow
 
 
+def check_selector(sample: str, selector: Union[str, List[str]]):
+    if isinstance(selector, list):
+        for s in selector:
+            if sample.startswith(s):
+                return True
+    else:
+        if sample.startswith(selector):
+            return True
+
+    return False
+
+
 def load_samples(
     data_dir: str, samples: Dict[str, str], year: str, filters: List = None
 ) -> Dict[str, pd.DataFrame]:
@@ -119,23 +132,41 @@ def load_samples(
         print(f"Finding {label} samples")
         events_dict[label] = []
         for sample in full_samples_list:
-            if not sample.startswith(selector):
+            if not check_selector(sample, selector):
+                continue
+
+            # if sample.startswith("QCD") and not sample.endswith("_PSWeights_madgraph"):
+            #     continue
+
+            if not exists(f"{data_dir}/{year}/{sample}/parquet"):
+                print(f"No parquet file for {sample}")
                 continue
 
             print(f"Loading {sample}")
-
             events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
+            not_empty = len(events) > 0
             pickles_path = f"{data_dir}/{year}/{sample}/pickles"
 
             if label != data_key:
                 if label == sig_key:
                     n_events = get_cutflow(pickles_path, year, sample)["has_4q"]
+                # elif sample.startswith(ttsl_key):
+                #     # have to divide TT semileptonic by # of events in normal and ext1 both
+                #     n_events = sum(
+                #         [
+                #             get_nevents(f"{data_dir}/{year}/{skey}/pickles", year, skey)
+                #             for skey in [ttsl_key, ttsl_key + "_ext1"]
+                #         ]
+                #     )
                 else:
                     n_events = get_nevents(pickles_path, year, sample)
 
-                events["weight"] /= n_events
+                if not_empty:
+                    events["weight"] /= n_events
 
-            events_dict[label].append(events)
+            if not_empty:
+                events_dict[label].append(events)
+
             print(f"Loaded {len(events)} entries")
 
         events_dict[label] = pd.concat(events_dict[label])
