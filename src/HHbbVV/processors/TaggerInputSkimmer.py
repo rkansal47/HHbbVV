@@ -274,7 +274,6 @@ class TaggerInputSkimmer(ProcessorABC):
         self.subjet_label = "FatJetAK15SubJet" if self.ak15 else "SubJet"
         self.pfcands_label = "FatJetAK15PFCands" if self.ak15 else "FatJetPFCands"
         self.svs_label = "JetSVsAK15" if self.ak15 else "FatJetSVs"
-        print(self.ak15, self.fatjet_label)
 
         # self.met_label = "MET"
 
@@ -368,8 +367,6 @@ class TaggerInputSkimmer(ProcessorABC):
             # preselection_cut = fatjets.pt > 200
             # add_selection_no_cutflow("preselection", preselection_cut, selection)
 
-            print(f"preselection: {time.time() - start:.1f}s")
-
             # variables
             FatJetVars = {
                 f"fj_{key}": ak.fill_none(fatjets[var], -99999)
@@ -414,8 +411,6 @@ class TaggerInputSkimmer(ProcessorABC):
                 if "particleNet_H4qvsQCD" in fatjets.fields:
                     FatJetVars["fj_PN_H4qvsQCD"] = fatjets.particleNet_H4qvsQCD
 
-            print(f"fat jet vars: {time.time() - start:.1f}s")
-
             PFSVVars = {
                 **get_pfcands_features(
                     self.skim_vars["PFSV"],
@@ -435,8 +430,6 @@ class TaggerInputSkimmer(ProcessorABC):
                 ),
             }
 
-            print(f"PFSV vars: {time.time() - start:.1f}s")
-
             LepVars = {
                 **get_lep_features(
                     self.skim_vars["Lep"],
@@ -449,8 +442,6 @@ class TaggerInputSkimmer(ProcessorABC):
                 ),
             }
 
-            print(f"Lep vars: {time.time() - start:.1f}s")
-
             METVars = {
                 **get_met_features(
                     self.skim_vars["MET"],
@@ -461,8 +452,6 @@ class TaggerInputSkimmer(ProcessorABC):
                     normalize=False,
                 ),
             }
-
-            print(f"MET vars: {time.time() - start:.1f}s")
 
             if isMC:
                 genparts = events.GenPart
@@ -477,7 +466,6 @@ class TaggerInputSkimmer(ProcessorABC):
                 add_selection_no_cutflow("gen_match", matched_mask, selection)
             else:
                 genVars = {"fj_isData": ak.values_astype((fatjets.pt > 200), np.int32)}
-            print(f"Gen vars: {time.time() - start:.1f}s")
 
             if np.sum(selection.all(*selection.names)) == 0:
                 continue

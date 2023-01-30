@@ -307,6 +307,7 @@ class bbVVSkimmer(ProcessorABC):
             self.tagger_resources_path,
             events[selection.all(*selection.names)],
             ak15=False,
+            all_outputs=False,
         )
 
         # pnet_vars = {}
