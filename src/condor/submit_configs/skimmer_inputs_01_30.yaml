@@ -1,0 +1,11 @@
+{
+    "Skimmer":
+        {
+            "HH":
+                {
+                    "subsamples": ["GluGluToHHTobbVV_node_cHHH1"],
+                    "files_per_job": 20,
+                },
+            "QCD": { "files_per_job": 20 },
+        },
+}
