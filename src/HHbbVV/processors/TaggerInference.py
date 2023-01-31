@@ -588,7 +588,7 @@ def runInferenceTriton(
                 for i, input_name in enumerate(tagger_vars["input_names"])
             }
         )
-    
+
     # run inference for both fat jets
     tagger_outputs = []
     for jet_idx in range(num_jets):
