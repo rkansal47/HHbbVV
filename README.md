@@ -46,7 +46,7 @@ for i in condor/$TAG/*.jdl; do condor_submit $i; done
 Alternatively, can be submitted from a yaml file:
 
 ```bash
-python src/condor/submit_from_yaml.py --year 2017 --processor skimmer --tag $TAG --files-per-job 20 --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml 
+python src/condor/submit_from_yaml.py --year 2017 --processor skimmer --tag $TAG --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml 
 ```
 
 To test locally first (recommended), can do e.g.:
