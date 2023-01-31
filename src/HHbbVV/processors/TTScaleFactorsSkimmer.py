@@ -424,7 +424,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             self.tagger_resources_path,
             events[selection.all(*selection.names)],
             num_jets=1,
-            jet_idx=fatjet_idx[selection.all(*selection.names)],
+            in_jet_idx=fatjet_idx[selection.all(*selection.names)],
             jets=ak.flatten(leading_fatjets[selection.all(*selection.names)]),
             all_outputs=False,
         )
