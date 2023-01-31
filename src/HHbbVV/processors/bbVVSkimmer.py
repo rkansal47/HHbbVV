@@ -221,8 +221,11 @@ class bbVVSkimmer(ProcessorABC):
             add_selection("trigger", HLT_triggered, selection, cutflow, isData, signGenWeights)
 
         # TODO: save variations (?)
-        # fatjets = get_jec_jets(events, year) if not isData else events.FatJet
-        fatjets = events.FatJet
+        try:
+            fatjets = get_jec_jets(events, year) if not isData else events.FatJet
+        except:
+            print("Couldn't load JECs")
+            fatjets = events.FatJet
 
         num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
 
