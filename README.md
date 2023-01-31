@@ -72,10 +72,16 @@ To test locally:
 
 Jobs
 ```bash
-nohup python src/condor/submit_from_yaml.py --year 2017 --tag Jul24 --processor skimmer --submit --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml &> tmp/submitout.txt &
+nohup python src/condor/submit_from_yaml.py --year 2017 --tag $TAG --processor skimmer --submit --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml &> tmp/submitout.txt &
 
 # Submit (if not using the --submit flag)
 nohup bash -c 'for i in condor/'"${TAG}"'/*.jdl; do condor_submit $i; done' &> tmp/submitout.txt &
+```
+
+Or just signal:
+
+```bash
+python src/condor/submit.py --year 2017 --tag $TAG --samples HH --subsamples GluGluToHHTobbVV_node_cHHH1 --processor skimmer --submit
 ```
 
 
@@ -91,8 +97,8 @@ python -W ignore src/run.py --year 2017 --starti 300 --endi 301 --samples QCD --
 
 Jobs:
 ```bash
-python src/condor/submit_from_yaml.py --year 2017 --tag Jul21 --processor input --save-ak15 --yaml src/condor/submit_configs/training_inputs_07_21.yaml 
-python src/condor/submit_from_yaml.py --year 2017 --tag Sep16 --processor input --yaml src/condor/submit_configs/training_inputs_09_16.yaml --jet AK8
+python src/condor/submit_from_yaml.py --year 2017 --tag $TAG --processor input --save-ak15 --yaml src/condor/submit_configs/training_inputs_07_21.yaml 
+python src/condor/submit_from_yaml.py --year 2017 --tag $TAG --processor input --yaml src/condor/submit_configs/training_inputs_09_16.yaml --jet AK8
 ```
 To submit add `--submit` flag.
 
@@ -112,13 +118,13 @@ python -W ignore src/run.py --year 2018 --processor ttsfs --sample TTbar --subsa
 
 Jobs:
 ```bash
-nohup python src/condor/submit_from_yaml.py --year 2018 --tag Nov23 --processor ttsfs --submit --yaml src/condor/submit_configs/ttsfs_inputs_12_4.yaml &> submitout.txt &
+nohup python src/condor/submit_from_yaml.py --year 2018 --tag $TAG --processor ttsfs --submit --yaml src/condor/submit_configs/ttsfs_inputs_12_4.yaml &> submitout.txt &
 ```
 
 Or to submit only the signal:
 
 ```bash
-python src/condor/submit.py --year 2018 --tag Dec16 --sample TTbar --subsamples TTToSemiLeptonic --processor ttsfs --submit
+python src/condor/submit.py --year 2018 --tag $TAG --sample TTbar --subsamples TTToSemiLeptonic --processor ttsfs --submit
 ```
 
 
