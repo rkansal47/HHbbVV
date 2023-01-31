@@ -28,7 +28,7 @@ import tritonclient.http as triton_http
 
 from tqdm import tqdm
 
-from utils import pad_val
+from .utils import pad_val
 
 
 def build_p4(cand):
@@ -538,7 +538,7 @@ def runInferenceTriton(
     tagger_resources_path: str,
     events: NanoEventsArray,
     num_jets: int = 2,
-    jet_idx: ArrayLike = None,
+    in_jet_idx: ArrayLike = None,
     jets: FatJetArray = None,
     ak15: bool = False,
     all_outputs: bool = True,
@@ -564,8 +564,7 @@ def runInferenceTriton(
     # prepare inputs for fat jets
     tagger_inputs = []
     for j in range(num_jets):
-        if jet_idx is None:
-            jet_idx = j
+        jet_idx = in_jet_idx if in_jet_idx is not None else j
 
         feature_dict = {
             **get_pfcands_features(tagger_vars, events, jet_idx, jets, fatjet_label, pfcands_label),
@@ -589,7 +588,7 @@ def runInferenceTriton(
                 for i, input_name in enumerate(tagger_vars["input_names"])
             }
         )
-
+    
     # run inference for both fat jets
     tagger_outputs = []
     for jet_idx in range(num_jets):
