@@ -472,10 +472,6 @@ class TaggerInputSkimmer(ProcessorABC):
 
             skimmed_vars = {**FatJetVars, **SubJetVars, **genVars, **PFSVVars, **METVars}
 
-            # print(events["event"],jet_idx)
-            # print("here-elenuqq ",genVars["fj_H_VV_elenuqq"])
-            # print("here-munuqq ",genVars["fj_H_VV_munuqq"])
-
             # apply selections
             skimmed_vars = {
                 key: np.squeeze(np.array(value[selection.all(*selection.names)]))
@@ -516,22 +512,41 @@ class TaggerInputSkimmer(ProcessorABC):
                     print(var, jet_vars[var][1])
                     print(var, jet_vars[var][3])
 
-            # py is slightly off
-            # all of these are off
-            # test_vars = ["pfcand_dz",
-            #              "pfcand_dzsig",
-            #              "pfcand_dxy",
-            #              "pfcand_dxysig",
-            #              "pfcand_btagEtaRel",
-            #              "pfcand_btagPtRatio",
-            #              "pfcand_btagPParRatio",
-            #              "pfcand_btagSip3dVal",
-            #              "pfcand_btagSip3dSig",
-            #              "pfcand_btagJetDistVal"]
+            # some of the pfcand_dz/pfcand_dxy values are 0 in PFNano..
+            # test_vars = [
+            #     # "pfcand_dz",
+            #     # "pfcand_dzsig",
+            #     # "pfcand_dxy",
+            #     # "pfcand_dxysig",
+            #     # "pfcand_normchi2",
+            #     # "pfcand_btagEtaRel",
+            #     # "pfcand_btagPtRatio",
+            #     # "pfcand_btagPParRatio",
+            #     # "pfcand_btagSip3dVal",
+            #     # "pfcand_btagSip3dSig",
+            #     # "pfcand_btagJetDistVal"
+            #     "sv_pt_log",
+            #     "sv_mass",
+            #     "sv_etarel",
+            #     "sv_phirel",
+            #     "sv_abseta",
+            #     "sv_ntracks",
+            #     "sv_normchi2",
+            #     "sv_dxy",
+            #     "sv_dxysig",
+            #     "sv_d3d",
+            #     "sv_d3dsig",
+            #     "sv_costhetasvpv",
+            #     "sv_px",
+            #     "sv_py",
+            #     "sv_pz",
+            #     "sv_energy",
+            # ]
             # for var in test_vars:
             #     print(var)
-            #     print(jet_vars[var][1])
-            #     print(jet_vars[var][3])
+            #     print(jet_vars[var])
+            #     #print(jet_vars[var][1])
+            #     #print(jet_vars[var][3])
             #     print("\n")
 
         elif len(jet_vars) == 1:

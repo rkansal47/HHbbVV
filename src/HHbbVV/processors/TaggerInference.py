@@ -70,7 +70,8 @@ def get_pfcands_features(
     jet_pfcands = preselected_events.PFCands[jet_ak_pfcands.pFCandsIdx]
 
     # sort them by pt
-    jet_pfcands = jet_pfcands[ak.argsort(jet_pfcands.pt, ascending=False)]
+    pfcand_sort = ak.argsort(jet_pfcands.pt, ascending=False)
+    jet_pfcands = jet_pfcands[pfcand_sort]
 
     # get features
 
@@ -116,7 +117,7 @@ def get_pfcands_features(
     # all the btag variables seem off!!!
     for var in tagger_vars["pf_features"]["var_names"]:
         if "btag" in var:
-            feature_dict[var] = jet_ak_pfcands[var[len("pfcand_") :]]
+            feature_dict[var] = jet_ak_pfcands[var[len("pfcand_") :]][pfcand_sort]
 
     feature_dict["pfcand_mask"] = (
         ~(
@@ -159,12 +160,10 @@ def get_pfcands_features(
 
         a = np.nan_to_num(a)
 
+        # replace values to match PKU's
         if var in repl_values_dict:
-            print(var)
             vals = repl_values_dict[var]
-            print(a)
-            a[vals[0]] = vals[1]
-            print(a)
+            a[a == vals[0]] = vals[1]
 
         if normalize:
             if var in tagger_vars["pf_features"]["var_names"]:
