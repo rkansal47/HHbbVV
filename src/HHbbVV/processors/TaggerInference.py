@@ -163,7 +163,7 @@ def get_pfcands_features(
         # replace values to match PKU's
         if var in repl_values_dict:
             vals = repl_values_dict[var]
-            a[a==vals[0]] = vals[1]
+            a[a == vals[0]] = vals[1]
 
         if normalize:
             if var in tagger_vars["pf_features"]["var_names"]:
