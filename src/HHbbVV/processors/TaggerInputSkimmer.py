@@ -508,9 +508,9 @@ class TaggerInputSkimmer(ProcessorABC):
             }
 
             for var in jet_vars:
-               if "FatJetParTMD_" in var:
-                   print(var, jet_vars[var][1])
-                   print(var, jet_vars[var][3])
+                if "FatJetParTMD_" in var:
+                    print(var, jet_vars[var][1])
+                    print(var, jet_vars[var][3])
 
             # some of the pfcand_dz/pfcand_dxy values are 0 in PFNano..
             # test_vars = [
