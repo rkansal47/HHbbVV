@@ -99,22 +99,17 @@ def get_pfcands_features(
 
     feature_dict["pfcand_normchi2"] = np.floor(jet_pfcands.trkChi2)
 
-    # need to replace 1s with 0!!!
     feature_dict["pfcand_dz"] = jet_pfcands.dz
     feature_dict["pfcand_dxy"] = jet_pfcands.d0
 
-    # need to replace -1s with 0!!!
     feature_dict["pfcand_dzsig"] = jet_pfcands.dz / jet_pfcands.dzErr
     feature_dict["pfcand_dxysig"] = jet_pfcands.d0 / jet_pfcands.d0Err
 
-    # py is slightly different than PKU but that is probably ok
     feature_dict["pfcand_px"] = jet_pfcands.px
     feature_dict["pfcand_py"] = jet_pfcands.py
     feature_dict["pfcand_pz"] = jet_pfcands.pz
     feature_dict["pfcand_energy"] = jet_pfcands.E
 
-    # btag vars
-    # all the btag variables seem off!!!
     for var in tagger_vars["pf_features"]["var_names"]:
         if "btag" in var:
             feature_dict[var] = jet_ak_pfcands[var[len("pfcand_") :]][pfcand_sort]
