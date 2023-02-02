@@ -293,7 +293,6 @@ class bbVVSkimmer(ProcessorABC):
                 axis=1,
             )
 
-
         # calc weights
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
