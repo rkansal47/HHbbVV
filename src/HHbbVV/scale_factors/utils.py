@@ -19,6 +19,14 @@ MAIN_DIR = "./"
 CUT_MAX_VAL = 9999.0
 
 
+P4 = {
+    "eta": "Eta",
+    "phi": "Phi",
+    "mass": "Mass",
+    "pt": "Pt",
+}
+
+
 def add_bool_arg(parser, name, help, default=False, no_name=None):
     """Add a boolean command line argument for argparse"""
     varname = "_".join(name.split("-"))  # change hyphens to underscores
