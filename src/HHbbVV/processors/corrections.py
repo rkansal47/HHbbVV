@@ -414,7 +414,6 @@ def _calc_lund_SFs(
 
 
 def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = False):
-
     import uproot
 
     # initialize lund plane scale factors lookups
