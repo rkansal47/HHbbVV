@@ -96,14 +96,19 @@ def get_pfcands_features(
     feature_dict["pfcand_VTX_ass"] = jet_pfcands.pvAssocQuality
     feature_dict["pfcand_lostInnerHits"] = jet_pfcands.lostInnerHits
     feature_dict["pfcand_quality"] = jet_pfcands.trkQuality
-
     feature_dict["pfcand_normchi2"] = np.floor(jet_pfcands.trkChi2)
 
-    feature_dict["pfcand_dz"] = jet_pfcands.dz
-    feature_dict["pfcand_dxy"] = jet_pfcands.d0
-
-    feature_dict["pfcand_dzsig"] = jet_pfcands.dz / jet_pfcands.dzErr
-    feature_dict["pfcand_dxysig"] = jet_pfcands.d0 / jet_pfcands.d0Err
+    if "Cdz" in jet_ak_pfcands.fields:
+        feature_dict["pfcand_dz"] = jet_ak_pfcands["Cdz"][pfcand_sort]
+        feature_dict["pfcand_dxy"] = jet_ak_pfcands["Cdxy"][pfcand_sort]
+        feature_dict["pfcand_dzsig"] = jet_ak_pfcands["Cdzsig"][pfcand_sort]
+        feature_dict["pfcand_dxysig"] = jet_ak_pfcands["Cdxysig"][pfcand_sort]
+    else:
+        # this is for old PFNano (<= v2.3)
+        feature_dict["pfcand_dz"] = jet_pfcands.dz
+        feature_dict["pfcand_dxy"] = jet_pfcands.d0 
+        feature_dict["pfcand_dzsig"] = jet_pfcands.dz / jet_pfcands.dzErr 
+        feature_dict["pfcand_dxysig"] = jet_pfcands.d0 / jet_pfcands.d0Err
 
     feature_dict["pfcand_px"] = jet_pfcands.px
     feature_dict["pfcand_py"] = jet_pfcands.py
