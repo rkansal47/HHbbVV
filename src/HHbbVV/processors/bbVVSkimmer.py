@@ -34,7 +34,7 @@ P4 = {
 # mapping samples to the appropriate function for doing gen-level selections
 gen_selection_dict = {
     "HTo2bYTo2W": gen_selection_HYbbVV,
-    "GluGluToHHTobbVV_node_cHHH1": gen_selection_HHbbVV,
+    "GluGluToHHTobbVV_node_cHHH": gen_selection_HHbbVV,
     "jhu_HHbbWW": gen_selection_HHbbVV,
     "GluGluToBulkGravitonToHHTo4W_JHUGen": gen_selection_HH4V,
     "GluGluToHHTo4V_node_cHHH1": gen_selection_HH4V,
@@ -200,9 +200,10 @@ class bbVVSkimmer(ProcessorABC):
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
         for d in gen_selection_dict:
             if d in dataset:
+                vars_dict, (genbb, genq) = gen_selection_dict[d](events, selection, cutflow, signGenWeights, P4)
                 skimmed_events = {
                     **skimmed_events,
-                    **gen_selection_dict[d](events, selection, cutflow, signGenWeights, P4),
+                    **vars_dict
                 }
 
         # triggers
@@ -229,6 +230,8 @@ class bbVVSkimmer(ProcessorABC):
 
         num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
 
+
+        #  TODO: Next run - replace these with `fatjets`!!!!
         # pre-selection cuts
         preselection_cut = np.prod(
             pad_val(
@@ -312,6 +315,34 @@ class bbVVSkimmer(ProcessorABC):
             ak15=False,
             all_outputs=False,
         )
+
+        if "GluGluToHHTobbVV_node_cHHH1" in dataset:
+            # TODO: add HVV, Hbb gen matching?
+            # match_dict, gen_quarks = ttbar_scale_factor_matching(
+            #     events, leading_fatjets[:, 0], selection_args
+            # )
+            # top_matched = match_dict["top_matched"].astype(bool) * selection.all(*selection.names)
+
+            # skimmed_events = {**skimmed_events, **match_dict}
+
+            for i in range(num_jets):
+            sf_dict = get_lund_SFs(
+                events[top_matched],
+                fatjet_idx[top_matched],
+                num_prongs,
+                gen_quarks[top_matched],
+                trunc_gauss=True,
+                lnN=True,
+            )
+
+            # fill zeros for all non-top-matched events
+            for key, val in list(sf_dict.items()):
+                # plus 1 for the nominal values
+                arr = np.zeros((len(events), val.shape[1]))
+                arr[top_matched] = val
+                sf_dict[key] = arr
+
+            skimmed_events = {**skimmed_events, **sf_dict}
 
         # pnet_vars = {}
 

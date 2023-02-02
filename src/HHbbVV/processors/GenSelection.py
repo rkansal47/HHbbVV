@@ -95,6 +95,7 @@ def gen_selection_HYbbVV(
 
 def gen_selection_HHbbVV(
     events: NanoEventsArray,
+    fatjets: FatJetArray,
     selection: PackedSelection,
     cutflow: dict,
     signGenWeights: ak.Array,
@@ -164,7 +165,35 @@ def gen_selection_HHbbVV(
         for (var, key) in skim_vars.items()
     }
 
-    return {**GenHiggsVars, **GenbbVars, **GenVVVars, **Gen4qVars}
+    # fatjet gen matching
+    Hbb = higgs[ak.sum(is_bb, axis=2) == 2]
+    Hbb = ak.pad_none(Hbb, 1, axis=1, clip=True)[:, 0]
+
+    HVV = higgs[ak.sum(is_VV, axis=2) == 2]
+    HVV = ak.pad_none(HVV, 1, axis=1, clip=True)[:, 0]
+
+    bbdr = fatjets[:, :2].delta_r(Hbb)
+    vvdr = fatjets[:, :2].delta_r(HVV)
+
+    match_dR = 0.8
+    Hbb_match = bbdr <= match_dR
+    HVV_match = vvdr <= match_dR
+
+    # overlap removal - in the case where fatjet is matched to both, match it only to the closest Higgs
+    Hbb_match = (Hbb_match * ~HVV_match) + (bbdr <= vvdr) * (Hbb_match * HVV_match)
+    HVV_match = (HVV_match * ~Hbb_match) + (bbdr > vvdr) * (Hbb_match * HVV_match)
+
+    VVJets = ak.pad_none(fatjets[HVV_match], 1, axis=1)[:, 0]
+    quarkdrs = ak.flatten(VVJets.delta_r(VV_children), axis=2)
+    num_prongs = ak.sum(quarkdrs < match_dR, axis=1)
+
+    GenMatchingVars = {
+        "ak8FatJetHbb": pad_val(Hbb_match, 2, FILL_NONE_VALUE, axis=1),
+        "ak8FatJetHVV": pad_val(HVV_match, 2, FILL_NONE_VALUE, axis=1),
+        "ak8FatJetHVVNumProngs": ak.fill_none(num_prongs, -99999).to_numpy(),
+    }
+
+    return {**GenHiggsVars, **GenbbVars, **GenVVVars, **Gen4qVars, **GenMatchingVars}, (bb, ak.flatten(VV_children, axis=2))
 
 
 def gen_selection_HH4V(
