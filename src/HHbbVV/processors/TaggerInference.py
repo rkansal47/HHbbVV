@@ -28,7 +28,7 @@ import tritonclient.http as triton_http
 
 from tqdm import tqdm
 
-from utils import pad_val
+from .utils import pad_val
 
 
 def build_p4(cand):
@@ -592,7 +592,7 @@ def runInferenceTriton(
             }
         )
 
-    return feature_dicts
+    # return feature_dicts
 
     # run inference for both fat jets
     tagger_outputs = []
