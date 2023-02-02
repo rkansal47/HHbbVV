@@ -29,15 +29,16 @@ parser.add_argument(
 
 parser.add_argument("--tag", default="", help="tag for jobs", type=str)
 parser.add_argument("--year", default="2017", help="year", type=str)
+parser.add_argument("--user", default="rkansal", help="user", type=str)
 run_utils.add_bool_arg(parser, "submit-missing", default=False, help="submit missing files")
 
 args = parser.parse_args()
 
 
-eosdir = f"/eos/uscms/store/user/rkansal/bbVV/{args.processor}/{args.tag}/{args.year}/"
+eosdir = f"/eos/uscms/store/user/{args.user}/bbVV/{args.processor}/{args.tag}/{args.year}/"
 
 samples = listdir(eosdir)
-jdls = [jdl for jdl in listdir(f"condor/{args.processor}/{args.tag}/") if jdl.endswith(".jdl")]
+jdls = [jdl for jdl in listdir(f"/uscms/home/{args.user}/nobackup/HHbbVV/condor/{args.processor}/{args.tag}/") if jdl.endswith(".jdl")]
 
 jdl_dict = {
     sample: np.sort(

@@ -493,6 +493,9 @@ def get_lund_SFs(
         ratio_sys_down,
     ) = _get_lund_lookups(seed, lnN, trunc_gauss)
 
+    print("ratio smeared lookups")
+    print(ratio_smeared_lookups[0])
+
     flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, kt_subjets_vec = _get_lund_arrays(
         events, fatjet_idx, num_prongs
     )
