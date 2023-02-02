@@ -464,7 +464,12 @@ def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = Fals
     ratio_lnN_smeared_lookups,
     ratio_sys_up,
     ratio_sys_down,
-) = None, None, None, None
+) = (
+    None,
+    None,
+    None,
+    None,
+)
 
 
 def get_lund_SFs(
@@ -496,7 +501,9 @@ def get_lund_SFs(
     # global variable to not have to load + smear LP ratios each time
     global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down
 
-    if (lnN and ratio_lnN_smeared_lookups is None) or (trunc_gauss and ratio_smeared_lookups is None):
+    if (lnN and ratio_lnN_smeared_lookups is None) or (
+        trunc_gauss and ratio_smeared_lookups is None
+    ):
         (
             ratio_smeared_lookups,
             ratio_lnN_smeared_lookups,

@@ -21,7 +21,13 @@ from collections import OrderedDict
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection, concatenate_dicts
-from .corrections import add_pileup_weight, add_VJets_kFactors, get_jec_key, get_jec_jets, get_lund_SFs
+from .corrections import (
+    add_pileup_weight,
+    add_VJets_kFactors,
+    get_jec_key,
+    get_jec_jets,
+    get_lund_SFs,
+)
 
 
 P4 = {
@@ -209,11 +215,10 @@ class bbVVSkimmer(ProcessorABC):
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
         for d in gen_selection_dict:
             if d in dataset:
-                vars_dict, (genbb, genq) = gen_selection_dict[d](events, fatjets, selection, cutflow, signGenWeights, P4)
-                skimmed_events = {
-                    **skimmed_events,
-                    **vars_dict
-                }
+                vars_dict, (genbb, genq) = gen_selection_dict[d](
+                    events, fatjets, selection, cutflow, signGenWeights, P4
+                )
+                skimmed_events = {**skimmed_events, **vars_dict}
 
         # triggers
         # OR-ing HLT triggers
@@ -317,9 +322,7 @@ class bbVVSkimmer(ProcessorABC):
 
         sel_all = selection.all(*selection.names)
 
-        skimmed_events = {
-            key: value[sel_all] for (key, value) in skimmed_events.items()
-        }
+        skimmed_events = {key: value[sel_all] for (key, value) in skimmed_events.items()}
 
         ################
         # Lund plane SFs
@@ -340,7 +343,11 @@ class bbVVSkimmer(ProcessorABC):
                     # name: (selector, gen quarks, num prongs)
                     "bb": (bb_select, genbb, 2),
                     **{
-                        f"VV{k}q": (VV_select * (skimmed_events["ak8FatJetHVVNumProngs"] == k), genq, k)
+                        f"VV{k}q": (
+                            VV_select * (skimmed_events["ak8FatJetHVVNumProngs"] == k),
+                            genq,
+                            k,
+                        )
                         for k in range(2, 4 + 1)
                     },
                 }
@@ -369,7 +376,6 @@ class bbVVSkimmer(ProcessorABC):
                     sf_dict[key] = arr
 
                 sf_dicts.append(sf_dict)
-
 
             sf_dicts = concatenate_dicts(sf_dicts)
 
