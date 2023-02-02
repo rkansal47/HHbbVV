@@ -19,7 +19,7 @@ import pathlib
 
 import fastjet
 
-from .utils import P4
+from utils import P4
 
 
 package_path = str(pathlib.Path(__file__).parent.parent.resolve())
@@ -460,6 +460,14 @@ def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = Fals
     return ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down
 
 
+(
+    ratio_smeared_lookups,
+    ratio_lnN_smeared_lookups,
+    ratio_sys_up,
+    ratio_sys_down,
+) = None, None, None, None
+
+
 def get_lund_SFs(
     events: NanoEventsArray,
     fatjet_idx: Tuple[int, ak.Array],
@@ -486,15 +494,19 @@ def get_lund_SFs(
         Dict[str, np.ndarray]: dictionary with nominal weights per jet, sys variations, and (optionally) random smearings.
     """
 
-    (
-        ratio_smeared_lookups,
-        ratio_lnN_smeared_lookups,
-        ratio_sys_up,
-        ratio_sys_down,
-    ) = _get_lund_lookups(seed, lnN, trunc_gauss)
+    # global variable to not have to load + smear LP ratios each time
+    global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down
 
-    print("ratio smeared lookups")
-    print(ratio_smeared_lookups[0])
+    if (lnN and ratio_lnN_smeared_lookups is None) or (trunc_gauss and ratio_smeared_lookups is None):
+        (
+            ratio_smeared_lookups,
+            ratio_lnN_smeared_lookups,
+            ratio_sys_up,
+            ratio_sys_down,
+        ) = _get_lund_lookups(seed, lnN, trunc_gauss)
+
+    print("ratio lnN smeared lookups")
+    print(ratio_lnN_smeared_lookups[0]._values)
 
     flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, kt_subjets_vec = _get_lund_arrays(
         events, fatjet_idx, num_prongs
