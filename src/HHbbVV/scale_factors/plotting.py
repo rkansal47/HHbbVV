@@ -155,6 +155,7 @@ def ratioLinePlot(
     data_err: Union[ArrayLike, bool, None] = None,
     title: str = None,
     blind_region: list = None,
+    pulls: bool = False,
     name: str = "",
     sig_scale: float = 1.0,
     show: bool = True,
@@ -207,26 +208,44 @@ def ratioLinePlot(
     ax.legend(ncol=2)
     ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
 
-    datamc_ratio = hists[data_key, :].values() / (bg_tot + 1e-5)
+    data_vals = hists[data_key, :].values()
 
-    if bg_err == "ratio":
-        yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot, "poisson")
-    elif bg_err is None:
-        yerr = 0
+    if not pulls:
+        datamc_ratio = data_vals / (bg_tot + 1e-5)
+
+        if bg_err == "ratio":
+            yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
+        elif bg_err is None:
+            yerr = 0
+        else:
+            yerr = datamc_ratio * (bg_err / (bg_tot + 1e-8))
+
+        hep.histplot(
+            hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
+            yerr=yerr,
+            ax=rax,
+            histtype="errorbar",
+            color="black",
+            capsize=4,
+        )
+        rax.set_ylabel("Data/MC")
+        rax.set_ylim(0.5, 1.5)
+        rax.grid()
     else:
-        yerr = datamc_ratio * (bg_err / (bg_tot + 1e-8))
+        mcdata_ratio = bg_tot / (data_vals + 1e-5)
+        yerr = bg_err / data_vals
 
-    hep.histplot(
-        hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
-        yerr=yerr,
-        ax=rax,
-        histtype="errorbar",
-        color="black",
-        capsize=4,
-    )
-    rax.set_ylabel("Data/MC")
-    rax.set_ylim(0.5, 1.5)
-    rax.grid()
+        hep.histplot(
+            (sum([hists[sample, :] for sample in bg_keys]) / (data_vals + 1e-5) - 1) * (-1),
+            yerr=yerr,
+            ax=rax,
+            histtype="errorbar",
+            color="black",
+            capsize=4,
+        )
+        rax.set_ylabel("(Data - MC) / Data")
+        rax.set_ylim(-0.5, 0.5)
+        rax.grid()
 
     if title is not None:
         ax.set_title(title, y=1.08)

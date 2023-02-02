@@ -133,8 +133,6 @@ def load_samples(
         events_dict[label] = []
         for sample in full_samples_list:
             if not check_selector(sample, selector):
-                print(sample)
-                print(selector)
                 continue
 
             # print(sample)

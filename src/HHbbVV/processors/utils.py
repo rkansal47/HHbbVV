@@ -9,6 +9,8 @@ import awkward as ak
 
 from coffea.analysis_tools import PackedSelection
 
+from typing import List, Dict
+
 
 P4 = {
     "eta": "Eta",
@@ -62,3 +64,17 @@ def add_selection_no_cutflow(
 ):
     """adds selection to PackedSelection object"""
     selection.add(name, ak.fill_none(sel, False))
+
+
+def concatenate_dicts(dicts_list: List[Dict[str, np.ndarray]]):
+    """given a list of dicts of numpy arrays, concatenates the numpy arrays across the lists"""
+    if len(dicts_list) > 1:
+        return {
+            key: np.concatenate(
+                [dicts_list[i][key][:, np.newaxis] for i in range(len(dicts_list))],
+                axis=1,
+            )
+            for key in dicts_list[0]
+        }
+    else:
+        return dicts_list[0]

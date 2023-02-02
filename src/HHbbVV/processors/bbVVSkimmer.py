@@ -20,8 +20,14 @@ from collections import OrderedDict
 
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV
 from .TaggerInference import runInferenceTriton
-from .utils import pad_val, add_selection
-from .corrections import add_pileup_weight, add_VJets_kFactors, get_jec_key, get_jec_jets
+from .utils import pad_val, add_selection, concatenate_dicts
+from .corrections import (
+    add_pileup_weight,
+    add_VJets_kFactors,
+    get_jec_key,
+    get_jec_jets,
+    get_lund_SFs,
+)
 
 
 P4 = {
@@ -34,7 +40,7 @@ P4 = {
 # mapping samples to the appropriate function for doing gen-level selections
 gen_selection_dict = {
     "HTo2bYTo2W": gen_selection_HYbbVV,
-    "GluGluToHHTobbVV_node_cHHH1": gen_selection_HHbbVV,
+    "GluGluToHHTobbVV_node_cHHH": gen_selection_HHbbVV,
     "jhu_HHbbWW": gen_selection_HHbbVV,
     "GluGluToBulkGravitonToHHTo4W_JHUGen": gen_selection_HH4V,
     "GluGluToHHTo4V_node_cHHH1": gen_selection_HH4V,
@@ -195,15 +201,24 @@ class bbVVSkimmer(ProcessorABC):
         cutflow = OrderedDict()
         cutflow["all"] = n_events
 
+        num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
+
         skimmed_events = {}
+
+        # TODO: save variations (?)
+        try:
+            fatjets = get_jec_jets(events, year) if not isData else events.FatJet
+        except:
+            print("Couldn't load JECs")
+            fatjets = events.FatJet
 
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
         for d in gen_selection_dict:
             if d in dataset:
-                skimmed_events = {
-                    **skimmed_events,
-                    **gen_selection_dict[d](events, selection, cutflow, signGenWeights, P4),
-                }
+                vars_dict, (genbb, genq) = gen_selection_dict[d](
+                    events, fatjets, selection, cutflow, signGenWeights, P4
+                )
+                skimmed_events = {**skimmed_events, **vars_dict}
 
         # triggers
         # OR-ing HLT triggers
@@ -220,15 +235,7 @@ class bbVVSkimmer(ProcessorABC):
             )
             add_selection("trigger", HLT_triggered, selection, cutflow, isData, signGenWeights)
 
-        # TODO: save variations (?)
-        try:
-            fatjets = get_jec_jets(events, year) if not isData else events.FatJet
-        except:
-            print("Couldn't load JECs")
-            fatjets = events.FatJet
-
-        num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
-
+        #  TODO: Next run - replace these with `fatjets`!!!!
         # pre-selection cuts
         preselection_cut = np.prod(
             pad_val(
@@ -275,6 +282,17 @@ class bbVVSkimmer(ProcessorABC):
             axis=1,
         )
 
+        # deep-WH to compare SF with resonant WWW
+        # https://indico.cern.ch/event/1023231/contributions/4296222/attachments/2217081/3756197/VVV_0lep_PreApp.pdf
+
+        if "GluGluToHHTobbVV_node_cHHH1" in dataset:
+            skimmed_events["ak8FatJetdeepTagMD_H4qvsQCD"] = pad_val(
+                events.FatJet.deepTagMD_H4qvsQCD,
+                2,
+                -1,
+                axis=1,
+            )
+
         # calc weights
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
@@ -301,19 +319,76 @@ class bbVVSkimmer(ProcessorABC):
 
         # apply selections
 
-        skimmed_events = {
-            key: value[selection.all(*selection.names)] for (key, value) in skimmed_events.items()
-        }
+        sel_all = selection.all(*selection.names)
+
+        skimmed_events = {key: value[sel_all] for (key, value) in skimmed_events.items()}
+
+        ################
+        # Lund plane SFs
+        ################
+
+        if "GluGluToHHTobbVV_node_cHHH" in dataset:
+            genbb = genbb[sel_all]
+            genq = genq[sel_all]
+
+            sf_dicts = []
+
+            for i in range(num_jets):
+                bb_select = skimmed_events["ak8FatJetHbb"][:, i].astype(bool)
+                VV_select = skimmed_events["ak8FatJetHVV"][:, i].astype(bool)
+
+                # selectors for Hbb jets and HVV jets with 2, 3, or 4 prongs separately
+                selectors = {
+                    # name: (selector, gen quarks, num prongs)
+                    "bb": (bb_select, genbb, 2),
+                    **{
+                        f"VV{k}q": (
+                            VV_select * (skimmed_events["ak8FatJetHVVNumProngs"] == k),
+                            genq,
+                            k,
+                        )
+                        for k in range(2, 4 + 1)
+                    },
+                }
+
+                selected_sfs = {}
+
+                for key, (selector, gen_quarks, num_prongs) in selectors.items():
+                    selected_sfs[key] = get_lund_SFs(
+                        events[sel_all][selector],
+                        i,
+                        num_prongs,
+                        gen_quarks[selector],
+                        trunc_gauss=False,
+                        lnN=True,
+                    )
+
+                sf_dict = {}
+
+                # collect all the scale factors, fill in 0s for unmatched jets
+                for key, val in selected_sfs["bb"].items():
+                    arr = np.zeros((np.sum(sel_all), val.shape[1]))
+
+                    for select_key, (selector, _, _) in selectors.items():
+                        arr[selector] = selected_sfs[select_key][key]
+
+                    sf_dict[key] = arr
+
+                sf_dicts.append(sf_dict)
+
+            sf_dicts = concatenate_dicts(sf_dicts)
+
+            skimmed_events = {**skimmed_events, **sf_dicts}
+
+        pnet_vars = {}
 
         # apply HWW4q tagger
         pnet_vars = runInferenceTriton(
             self.tagger_resources_path,
-            events[selection.all(*selection.names)],
+            events[sel_all],
             ak15=False,
             all_outputs=False,
         )
-
-        # pnet_vars = {}
 
         skimmed_events = {
             **skimmed_events,
