@@ -219,7 +219,7 @@ def ratioLinePlot(
             yerr = 0
         else:
             yerr = datamc_ratio * (bg_err / (bg_tot + 1e-8))
-        
+
         hep.histplot(
             hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
             yerr=yerr,
@@ -233,7 +233,7 @@ def ratioLinePlot(
         rax.grid()
     else:
         mcdata_ratio = bg_tot / (data_vals + 1e-5)
-        yerr = bg_err  / data_vals
+        yerr = bg_err / data_vals
 
         hep.histplot(
             (sum([hists[sample, :] for sample in bg_keys]) / (data_vals + 1e-5) - 1) * (-1),
