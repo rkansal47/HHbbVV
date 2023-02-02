@@ -193,7 +193,10 @@ def gen_selection_HHbbVV(
         "ak8FatJetHVVNumProngs": ak.fill_none(num_prongs, -99999).to_numpy(),
     }
 
-    return {**GenHiggsVars, **GenbbVars, **GenVVVars, **Gen4qVars, **GenMatchingVars}, (bb, ak.flatten(VV_children, axis=2))
+    return {**GenHiggsVars, **GenbbVars, **GenVVVars, **Gen4qVars, **GenMatchingVars}, (
+        bb,
+        ak.flatten(VV_children, axis=2),
+    )
 
 
 def gen_selection_HH4V(
