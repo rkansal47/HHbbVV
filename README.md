@@ -70,6 +70,10 @@ To test locally:
 
 `python -W ignore src/run.py --processor skimmer --year 2017 --samples HH --subsamples GluGluToHHTobbVV_node_cHHH1 --starti 0 --endi 1`
 
+Or on a specific file(s):
+
+`python -W ignore src/run.py --processor skimmer --year 2017 --files $FILE --files-name GluGluToHHTobbVV_node_cHHH1`
+
 Jobs
 ```bash
 nohup python src/condor/submit_from_yaml.py --year 2017 --tag $TAG --processor skimmer --submit --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml &> tmp/submitout.txt &
