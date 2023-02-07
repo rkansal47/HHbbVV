@@ -106,8 +106,8 @@ def get_pfcands_features(
     else:
         # this is for old PFNano (<= v2.3)
         feature_dict["pfcand_dz"] = jet_pfcands.dz
-        feature_dict["pfcand_dxy"] = jet_pfcands.d0 
-        feature_dict["pfcand_dzsig"] = jet_pfcands.dz / jet_pfcands.dzErr 
+        feature_dict["pfcand_dxy"] = jet_pfcands.d0
+        feature_dict["pfcand_dzsig"] = jet_pfcands.dz / jet_pfcands.dzErr
         feature_dict["pfcand_dxysig"] = jet_pfcands.d0 / jet_pfcands.d0Err
 
     feature_dict["pfcand_px"] = jet_pfcands.px

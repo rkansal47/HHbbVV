@@ -481,7 +481,7 @@ class TaggerInputSkimmer(ProcessorABC):
             jet_vars.append(skimmed_vars)
 
             print(f"Jet {jet_idx + 1}: {time.time() - start:.1f}s")
-            
+
         pnet_vars = runInferenceTriton(
             self.tagger_resources_path,
             events[selection.all(*selection.names)],
@@ -490,7 +490,7 @@ class TaggerInputSkimmer(ProcessorABC):
         )
 
         for jet_idx in range(self.num_jets):
-            pnet_vars_jet = {**{key: value[:,jet_idx] for (key, value) in pnet_vars.items()}}
+            pnet_vars_jet = {**{key: value[:, jet_idx] for (key, value) in pnet_vars.items()}}
             # print(jet_idx,jet_vars[jet_idx]["fj_pt"],pnet_vars_jet)
             jet_vars[jet_idx] = {**jet_vars[jet_idx], **pnet_vars_jet}
 
@@ -507,7 +507,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 for var in jet_vars[0]
             }
 
-            #for var in jet_vars:
+            # for var in jet_vars:
             #    if "FatJetParTMD_" in var or "fj_pt" in var:
             #        print(var, jet_vars[var])
 
