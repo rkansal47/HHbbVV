@@ -354,14 +354,15 @@ class bbVVSkimmer(ProcessorABC):
                 selected_sfs = {}
 
                 for key, (selector, gen_quarks, num_prongs) in selectors.items():
-                    selected_sfs[key] = get_lund_SFs(
-                        events[sel_all][selector],
-                        i,
-                        num_prongs,
-                        gen_quarks[selector],
-                        trunc_gauss=False,
-                        lnN=True,
-                    )
+                    if np.sum(selector) > 0:
+                        selected_sfs[key] = get_lund_SFs(
+                            events[sel_all][selector],
+                            i,
+                            num_prongs,
+                            gen_quarks[selector],
+                            trunc_gauss=False,
+                            lnN=True,
+                        )
 
                 sf_dict = {}
 
@@ -370,7 +371,8 @@ class bbVVSkimmer(ProcessorABC):
                     arr = np.zeros((np.sum(sel_all), val.shape[1]))
 
                     for select_key, (selector, _, _) in selectors.items():
-                        arr[selector] = selected_sfs[select_key][key]
+                        if np.sum(selector) > 0:
+                            arr[selector] = selected_sfs[select_key][key]
 
                     sf_dict[key] = arr
 
