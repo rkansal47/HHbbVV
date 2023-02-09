@@ -104,17 +104,17 @@ shape_bins = [20, 50, 250]  # num bins, min, max
 blind_window = [100, 150]
 
 
-# for local interactive testing
-args = type("test", (object,), {})()
-args.data_dir = "../../../../data/skimmer/Apr28/"
-args.plot_dir = "../../../PostProcess/plots/04_07_scan"
-args.year = "2017"
-args.bdt_preds = f"{args.data_dir}/absolute_weights_preds.npy"
-args.template_file = "templates/04_07_scan"
-args.overwrite_template = True
-args.control_plots = False
-args.templates = False
-args.scan = True
+# # for local interactive testing
+# args = type("test", (object,), {})()
+# args.data_dir = "../../../../data/skimmer/Apr28/"
+# args.plot_dir = "../../../PostProcess/plots/04_07_scan"
+# args.year = "2017"
+# args.bdt_preds = f"{args.data_dir}/absolute_weights_preds.npy"
+# args.template_file = "templates/04_07_scan"
+# args.overwrite_template = True
+# args.control_plots = False
+# args.templates = False
+# args.scan = True
 
 
 def main(args):
@@ -240,20 +240,21 @@ def apply_weights(
     utils.add_to_cutflow(events_dict, "TriggerEffs", weight_key, cutflow)
 
     # calculate QCD scale factor
-    trig_yields = cutflow["TriggerEffs"]
-    non_qcd_bgs_yield = np.sum(
-        [
-            trig_yields[sample]
-            for sample in events_dict
-            if sample not in {sig_key, qcd_key, data_key}
-        ]
-    )
-    QCD_SCALE_FACTOR = (trig_yields[data_key] - non_qcd_bgs_yield) / trig_yields[qcd_key]
-    events_dict[qcd_key][weight_key] *= QCD_SCALE_FACTOR
+    if qcd_key in events_dict:
+        trig_yields = cutflow["TriggerEffs"]
+        non_qcd_bgs_yield = np.sum(
+            [
+                trig_yields[sample]
+                for sample in events_dict
+                if sample not in {sig_key, qcd_key, data_key}
+            ]
+        )
+        QCD_SCALE_FACTOR = (trig_yields[data_key] - non_qcd_bgs_yield) / trig_yields[qcd_key]
+        events_dict[qcd_key][weight_key] *= QCD_SCALE_FACTOR
 
-    print(f"{QCD_SCALE_FACTOR = }")
+        print(f"{QCD_SCALE_FACTOR = }")
 
-    utils.add_to_cutflow(events_dict, "QCD SF", weight_key, cutflow)
+        utils.add_to_cutflow(events_dict, "QCD SF", weight_key, cutflow)
 
 
 def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
@@ -274,6 +275,124 @@ def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataF
         bb_masks[sample] = pd.concat((bb_mask, ~bb_mask), axis=1)
 
     return bb_masks
+
+
+def postprocess_lpsfs(events: pd.DataFrame, num_jets: int = 2, num_lp_sf_toys: int = 100, save_all: bool = True):
+    """
+    (1) Splits LP SFs into bb and VV based on gen matching.
+    (2) Sets defaults for unmatched jets.
+    (3) Cuts of SFs at 10 and normalises.
+    """
+
+    for jet in ["bb", "VV"]:
+        # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
+        events.loc[np.sum(events[f"ak8FatJetH{jet}"], axis=1) > 1, f"ak8FatJetH{jet}"] = 0
+        jet_match = events[f"ak8FatJetH{jet}"].astype(bool)
+
+        # temp dict
+        td = {}
+        # td["tot_matched"] = np.sum(np.sum(jet_match))
+
+        # defaults of 1 for jets which aren't matched to anything - i.e. no SF
+        for key in ["lp_sf_nom", "lp_sf_sys_down", "lp_sf_sys_up"]:
+            td[key] = np.ones(len(events))
+
+        # defaults of 0 - i.e. don't contribute to unc.
+        for key in ["lp_sf_double_matched_event", "lp_sf_unmatched_quarks", "lp_sf_num_sjpt_gt350"]:
+            td[key] = np.zeros(len(events))
+
+        td["lp_sf_toys"] = np.ones((len(events), num_lp_sf_toys))
+
+        for j in range(num_jets):
+            offset = num_lp_sf_toys + 1
+            td["lp_sf_nom"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]][j * offset]
+            td["lp_sf_toys"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]].loc[
+                :, j * offset + 1 : (j + 1) * offset - 1
+            ]
+
+            for key in [
+                "lp_sf_sys_down",
+                "lp_sf_sys_up",
+                "lp_sf_double_matched_event",
+                "lp_sf_unmatched_quarks",
+                "lp_sf_num_sjpt_gt350",
+            ]:
+                td[key][jet_match[j]] = events[key][jet_match[j]][j]
+
+        for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_sys_down", "lp_sf_sys_up"]:
+            # cut off at 10
+            td[key] = np.minimum(td[key], 10)
+            # normalise
+            td[key] = td[key] / np.mean(td[key], axis=0)
+
+        if save_all:
+            for key in [
+                "lp_sf_nom",
+                "lp_sf_sys_down",
+                "lp_sf_sys_up",
+                "lp_sf_double_matched_event",
+                "lp_sf_unmatched_quarks",
+                "lp_sf_num_sjpt_gt350",
+            ]:
+                events[f"{jet}_{key}"] = td[key]
+
+            key = "lp_sf_toys"
+            events[[(f"{jet}_{key}", i) for i in range(num_lp_sf_toys)]] = td[key]
+
+        else:
+            key = "lp_sf_nom"
+            events[f"{jet}_{key}"] = td[key]
+
+
+def get_lpsf(events: pd.DataFrame, VV: bool = True):
+    """Calculates LP SF and uncertainties in current phase space. ``postprocess_lpsfs`` must be called first."""
+
+    jet = "VV" if VV else "bb"
+    tot_matched = np.sum(np.sum(events[f"ak8FatJetH{jet}"].astype(bool)))
+
+    weight = events["finalWeight"].values
+    tot_pre = np.sum(weight)
+    tot_post = np.sum(weight * events[f"{jet}_lp_sf_nom"])
+    lp_sf = tot_post / tot_pre
+
+    uncs = {}
+
+    # difference in yields between up and down shifts on LP SFs
+    uncs["syst_unc"] = np.abs(
+        (
+            np.sum(events[f"{jet}_lp_sf_sys_up"] * weight)
+            - np.sum(events[f"{jet}_lp_sf_sys_down"] * weight)
+        )
+        / tot_post
+    )
+
+    # std of yields after all smearings
+    uncs["stat_unc"] = (
+        np.std(np.sum(weight[:, np.newaxis] * events[f"{jet}_lp_sf_toys"].values, axis=0))
+        / tot_post
+    )
+
+    # fraction of subjets > 350 * 0.21 measured by CASE
+    uncs["sj_pt_unc"] = (np.sum(events[f"{jet}_lp_sf_num_sjpt_gt350"]) / tot_matched) * 0.21
+
+    if VV:
+        num_prongs = events["ak8FatJetHVVNumProngs"][0]
+
+        sj_matching_unc = np.sum(events[f"{jet}_lp_sf_double_matched_event"])
+        for nump in range(2, 5):
+            sj_matching_unc += (
+                np.sum(events[f"{jet}_lp_sf_unmatched_quarks"][num_prongs == nump]) / nump
+            )
+
+        uncs["sj_matching_unc"] = sj_matching_unc / tot_matched
+    else:
+        num_prongs = 2
+        uncs["sj_matching_unc"] = (
+            (np.sum(events[f"{jet}_lp_sf_unmatched_quarks"]) / num_prongs)
+            + np.sum(events[f"{jet}_lp_sf_double_matched_event"])
+        ) / tot_matched
+
+    return lp_sf, uncs
 
 
 def derive_variables(events_dict: Dict[str, pd.DataFrame], bb_masks: Dict[str, pd.DataFrame]):
@@ -336,7 +455,7 @@ def control_plots(
 
     """
 
-    from PyPDF2 import PdfFileMerger
+    from PyPDF2 import PdfMerger
 
     sig_scale = np.sum(events_dict[data_key][weight_key]) / np.sum(events_dict[sig_key][weight_key])
     print(f"{sig_scale = }")
@@ -349,10 +468,10 @@ def control_plots(
                 events_dict, var, bins, label, bb_masks, weight_key=weight_key
             )
 
-    with open(f"{args.plot_dir}/hists.pkl", "wb") as f:
+    with open(f"{plot_dir}/hists.pkl", "wb") as f:
         pickle.dump(hists, f)
 
-    merger_control_plots = PdfFileMerger()
+    merger_control_plots = PdfMerger()
 
     for var, var_hist in hists.items():
         name = f"{plot_dir}/{var}.pdf"

@@ -1,6 +1,24 @@
 # Analysis Plan
 
+### TODOs:
+
+ - Update trigger efficiencies, for all years
+   - Check if binning in VV tagger is necessary
+ - Add all systematics
+ - Scans
+ - Resonant X->HY
+
+
+### In progress:
+
+ - Applying Lund plane scale factors to non-resonant signal
+ - New fits, limits on HH with scale factors
+ - AN: https://gitlab.cern.ch/tdr/notes/AN-21-126
+
+
 ### ~Completed:
+
+
 
 #### Preliminary 2017 cut-based signal and background yields estimate 
  - using a coarse-grained grid search on pT, msd, and tagger scores
@@ -12,9 +30,6 @@
 #### Preliminary 2017 trigger scale factor measurements:
  - Measured for AK8, AK15, and hybrid jets, single-jet 2D (mass, pT binned) efficiencies (applied assuming prob. of each fat jet passing trigger is independent) and 3D (jet 1 mass, jet 1 pt, jet 2 pt binned)  efficiencies ([processors](https://github.com/rkansal47/HHbbVV/blob/main/processors/JetHTTriggerEfficienciesProcessor.py))
  - Tentatively decided to use hybrid case which gave the highest preselection yield and should increase with a better HWW tagger
- - TODO:
-   - Repeat using 2017 run B data as well
-   - Repeat with UL v2 samples
 
 #### Processor for skimming nano files
 https://github.com/rkansal47/HHbbVV/blob/main/processors/bbVVSkimmer.py
@@ -23,27 +38,27 @@ https://github.com/rkansal47/HHbbVV/blob/main/processors/bbVVSkimmer.py
    - Signal gen-matching cuts
    - Pre-selection kinematic cuts
    - Inference via triton server running on SDSC
+   - Lund plane scale factors for skimmer
    - Saving flat skimmed data to parquet files, and metadata (total events, cutflow) to pickles
  - TODO:
    - Add Txbb tagger pre-selection cut
-   - Add pileup weights
    - Apply trigger SFs
-   - Incorporate hybrid sorting
+   - Add remaining systematics
 
 #### Triton/SONIC inference server
 https://github.com/rkansal47/sonic-models
+https://gitlab.nrp-nautilus.io/raghsthebest/triton-server
 
 Server for running inference with our new HWW tagger on samples. 
 
 #### BDT Training
 https://github.com/rkansal47/HHbbVV/blob/main/src/HHbbVV/scripts/pickle_scripts/TrainBDT.py
-
      
-### In progress
+#### Tagger
 
-1) HWW tagger + mass regression development ([Zichun's tagger repo](https://github.com/zichunhao/weaver) and [Ish's regression repo](https://github.com/ikaul00/weaver))
+HWW tagger + mass regression development ([Zichun's tagger repo](https://github.com/zichunhao/weaver) and [Ish's regression repo](https://github.com/ikaul00/weaver))
 
-2) AN write-up https://gitlab.cern.ch/tdr/notes/AN-21-126
+#### Fits, combine
 
 
 #### Samples
@@ -62,10 +77,4 @@ Currently have for UL 2017:
     - TODO: Request UL ggH (and VBF?) signal samples for HtoWW inclusive
 
 2) Need to use `RunIISummer20UL17` in PFNano for next production
-
-
-### TODO:
-
-1) Background estimation...
-
 
