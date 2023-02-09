@@ -30,10 +30,10 @@ bdtVars = [
     "VVFatJetEta",
     "VVFatJetPt",
     "VVFatJetMsd",
-    # "VVFatJetParticleNetHWWMD_THWW4q",
-    "VVFatJetParticleNetHWWMD_probQCD",
-    "VVFatJetParticleNetHWWMD_probHWW3q",
-    "VVFatJetParticleNetHWWMD_probHWW4q",
+    # "VVFatJetParTMD_THWW4q",
+    "VVFatJetParTMD_probQCD",
+    "VVFatJetParTMD_probHWW3q",
+    "VVFatJetParTMD_probHWW4q",
     "bbFatJetPtOverDijetPt",
     "VVFatJetPtOverDijetPt",
     "VVFatJetPtOverbbFatJetPt",
@@ -145,6 +145,7 @@ def train_model(
     """Trains BDT. ``classifier_params`` are hyperparameters for the classifier"""
     print("Training model")
     model = xgb.XGBClassifier(**classifier_params)
+    print("Training features: ", list(X_train.columns))
     trained_model = model.fit(
         X_train,
         y_train,
