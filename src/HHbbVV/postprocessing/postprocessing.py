@@ -277,7 +277,9 @@ def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataF
     return bb_masks
 
 
-def postprocess_lpsfs(events: pd.DataFrame, num_jets: int = 2, num_lp_sf_toys: int = 100, save_all: bool = True):
+def postprocess_lpsfs(
+    events: pd.DataFrame, num_jets: int = 2, num_lp_sf_toys: int = 100, save_all: bool = True
+):
     """
     (1) Splits LP SFs into bb and VV based on gen matching.
     (2) Sets defaults for unmatched jets.
