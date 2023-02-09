@@ -46,7 +46,7 @@ for i in condor/$TAG/*.jdl; do condor_submit $i; done
 Alternatively, can be submitted from a yaml file:
 
 ```bash
-python src/condor/submit_from_yaml.py --year 2017 --processor skimmer --tag $TAG --files-per-job 20 --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml 
+python src/condor/submit_from_yaml.py --year 2017 --processor skimmer --tag $TAG --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml 
 ```
 
 To test locally first (recommended), can do e.g.:
@@ -69,6 +69,10 @@ Parquet and pickle files will be saved in the eos directory of specified user at
 To test locally:
 
 `python -W ignore src/run.py --processor skimmer --year 2017 --samples HH --subsamples GluGluToHHTobbVV_node_cHHH1 --starti 0 --endi 1`
+
+Or on a specific file(s):
+
+`python -W ignore src/run.py --processor skimmer --year 2017 --files $FILE --files-name GluGluToHHTobbVV_node_cHHH1`
 
 Jobs
 ```bash
