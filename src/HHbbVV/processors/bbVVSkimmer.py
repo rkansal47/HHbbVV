@@ -138,7 +138,7 @@ class bbVVSkimmer(ProcessorABC):
         "other": {"MET_pt": "MET_pt"},
     }
 
-    preselection_cut_vals = {"pt": 250, "msd": 20}
+    preselection_cut_vals = {"pt": 250, "msd": 50}
 
     def __init__(self, xsecs={}, save_ak15=False):
         super(bbVVSkimmer, self).__init__()
@@ -358,7 +358,7 @@ class bbVVSkimmer(ProcessorABC):
 
                 # collect all the scale factors, fill in 0s for unmatched jets
                 for key, val in selected_sfs["bb"].items():
-                    arr = np.zeros((np.sum(sel_all), val.shape[1]))
+                    arr = np.ones((np.sum(sel_all), val.shape[1]))
 
                     for select_key, (selector, _, _) in selectors.items():
                         arr[selector] = selected_sfs[select_key][key]
