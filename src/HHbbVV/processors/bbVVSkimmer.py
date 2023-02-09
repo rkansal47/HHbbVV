@@ -282,6 +282,17 @@ class bbVVSkimmer(ProcessorABC):
             axis=1,
         )
 
+        # deep-WH to compare SF with resonant WWW
+        # https://indico.cern.ch/event/1023231/contributions/4296222/attachments/2217081/3756197/VVV_0lep_PreApp.pdf
+
+        if "GluGluToHHTobbVV_node_cHHH1" in dataset:
+            skimmed_events["ak8FatJetdeepTagMD_H4qvsQCD"] = pad_val(
+                events.FatJet.deepTagMD_H4qvsQCD,
+                2,
+                -1,
+                axis=1,
+            )
+
         # calc weights
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
@@ -317,14 +328,12 @@ class bbVVSkimmer(ProcessorABC):
         ################
 
         if "GluGluToHHTobbVV_node_cHHH" in dataset:
-            fatjets = fatjets[sel_all]
             genbb = genbb[sel_all]
             genq = genq[sel_all]
 
             sf_dicts = []
 
             for i in range(num_jets):
-                fatjetsi = fatjets[sel_all][:, i]
                 bb_select = skimmed_events["ak8FatJetHbb"][:, i].astype(bool)
                 VV_select = skimmed_events["ak8FatJetHVV"][:, i].astype(bool)
 
@@ -345,14 +354,15 @@ class bbVVSkimmer(ProcessorABC):
                 selected_sfs = {}
 
                 for key, (selector, gen_quarks, num_prongs) in selectors.items():
-                    selected_sfs[key] = get_lund_SFs(
-                        events[sel_all][selector],
-                        i,
-                        num_prongs,
-                        gen_quarks[selector],
-                        trunc_gauss=False,
-                        lnN=True,
-                    )
+                    if np.sum(selector) > 0:
+                        selected_sfs[key] = get_lund_SFs(
+                            events[sel_all][selector],
+                            i,
+                            num_prongs,
+                            gen_quarks[selector],
+                            trunc_gauss=False,
+                            lnN=True,
+                        )
 
                 sf_dict = {}
 
@@ -361,7 +371,8 @@ class bbVVSkimmer(ProcessorABC):
                     arr = np.ones((np.sum(sel_all), val.shape[1]))
 
                     for select_key, (selector, _, _) in selectors.items():
-                        arr[selector] = selected_sfs[select_key][key]
+                        if np.sum(selector) > 0:
+                            arr[selector] = selected_sfs[select_key][key]
 
                     sf_dict[key] = arr
 
@@ -371,7 +382,7 @@ class bbVVSkimmer(ProcessorABC):
 
             skimmed_events = {**skimmed_events, **sf_dicts}
 
-        # pnet_vars = {}
+        pnet_vars = {}
 
         # apply HWW4q tagger
         pnet_vars = runInferenceTriton(
