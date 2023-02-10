@@ -30,6 +30,7 @@ adjust_posdef_yields = False
 from sample_labels import qcd_key, data_key
 
 LUMI = {"2017": 41.48}
+LP_SF = 1.3
 
 mc_samples = OrderedDict(
     [
@@ -40,7 +41,10 @@ mc_samples = OrderedDict(
 
 
 # dictionary of nuisance params -> modifier
-nuisance_params = {"lumi_13TeV_2017": "lnN"}
+nuisance_params = {"lumi_13TeV_2017": "lnN", "lp_sf": "lnN"}
+nuisance_params_dict = {
+    param: rl.NuisanceParameter(param, unc) for param, unc in nuisance_params.items()
+}
 
 # dictionary of shape systematics -> name in cards
 systs = OrderedDict([])
@@ -65,10 +69,6 @@ args.nDataTF = 2
 
 
 def main(args):
-    nuisance_params_dict = {
-        param: rl.NuisanceParameter(param, unc) for param, unc in nuisance_params.items()
-    }
-
     # pass, fail x unblinded, blinded
     regions = [
         f"{pf}{blind_str}"
@@ -140,6 +140,9 @@ def main(args):
 
             # systematics
             sample.setParamEffect(nuisance_params_dict["lumi_13TeV_2017"], 1.02)
+
+            if sample_name == "HHbbVV":
+                sample.setParamEffect(nuisance_params_dict["lp_sf"], LP_SF)
 
             # nominal values, errors
             values_nominal = np.maximum(sample_template.values(), 0.0)
