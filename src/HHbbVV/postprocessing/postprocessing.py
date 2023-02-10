@@ -25,7 +25,7 @@ from typing import Dict, List, Tuple
 from inspect import cleandoc
 from textwrap import dedent
 
-from sample_labels import sig_key, data_key, qcd_key, bg_keys, samples, bdt_sample_order
+from sample_labels import sig_key, data_key, qcd_key, bg_keys, samples
 from utils import CUT_MAX_VAL
 
 from pprint import pprint
@@ -74,11 +74,11 @@ control_plot_vars = {
 # {label: {cutvar: [min, max], ...}, ...}
 selection_regions = {
     "passCat1": {
-        "BDTScore": [0.985, CUT_MAX_VAL],
-        "bbFatJetParticleNetMD_Txbb": [0.977, CUT_MAX_VAL],
+        "BDTScore": [0.986, CUT_MAX_VAL],
+        "bbFatJetParticleNetMD_Txbb": [0.976, CUT_MAX_VAL],
     },
     "fail": {
-        "bbFatJetParticleNetMD_Txbb": [0.8, 0.977],
+        "bbFatJetParticleNetMD_Txbb": [0.8, 0.976],
     },
 }
 
@@ -131,8 +131,6 @@ def main(args):
     events_dict = utils.load_samples(args.data_dir, samples, args.year, filters)
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", overall_cutflow)
     print("\nLoaded Events\n")
-
-    events_dict[sig_key]
 
     apply_weights(events_dict, args.year, overall_cutflow)
     bb_masks = bb_VV_assignment(events_dict)
@@ -299,12 +297,13 @@ def postprocess_lpsfs(
         for key in ["lp_sf_nom", "lp_sf_sys_down", "lp_sf_sys_up"]:
             td[key] = np.ones(len(events))
 
+        td["lp_sf_toys"] = np.ones((len(events), num_lp_sf_toys))
+
         # defaults of 0 - i.e. don't contribute to unc.
         for key in ["lp_sf_double_matched_event", "lp_sf_unmatched_quarks", "lp_sf_num_sjpt_gt350"]:
             td[key] = np.zeros(len(events))
 
-        td["lp_sf_toys"] = np.ones((len(events), num_lp_sf_toys))
-
+        # fill values from matched jets
         for j in range(num_jets):
             offset = num_lp_sf_toys + 1
             td["lp_sf_nom"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]][j * offset]
@@ -327,34 +326,34 @@ def postprocess_lpsfs(
             # normalise
             td[key] = td[key] / np.mean(td[key], axis=0)
 
+        # add to dataframe
         if save_all:
-            for key in [
-                "lp_sf_nom",
-                "lp_sf_sys_down",
-                "lp_sf_sys_up",
-                "lp_sf_double_matched_event",
-                "lp_sf_unmatched_quarks",
-                "lp_sf_num_sjpt_gt350",
-            ]:
-                events[f"{jet}_{key}"] = td[key]
+            td = pd.concat(
+                [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in td.items()],
+                axis=1,
+                keys=[f"{jet}_{key}" for key in td.keys()],
+            )
 
-            key = "lp_sf_toys"
-            events[[(f"{jet}_{key}", i) for i in range(num_lp_sf_toys)]] = td[key]
-
+            events = pd.concat((events, td), axis=1)
         else:
             key = "lp_sf_nom"
             events[f"{jet}_{key}"] = td[key]
 
+    return events
 
-def get_lpsf(events: pd.DataFrame, VV: bool = True):
+
+def get_lpsf(events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True):
     """Calculates LP SF and uncertainties in current phase space. ``postprocess_lpsfs`` must be called first."""
 
     jet = "VV" if VV else "bb"
+    if sel is not None:
+        events = events[sel]
+
     tot_matched = np.sum(np.sum(events[f"ak8FatJetH{jet}"].astype(bool)))
 
-    weight = events["finalWeight"].values
+    weight = events["finalWeight_preLP"].values
     tot_pre = np.sum(weight)
-    tot_post = np.sum(weight * events[f"{jet}_lp_sf_nom"])
+    tot_post = np.sum(weight * events[f"{jet}_lp_sf_nom"][0])
     lp_sf = tot_post / tot_pre
 
     uncs = {}
@@ -362,8 +361,8 @@ def get_lpsf(events: pd.DataFrame, VV: bool = True):
     # difference in yields between up and down shifts on LP SFs
     uncs["syst_unc"] = np.abs(
         (
-            np.sum(events[f"{jet}_lp_sf_sys_up"] * weight)
-            - np.sum(events[f"{jet}_lp_sf_sys_down"] * weight)
+            np.sum(events[f"{jet}_lp_sf_sys_up"][0] * weight)
+            - np.sum(events[f"{jet}_lp_sf_sys_down"][0] * weight)
         )
         / tot_post
     )
@@ -375,26 +374,29 @@ def get_lpsf(events: pd.DataFrame, VV: bool = True):
     )
 
     # fraction of subjets > 350 * 0.21 measured by CASE
-    uncs["sj_pt_unc"] = (np.sum(events[f"{jet}_lp_sf_num_sjpt_gt350"]) / tot_matched) * 0.21
+    uncs["sj_pt_unc"] = (np.sum(events[f"{jet}_lp_sf_num_sjpt_gt350"][0]) / tot_matched) * 0.21
 
     if VV:
         num_prongs = events["ak8FatJetHVVNumProngs"][0]
 
-        sj_matching_unc = np.sum(events[f"{jet}_lp_sf_double_matched_event"])
+        sj_matching_unc = np.sum(events[f"{jet}_lp_sf_double_matched_event"][0])
         for nump in range(2, 5):
             sj_matching_unc += (
-                np.sum(events[f"{jet}_lp_sf_unmatched_quarks"][num_prongs == nump]) / nump
+                np.sum(events[f"{jet}_lp_sf_unmatched_quarks"][0][num_prongs == nump]) / nump
             )
 
         uncs["sj_matching_unc"] = sj_matching_unc / tot_matched
     else:
         num_prongs = 2
         uncs["sj_matching_unc"] = (
-            (np.sum(events[f"{jet}_lp_sf_unmatched_quarks"]) / num_prongs)
-            + np.sum(events[f"{jet}_lp_sf_double_matched_event"])
+            (np.sum(events[f"{jet}_lp_sf_unmatched_quarks"][0]) / num_prongs)
+            + np.sum(events[f"{jet}_lp_sf_double_matched_event"][0])
         ) / tot_matched
 
-    return lp_sf, uncs
+    tot_rel_unc = np.linalg.norm([val for val in uncs.values()])
+    tot_unc = lp_sf * tot_rel_unc
+
+    return lp_sf, tot_unc, uncs
 
 
 def derive_variables(events_dict: Dict[str, pd.DataFrame], bb_masks: Dict[str, pd.DataFrame]):

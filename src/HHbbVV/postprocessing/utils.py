@@ -129,7 +129,7 @@ def load_samples(
     events_dict = {}
 
     for label, selector in samples.items():
-        print(f"Finding {label} samples")
+        # print(f"Finding {label} samples")
         events_dict[label] = []
         for sample in full_samples_list:
             if not check_selector(sample, selector):
@@ -143,7 +143,7 @@ def load_samples(
                 print(f"No parquet file for {sample}")
                 continue
 
-            print(f"Loading {sample}")
+            # print(f"Loading {sample}")
             events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
             not_empty = len(events) > 0
             pickles_path = f"{data_dir}/{year}/{sample}/pickles"
@@ -168,7 +168,7 @@ def load_samples(
             if not_empty:
                 events_dict[label].append(events)
 
-            print(f"Loaded {len(events)} entries")
+            # print(f"Loaded {len(events)} entries")
 
         events_dict[label] = pd.concat(events_dict[label])
 
@@ -178,7 +178,9 @@ def load_samples(
 def add_to_cutflow(
     events_dict: Dict[str, pd.DataFrame], key: str, weight_key: str, cutflow: pd.DataFrame
 ):
-    cutflow[key] = [np.sum(events[weight_key]).squeeze() for sample, events in events_dict.items()]
+    cutflow[key] = [
+        np.sum(events_dict[sample][weight_key]).squeeze() for sample in list(cutflow.index)
+    ]
 
 
 def getParticles(particle_list, particle_type):
