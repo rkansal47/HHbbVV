@@ -490,8 +490,8 @@ class TaggerInputSkimmer(ProcessorABC):
         )
 
         for jet_idx in range(self.num_jets):
-            pnet_vars_jet = {**{key: value[jet_idx] for (key, value) in pnet_vars.items()}}
-
+            pnet_vars_jet = {**{key: value[:, jet_idx] for (key, value) in pnet_vars.items()}}
+            # print(jet_idx,jet_vars[jet_idx]["fj_pt"],pnet_vars_jet)
             jet_vars[jet_idx] = {**jet_vars[jet_idx], **pnet_vars_jet}
 
         if len(jet_vars) > 1:
@@ -507,24 +507,24 @@ class TaggerInputSkimmer(ProcessorABC):
                 for var in jet_vars[0]
             }
 
-            for var in jet_vars:
-                if "FatJetParTMD_" in var:
-                    print(var, jet_vars[var][1])
-                    print(var, jet_vars[var][3])
+            # for var in jet_vars:
+            #    if "FatJetParTMD_" in var or "fj_pt" in var:
+            #        print(var, jet_vars[var])
 
-            # some of the pfcand_dz/pfcand_dxy values are 0 in PFNano..
+            # some of the pfcand_dz/pfcand_dxy values are missing in v2.3 PFNano..
+            # some of the SV info is missing in v2.3 PFNano..
             # test_vars = [
-            #     # "pfcand_dz",
-            #     # "pfcand_dzsig",
-            #     # "pfcand_dxy",
-            #     # "pfcand_dxysig",
-            #     # "pfcand_normchi2",
-            #     # "pfcand_btagEtaRel",
-            #     # "pfcand_btagPtRatio",
-            #     # "pfcand_btagPParRatio",
-            #     # "pfcand_btagSip3dVal",
-            #     # "pfcand_btagSip3dSig",
-            #     # "pfcand_btagJetDistVal"
+            #     "pfcand_dz",
+            #     "pfcand_dzsig",
+            #     "pfcand_dxy",
+            #     "pfcand_dxysig",
+            #     "pfcand_normchi2",
+            #     "pfcand_btagEtaRel",
+            #     "pfcand_btagPtRatio",
+            #     "pfcand_btagPParRatio",
+            #     "pfcand_btagSip3dVal",
+            #     "pfcand_btagSip3dSig",
+            #     "pfcand_btagJetDistVal"
             #     "sv_pt_log",
             #     "sv_mass",
             #     "sv_etarel",
@@ -545,8 +545,8 @@ class TaggerInputSkimmer(ProcessorABC):
             # for var in test_vars:
             #     print(var)
             #     print(jet_vars[var])
-            #     #print(jet_vars[var][1])
-            #     #print(jet_vars[var][3])
+            #     # print(jet_vars[var][1])
+            #     # print(jet_vars[var][3])
             #     print("\n")
 
         elif len(jet_vars) == 1:
