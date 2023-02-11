@@ -250,7 +250,7 @@ if __name__ == "__main__":
         help="order of polynomial for TF from Data",
     )
     parser.add_argument("--model-name", default=None, type=str, help="output model name")
-    utils.add_bool_arg(parser, "bblite", "use barlow-beeston-lite method")
+    utils.add_bool_arg(parser, "bblite", "use barlow-beeston-lite method", default=True)
     args = parser.parse_args()
 
     main(args)
