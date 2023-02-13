@@ -4,8 +4,12 @@
 
  - Update trigger efficiencies, for all years
    - Check if binning in VV tagger is necessary
- - Add all systematics
+ - Incorporate remaining systematics
+ - Full run 2
+ - All samples
  - Scans
+ - TTbar corrections
+ - Statistical tests of fits
  - Resonant X->HY
 
 
