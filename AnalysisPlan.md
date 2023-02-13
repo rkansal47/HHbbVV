@@ -7,10 +7,48 @@
  - Incorporate remaining systematics
  - Full run 2
  - All samples
+   - Check overlap with HH4b, vetos for ttbar?
  - Scans
  - TTbar corrections
  - Statistical tests of fits
  - Resonant X->HY
+
+
+### Plan: Week 1
+
+Raghav:
+ - Trigger efficiencies
+ - Full run 2, all samples
+ - Samples
+   - QCD
+   - ttbar
+   - ST
+   - W, Z+jets
+   - Diboson
+   - HH4b (kL = 1)
+   - HHbbWW (all kL)
+   - VBF HHbbWW (kL = 1, k2V = 1)
+   - Hbb, HWW (ggF, VH, VBF, ttH)
+   - 
+ - Add to skimmer:
+   - num e, mu
+   - e, mu 4 vectors 
+   - ak4 b jets (medium btag)
+ - Check vetoes on these
+
+Cristina
+ - Systematics
+
+
+### Week 2
+
+ - Full run 2 fits
+   - Goodness-of-fit, f-test, impacts 
+ - Scans repository
+
+### Week 3
+
+ - ttbar
 
 
 ### In progress:
