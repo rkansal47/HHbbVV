@@ -16,6 +16,6 @@ samples = OrderedDict(
 sig_key = "HHbbVV"
 data_key = "Data"
 qcd_key = "QCD"
-bg_keys = list(samples.keys() - [sig_key, data_key])
+bg_keys = [key for key in samples.keys() if key not in [sig_key, data_key]]
 
 # bdt_sample_order = [sig_key, qcd_key, "TT", data_key]

@@ -523,6 +523,8 @@ def get_templates(
 
     # print(selection_regions)
 
+
+    print(bg_keys)
     selections, cutflows, templates = {}, {}, {}
 
     for label, region in selection_regions.items():

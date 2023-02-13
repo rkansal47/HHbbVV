@@ -55,6 +55,8 @@ def ratioHistPlot(
         2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
     )
 
+    bg_keys = [key for key in bg_keys if key != "W+Jets"]
+
     ax.set_ylabel("Events")
     hep.histplot(
         [hists[sample, :] for sample in bg_keys],
