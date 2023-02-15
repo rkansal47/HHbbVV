@@ -19,7 +19,7 @@
     - [In progress:](#in-progress)
   - [~Completed:](#completed)
     - [Preliminary 2017 cut-based signal and background yields estimate](#preliminary-2017-cut-based-signal-and-background-yields-estimate)
-    - [Preliminary 2017 trigger scale factor measurements:](#preliminary-2017-trigger-scale-factor-measurements)
+    - [Preliminary 2017 trigger scale factor measurements](#preliminary-2017-trigger-scale-factor-measurements)
     - [Processor for skimming nano files](#processor-for-skimming-nano-files)
     - [Triton/SONIC inference server](#tritonsonic-inference-server)
     - [BDT Training](#bdt-training)
@@ -145,7 +145,7 @@ Cristina
  - background estimation from data sidebands
  - with AK8 and AK15 mass-decorrelated ParticleNet Hbb taggers + NOT mass-decorrelated AK8 ParticleNet H4q tagger
 
-### Preliminary 2017 trigger scale factor measurements:
+### Preliminary 2017 trigger scale factor measurements
  - Measured for AK8, AK15, and hybrid jets, single-jet 2D (mass, pT binned) efficiencies (applied assuming prob. of each fat jet passing trigger is independent) and 3D (jet 1 mass, jet 1 pt, jet 2 pt binned)  efficiencies ([processors](https://github.com/rkansal47/HHbbVV/blob/main/processors/JetHTTriggerEfficienciesProcessor.py))
  - Tentatively decided to use hybrid case which gave the highest preselection yield and should increase with a better HWW tagger
 

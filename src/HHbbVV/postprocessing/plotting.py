@@ -39,6 +39,7 @@ def ratioHistPlot(
     bg_keys: List[str],
     bg_colours: Dict[str, str] = bg_colours,
     sig_colour: str = sig_colour,
+    sig_err: ArrayLike = None,
     data_err: Union[ArrayLike, bool, None] = None,
     title: str = None,
     blind_region: list = None,
@@ -73,6 +74,18 @@ def ratioHistPlot(
         label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
         color=colours[sig_colour],
     )
+
+    if sig_err is not None:
+        ax.fill_between(
+            np.repeat(hists.axes[1].edges, 2)[1:-1],
+            np.repeat(hists[sig_key, :].values() * (1 - sig_err) * sig_scale, 2),
+            np.repeat(hists[sig_key, :].values() * (1 + sig_err) * sig_scale, 2),
+            color="black",
+            alpha=0.2,
+            hatch="//",
+            linewidth=0,
+        )
+
     hep.histplot(
         hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
     )
