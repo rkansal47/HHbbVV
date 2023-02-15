@@ -33,6 +33,7 @@
 ### Trigger Efficiencies
 
  - Measure for all years
+ - **Update selection**
  - Check if binning in VV tagger is necessary (probably not since only btag is in the trigger)
 
 ### Incorporate remaining systematics
