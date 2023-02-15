@@ -21,6 +21,7 @@ from hist import Hist
 import utils
 import plotting
 
+from numpy.typing import ArrayLike
 from typing import Dict, List, Tuple
 from inspect import cleandoc
 from textwrap import dedent
@@ -498,10 +499,12 @@ def get_templates(
     shape_var: Tuple[str],
     shape_bins: List[float],
     blind_window: List[float],
+    sig_err: ArrayLike = None,
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
     cutstr: str = "",
+    show: bool = False,
 ) -> Dict[str, Hist]:
     """
     (1) Makes histograms for each region in the ``selection_regions`` dictionary,
@@ -524,7 +527,6 @@ def get_templates(
     # print(selection_regions)
 
 
-    print(bg_keys)
     selections, cutflows, templates = {}, {}, {}
 
     for label, region in selection_regions.items():
@@ -552,9 +554,10 @@ def get_templates(
             plotting.ratioHistPlot(
                 template,
                 bg_keys,
+                sig_err=sig_err,
                 name=f"{plot_dir}/{cutstr}{label}_region_bb_mass.pdf",
                 sig_scale=sig_scale / 2,
-                show=False,
+                show=show,
             )
 
         if pass_region:
