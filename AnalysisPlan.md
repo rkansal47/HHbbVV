@@ -36,12 +36,16 @@
  - **Update selection**
  - Check if binning in VV tagger is necessary (probably not since only btag is in the trigger)
 
+
 ### Incorporate remaining systematics
 
 #### Weights
  - Measured
-   - [ ] pileup
+   - [ ] Pileup
    - [ ] Trigger SFs
+     - [ ] Stat.
+     - [ ] Correlated Syst.
+   - [ ] ParticleNet Xbb
  - Theory
    - [ ] pdf uncertainties
    - [ ] scale variation?
@@ -52,7 +56,7 @@
    - [ ] JES/R http://cds.cern.ch/record/2792322/files/DP2021_033.pdf
 
 #### Datacard
-   - [ ] MC Stats
+   - [x] MC Stats
    - [ ] Lumi
    - [ ] JMS/R (Need to re-derive?) http://cds.cern.ch/record/2256875/files/JME-16-003-pas.pdf
 
