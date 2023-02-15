@@ -526,7 +526,6 @@ def get_templates(
 
     # print(selection_regions)
 
-
     selections, cutflows, templates = {}, {}, {}
 
     for label, region in selection_regions.items():
