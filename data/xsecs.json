@@ -23,8 +23,8 @@
 
   "ST_s-channel_4f_leptonDecays": 1.188915,
   "ST_t-channel_antitop_4f_InclusiveDecays": 67.93,
-  "ST_t-channel_antitop_5f_InclusiveDecays": 71.74,
   "ST_t-channel_top_4f_InclusiveDecays": 113.4,
+  "ST_t-channel_antitop_5f_InclusiveDecays": 71.74,
   "ST_t-channel_top_5f_InclusiveDecays": 119.7,
   "ST_tW_antitop_5f_inclusiveDecays": 32.51,
   "ST_tW_antitop_5f_NoFullyHadronicDecays": 10.890849999999999,
@@ -57,6 +57,11 @@
   "WZ": 27.56,
   "ZZ": 12.14,
 
+  
+
+  "GluGluToHHTobbVV_node_cHHH0": "31.05e-3 * 0.5807 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
   "GluGluToHHTobbVV_node_cHHH1": "31.05e-3 * 0.5807 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "GluGluToHHTobbVV_node_cHHH2p45": "31.05e-3 * 0.5807 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "GluGluToHHTobbVV_node_cHHH5": "31.05e-3 * 0.5807 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
   "GluGluToHHTobbVV_node_cHHH1_pn4q": "31.05e-3 * 0.5807 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2"
 }

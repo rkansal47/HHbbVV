@@ -8,6 +8,7 @@
       - [Values](#values)
       - [Datacard](#datacard)
     - [Full Run 2 and all samples](#full-run-2-and-all-samples)
+      - [Update Processor](#update-processor)
     - [Scans](#scans)
     - [TTbar corrections](#ttbar-corrections)
     - [Statistical tests of fits](#statistical-tests-of-fits)
@@ -32,9 +33,9 @@
 
 ### Trigger Efficiencies
 
- - Measure for all years
- - **Update selection**
- - Check if binning in VV tagger is necessary (probably not since only btag is in the trigger)
+ - [ ] Measure for all years
+ - [x] **Update selection**
+ - [x] Check if binning in VV tagger is necessary (probably not since only btag is in the trigger)
 
 
 ### Incorporate remaining systematics
@@ -63,15 +64,24 @@
 
 ### Full Run 2 and all samples
 
-- QCD
-- ttbar
-- ST
-- W, Z+jets
-- Diboson
-- HH4b (kL = 1)
-- HHbbWW (all kL)
-- VBF HHbbWW (kL = 1, k2V = 1)
-- Hbb, HWW (ggF, VH, VBF, ttH)
+- [x] JetHT
+- [x] QCD
+- [x] TTbar
+- [ ] ST: Figure out error in 2017)
+- [x] W, Z+jets
+- [x] Diboson
+- [ ] HH4b (kL = 1): Re-run PFNano on preUL (no UL)
+- [x] HHbbWW (all kL)
+- [x] VBF HHbbWW (kL = 1, k2V = 1)
+- [x] Hbb, HWW (ggF, VH, VBF, ttH)
+  - [ ] Missing VBF, VH ttH Hbb
+  - [ ] Missing VH HWW
+
+#### Update Processor
+
+- [ ] FatJet selections
+- [ ] Regressed mass cut
+- [ ] Add e, mu, b-tag jets
 
 
 ### Scans
