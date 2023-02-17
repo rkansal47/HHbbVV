@@ -21,8 +21,6 @@ ak.behavior.update(vector.behavior)
 
 import uproot
 
-import fastjet
-
 import pathlib
 import pickle, json
 import gzip
