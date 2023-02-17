@@ -591,7 +591,12 @@ def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = Fals
     return ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down
 
 
-(ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down,) = (
+(
+    ratio_smeared_lookups,
+    ratio_lnN_smeared_lookups,
+    ratio_sys_up,
+    ratio_sys_down,
+) = (
     None,
     None,
     None,
