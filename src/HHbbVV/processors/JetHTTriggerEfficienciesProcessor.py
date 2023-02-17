@@ -24,7 +24,7 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         "pt": 30,
         "eta": 2.4,
         "pfIsoId": 4,  # tight PF isolation
-        "count": 1
+        "count": 1,
     }
 
     ak8_jet_selection = {
@@ -143,9 +143,8 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         add_selection_no_cutflow("muon", muon_selector, selection)
 
         # ak8 jet selection
-        fatjet_selector = (
-            (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"])
-            * (np.abs(fatjets.delta_phi(muon)) > self.ak8_jet_selection["delta_phi_muon"])
+        fatjet_selector = (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"]) * (
+            np.abs(fatjets.delta_phi(muon)) > self.ak8_jet_selection["delta_phi_muon"]
         )
 
         leading_fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
