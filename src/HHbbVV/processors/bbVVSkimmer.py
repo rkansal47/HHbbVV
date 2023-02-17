@@ -51,8 +51,10 @@ gen_selection_dict = {
 }
 
 import logging
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 
 def update(events, collections):
     """Return a shallow copy of events array with some collections swapped out"""
@@ -212,7 +214,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         """Runs event processor for different types of jets"""
 
         year = events.metadata["dataset"][:4]
-        year_nosuffix = year.replace("APV","")
+        year_nosuffix = year.replace("APV", "")
         dataset = events.metadata["dataset"][5:]
         isData = "JetHT" in dataset
         isQCD = "QCD" in dataset
@@ -223,15 +225,15 @@ class bbVVSkimmer(processor.ProcessorABC):
             try:
                 fatjets = get_jec_jets(events, year)
             except:
-                 logger.warning("Couldn't load JECs - will proceed without variations") 
-                 fatjets = events.FatJet
-                 self._systematics = False
+                logger.warning("Couldn't load JECs - will proceed without variations")
+                fatjets = events.FatJet
+                self._systematics = False
 
             if not self._systematics:
                 shifts = [({"FatJet": fatjets}, None)]
             else:
                 # logger.debug(fatjets.fields)
-                
+
                 # naming conventions: https://gitlab.cern.ch/hh/naming-conventions
                 # reduced set of uncertainties: https://docs.google.com/spreadsheets/d/1Feuj1n0MdotcPq19Mht7SUIgvkXkA4hiB0BxEuBShLw/edit#gid=1345121349
                 shifts = [
@@ -241,7 +243,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                     ({"FatJet": fatjets.JER.up}, "JER_up"),
                     ({"FatJet": fatjets.JER.down}, "JER_down"),
                 ]
-                
+
                 # commenting these out until we derive the uncertainties from the regrouped files
                 """
                 shifts = [
@@ -270,7 +272,9 @@ class bbVVSkimmer(processor.ProcessorABC):
                 ({"FatJet": fatjers.JES_RelativeSample.down}, f"JESDown_RelSample_{year_nosuffix}")
                 ]
                 """
-        return processor.accumulate(self.process_shift(update(events, collections), name) for collections, name in shifts)
+        return processor.accumulate(
+            self.process_shift(update(events, collections), name) for collections, name in shifts
+        )
 
     def process_shift(self, events: ak.Array, shift_name: str = None):
         """Returns skimmed events which pass preselection cuts (and triggers if data) with the branches listed in ``self.skim_vars``"""
@@ -392,14 +396,19 @@ class bbVVSkimmer(processor.ProcessorABC):
                 if "LHEPdfWeight" in events.fields:
                     add_pdf_weight(weights, events.LHEPdfWeight)
                 else:
-                    add_pdf_weight(weights,[])
+                    add_pdf_weight(weights, [])
                 if "LHEScaleWeight" in events.fields:
                     add_scalevar_7pt(weights, events.LHEScaleWeight)
                 else:
-                    add_scalevar_7pt(weights,[])
+                    add_scalevar_7pt(weights, [])
 
             if year in ("2016APV", "2016", "2017"):
-                weights.add("L1EcalPrefiring", events.L1PreFiringWeight.Nom, events.L1PreFiringWeight.Up, events.L1PreFiringWeight.Dn)
+                weights.add(
+                    "L1EcalPrefiring",
+                    events.L1PreFiringWeight.Nom,
+                    events.L1PreFiringWeight.Up,
+                    events.L1PreFiringWeight.Dn,
+                )
 
             # TODO: trigger SFs here once calculated properly
 
@@ -407,9 +416,9 @@ class bbVVSkimmer(processor.ProcessorABC):
                 systematics = [None] + list(weights.variations)
             else:
                 systematics = [shift_name]
-                
+
             # TODO: need to be careful about the sum of gen weights used for the LHE/QCDScale uncertainties
-            logger.debug("weights ",weights._weights.keys())
+            logger.debug("weights ", weights._weights.keys())
             for systematic in systematics:
                 if systematic in weights.variations:
                     weight = weights.weight(modifier=systematic)
@@ -423,7 +432,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                     skimmed_events[weight_name] = (
                         self.XSECS[dataset]
                         * self.LUMI[year]
-                        * weight # includes genWeight (or signed genWeight)
+                        * weight  # includes genWeight (or signed genWeight)
                     )
                 else:
                     logger.warning("Weight not normalized to cross section")
@@ -527,7 +536,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             out_dict = {shift_name: {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}}
         else:
             out_dict = {"all": {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}}
-        
+
         return out_dict
 
     def postprocess(self, accumulator):
