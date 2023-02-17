@@ -53,7 +53,7 @@ def get_fileset(
     coffea_casa: str = False,
 ):
     if processor == "trigger":
-        samples = [f"SingleMu{year}"]
+        samples = [f"SingleMu{year[:4]}"]
 
     redirector = "root://cmsxrootd.fnal.gov//" if not coffea_casa else "root://xcache//"
 
