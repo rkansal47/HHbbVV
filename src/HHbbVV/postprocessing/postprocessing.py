@@ -88,15 +88,13 @@ selection_regions_year = {
     },
 }
 
-selection_regions_label = {
-    "pass": "Pass", "fail": "Fail", "BDTOnly": "BDT Cut"
-}
+selection_regions_label = {"pass": "Pass", "fail": "Fail", "BDTOnly": "BDT Cut"}
 
 selection_regions = {}
 
 for year in years:
     sr = deepcopy(selection_regions_year)
-    
+
     for region in sr:
         for cuts in sr[region]:
             for i in range(2):
@@ -242,7 +240,7 @@ def apply_weights(
     #     f"../corrections/trigEffs/{year}_combined.pkl", "rb"
     # ) as filehandler:
     #     combined = pickle.load(filehandler)
-    
+
     with open(
         f"../corrections/trigEffs/AK8JetHTTriggerEfficiency_{year}.hist", "rb"
     ) as filehandler:
@@ -392,7 +390,8 @@ def get_lpsf(events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True):
         (
             np.sum(events[f"{jet}_lp_sf_sys_up"][0] * weight)
             - np.sum(events[f"{jet}_lp_sf_sys_down"][0] * weight)
-        ) / 2
+        )
+        / 2
         / tot_post
     )
 
