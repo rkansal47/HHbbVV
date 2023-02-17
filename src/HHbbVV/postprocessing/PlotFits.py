@@ -5,7 +5,7 @@ import numpy as np
 import os
 import pickle
 
-from sample_labels import sig_key, data_key
+from hh_vars import sig_key, data_key
 
 import utils
 

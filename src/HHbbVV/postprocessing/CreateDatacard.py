@@ -26,7 +26,7 @@ logging.basicConfig(level=logging.INFO)
 adjust_posdef_yields = False
 
 # from utils import add_bool_arg
-from sample_labels import qcd_key, data_key
+from hh_vars import qcd_key, data_key
 
 LUMI = {"2017": 41.48}
 LP_SF = 1.3
