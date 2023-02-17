@@ -165,7 +165,9 @@ if __name__ == "__main__":
     # inside a dask job:  python run.py --year 2017 --processor trigger --dask
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--year", help="year", type=str, required=True)
+    parser.add_argument(
+        "--year", help="year", type=str, required=True, choices=["2016APV", "2016", "2017", "2018"]
+    )
     parser.add_argument("--starti", default=0, help="start index of files", type=int)
     parser.add_argument("--endi", default=-1, help="end index of files", type=int)
     parser.add_argument(

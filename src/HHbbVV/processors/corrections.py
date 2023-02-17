@@ -642,7 +642,7 @@ def get_lund_SFs(
         flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, num_prongs, [ratio_sys_up]
     )
 
-    ### subjet matching and pT extrapoation uncertainties
+    ### subjet matching and pT extrapolation uncertainties
 
     matching_dR = 0.2
     sj_matched = []

@@ -22,7 +22,7 @@ from hist.intervals import ratio_uncertainty
 
 from typing import Dict, List
 
-from sample_labels import sig_key, data_key
+from hh_vars import sig_key, data_key
 
 colours = {"darkblue": "#1f78b4", "lightblue": "#a6cee3", "red": "#e31a1c", "orange": "#ff7f00"}
 bg_colours = {"QCD": "lightblue", "TT": "darkblue", "ST": "orange"}

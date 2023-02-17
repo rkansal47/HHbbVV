@@ -193,8 +193,6 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         isData = ("JetHT" in dataset) or ("SingleMuon" in dataset)
         signGenWeights = None if isData else np.sign(events["genWeight"])
-        # TODO: undo!!!!
-        # signGenWeights = np.ones(len(events))
         n_events = len(events) if isData else int(np.sum(signGenWeights))
         selection = PackedSelection()
         weights = Weights(len(events), storeIndividual=True)
@@ -400,14 +398,6 @@ class TTScaleFactorsSkimmer(ProcessorABC):
                     sf_dict[key] = arr
 
                 skimmed_events = {**skimmed_events, **sf_dict}
-            # else:
-            #     sf_dict = {}
-
-            #     "lp_sf": np.zeros((len(events), self.n_sf_toys + 1)),
-            #     "lp_sf_lnN": np.zeros((len(events), self.n_sf_toys + 1)),
-            # }
-
-            # skimmed_events = {**skimmed_events, **match_dict, **sf_dict}
 
         # apply selections
 
