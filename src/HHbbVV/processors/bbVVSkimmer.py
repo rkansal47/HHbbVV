@@ -164,7 +164,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         # save systematic variations
         self._systematics = save_systematics
-        
+
         # run inference
         self._inference = inference
 
@@ -175,7 +175,9 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         self._accumulator = processor.dict_accumulator({})
 
-        logger.info(f"Running skimmer with inference {self._inference} and systematics {self._systematics}")
+        logger.info(
+            f"Running skimmer with inference {self._inference} and systematics {self._systematics}"
+        )
 
     def to_pandas(self, events: Dict[str, np.array]):
         """

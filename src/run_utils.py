@@ -104,7 +104,14 @@ def get_xsecs():
     return xsecs
 
 
-def get_processor(processor: str, save_ak15: bool = None, label: str = None, njets: int = None, save_systematics: bool = None, inference: bool = None):
+def get_processor(
+    processor: str,
+    save_ak15: bool = None,
+    label: str = None,
+    njets: int = None,
+    save_systematics: bool = None,
+    inference: bool = None,
+):
     # define processor
     if processor == "trigger":
         from HHbbVV.processors import JetHTTriggerEfficienciesProcessor
@@ -113,7 +120,12 @@ def get_processor(processor: str, save_ak15: bool = None, label: str = None, nje
     elif processor == "skimmer":
         from HHbbVV.processors import bbVVSkimmer
 
-        return bbVVSkimmer(xsecs=get_xsecs(), save_ak15=save_ak15, save_systematics = save_systematics, inference = inference)
+        return bbVVSkimmer(
+            xsecs=get_xsecs(),
+            save_ak15=save_ak15,
+            save_systematics=save_systematics,
+            inference=inference,
+        )
     elif processor == "input":
         from HHbbVV.processors import TaggerInputSkimmer
 
