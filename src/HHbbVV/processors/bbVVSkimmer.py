@@ -52,6 +52,7 @@ gen_selection_dict = {
 
 import logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 def update(events, collections):
     """Return a shallow copy of events array with some collections swapped out"""
@@ -153,7 +154,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
     preselection_cut_vals = {"pt": 250, "msd": 50}
 
-    def __init__(self, xsecs={}, save_ak15=False, save_systematics=True):
+    def __init__(self, xsecs={}, save_ak15=False, save_systematics=True, inference=True):
         super(bbVVSkimmer, self).__init__()
 
         self.XSECS = xsecs  # in pb
@@ -161,9 +162,9 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         # save systematic variations
         self._systematics = save_systematics
-
-        self._lundplane = False
-        self._inference = False
+        
+        # run inference
+        self._inference = inference
 
         # for tagger model and preprocessing dict
         self.tagger_resources_path = (
@@ -171,6 +172,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         )
 
         self._accumulator = processor.dict_accumulator({})
+
+        logger.info(f"Running skimmer with inference {self._inference} and systematics {self._systematics}")
 
     def to_pandas(self, events: Dict[str, np.array]):
         """
@@ -277,8 +280,13 @@ class bbVVSkimmer(processor.ProcessorABC):
         dataset = events.metadata["dataset"][5:]
 
         isData = "JetHT" in dataset
-        signGenWeights = None if isData else np.sign(events["genWeight"])
-        n_events = len(events) if isData else int(np.sum(signGenWeights))
+        gen_weights = None
+        if not isData:
+            if "GluGluToHHTobbVV":
+                gen_weights = np.sign(events["genWeight"])
+            else:
+                gen_weights = events["genWeight"].to_numpy()
+        n_events = len(events) if isData else np.sum(gen_weights)
         selection = PackedSelection()
         weights = Weights(len(events), storeIndividual=True)
 
@@ -294,7 +302,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             for d in gen_selection_dict:
                 if d in dataset:
                     vars_dict, (genbb, genq) = gen_selection_dict[d](
-                        events, events.FatJet, selection, cutflow, signGenWeights, P4
+                        events, events.FatJet, selection, cutflow, gen_weights, P4
                     )
                     skimmed_events = {**skimmed_events, **vars_dict}
 
@@ -311,7 +319,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 ),
                 axis=0,
             )
-            add_selection("trigger", HLT_triggered, selection, cutflow, isData, signGenWeights)
+            add_selection("trigger", HLT_triggered, selection, cutflow, isData, gen_weights)
 
         # pre-selection cuts
         preselection_cut = np.prod(
@@ -331,7 +339,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             selection,
             cutflow,
             isData,
-            signGenWeights,
+            gen_weights,
         )
 
         # select vars
@@ -372,10 +380,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
         else:
-            if "GluGluToHH" in dataset:
-                weights.add("genweight", np.sign(events.genWeight.to_numpy()))
-            else:
-                weights.add("genweight", events.genWeight)
+            weights.add("genweight", gen_weights)
 
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
             add_VJets_kFactors(weights, events.GenPart, dataset)
@@ -433,7 +438,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Lund plane SFs
         ################
 
-        if "GluGluToHHTobbVV_node_cHHH" in dataset and shift_name is None and self._lundplane:
+        if "GluGluToHHTobbVV_node_cHHH" in dataset and shift_name is None:
             genbb = genbb[sel_all]
             genq = genq[sel_all]
 
