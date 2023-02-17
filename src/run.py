@@ -95,8 +95,6 @@ def run(p: processor, fileset: dict, args):
 
     out, metrics = run(fileset, "Events", processor_instance=p)
 
-    # print(out)
-
     filehandler = open(f"{outdir}/{args.starti}-{args.endi}.pkl", "wb")
     pickle.dump(out, filehandler)
     filehandler.close()
@@ -107,6 +105,19 @@ def run(p: processor, fileset: dict, args):
         import pandas as pd
         import pyarrow.parquet as pq
         import pyarrow as pa
+
+        # combine parquet files for systematic variations
+        if args.processor == "skimmer":
+            out_keys = list(out.keys())
+            if "all" in out_keys and len(out_keys) > 1:
+                for key in out_keys:
+                    # the non-variation parquet is saved in the next line
+                    if key == "all":
+                        continue
+                    local_parquet_dir_variation = f"{local_parquet_dir}_{key}"
+                    pddf = pd.read_parquet(local_parquet_dir_variation)
+                    table = pa.Table.from_pandas(pddf)
+                    pq.write_table(table, f"{local_dir}/{args.starti}-{args.endi}_{key}.parquet")
 
         pddf = pd.read_parquet(local_parquet_dir)
 
@@ -132,7 +143,14 @@ def run(p: processor, fileset: dict, args):
 
 
 def main(args):
-    p = run_utils.get_processor(args.processor, args.save_ak15, args.label, args.njets)
+    p = run_utils.get_processor(
+        args.processor,
+        args.save_ak15,
+        args.label,
+        args.njets,
+        args.save_systematics,
+        args.inference,
+    )
 
     if len(args.files):
         fileset = {f"{args.year}_{args.files_name}": args.files}
@@ -193,6 +211,10 @@ if __name__ == "__main__":
     run_utils.add_bool_arg(
         parser, "save-ak15", default=False, help="run inference for and save ak15 jets"
     )
+    run_utils.add_bool_arg(
+        parser, "save-systematics", default=False, help="save systematic variations"
+    )
+    run_utils.add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
 
     args = parser.parse_args()
 

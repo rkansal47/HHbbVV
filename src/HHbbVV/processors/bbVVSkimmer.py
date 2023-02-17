@@ -7,7 +7,7 @@ import numpy as np
 import awkward as ak
 import pandas as pd
 
-from coffea.processor import ProcessorABC, dict_accumulator
+from coffea import processor
 from coffea.analysis_tools import Weights, PackedSelection
 
 import pathlib
@@ -24,6 +24,9 @@ from .utils import pad_val, add_selection, concatenate_dicts
 from .corrections import (
     add_pileup_weight,
     add_VJets_kFactors,
+    add_ps_weight,
+    add_pdf_weight,
+    add_scalevar_7pt,
     get_jec_key,
     get_jec_jets,
     get_lund_SFs,
@@ -47,8 +50,21 @@ gen_selection_dict = {
     "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
 }
 
+import logging
 
-class bbVVSkimmer(ProcessorABC):
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+
+def update(events, collections):
+    """Return a shallow copy of events array with some collections swapped out"""
+    out = events
+    for name, value in collections.items():
+        out = ak.with_field(out, value, name)
+    return out
+
+
+class bbVVSkimmer(processor.ProcessorABC):
     """
     Skims nanoaod files, saving selected branches and events passing preselection cuts
     (and triggers for data), for preliminary cut-based analysis and BDT studies.
@@ -138,18 +154,28 @@ class bbVVSkimmer(ProcessorABC):
 
     preselection_cut_vals = {"pt": 300, "msd": 50, "txbb": 0.8}
 
-    def __init__(self, xsecs={}, save_ak15=False):
+    def __init__(self, xsecs={}, save_ak15=False, save_systematics=True, inference=True):
         super(bbVVSkimmer, self).__init__()
 
         self.XSECS = xsecs  # in pb
         self.save_ak15 = save_ak15
+
+        # save systematic variations
+        self._systematics = save_systematics
+
+        # run inference
+        self._inference = inference
 
         # for tagger model and preprocessing dict
         self.tagger_resources_path = (
             str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
         )
 
-        self._accumulator = dict_accumulator({})
+        self._accumulator = processor.dict_accumulator({})
+
+        logger.info(
+            f"Running skimmer with inference {self._inference} and systematics {self._systematics}"
+        )
 
     def to_pandas(self, events: Dict[str, np.array]):
         """
@@ -163,7 +189,7 @@ class bbVVSkimmer(ProcessorABC):
             keys=list(events.keys()),
         )
 
-    def dump_table(self, pddf: pd.DataFrame, fname: str) -> None:
+    def dump_table(self, pddf: pd.DataFrame, fname: str, odir_str: str = None) -> None:
         """
         Saves pandas dataframe events to './outparquet'
         """
@@ -171,6 +197,8 @@ class bbVVSkimmer(ProcessorABC):
         import pyarrow as pa
 
         local_dir = os.path.abspath(os.path.join(".", "outparquet"))
+        if odir_str:
+            local_dir += odir_str
         os.system(f"mkdir -p {local_dir}")
 
         # need to write with pyarrow as pd.to_parquet doesn't support different types in
@@ -183,16 +211,86 @@ class bbVVSkimmer(ProcessorABC):
         return self._accumulator
 
     def process(self, events: ak.Array):
-        """Returns skimmed events which pass preselection cuts (and triggers if data) with the branches listed in ``self.skim_vars``"""
+        """Runs event processor for different types of jets"""
 
-        print("processing")
+        year = events.metadata["dataset"][:4]
+        year_nosuffix = year.replace("APV", "")
+        dataset = events.metadata["dataset"][5:]
+        isData = "JetHT" in dataset
+        isQCD = "QCD" in dataset
+
+        if isData or isQCD or (np.sum(ak.num(events.FatJet, axis=1)) < 1):
+            return self.process_shift(events, None)
+        else:
+            try:
+                fatjets = get_jec_jets(events, year)
+            except:
+                logger.warning("Couldn't load JECs - will proceed without variations")
+                fatjets = events.FatJet
+                self._systematics = False
+
+            if not self._systematics:
+                shifts = [({"FatJet": fatjets}, None)]
+            else:
+                # logger.debug(fatjets.fields)
+
+                # naming conventions: https://gitlab.cern.ch/hh/naming-conventions
+                # reduced set of uncertainties: https://docs.google.com/spreadsheets/d/1Feuj1n0MdotcPq19Mht7SUIgvkXkA4hiB0BxEuBShLw/edit#gid=1345121349
+                shifts = [
+                    ({"FatJet": fatjets}, None),
+                    ({"FatJet": fatjets.JES_jes.up}, "JES_up"),
+                    ({"FatJet": fatjets.JES_jes.down}, "JES_down"),
+                    ({"FatJet": fatjets.JER.up}, "JER_up"),
+                    ({"FatJet": fatjets.JER.down}, "JER_down"),
+                ]
+
+                # commenting these out until we derive the uncertainties from the regrouped files
+                """
+                shifts = [
+                ({"FatJet": fatjets}, None),
+                ({"FatJet": fatjets.JES_AbsoluteScale / JES_AbsoluteMPFBias / JES_Fragmentation / JES_PileUpDataMC / JES_PileUpPtRef / JES_RelativeFSR / JES_SinglePionECAL / JESSinglePionHCAL }, "JESUp_Abs"),
+                ({"FatJet": }, "JESDown_Abs"),
+                ({"FatJet": fatjets.JES_AbsoluteStat / JES_RelativeStatFSR / JES_TimePtEta }, f"JESUp_Abs_{year_nosuffix}"),
+                ({"FatJet": }, f"JESDown_Abs_{year_nosuffix}"),
+                ({"FatJet": fatjets.JES_PileUpPtBB / PileUpPtEC1 / RelativePtBB }, f"JESUp_BBEC1"),
+                ({"FatJet": },  f"JESDown_BBEC1"),
+                ({"FatJet": fatjets.JES_RelativeJEREC1 / JES_RelativePtEC1 / JES_RelativeStatEC }, f"JESUp_BBEC1_{year_nosuffix}"),
+                ({"FatJet": }, f"JESDown_BBEC1_{year_nosuffix}"),
+                ({"FatJet": fatjets.PileUpPtEC2.up}, "JESUp_EC2")
+                ({"FatJet": fatjets.PileUpPtEC2.down}, "JESDown_EC2")
+                ({"FatJet": RelativeJEREC2 / RelativePtEC2 }, f"JESUp_EC2_{year_nosuffix}"),
+                ({"FatJet": }, f"JESDown_EC2_{year_nosuffix}"),
+                ({"FatJet": fatjets.JES_FlavQCD.up}, "JESUp_FlavQCD"),
+                ({"FatJet": fatjets.JES_FlavQCD.down}, "JESDown_FlavQCD"),
+                ({"FatJet": PileUpPtHF /RelativeJERHF / RelativePtHF }, "JESUp_HF"),
+                ({"FatJet": PileUpPtHF /RelativeJERHF / RelativePtHF }, "JESDown_HF"),
+                ({"FatJet": fatjets.JES_RelativeStatHF.up}, f"JESUp_HF_{year_nosuffix}"),
+                ({"FatJet": fatjets.JES_RelativeStatHF.down}, f"JESDown_HF_{year_nosuffix}"),
+                ({"FatJet": fatjers.JES_RelativeBal.up}, f"JESUp_RelBal"),
+                ({"FatJet": fatjers.JES_RelativeBal.down}, f"JESDown_RelBal"),
+                ({"FatJet": fatjers.JES_RelativeSample.up}, f"JESUp_RelSample_{year_nosuffix}")
+                ({"FatJet": fatjers.JES_RelativeSample.down}, f"JESDown_RelSample_{year_nosuffix}")
+                ]
+                """
+        return processor.accumulate(
+            self.process_shift(update(events, collections), name) for collections, name in shifts
+        )
+
+    def process_shift(self, events: ak.Array, shift_name: str = None):
+        """Returns skimmed events which pass preselection cuts (and triggers if data) with the branches listed in ``self.skim_vars``"""
+        logger.info(f"Procesing events with shift {shift_name}")
 
         year = events.metadata["dataset"][:4]
         dataset = events.metadata["dataset"][5:]
 
         isData = "JetHT" in dataset
-        signGenWeights = None if isData else np.sign(events["genWeight"])
-        n_events = len(events) if isData else int(np.sum(signGenWeights))
+        gen_weights = None
+        if not isData:
+            if "GluGluToHHTobbVV":
+                gen_weights = np.sign(events["genWeight"])
+            else:
+                gen_weights = events["genWeight"].to_numpy()
+        n_events = len(events) if isData else np.sum(gen_weights)
         selection = PackedSelection()
         weights = Weights(len(events), storeIndividual=True)
 
@@ -203,20 +301,14 @@ class bbVVSkimmer(ProcessorABC):
 
         skimmed_events = {}
 
-        # TODO: save variations (?)
-        try:
-            fatjets = get_jec_jets(events, year) if not isData else events.FatJet
-        except:
-            print("Couldn't load JECs")
-            fatjets = events.FatJet
-
-        # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
-        for d in gen_selection_dict:
-            if d in dataset:
-                vars_dict, (genbb, genq) = gen_selection_dict[d](
-                    events, fatjets, selection, cutflow, signGenWeights, P4
-                )
-                skimmed_events = {**skimmed_events, **vars_dict}
+        if shift_name is None:
+            # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
+            for d in gen_selection_dict:
+                if d in dataset:
+                    vars_dict, (genbb, genq) = gen_selection_dict[d](
+                        events, events.FatJet, selection, cutflow, gen_weights, P4
+                    )
+                    skimmed_events = {**skimmed_events, **vars_dict}
 
         # triggers
         # OR-ing HLT triggers
@@ -231,9 +323,8 @@ class bbVVSkimmer(ProcessorABC):
                 ),
                 axis=0,
             )
-            add_selection("trigger", HLT_triggered, selection, cutflow, isData, signGenWeights)
+            add_selection("trigger", HLT_triggered, selection, cutflow, isData, gen_weights)
 
-        #  TODO: Next run - replace these with `fatjets`!!!!
         # pre-selection cuts
         preselection_cut = np.prod(
             pad_val(
@@ -252,10 +343,8 @@ class bbVVSkimmer(ProcessorABC):
             selection,
             cutflow,
             isData,
-            signGenWeights,
+            gen_weights,
         )
-
-        # TODO: trigger SFs
 
         # select vars
 
@@ -291,32 +380,65 @@ class bbVVSkimmer(ProcessorABC):
                 axis=1,
             )
 
-        # calc weights
+        # calculate weights
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
         else:
-            skimmed_events["genWeight"] = events.genWeight.to_numpy()
-            add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
-            # add_VJets_kFactors(weights, events.GenPart, dataset)
+            weights.add("genweight", gen_weights)
 
-            # TODO: theory uncertainties
+            add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
+            add_VJets_kFactors(weights, events.GenPart, dataset)
+
+            if "GluGluToHHTobbVV" in dataset or "WJets" in dataset or "ZJets" in dataset:
+                add_ps_weight(weights, events.PSWeight)
+
+            if "GluGluToHHTobbVV" in dataset:
+                if "LHEPdfWeight" in events.fields:
+                    add_pdf_weight(weights, events.LHEPdfWeight)
+                else:
+                    add_pdf_weight(weights, [])
+                if "LHEScaleWeight" in events.fields:
+                    add_scalevar_7pt(weights, events.LHEScaleWeight)
+                else:
+                    add_scalevar_7pt(weights, [])
+
+            if year in ("2016APV", "2016", "2017"):
+                weights.add(
+                    "L1EcalPrefiring",
+                    events.L1PreFiringWeight.Nom,
+                    events.L1PreFiringWeight.Up,
+                    events.L1PreFiringWeight.Dn,
+                )
+
             # TODO: trigger SFs here once calculated properly
 
-            # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)
-            if dataset in self.XSECS:
-                skimmed_events["weight"] = (
-                    np.sign(skimmed_events["genWeight"])
-                    * self.XSECS[dataset]
-                    * self.LUMI[year]
-                    * weights.weight()
-                )
+            if self._systematics and shift_name is None:
+                systematics = [None] + list(weights.variations)
             else:
-                skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
+                systematics = [shift_name]
 
-            # TODO: can add uncertainties with weights._modifiers?
+            # TODO: need to be careful about the sum of gen weights used for the LHE/QCDScale uncertainties
+            logger.debug("weights ", weights._weights.keys())
+            for systematic in systematics:
+                if systematic in weights.variations:
+                    weight = weights.weight(modifier=systematic)
+                    weight_name = f"weight_{systematic}"
+                else:
+                    weight = weights.weight()
+                    weight_name = "weight"
+
+                # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)
+                if dataset in self.XSECS:
+                    skimmed_events[weight_name] = (
+                        self.XSECS[dataset]
+                        * self.LUMI[year]
+                        * weight  # includes genWeight (or signed genWeight)
+                    )
+                else:
+                    logger.warning("Weight not normalized to cross section")
+                    skimmed_events[weight_name] = weight
 
         # apply selections
-
         sel_all = selection.all(*selection.names)
 
         skimmed_events = {key: value[sel_all] for (key, value) in skimmed_events.items()}
@@ -325,7 +447,7 @@ class bbVVSkimmer(ProcessorABC):
         # Lund plane SFs
         ################
 
-        if "GluGluToHHTobbVV_node_cHHH" in dataset:
+        if "GluGluToHHTobbVV_node_cHHH" in dataset and shift_name is None:
             genbb = genbb[sel_all]
             genq = genq[sel_all]
 
@@ -380,29 +502,42 @@ class bbVVSkimmer(ProcessorABC):
 
             skimmed_events = {**skimmed_events, **sf_dicts}
 
-        pnet_vars = {}
-
-        # apply HWW4q tagger
-        pnet_vars = runInferenceTriton(
-            self.tagger_resources_path,
-            events[sel_all],
-            ak15=False,
-            all_outputs=False,
-        )
-
-        skimmed_events = {
-            **skimmed_events,
-            **{key: value for (key, value) in pnet_vars.items()},
-        }
+        if self._inference:
+            # apply HWW4q tagger
+            pnet_vars = {}
+            pnet_vars = runInferenceTriton(
+                self.tagger_resources_path,
+                events[sel_all],
+                ak15=False,
+                all_outputs=False,
+            )
+            skimmed_events = {
+                **skimmed_events,
+                **{key: value for (key, value) in pnet_vars.items()},
+            }
 
         if len(skimmed_events["weight"]):
-            df = self.to_pandas(skimmed_events)
             fname = (
                 events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
             )
-            self.dump_table(df, fname)
+            odir_str = None
 
-        return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
+            # change keys if shift name is not None
+            if shift_name is not None:
+                # logger.debug("renaming keys")
+                # skimmed_events = {f"{key}_{shift_name}":val for key,val in skimmed_events.items()}
+
+                odir_str = f"_{shift_name}"
+
+            df = self.to_pandas(skimmed_events)
+            self.dump_table(df, fname, odir_str)
+
+        if shift_name is not None:
+            out_dict = {shift_name: {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}}
+        else:
+            out_dict = {"all": {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}}
+
+        return out_dict
 
     def postprocess(self, accumulator):
         return accumulator
