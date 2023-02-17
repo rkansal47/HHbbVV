@@ -76,7 +76,7 @@ python -W ignore src/run.py --year 2018 --processor trigger --sample SingleMu201
 And to submit all:
 
 ```bash
-nohup bash -c 'for i in 2016 2016APV 2017 2018; do python src/condor/submit.py --year $i --tag $TAG --processor trigger --submit; done' &> tmp/submitout.txt &
+nohup bash -c 'for i in 2016 2016APV 2017 2018; do python src/condor/submit.py --year $i --tag '"${TAG}"' --processor trigger --submit; done' &> tmp/submitout.txt &
 ```
 
 ### bbVVSkimmer
