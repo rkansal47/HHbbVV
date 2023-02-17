@@ -26,10 +26,11 @@ from typing import Dict, List, Tuple
 from inspect import cleandoc
 from textwrap import dedent
 
-from sample_labels import sig_key, data_key, qcd_key, bg_keys, samples
+from hh_vars import years, sig_key, data_key, qcd_key, bg_keys, samples, txbb_wps
 from utils import CUT_MAX_VAL
 
 from pprint import pprint
+from copy import deepcopy
 
 import importlib
 
@@ -72,16 +73,38 @@ control_plot_vars = {
     "BDTScore": ([50, 0, 1], r"BDT Score"),
 }
 
+
 # {label: {cutvar: [min, max], ...}, ...}
-selection_regions = {
-    "passCat1": {
+selection_regions_year = {
+    "pass": {
         "BDTScore": [0.986, CUT_MAX_VAL],
-        "bbFatJetParticleNetMD_Txbb": [0.976, CUT_MAX_VAL],
+        "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
     },
     "fail": {
-        "bbFatJetParticleNetMD_Txbb": [0.8, 0.976],
+        "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
+    },
+    "BDTOnly": {
+        "BDTScore": [0.986, CUT_MAX_VAL],
     },
 }
+
+selection_regions_label = {
+    "pass": "Pass", "fail": "Fail", "BDTOnly": "BDT Cut"
+}
+
+selection_regions = {}
+
+for year in years:
+    sr = deepcopy(selection_regions_year)
+    
+    for region in sr:
+        for cuts in sr[region]:
+            for i in range(2):
+                if sr[region][cuts][i] == "HP":
+                    sr[region][cuts][i] = txbb_wps[year]["HP"]
+
+    selection_regions[year] = sr
+
 
 scan_regions = {}
 
@@ -215,6 +238,11 @@ def apply_weights(
     """
     from coffea.lookup_tools.dense_lookup import dense_lookup
 
+    # with open(
+    #     f"../corrections/trigEffs/{year}_combined.pkl", "rb"
+    # ) as filehandler:
+    #     combined = pickle.load(filehandler)
+    
     with open(
         f"../corrections/trigEffs/AK8JetHTTriggerEfficiency_{year}.hist", "rb"
     ) as filehandler:
@@ -364,7 +392,7 @@ def get_lpsf(events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True):
         (
             np.sum(events[f"{jet}_lp_sf_sys_up"][0] * weight)
             - np.sum(events[f"{jet}_lp_sf_sys_down"][0] * weight)
-        )
+        ) / 2
         / tot_post
     )
 

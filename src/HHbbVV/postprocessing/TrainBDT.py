@@ -16,7 +16,7 @@ import xgboost as xgb
 import utils
 import plotting
 
-from sample_labels import sig_key, data_key
+from hh_vars import sig_key, data_key
 
 
 weight_key = "finalWeight"
