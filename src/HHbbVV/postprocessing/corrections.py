@@ -50,7 +50,7 @@ def _load_txbb_sfs(year: str):
     for key in keys:
         for wp in wps:
             wval = []
-            for (low, high) in zip(pt_bins[:-1], pt_bins[1:]):
+            for low, high in zip(pt_bins[:-1], pt_bins[1:]):
                 wval.append(txbb_sf[f"{wp}_pt{low}to{high}"]["final"][key])
             vals[key].append(wval)
 
