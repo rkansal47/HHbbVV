@@ -25,7 +25,7 @@ from typing import Dict, List, Tuple
 from inspect import cleandoc
 from textwrap import dedent
 
-from sample_labels import sig_key, data_key, qcd_key, bg_keys
+from hh_vars import sig_key, data_key, qcd_key, bg_keys
 from utils import CUT_MAX_VAL
 
 from pprint import pprint
@@ -107,7 +107,7 @@ args.scan = True
 
 
 def main(args):
-    from sample_labels import samples, bdt_sample_order
+    from hh_vars import samples, bdt_sample_order
 
     # make plot, template dirs if needed
     make_dirs(args)

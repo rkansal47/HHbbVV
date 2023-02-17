@@ -19,7 +19,7 @@ import pickle
 
 import utils
 import plotting
-from sample_labels import samples, sig_key, data_key
+from hh_vars import samples, sig_key, data_key
 from utils import CUT_MAX_VAL
 
 import importlib

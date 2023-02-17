@@ -103,6 +103,8 @@ def main(args):
                     "eosoutparquet": f"{eosoutput_dir}/parquet/out_{j}.parquet",
                     "eosoutroot": f"{eosoutput_dir}/root/nano_skim_{j}.root",
                     "save_ak15": "--save-ak15" if args.save_ak15 else "--no-save-ak15",
+                    "save_systematics": "--save-systematics" if args.save_systematics else "--no-save-systematics"
+                    "inference": "--inference" if args.inference else "--no-inference"
                 }
                 write_template(sh_templ, localsh, sh_args)
                 os.system(f"chmod u+x {localsh}")
@@ -170,6 +172,12 @@ if __name__ == "__main__":
 
     run_utils.add_bool_arg(
         parser, "save-ak15", default=False, help="run inference for and save ak15 jets"
+    )
+    run_utils.add_bool_arg(
+       parser, "save-systematics", default=False, help="save systematic variations"
+    )
+    run_utils.add_bool_arg(
+        parser, "inference", default=True, help="run inference for ak8 jets"
     )
 
     args = parser.parse_args()
