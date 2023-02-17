@@ -36,7 +36,9 @@ def accumulate_files(files: list):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--year", help="year", type=str, required=True, choices=["2016APV", "2016", "2017", "2018"])
+    parser.add_argument(
+        "--year", help="year", type=str, required=True, choices=["2016APV", "2016", "2017", "2018"]
+    )
     parser.add_argument(
         "--processor",
         default="trigger",
