@@ -142,7 +142,7 @@ def run(p: processor, fileset: dict, args):
 
 
 def main(args):
-    p = run_utils.get_processor(args.processor, args.save_ak15, args.label, args.njets)
+    p = run_utils.get_processor(args.processor, args.save_ak15, args.label, args.njets, args.save_systematics, args.inference)
 
     if len(args.files):
         fileset = {f"{args.year}_{args.files_name}": args.files}
@@ -202,6 +202,12 @@ if __name__ == "__main__":
 
     run_utils.add_bool_arg(
         parser, "save-ak15", default=False, help="run inference for and save ak15 jets"
+    )
+    run_utils.add_bool_arg(
+        parser, "save-systematics", default=False, help="save systematic variations"
+    )
+    run_utils.add_bool_arg(
+        parser, "inference", default=True, help="run inference for ak8 jets"
     )
 
     args = parser.parse_args()
