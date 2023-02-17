@@ -3,81 +3,100 @@ from coffea import processor
 from hist import Hist
 import numpy as np
 
+from coffea.analysis_tools import PackedSelection
+
+from .utils import add_selection_no_cutflow
+
 
 class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
     """Accumulates two 2D (pT, msd) histograms from all input events: 1) before triggers, and 2) after triggers"""
 
+    muon_HLTs = {
+        2016: ["IsoMu24", "IsoTkMu24", "Mu50"],
+        2017: ["IsoMu27", "Mu50"],
+        2018: ["IsoMu24", "Mu50"],
+    }
+
+    # same selection as in AN-2020-201
+
+    muon_selection = {
+        "Id": "tight",
+        "pt": 30,
+        "eta": 2.4,
+        "pfIsoId": 4,  # tight PF isolation
+        "count": 1,
+    }
+
+    ak8_jet_selection = {
+        "eta": 2.4,
+        "delta_phi_muon": 1.5,
+    }
+
+    HLTs = {
+        2016: [
+            "AK8DiPFJet250_200_TrimMass30_BTagCSV_p20",
+            "AK8DiPFJet280_200_TrimMass30_BTagCSV_p20",
+            #
+            "AK8PFHT600_TrimR0p1PT0p03Mass50_BTagCSV_p20",
+            "AK8PFHT700_TrimR0p1PT0p03Mass50",
+            #
+            "AK8PFJet360_TrimMass30",
+            "AK8PFJet450",
+            "PFJet450",
+            #
+            "PFHT800",
+            "PFHT900",
+            "PFHT1050",
+            #
+            "PFHT750_4JetPt50",
+            "PFHT750_4JetPt70",
+            "PFHT800_4JetPt50",
+        ],
+        2017: [
+            "PFJet450",
+            "PFJet500",
+            #
+            "AK8PFJet400",
+            "AK8PFJet450",
+            "AK8PFJet500",
+            #
+            "AK8PFJet360_TrimMass30",
+            "AK8PFJet380_TrimMass30",
+            "AK8PFJet400_TrimMass30",
+            #
+            "AK8PFHT750_TrimMass50",
+            "AK8PFHT800_TrimMass50",
+            #
+            "PFHT1050",
+            #
+            "AK8PFJet330_PFAK8BTagCSV_p17",
+        ],
+        2018: [
+            "PFJet500",
+            #
+            "AK8PFJet500",
+            #
+            "AK8PFJet360_TrimMass30",
+            "AK8PFJet380_TrimMass30",
+            "AK8PFJet400_TrimMass30",
+            "AK8PFHT750_TrimMass50",
+            "AK8PFHT800_TrimMass50",
+            #
+            "PFHT1050",
+            #
+            "HLT_AK8PFJet330_TrimMass30_PFAK8BTagCSV_p17_v",
+        ],
+    }
+
+    # step, min, max
+    pt_bins = (50, 0, 1000)
+    msd_bins = (15, 0, 300)
+
+    # edges
+    tagger_bins = [0.0, 0.9, 0.95, 0.98, 1.0]
+
     def __init__(self, ak15=False):
         super(JetHTTriggerEfficienciesProcessor, self).__init__()
-
-        self.muon_HLTs = {
-            2016: ["IsoMu24", "IsoTkMu24", "Mu50"],
-            2017: ["IsoMu27", "Mu50"],
-            2018: ["IsoMu24", "Mu50"],
-        }
-
-        self.HLTs = {
-            2016: [
-                "AK8DiPFJet250_200_TrimMass30_BTagCSV_p20",
-                "AK8DiPFJet280_200_TrimMass30_BTagCSV_p20",
-                #
-                "AK8PFHT600_TrimR0p1PT0p03Mass50_BTagCSV_p20",
-                "AK8PFHT700_TrimR0p1PT0p03Mass50",
-                #
-                "AK8PFJet360_TrimMass30",
-                "AK8PFJet450",
-                "PFJet450",
-                #
-                "PFHT800",
-                "PFHT900",
-                "PFHT1050",
-                #
-                "PFHT750_4JetPt50",
-                "PFHT750_4JetPt70",
-                "PFHT800_4JetPt50",
-            ],
-            2017: [
-                "PFJet450",
-                "PFJet500",
-                #
-                "AK8PFJet400",
-                "AK8PFJet450",
-                "AK8PFJet500",
-                #
-                "AK8PFJet360_TrimMass30",
-                "AK8PFJet380_TrimMass30",
-                "AK8PFJet400_TrimMass30",
-                #
-                "AK8PFHT750_TrimMass50",
-                "AK8PFHT800_TrimMass50",
-                #
-                "PFHT1050",
-                #
-                "AK8PFJet330_PFAK8BTagCSV_p17",
-            ],
-            2018: [
-                "PFJet500",
-                #
-                "AK8PFJet500",
-                #
-                "AK8PFJet360_TrimMass30",
-                "AK8PFJet380_TrimMass30",
-                "AK8PFJet400_TrimMass30",
-                "AK8PFHT750_TrimMass50",
-                "AK8PFHT800_TrimMass50",
-                #
-                "PFHT1050",
-                #
-                "HLT_AK8PFJet330_TrimMass30_PFAK8BTagCSV_p17_v",
-            ],
-        }
-
-        # step, min, max
-        self.pt_bins = (50, 0, 1000)
-        self.msd_bins = (15, 0, 300)
-
-        # edges
-        self.tagger_bins = [0.0, 0.9, 0.95, 0.98, 1.0]
 
         self.ak15 = ak15
 
@@ -85,6 +104,13 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         """Returns pre- (den) and post- (num) trigger 2D (pT, msd) histograms from input NanoAOD events"""
 
         year = int(events.metadata["dataset"][:4])
+
+        selection = PackedSelection()
+
+        # objects
+        num_jets = 1
+        muon = events.Muon
+        fatjets = events.FatJet
 
         # passing single-muon triggers
         muon_triggered = np.any(
@@ -100,15 +126,36 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
             axis=0,
         )
 
-        fatjets = events.FatJetAK15 if self.ak15 else events.FatJet
+        # muon
+        muon_selector = (
+            (muon[f"{self.muon_selection['Id']}Id"])
+            * (muon.pt > self.muon_selection["pt"])
+            * (np.abs(muon.eta) < self.muon_selection["eta"])
+            * (muon.pfIsoId >= self.muon_selection["pfIsoId"])
+        )
 
-        # TODO: AK15 jets have different names!
+        muon_selector = muon_selector * (
+            ak.count(events.Muon.pt[muon_selector], axis=1) == self.muon_selection["count"]
+        )
+        muon = ak.pad_none(muon[muon_selector], 1, axis=1)[:, 0]
+
+        muon_selector = ak.any(muon_selector, axis=1)
+        add_selection_no_cutflow("muon", muon_selector, selection)
+
+        # ak8 jet selection
+        fatjet_selector = (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"]) * (
+            np.abs(fatjets.delta_phi(muon)) > self.ak8_jet_selection["delta_phi_muon"]
+        )
+
+        leading_fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
+        fatjet_idx = ak.argmax(fatjet_selector, axis=1)  # gets first index which is true
+        fatjet_selector = ak.any(fatjet_selector, axis=1)
+
+        add_selection_no_cutflow("ak8_jet", fatjet_selector, selection)
+
         fatjets.txbb = fatjets.particleNetMD_Xbb / (
             fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb
         )
-
-        # does event have a fat jet
-        fatjet1bool = ak.any(fatjets.pt, axis=1)
 
         # initialize histograms
         h = (
@@ -119,11 +166,13 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
             .Double()
         )
 
+        select = selection.all(*selection.names)
+
         selections = {
-            # select events which pass the muon triggers and contain at least one fat jet
-            "den": fatjet1bool * muon_triggered,
+            # select events which pass the muon triggers and selection
+            "den": select * muon_triggered,
             # add our triggers
-            "num": fatjet1bool * muon_triggered * bbVV_triggered,
+            "num": select * muon_triggered * bbVV_triggered,
         }
 
         hists = {}

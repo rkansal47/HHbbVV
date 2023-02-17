@@ -45,7 +45,7 @@
    - [ ] Trigger SFs
      - [ ] Stat.
      - [ ] Correlated Syst.
-   - [ ] ParticleNet Xbb
+   - [x] ParticleNet Xbb
  - Theory
    - [ ] pdf uncertainties
    - [ ] scale variation?

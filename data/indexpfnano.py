@@ -148,6 +148,9 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
         sample_short = f1.split("/")[-1]
         print(f" {sample_short}")
 
+        if year == "2016" and sample_short.endswith("HIPM"):
+            continue
+
         if not year in index:
             index[year] = {}
         if not sample_short in index[year]:

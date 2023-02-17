@@ -6125,10 +6125,6 @@
       ]
     },
     "SingleMu2016": {
-      "SingleMuon_Run2016B_ver2_HIPM": [],
-      "SingleMuon_Run2016C_HIPM": [],
-      "SingleMuon_Run2016D_HIPM": [],
-      "SingleMuon_Run2016E_HIPM": [],
       "SingleMuon_Run2016F": [
         "/store/user/lpcpfnano/dryu/v2_2_1/2016/SingleMu2016/SingleMuon/SingleMuon_Run2016F/220108_003358/0000/nano_data2016_1-1.root",
         "/store/user/lpcpfnano/dryu/v2_2_1/2016/SingleMu2016/SingleMuon/SingleMuon_Run2016F/220108_003358/0000/nano_data2016_1-2.root",
@@ -6154,7 +6150,6 @@
         "/store/user/lpcpfnano/dryu/v2_2_1/2016/SingleMu2016/SingleMuon/SingleMuon_Run2016F/220108_003358/0000/nano_data2016_8.root",
         "/store/user/lpcpfnano/dryu/v2_2_1/2016/SingleMu2016/SingleMuon/SingleMuon_Run2016F/220108_003358/0000/nano_data2016_9.root"
       ],
-      "SingleMuon_Run2016F_HIPM": [],
       "SingleMuon_Run2016G": [
         "/store/user/lpcpfnano/dryu/v2_2_1/2016/SingleMu2016/SingleMuon/SingleMuon_Run2016G/220108_003334/0000/nano_data2016_1-1.root",
         "/store/user/lpcpfnano/dryu/v2_2_1/2016/SingleMu2016/SingleMuon/SingleMuon_Run2016G/220108_003334/0000/nano_data2016_1-10.root",

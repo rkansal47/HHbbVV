@@ -1,3 +1,9 @@
+"""
+General utilities for postprocessing.
+
+Author: Raghav Kansal
+"""
+
 import time
 import contextlib
 from os import listdir
@@ -13,7 +19,7 @@ from typing import Dict, List, Union
 from coffea.analysis_tools import PackedSelection
 from hist import Hist
 
-from sample_labels import sig_key, data_key
+from hh_vars import sig_key, data_key
 
 MAIN_DIR = "./"
 CUT_MAX_VAL = 9999.0
@@ -151,14 +157,6 @@ def load_samples(
             if label != data_key:
                 if label == sig_key:
                     n_events = get_cutflow(pickles_path, year, sample)["has_4q"]
-                # elif sample.startswith(ttsl_key):
-                #     # have to divide TT semileptonic by # of events in normal and ext1 both
-                #     n_events = sum(
-                #         [
-                #             get_nevents(f"{data_dir}/{year}/{skey}/pickles", year, skey)
-                #             for skey in [ttsl_key, ttsl_key + "_ext1"]
-                #         ]
-                #     )
                 else:
                     n_events = get_nevents(pickles_path, year, sample)
 

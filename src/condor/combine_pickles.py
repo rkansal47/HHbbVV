@@ -37,18 +37,24 @@ def accumulate_files(files: list):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--indir",
-        default="outfiles",
-        help="eos directory which contains files to combine",
-        type=str,
+        "--year", help="year", type=str, required=True, choices=["2016APV", "2016", "2017", "2018"]
     )
-    parser.add_argument("--name", default="", help="name of combined files", type=str)
+    parser.add_argument(
+        "--processor",
+        default="trigger",
+        help="Trigger processor",
+        type=str,
+        choices=["trigger", "skimmer", "input", "ttsfs"],
+    )
+    parser.add_argument("--tag", type=str, required=True)
+    parser.add_argument("--name", default="combined", help="name of combined files", type=str)
     run_utils.add_bool_arg(
         parser, "r", default=False, help="combine files in sub and subsubdirectories of indir"
     )
     args = parser.parse_args()
 
-    indir = f"/eos/uscms/store/user/rkansal/{args.indir}"
+    tag_dir = f"/eos/uscms/store/user/rkansal/bbVV/{args.processor}/{args.tag}"
+    indir = f"{tag_dir}/{args.year}/pickles/"
 
     files = [indir + "/" + file for file in listdir(indir) if file.endswith(".pkl")]
 
@@ -65,9 +71,7 @@ if __name__ == "__main__":
     print(f"Accumulating {len(files)} files")
     out = accumulate_files(files)
 
-    name = args.name if args.name != "" else f"combined"
-
-    with open(f"{indir}/{name}.pkl", "wb") as f:
+    with open(f"{tag_dir}/{args.year}_{args.name}.pkl", "wb") as f:
         pickle.dump(out, f)
 
-    print(f"Saved to {indir}/{name}.pkl")
+    print(f"Saved to {tag_dir}/{args.year}_{args.name}.pkl")
