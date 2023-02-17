@@ -130,15 +130,13 @@ class bbVVSkimmer(ProcessorABC):
             "msoftdrop": "Msd",
             "particleNetMD_QCD": "ParticleNetMD_QCD",
             "particleNetMD_Xbb": "ParticleNetMD_Xbb",
-            # "particleNetMD_Xcc": "ParticleNetMD_Xcc",
-            # "particleNetMD_Xqq": "ParticleNetMD_Xqq",
             "particleNet_H4qvsQCD": "ParticleNet_Th4q",
         },
         "GenHiggs": P4,
         "other": {"MET_pt": "MET_pt"},
     }
 
-    preselection_cut_vals = {"pt": 250, "msd": 50}
+    preselection_cut_vals = {"pt": 300, "msd": 50, "txbb": 0.8}
 
     def __init__(self, xsecs={}, save_ak15=False):
         super(bbVVSkimmer, self).__init__()
