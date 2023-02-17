@@ -1,0 +1,60 @@
+{
+    "Skimmer":
+        {
+            "HH":
+                {
+                    "subsamples":
+                        [
+                            "GluGluToHHTobbVV_node_cHHH0",
+                            "GluGluToHHTobbVV_node_cHHH1",
+                            "GluGluToHHTobbVV_node_cHHH2p45",
+                            "GluGluToHHTobbVV_node_cHHH5",
+                            "VBF_HHTobbVV_CV_1_C2V_1_C3_1",
+                        ],
+                    "files_per_job": 20,
+                },
+            "QCD":
+                {
+                    "files_per_job": 20,
+                    "subsamples":
+                        [
+                            "QCD_HT200to300",
+                            "QCD_HT300to500",
+                            "QCD_HT500to700",
+                            "QCD_HT700to1000",
+                            "QCD_HT1000to1500",
+                            "QCD_HT1500to2000",
+                            "QCD_HT2000toInf",
+                        ],
+                },
+            "WJetsToQQ": { "files_per_job": 20 },
+            "ZJetsToQQ": { "files_per_job": 20 },
+            "Diboson": { "files_per_job": 20 },
+            "TTbar":
+                {
+                    "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
+                    "files_per_job": 20,
+                },
+            "Singletop":
+                {
+                    "subsamples":
+                        [
+                            "ST_tW_antitop_5f_inclusiveDecays",
+                            "ST_tW_top_5f_inclusiveDecays",
+                        ],
+                    "files_per_job": 20,
+                },
+            "HWW":
+                {
+                    "subsamples":
+                        [
+                            "GluGluHToWW_Pt-200ToInf_M-125",
+                            "VBFHToWWToAny_M-125_TuneCP5_withDipoleRecoil",
+                            "ttHToNonbb_M125",
+                        ],
+                    "files_per_job": 20,
+                },
+            "GluGluHToBB": { "files_per_job": 20 },
+            "JetHT2017": { "files_per_job": 20 },
+        },
+}
