@@ -21,11 +21,31 @@ from hist.intervals import ratio_uncertainty
 from typing import Dict, List, Union
 from numpy.typing import ArrayLike
 
-from sample_labels import sig_key, data_key
+from hh_vars import sig_key, data_key
 
-colours = {"darkblue": "#1f78b4", "lightblue": "#a6cee3", "red": "#e31a1c", "orange": "#ff7f00"}
-bg_colours = {"QCD": "lightblue", "TT": "darkblue", "ST": "orange"}
+colours = {
+    "darkblue": "#1f78b4",
+    "lightblue": "#a6cee3",
+    "red": "#e31a1c",
+    "orange": "#ff7f00",
+    "green": "#7CB518",
+}
+bg_colours = {"QCD": "lightblue", "TT": "darkblue", "W+Jets": "green", "ST": "orange"}
 sig_colour = "red"
+
+bg_order = ["W+Jets", "TT", "ST", "QCD"]
+
+
+def _fill_error(ax, edges, down, up, scale=1):
+    ax.fill_between(
+        np.repeat(edges, 2)[1:-1],
+        np.repeat(down, 2) * scale,
+        np.repeat(up, 2) * scale,
+        color="black",
+        alpha=0.2,
+        hatch="//",
+        linewidth=0,
+    )
 
 
 def ratioHistPlot(
@@ -33,6 +53,7 @@ def ratioHistPlot(
     bg_keys: List[str],
     bg_colours: Dict[str, str] = bg_colours,
     sig_colour: str = sig_colour,
+    sig_err: ArrayLike | str = None,
     data_err: Union[ArrayLike, bool, None] = None,
     title: str = None,
     blind_region: list = None,
@@ -44,6 +65,8 @@ def ratioHistPlot(
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
     scaled) with a data/mc ratio plot below
     """
+
+    bg_keys = [key for key in bg_order if key in bg_keys]
 
     fig, (ax, rax) = plt.subplots(
         2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
@@ -65,6 +88,24 @@ def ratioHistPlot(
         label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
         color=colours[sig_colour],
     )
+
+    if type(sig_err) == str:
+        _fill_error(
+            ax,
+            hists.axes[1].edges,
+            hists[f"{sig_key}_{sig_err}_down", :].values(),
+            hists[f"{sig_key}_{sig_err}_up", :].values(),
+            sig_scale,
+        )
+    elif sig_err is not None:
+        _fill_error(
+            ax,
+            hists.axes[1].edges,
+            hists[sig_key, :].values() * (1 - sig_err),
+            hists[sig_key, :].values() * (1 + sig_err),
+            sig_scale,
+        )
+
     hep.histplot(
         hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
     )
@@ -85,6 +126,7 @@ def ratioHistPlot(
         capsize=4,
     )
     rax.set_ylabel("Data/MC")
+    rax.set_ylim([0, 5])
     rax.grid()
 
     if title is not None:

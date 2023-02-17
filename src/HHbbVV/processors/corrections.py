@@ -17,8 +17,6 @@ ak.behavior.update(vector.behavior)
 
 import pathlib
 
-import fastjet
-
 from .utils import P4
 
 
@@ -117,6 +115,10 @@ def get_vpt(genpart, check_offshell=False):
 def add_VJets_kFactors(weights, genpart, dataset):
     """Revised version of add_VJets_NLOkFactor, for both NLO EW and ~NNLO QCD"""
 
+    vjets_kfactors = correctionlib.CorrectionSet.from_file(
+        package_path + "/data/ULvjets_corrections.json"
+    )
+
     common_systs = [
         "d1K_NLO",
         "d2K_NLO",
@@ -164,6 +166,138 @@ def add_VJets_kFactors(weights, genpart, dataset):
         qcdcorr = vjets_kfactors["ULW_MLMtoFXFX"].evaluate(vpt)
         ewkcorr = vjets_kfactors["W_FixedOrderComponent"]
         add_systs(wsysts, qcdcorr, ewkcorr, vpt)
+
+
+def add_ps_weight(weights, ps_weights):
+    """
+    Parton Shower Weights (FSR and ISR)
+    """
+
+    nweights = len(weights.weight())
+    nom = np.ones(nweights)
+
+    up_isr = np.ones(nweights)
+    down_isr = np.ones(nweights)
+    up_fsr = np.ones(nweights)
+    down_fsr = np.ones(nweights)
+
+    if len(ps_weights[0]) == 4:
+        up_isr = ps_weights[:, 0]  # ISR=2, FSR=1
+        down_isr = ps_weights[:, 2]  # ISR=0.5, FSR=1
+
+        up_fsr = ps_weights[:, 1]  # ISR=1, FSR=2
+        down_fsr = ps_weights[:, 3]  # ISR=1, FSR=0.5
+
+    elif len(ps_weights[0]) > 1:
+        print("PS weight vector has length ", len(ps_weights[0]))
+
+    weights.add("ISRPartonShower", nom, up_isr, down_isr)
+    weights.add("FSRPartonShower", nom, up_fsr, down_fsr)
+
+    # TODO: do we need to update sumgenweights?
+    # e.g. as in https://git.rwth-aachen.de/3pia/cms_analyses/common/-/blob/11e0c5225416a580d27718997a11dc3f1ec1e8d1/processor/generator.py#L74
+
+
+def add_pdf_weight(weights, pdf_weights):
+    """
+    LHEPDF Weights
+    """
+    nweights = len(weights.weight())
+    nom = np.ones(nweights)
+    up = np.ones(nweights)
+    down = np.ones(nweights)
+
+    # NNPDF31_nnlo_hessian_pdfas
+    # https://lhapdfsets.web.cern.ch/current/NNPDF31_nnlo_hessian_pdfas/NNPDF31_nnlo_hessian_pdfas.info
+
+    # Hessian PDF weights
+    # Eq. 21 of https://arxiv.org/pdf/1510.03865v1.pdf
+    arg = pdf_weights[:, 1:-2] - np.ones((nweights, 100))
+    summed = ak.sum(np.square(arg), axis=1)
+    pdf_unc = np.sqrt((1.0 / 99.0) * summed)
+    # weights.add("PDF", nom, pdf_unc + nom)
+
+    # alpha_S weights
+    # Eq. 27 of same ref
+    as_unc = 0.5 * (pdf_weights[:, 102] - pdf_weights[:, 101])
+    # weights.add('alphaS', nom, as_unc + nom)
+
+    # PDF + alpha_S weights
+    # Eq. 28 of same ref
+    pdfas_unc = np.sqrt(np.square(pdf_unc) + np.square(as_unc))
+    weights.add("PDFalphaS", nom, pdfas_unc + nom)
+
+
+def add_scalevar_7pt(weights, var_weights):
+    """
+    QCD Scale variations:
+    7 point is where the renorm. and factorization scale are varied separately
+    docstring:
+    LHE scale variation weights (w_var / w_nominal);
+    [0] is renscfact=0.5d0 facscfact=0.5d0 ;
+    [1] is renscfact=0.5d0 facscfact=1d0 ; <=
+    [2] is renscfact=0.5d0 facscfact=2d0 ;
+    [3] is renscfact=1d0 facscfact=0.5d0 ; <=
+    [4] is renscfact=1d0 facscfact=1d0 ;
+    [5] is renscfact=1d0 facscfact=2d0 ; <=
+    [6] is renscfact=2d0 facscfact=0.5d0 ;
+    [7] is renscfact=2d0 facscfact=1d0 ; <=
+    [8] is renscfact=2d0 facscfact=2d0 ; <=
+    """
+    docstring = var_weights.__doc__
+
+    nweights = len(weights.weight())
+
+    nom = np.ones(nweights)
+    up = np.ones(nweights)
+    down = np.ones(nweights)
+
+    if len(var_weights) > 0:
+        if len(var_weights[0]) == 9:
+            up = np.maximum.reduce(
+                [
+                    var_weights[:, 0],
+                    var_weights[:, 1],
+                    var_weights[:, 3],
+                    var_weights[:, 5],
+                    var_weights[:, 7],
+                    var_weights[:, 8],
+                ]
+            )
+            down = np.minimum.reduce(
+                [
+                    var_weights[:, 0],
+                    var_weights[:, 1],
+                    var_weights[:, 3],
+                    var_weights[:, 5],
+                    var_weights[:, 7],
+                    var_weights[:, 8],
+                ]
+            )
+        elif len(var_weights[0]) > 1:
+            print("Scale variation vector has length ", len(var_weights[0]))
+    # NOTE: I think we should take the envelope of these weights w.r.t to [4]
+    weights.add("QCDscale7pt", nom, up, down)
+    weights.add("QCDscale4", var_weights[:, 4])
+
+
+def add_scalevar_3pt(weights, var_weights):
+    docstring = var_weights.__doc__
+
+    nweights = len(weights.weight())
+
+    nom = np.ones(nweights)
+    up = np.ones(nweights)
+    down = np.ones(nweights)
+
+    if len(var_weights) > 0:
+        if len(var_weights[0]) == 9:
+            up = np.maximum(var_weights[:, 0], var_weights[:, 8])
+            down = np.minimum(var_weights[:, 0], var_weights[:, 8])
+        elif len(var_weights[0]) > 1:
+            print("Scale variation vector has length ", len(var_weights[0]))
+
+    weights.add("QCDscale3pt", nom, up, down)
 
 
 # for scale factor validation region selection
@@ -291,23 +425,6 @@ def get_jec_jets(events: NanoEventsArray, year: str) -> FatJetArray:
     return fatjets
 
 
-# giving up on doing these myself for now because there's no 2017 UL V5 JER scale factors ???
-# https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/JME_fatJet_jerc_Run2_UL/
-# jec_stack_names = [
-#     "Summer19UL17_V5_MC_L1FastJet_AK8PFPuppi",
-#     "Summer19UL17_V5_MC_L2Relative_AK8PFPuppi",
-#     "Summer19UL17_V5_MC_L3Absolute_AK8PFPuppi",
-#     "Summer19UL17_V5_MC_L2L3Residual_AK8PFPuppi",
-# ]
-
-
-# jet definitions for LP SFs
-dR = 0.8
-cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
-ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
-n_LP_sf_toys = 100
-
-
 def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Tuple[int, ak.Array], num_prongs: int):
     """
     Gets the ``num_prongs`` subjet pTs and Delta and kT per primary LP splitting of fatjets at
@@ -324,6 +441,14 @@ def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Tuple[int, ak.Array], 
     Returns:
         flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, kt_subjets_vec
     """
+
+    # jet definitions for LP SFs
+    import fastjet
+
+    dR = 0.8
+    cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
+    ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
+    n_LP_sf_toys = 100
 
     # get pfcands of the top-matched jets
     ak8_pfcands = events.FatJetPFCands
@@ -414,6 +539,13 @@ def _calc_lund_SFs(
 
 
 def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = False):
+    import fastjet
+
+    dR = 0.8
+    cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
+    ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
+    n_LP_sf_toys = 100
+
     import uproot
 
     # initialize lund plane scale factors lookups
@@ -537,7 +669,7 @@ def get_lund_SFs(
         flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, num_prongs, [ratio_sys_up]
     )
 
-    ### subjet matching and pT extrapoation uncertainties
+    ### subjet matching and pT extrapolation uncertainties
 
     matching_dR = 0.2
     sj_matched = []

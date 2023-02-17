@@ -9,15 +9,18 @@
 
 Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to two beauty quarks (b) and two vector bosons (V). The majority of the analysis uses a columnar framework to process input tree-based [NanoAOD](https://twiki.cern.ch/twiki/bin/view/CMSPublic/WorkBookNanoAOD) files using the [coffea](https://coffeateam.github.io/coffea/) and [scikit-hep](https://scikit-hep.org) Python libraries.
 
-  - [Instructions for running coffea processors](#instructions-for-running-coffea-processors)
-    * [Coffea-Casa](#coffea-casa)
-    * [Condor](#condor)
-  - [Processors](#processors)
-    * [bbVVSkimmer](#bbvvskimmer)
-    * [TaggerInputSkimmer](#taggerinputskimmer)
-    * [TTScaleFactorsSkimmer](#ttscalefactorsskimmer)
-  - [Misc](#misc)
 
+- [HHbbVV](#hhbbvv)
+  - [Instructions for running coffea processors](#instructions-for-running-coffea-processors)
+    - [Coffea-Casa](#coffea-casa)
+    - [Condor](#condor)
+      - [TODO: instructions for lpcjobqueue (currently quite buggy)](#todo-instructions-for-lpcjobqueue-currently-quite-buggy)
+  - [Processors](#processors)
+    - [JetHTTriggerEfficiencies](#jethttriggerefficiencies)
+    - [bbVVSkimmer](#bbvvskimmer)
+    - [TaggerInputSkimmer](#taggerinputskimmer)
+    - [TTScaleFactorsSkimmer](#ttscalefactorsskimmer)
+  - [Misc](#misc)
 
 ## Instructions for running coffea processors
 
@@ -46,7 +49,7 @@ for i in condor/$TAG/*.jdl; do condor_submit $i; done
 Alternatively, can be submitted from a yaml file:
 
 ```bash
-python src/condor/submit_from_yaml.py --year 2017 --processor skimmer --tag $TAG --files-per-job 20 --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml 
+python src/condor/submit_from_yaml.py --year 2017 --processor skimmer --tag $TAG --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml 
 ```
 
 To test locally first (recommended), can do e.g.:
@@ -59,6 +62,22 @@ python -W ignore src/run.py --starti 0 --endi 1 --year 2017 --processor skimmer 
 #### TODO: instructions for lpcjobqueue (currently quite buggy)
 
 ## Processors
+
+### JetHTTriggerEfficiencies
+
+Applies a muon pre-selection and accumulates 4D ([Txbb, Th4q, pT, mSD]) yields before and after our triggers.
+
+To test locally:
+
+```bash
+python -W ignore src/run.py --year 2018 --processor trigger --sample SingleMu2017 --subsamples SingleMuon_Run2018B --starti 0 --endi 1
+```
+
+And to submit all:
+
+```bash
+nohup bash -c 'for i in 2016 2016APV 2017 2018; do python src/condor/submit.py --year $i --tag '"${TAG}"' --processor trigger --submit; done' &> tmp/submitout.txt &
+```
 
 ### bbVVSkimmer
 

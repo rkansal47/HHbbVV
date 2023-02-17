@@ -15,3 +15,11 @@ python PostProcess.py --templates \
 ```bash
 python PlotFits.py --fit-file "cards/test_tied_stats/fitDiagnosticsBlindedBkgOnly.root" --plots-dir "../../../plots/PostFit/09_02/"
 ```
+
+## CreateDatacard.py
+
+Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rhalphalib installed (`pip install -e . --user` after checking out the branch). `CMSSW_11_2_0` recommended.
+
+```bash
+python3 postprocessing/CreateDatacard.py --templates-file templates/Jan31/templates.pkl --model-name Jan31
+```

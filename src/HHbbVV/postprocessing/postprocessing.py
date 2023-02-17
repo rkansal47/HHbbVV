@@ -21,14 +21,16 @@ from hist import Hist
 import utils
 import plotting
 
+from numpy.typing import ArrayLike
 from typing import Dict, List, Tuple
 from inspect import cleandoc
 from textwrap import dedent
 
-from sample_labels import sig_key, data_key, qcd_key, bg_keys, samples, bdt_sample_order
+from hh_vars import years, sig_key, data_key, qcd_key, bg_keys, samples, txbb_wps
 from utils import CUT_MAX_VAL
 
 from pprint import pprint
+from copy import deepcopy
 
 import importlib
 
@@ -71,16 +73,36 @@ control_plot_vars = {
     "BDTScore": ([50, 0, 1], r"BDT Score"),
 }
 
+
 # {label: {cutvar: [min, max], ...}, ...}
-selection_regions = {
-    "passCat1": {
-        "BDTScore": [0.985, CUT_MAX_VAL],
-        "bbFatJetParticleNetMD_Txbb": [0.977, CUT_MAX_VAL],
+selection_regions_year = {
+    "pass": {
+        "BDTScore": [0.986, CUT_MAX_VAL],
+        "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
     },
     "fail": {
-        "bbFatJetParticleNetMD_Txbb": [0.8, 0.977],
+        "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
+    },
+    "BDTOnly": {
+        "BDTScore": [0.986, CUT_MAX_VAL],
     },
 }
+
+selection_regions_label = {"pass": "Pass", "fail": "Fail", "BDTOnly": "BDT Cut"}
+
+selection_regions = {}
+
+for year in years:
+    sr = deepcopy(selection_regions_year)
+
+    for region in sr:
+        for cuts in sr[region]:
+            for i in range(2):
+                if sr[region][cuts][i] == "HP":
+                    sr[region][cuts][i] = txbb_wps[year]["HP"]
+
+    selection_regions[year] = sr
+
 
 scan_regions = {}
 
@@ -104,17 +126,17 @@ shape_bins = [20, 50, 250]  # num bins, min, max
 blind_window = [100, 150]
 
 
-# for local interactive testing
-args = type("test", (object,), {})()
-args.data_dir = "../../../../data/skimmer/Apr28/"
-args.plot_dir = "../../../PostProcess/plots/04_07_scan"
-args.year = "2017"
-args.bdt_preds = f"{args.data_dir}/absolute_weights_preds.npy"
-args.template_file = "templates/04_07_scan"
-args.overwrite_template = True
-args.control_plots = False
-args.templates = False
-args.scan = True
+# # for local interactive testing
+# args = type("test", (object,), {})()
+# args.data_dir = "../../../../data/skimmer/Apr28/"
+# args.plot_dir = "../../../PostProcess/plots/04_07_scan"
+# args.year = "2017"
+# args.bdt_preds = f"{args.data_dir}/absolute_weights_preds.npy"
+# args.template_file = "templates/04_07_scan"
+# args.overwrite_template = True
+# args.control_plots = False
+# args.templates = False
+# args.scan = True
 
 
 def main(args):
@@ -131,8 +153,6 @@ def main(args):
     events_dict = utils.load_samples(args.data_dir, samples, args.year, filters)
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", overall_cutflow)
     print("\nLoaded Events\n")
-
-    events_dict[sig_key]
 
     apply_weights(events_dict, args.year, overall_cutflow)
     bb_masks = bb_VV_assignment(events_dict)
@@ -216,6 +236,11 @@ def apply_weights(
     """
     from coffea.lookup_tools.dense_lookup import dense_lookup
 
+    # with open(
+    #     f"../corrections/trigEffs/{year}_combined.pkl", "rb"
+    # ) as filehandler:
+    #     combined = pickle.load(filehandler)
+
     with open(
         f"../corrections/trigEffs/AK8JetHTTriggerEfficiency_{year}.hist", "rb"
     ) as filehandler:
@@ -240,20 +265,21 @@ def apply_weights(
     utils.add_to_cutflow(events_dict, "TriggerEffs", weight_key, cutflow)
 
     # calculate QCD scale factor
-    trig_yields = cutflow["TriggerEffs"]
-    non_qcd_bgs_yield = np.sum(
-        [
-            trig_yields[sample]
-            for sample in events_dict
-            if sample not in {sig_key, qcd_key, data_key}
-        ]
-    )
-    QCD_SCALE_FACTOR = (trig_yields[data_key] - non_qcd_bgs_yield) / trig_yields[qcd_key]
-    events_dict[qcd_key][weight_key] *= QCD_SCALE_FACTOR
+    if qcd_key in events_dict:
+        trig_yields = cutflow["TriggerEffs"]
+        non_qcd_bgs_yield = np.sum(
+            [
+                trig_yields[sample]
+                for sample in events_dict
+                if sample not in {sig_key, qcd_key, data_key}
+            ]
+        )
+        QCD_SCALE_FACTOR = (trig_yields[data_key] - non_qcd_bgs_yield) / trig_yields[qcd_key]
+        events_dict[qcd_key][weight_key] *= QCD_SCALE_FACTOR
 
-    print(f"{QCD_SCALE_FACTOR = }")
+        print(f"{QCD_SCALE_FACTOR = }")
 
-    utils.add_to_cutflow(events_dict, "QCD SF", weight_key, cutflow)
+        utils.add_to_cutflow(events_dict, "QCD SF", weight_key, cutflow)
 
 
 def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
@@ -274,6 +300,131 @@ def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataF
         bb_masks[sample] = pd.concat((bb_mask, ~bb_mask), axis=1)
 
     return bb_masks
+
+
+def postprocess_lpsfs(
+    events: pd.DataFrame, num_jets: int = 2, num_lp_sf_toys: int = 100, save_all: bool = True
+):
+    """
+    (1) Splits LP SFs into bb and VV based on gen matching.
+    (2) Sets defaults for unmatched jets.
+    (3) Cuts of SFs at 10 and normalises.
+    """
+
+    for jet in ["bb", "VV"]:
+        # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
+        events.loc[np.sum(events[f"ak8FatJetH{jet}"], axis=1) > 1, f"ak8FatJetH{jet}"] = 0
+        jet_match = events[f"ak8FatJetH{jet}"].astype(bool)
+
+        # temp dict
+        td = {}
+        # td["tot_matched"] = np.sum(np.sum(jet_match))
+
+        # defaults of 1 for jets which aren't matched to anything - i.e. no SF
+        for key in ["lp_sf_nom", "lp_sf_sys_down", "lp_sf_sys_up"]:
+            td[key] = np.ones(len(events))
+
+        td["lp_sf_toys"] = np.ones((len(events), num_lp_sf_toys))
+
+        # defaults of 0 - i.e. don't contribute to unc.
+        for key in ["lp_sf_double_matched_event", "lp_sf_unmatched_quarks", "lp_sf_num_sjpt_gt350"]:
+            td[key] = np.zeros(len(events))
+
+        # fill values from matched jets
+        for j in range(num_jets):
+            offset = num_lp_sf_toys + 1
+            td["lp_sf_nom"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]][j * offset]
+            td["lp_sf_toys"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]].loc[
+                :, j * offset + 1 : (j + 1) * offset - 1
+            ]
+
+            for key in [
+                "lp_sf_sys_down",
+                "lp_sf_sys_up",
+                "lp_sf_double_matched_event",
+                "lp_sf_unmatched_quarks",
+                "lp_sf_num_sjpt_gt350",
+            ]:
+                td[key][jet_match[j]] = events[key][jet_match[j]][j]
+
+        for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_sys_down", "lp_sf_sys_up"]:
+            # cut off at 10
+            td[key] = np.minimum(td[key], 10)
+            # normalise
+            td[key] = td[key] / np.mean(td[key], axis=0)
+
+        # add to dataframe
+        if save_all:
+            td = pd.concat(
+                [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in td.items()],
+                axis=1,
+                keys=[f"{jet}_{key}" for key in td.keys()],
+            )
+
+            events = pd.concat((events, td), axis=1)
+        else:
+            key = "lp_sf_nom"
+            events[f"{jet}_{key}"] = td[key]
+
+    return events
+
+
+def get_lpsf(events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True):
+    """Calculates LP SF and uncertainties in current phase space. ``postprocess_lpsfs`` must be called first."""
+
+    jet = "VV" if VV else "bb"
+    if sel is not None:
+        events = events[sel]
+
+    tot_matched = np.sum(np.sum(events[f"ak8FatJetH{jet}"].astype(bool)))
+
+    weight = events["finalWeight_preLP"].values
+    tot_pre = np.sum(weight)
+    tot_post = np.sum(weight * events[f"{jet}_lp_sf_nom"][0])
+    lp_sf = tot_post / tot_pre
+
+    uncs = {}
+
+    # difference in yields between up and down shifts on LP SFs
+    uncs["syst_unc"] = np.abs(
+        (
+            np.sum(events[f"{jet}_lp_sf_sys_up"][0] * weight)
+            - np.sum(events[f"{jet}_lp_sf_sys_down"][0] * weight)
+        )
+        / 2
+        / tot_post
+    )
+
+    # std of yields after all smearings
+    uncs["stat_unc"] = (
+        np.std(np.sum(weight[:, np.newaxis] * events[f"{jet}_lp_sf_toys"].values, axis=0))
+        / tot_post
+    )
+
+    # fraction of subjets > 350 * 0.21 measured by CASE
+    uncs["sj_pt_unc"] = (np.sum(events[f"{jet}_lp_sf_num_sjpt_gt350"][0]) / tot_matched) * 0.21
+
+    if VV:
+        num_prongs = events["ak8FatJetHVVNumProngs"][0]
+
+        sj_matching_unc = np.sum(events[f"{jet}_lp_sf_double_matched_event"][0])
+        for nump in range(2, 5):
+            sj_matching_unc += (
+                np.sum(events[f"{jet}_lp_sf_unmatched_quarks"][0][num_prongs == nump]) / nump
+            )
+
+        uncs["sj_matching_unc"] = sj_matching_unc / tot_matched
+    else:
+        num_prongs = 2
+        uncs["sj_matching_unc"] = (
+            (np.sum(events[f"{jet}_lp_sf_unmatched_quarks"][0]) / num_prongs)
+            + np.sum(events[f"{jet}_lp_sf_double_matched_event"][0])
+        ) / tot_matched
+
+    tot_rel_unc = np.linalg.norm([val for val in uncs.values()])
+    tot_unc = lp_sf * tot_rel_unc
+
+    return lp_sf, tot_unc, uncs
 
 
 def derive_variables(events_dict: Dict[str, pd.DataFrame], bb_masks: Dict[str, pd.DataFrame]):
@@ -336,7 +487,7 @@ def control_plots(
 
     """
 
-    from PyPDF2 import PdfFileMerger
+    from PyPDF2 import PdfMerger
 
     sig_scale = np.sum(events_dict[data_key][weight_key]) / np.sum(events_dict[sig_key][weight_key])
     print(f"{sig_scale = }")
@@ -349,10 +500,10 @@ def control_plots(
                 events_dict, var, bins, label, bb_masks, weight_key=weight_key
             )
 
-    with open(f"{args.plot_dir}/hists.pkl", "wb") as f:
+    with open(f"{plot_dir}/hists.pkl", "wb") as f:
         pickle.dump(hists, f)
 
-    merger_control_plots = PdfFileMerger()
+    merger_control_plots = PdfMerger()
 
     for var, var_hist in hists.items():
         name = f"{plot_dir}/{var}.pdf"
@@ -375,10 +526,12 @@ def get_templates(
     shape_var: Tuple[str],
     shape_bins: List[float],
     blind_window: List[float],
+    sig_err: ArrayLike = None,
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
     cutstr: str = "",
+    show: bool = False,
 ) -> Dict[str, Hist]:
     """
     (1) Makes histograms for each region in the ``selection_regions`` dictionary,
@@ -427,9 +580,10 @@ def get_templates(
             plotting.ratioHistPlot(
                 template,
                 bg_keys,
+                sig_err=sig_err,
                 name=f"{plot_dir}/{cutstr}{label}_region_bb_mass.pdf",
                 sig_scale=sig_scale / 2,
-                show=False,
+                show=show,
             )
 
         if pass_region:

@@ -16,7 +16,7 @@ import xgboost as xgb
 import utils
 import plotting
 
-from sample_labels import sig_key, data_key
+from hh_vars import sig_key, data_key
 
 
 weight_key = "finalWeight"
@@ -30,10 +30,10 @@ bdtVars = [
     "VVFatJetEta",
     "VVFatJetPt",
     "VVFatJetMsd",
-    # "VVFatJetParticleNetHWWMD_THWW4q",
-    "VVFatJetParticleNetHWWMD_probQCD",
-    "VVFatJetParticleNetHWWMD_probHWW3q",
-    "VVFatJetParticleNetHWWMD_probHWW4q",
+    # "VVFatJetParTMD_THWW4q",
+    "VVFatJetParTMD_probQCD",
+    "VVFatJetParTMD_probHWW3q",
+    "VVFatJetParTMD_probHWW4q",
     "bbFatJetPtOverDijetPt",
     "VVFatJetPtOverDijetPt",
     "VVFatJetPtOverbbFatJetPt",
@@ -85,7 +85,11 @@ def main(args):
     }
 
     data = pd.read_parquet(args.data_path)
-    training_data = data[data["Dataset"] != data_key]
+    training_data = data[
+        (data["Dataset"] == sig_key) | (data["Dataset"] == "QCD") | (data["Dataset"] == "TT")
+    ]
+
+    print(np.unique(training_data["Dataset"]))
 
     if args.test:
         # 100 signal, 100 bg events
@@ -141,6 +145,7 @@ def train_model(
     """Trains BDT. ``classifier_params`` are hyperparameters for the classifier"""
     print("Training model")
     model = xgb.XGBClassifier(**classifier_params)
+    print("Training features: ", list(X_train.columns))
     trained_model = model.fit(
         X_train,
         y_train,
@@ -272,16 +277,16 @@ if __name__ == "__main__":
     )
 
     utils.add_bool_arg(
-        parser, "use-sample-weights", "Use properly scaled event weights", default=False
+        parser, "use-sample-weights", "Use properly scaled event weights", default=True
     )
     utils.add_bool_arg(
         parser,
         "absolute-weights",
         "Use absolute weights if using sample weights (if false, will remove negative weights)",
-        default=False,
+        default=True,
     )
     utils.add_bool_arg(
-        parser, "equalize-weights", "Equalise signal and background weights", default=False
+        parser, "equalize-weights", "Equalise signal and background weights", default=True
     )
 
     parser.add_argument(

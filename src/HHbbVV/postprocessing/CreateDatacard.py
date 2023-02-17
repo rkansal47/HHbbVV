@@ -14,7 +14,6 @@ import numpy as np
 import pickle
 import logging
 from collections import OrderedDict
-import utils
 
 # import hist
 # from hist import Hist
@@ -27,9 +26,10 @@ logging.basicConfig(level=logging.INFO)
 adjust_posdef_yields = False
 
 # from utils import add_bool_arg
-from sample_labels import qcd_key, data_key
+from hh_vars import qcd_key, data_key
 
 LUMI = {"2017": 41.48}
+LP_SF = 1.3
 
 mc_samples = OrderedDict(
     [
@@ -40,7 +40,10 @@ mc_samples = OrderedDict(
 
 
 # dictionary of nuisance params -> modifier
-nuisance_params = {"lumi_13TeV_2017": "lnN"}
+nuisance_params = {"lumi_13TeV_2017": "lnN", "lp_sf": "lnN"}
+nuisance_params_dict = {
+    param: rl.NuisanceParameter(param, unc) for param, unc in nuisance_params.items()
+}
 
 # dictionary of shape systematics -> name in cards
 systs = OrderedDict([])
@@ -49,26 +52,18 @@ CMS_PARAMS_LABEL = "CMS_bbWW_boosted_ggf"
 PARAMS_LABEL = "bbWW_boosted_ggf"
 
 
-# for local interactive testing
-args = type("test", (object,), {})()
-args.data_dir = "../../../../data/skimmer/Apr28/"
-args.plot_dir = "../../../plots/05_26_testing"
-args.year = "2017"
-args.bdt_preds = f"{args.data_dir}/absolute_weights_preds.npy"
-args.templates_file = "templates/test2.pkl"
-args.cat = "1"
-args.nDataTF = 2
-
-
-# import importlib
-# importlib.reload(utils)
+# # for local interactive testing
+# args = type("test", (object,), {})()
+# args.data_dir = "../../../../data/skimmer/Apr28/"
+# args.plot_dir = "../../../plots/05_26_testing"
+# args.year = "2017"
+# args.bdt_preds = f"{args.data_dir}/absolute_weights_preds.npy"
+# args.templates_file = "templates/test2.pkl"
+# args.cat = "1"
+# args.nDataTF = 2
 
 
 def main(args):
-    nuisance_params_dict = {
-        param: rl.NuisanceParameter(param, unc) for param, unc in nuisance_params.items()
-    }
-
     # pass, fail x unblinded, blinded
     regions = [
         f"{pf}{blind_str}"
@@ -140,6 +135,9 @@ def main(args):
 
             # systematics
             sample.setParamEffect(nuisance_params_dict["lumi_13TeV_2017"], 1.02)
+
+            if sample_name == "HHbbVV":
+                sample.setParamEffect(nuisance_params_dict["lp_sf"], LP_SF)
 
             # nominal values, errors
             values_nominal = np.maximum(sample_template.values(), 0.0)
@@ -227,6 +225,20 @@ def main(args):
         pickle.dump(model, fout, 2)  # use python 2 compatible protocol
 
 
+def add_bool_arg(parser, name, help, default=False, no_name=None):
+    """Add a boolean command line argument for argparse"""
+    varname = "_".join(name.split("-"))  # change hyphens to underscores
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument("--" + name, dest=varname, action="store_true", help=help)
+    if no_name is None:
+        no_name = "no-" + name
+        no_help = "don't " + help
+    else:
+        no_help = help
+    group.add_argument("--" + no_name, dest=varname, action="store_false", help=no_help)
+    parser.set_defaults(**{varname: default})
+
+
 if __name__ == "__main__":
     import argparse
 
@@ -247,7 +259,7 @@ if __name__ == "__main__":
         help="order of polynomial for TF from Data",
     )
     parser.add_argument("--model-name", default=None, type=str, help="output model name")
-    utils.add_bool_arg(parser, "bblite", "use barlow-beeston-lite method")
+    add_bool_arg(parser, "bblite", "use barlow-beeston-lite method", default=True)
     args = parser.parse_args()
 
     main(args)
