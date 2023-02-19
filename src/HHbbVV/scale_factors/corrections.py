@@ -18,7 +18,7 @@ ak.behavior.update(vector.behavior)
 import pathlib
 
 import utils
-from .utils import P4
+from utils import P4
 
 
 package_path = str(pathlib.Path(__file__).parent.parent.resolve())

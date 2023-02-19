@@ -1,6 +1,6 @@
 """
 Skimmer for bbVV analysis.
-Author(s): Raghav Kansal
+Author(s): Raghav Kansal, Cristina Suarez
 """
 
 import numpy as np
@@ -20,7 +20,7 @@ from collections import OrderedDict
 
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV
 from .TaggerInference import runInferenceTriton
-from .utils import pad_val, add_selection, concatenate_dicts
+from .utils import pad_val, add_selection, concatenate_dicts, P4
 from .corrections import (
     add_pileup_weight,
     add_VJets_kFactors,
@@ -29,16 +29,10 @@ from .corrections import (
     add_scalevar_7pt,
     get_jec_key,
     get_jec_jets,
+    get_jmsr,
     get_lund_SFs,
 )
 
-
-P4 = {
-    "eta": "Eta",
-    "phi": "Phi",
-    "mass": "Mass",
-    "pt": "Pt",
-}
 
 # mapping samples to the appropriate function for doing gen-level selections
 gen_selection_dict = {
@@ -49,6 +43,9 @@ gen_selection_dict = {
     "GluGluToHHTo4V_node_cHHH1": gen_selection_HH4V,
     "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
 }
+
+# deepcsv medium WP's https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation
+btagWPs = {"2016APV": 0.6001, "2016": 0.5847, "2017": 0.4506, "2018": 0.4168}
 
 import logging
 
@@ -147,12 +144,55 @@ class bbVVSkimmer(processor.ProcessorABC):
             "particleNetMD_QCD": "ParticleNetMD_QCD",
             "particleNetMD_Xbb": "ParticleNetMD_Xbb",
             "particleNet_H4qvsQCD": "ParticleNet_Th4q",
+            "particleNet_mass": "ParticleNetMass",
         },
         "GenHiggs": P4,
         "other": {"MET_pt": "MET_pt"},
     }
 
-    preselection_cut_vals = {"pt": 300, "msd": 50, "txbb": 0.8}
+    ak8_jet_selection = {
+        "pt": 300.0,
+        "eta": 2.4,
+        "VVmsd": 50,
+        "bbparticleNet_mass": 50,
+        "bbFatJetParticleNetMD_Txbb": 0.8,
+    }
+
+    jecs = {
+        "JES": "JES_jes",
+        "JER": "JER",
+    }
+
+    # commenting these out until we derive the uncertainties from the regrouped files
+    """
+    shifts = [
+        ({"FatJet": fatjets}, None),
+        ({"FatJet": fatjets.JES_AbsoluteScale / JES_AbsoluteMPFBias / JES_Fragmentation / JES_PileUpDataMC / JES_PileUpPtRef / JES_RelativeFSR / JES_SinglePionECAL / JESSinglePionHCAL }, "JESUp_Abs"),
+        ({"FatJet": }, "JESDown_Abs"),
+        ({"FatJet": fatjets.JES_AbsoluteStat / JES_RelativeStatFSR / JES_TimePtEta }, f"JESUp_Abs_{year_nosuffix}"),
+        ({"FatJet": }, f"JESDown_Abs_{year_nosuffix}"),
+        ({"FatJet": fatjets.JES_PileUpPtBB / PileUpPtEC1 / RelativePtBB }, f"JESUp_BBEC1"),
+        ({"FatJet": },  f"JESDown_BBEC1"),
+        ({"FatJet": fatjets.JES_RelativeJEREC1 / JES_RelativePtEC1 / JES_RelativeStatEC }, f"JESUp_BBEC1_{year_nosuffix}"),
+        ({"FatJet": }, f"JESDown_BBEC1_{year_nosuffix}"),
+        ({"FatJet": fatjets.PileUpPtEC2.up}, "JESUp_EC2")
+        ({"FatJet": fatjets.PileUpPtEC2.down}, "JESDown_EC2")
+        ({"FatJet": RelativeJEREC2 / RelativePtEC2 }, f"JESUp_EC2_{year_nosuffix}"),
+        ({"FatJet": }, f"JESDown_EC2_{year_nosuffix}"),
+        ({"FatJet": fatjets.JES_FlavQCD.up}, "JESUp_FlavQCD"),
+        ({"FatJet": fatjets.JES_FlavQCD.down}, "JESDown_FlavQCD"),
+        ({"FatJet": PileUpPtHF /RelativeJERHF / RelativePtHF }, "JESUp_HF"),
+        ({"FatJet": PileUpPtHF /RelativeJERHF / RelativePtHF }, "JESDown_HF"),
+        ({"FatJet": fatjets.JES_RelativeStatHF.up}, f"JESUp_HF_{year_nosuffix}"),
+        ({"FatJet": fatjets.JES_RelativeStatHF.down}, f"JESDown_HF_{year_nosuffix}"),
+        ({"FatJet": fatjers.JES_RelativeBal.up}, f"JESUp_RelBal"),
+        ({"FatJet": fatjers.JES_RelativeBal.down}, f"JESDown_RelBal"),
+        ({"FatJet": fatjers.JES_RelativeSample.up}, f"JESUp_RelSample_{year_nosuffix}")
+        ({"FatJet": fatjers.JES_RelativeSample.down}, f"JESDown_RelSample_{year_nosuffix}")
+    ]
+    """
+
+    jec_vars = ["pt"]  # vars we're saving that are affected by JECs
 
     def __init__(self, xsecs={}, save_ak15=False, save_systematics=True, inference=True):
         super(bbVVSkimmer, self).__init__()
@@ -213,83 +253,22 @@ class bbVVSkimmer(processor.ProcessorABC):
     def process(self, events: ak.Array):
         """Runs event processor for different types of jets"""
 
-        year = events.metadata["dataset"][:4]
+        year = events.metadata["dataset"].split("_")[0]
         year_nosuffix = year.replace("APV", "")
-        dataset = events.metadata["dataset"][5:]
+        dataset = "_".join(events.metadata["dataset"].split("_")[1:])
+
+        print(year)
+        print(dataset)
+
         isData = "JetHT" in dataset
         isQCD = "QCD" in dataset
+        isSignal = "GluGluToHHTobbVV" in dataset
 
-        if isData or isQCD or (np.sum(ak.num(events.FatJet, axis=1)) < 1):
-            return self.process_shift(events, None)
-        else:
-            try:
-                fatjets = get_jec_jets(events, year)
-            except:
-                logger.warning("Couldn't load JECs - will proceed without variations")
-                fatjets = events.FatJet
-                self._systematics = False
+        if isSignal:
+            gen_weights = np.sign(events["genWeight"])  # only signs for HH
+        elif not isData:
+            gen_weights = events["genWeight"].to_numpy()
 
-            if not self._systematics:
-                shifts = [({"FatJet": fatjets}, None)]
-            else:
-                # logger.debug(fatjets.fields)
-
-                # naming conventions: https://gitlab.cern.ch/hh/naming-conventions
-                # reduced set of uncertainties: https://docs.google.com/spreadsheets/d/1Feuj1n0MdotcPq19Mht7SUIgvkXkA4hiB0BxEuBShLw/edit#gid=1345121349
-                shifts = [
-                    ({"FatJet": fatjets}, None),
-                    ({"FatJet": fatjets.JES_jes.up}, "JES_up"),
-                    ({"FatJet": fatjets.JES_jes.down}, "JES_down"),
-                    ({"FatJet": fatjets.JER.up}, "JER_up"),
-                    ({"FatJet": fatjets.JER.down}, "JER_down"),
-                ]
-
-                # commenting these out until we derive the uncertainties from the regrouped files
-                """
-                shifts = [
-                ({"FatJet": fatjets}, None),
-                ({"FatJet": fatjets.JES_AbsoluteScale / JES_AbsoluteMPFBias / JES_Fragmentation / JES_PileUpDataMC / JES_PileUpPtRef / JES_RelativeFSR / JES_SinglePionECAL / JESSinglePionHCAL }, "JESUp_Abs"),
-                ({"FatJet": }, "JESDown_Abs"),
-                ({"FatJet": fatjets.JES_AbsoluteStat / JES_RelativeStatFSR / JES_TimePtEta }, f"JESUp_Abs_{year_nosuffix}"),
-                ({"FatJet": }, f"JESDown_Abs_{year_nosuffix}"),
-                ({"FatJet": fatjets.JES_PileUpPtBB / PileUpPtEC1 / RelativePtBB }, f"JESUp_BBEC1"),
-                ({"FatJet": },  f"JESDown_BBEC1"),
-                ({"FatJet": fatjets.JES_RelativeJEREC1 / JES_RelativePtEC1 / JES_RelativeStatEC }, f"JESUp_BBEC1_{year_nosuffix}"),
-                ({"FatJet": }, f"JESDown_BBEC1_{year_nosuffix}"),
-                ({"FatJet": fatjets.PileUpPtEC2.up}, "JESUp_EC2")
-                ({"FatJet": fatjets.PileUpPtEC2.down}, "JESDown_EC2")
-                ({"FatJet": RelativeJEREC2 / RelativePtEC2 }, f"JESUp_EC2_{year_nosuffix}"),
-                ({"FatJet": }, f"JESDown_EC2_{year_nosuffix}"),
-                ({"FatJet": fatjets.JES_FlavQCD.up}, "JESUp_FlavQCD"),
-                ({"FatJet": fatjets.JES_FlavQCD.down}, "JESDown_FlavQCD"),
-                ({"FatJet": PileUpPtHF /RelativeJERHF / RelativePtHF }, "JESUp_HF"),
-                ({"FatJet": PileUpPtHF /RelativeJERHF / RelativePtHF }, "JESDown_HF"),
-                ({"FatJet": fatjets.JES_RelativeStatHF.up}, f"JESUp_HF_{year_nosuffix}"),
-                ({"FatJet": fatjets.JES_RelativeStatHF.down}, f"JESDown_HF_{year_nosuffix}"),
-                ({"FatJet": fatjers.JES_RelativeBal.up}, f"JESUp_RelBal"),
-                ({"FatJet": fatjers.JES_RelativeBal.down}, f"JESDown_RelBal"),
-                ({"FatJet": fatjers.JES_RelativeSample.up}, f"JESUp_RelSample_{year_nosuffix}")
-                ({"FatJet": fatjers.JES_RelativeSample.down}, f"JESDown_RelSample_{year_nosuffix}")
-                ]
-                """
-        return processor.accumulate(
-            self.process_shift(update(events, collections), name) for collections, name in shifts
-        )
-
-    def process_shift(self, events: ak.Array, shift_name: str = None):
-        """Returns skimmed events which pass preselection cuts (and triggers if data) with the branches listed in ``self.skim_vars``"""
-        logger.info(f"Procesing events with shift {shift_name}")
-
-        year = events.metadata["dataset"][:4]
-        dataset = events.metadata["dataset"][5:]
-
-        isData = "JetHT" in dataset
-        gen_weights = None
-        if not isData:
-            if "GluGluToHHTobbVV":
-                gen_weights = np.sign(events["genWeight"])
-            else:
-                gen_weights = events["genWeight"].to_numpy()
         n_events = len(events) if isData else np.sum(gen_weights)
         selection = PackedSelection()
         weights = Weights(len(events), storeIndividual=True)
@@ -297,20 +276,72 @@ class bbVVSkimmer(processor.ProcessorABC):
         cutflow = OrderedDict()
         cutflow["all"] = n_events
 
+        selection_args = (selection, cutflow, isData, gen_weights)
+
         num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
+        fatjets, jec_shifted_vars = get_jec_jets(events, year, isData, self.jecs)
+        # change to year with suffix after updated JMS/R values
+        jmsr_shifted_vars = get_jmsr(fatjets, num_jets, year_nosuffix, isData)
 
         skimmed_events = {}
 
-        if shift_name is None:
-            # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
-            for d in gen_selection_dict:
-                if d in dataset:
-                    vars_dict, (genbb, genq) = gen_selection_dict[d](
-                        events, events.FatJet, selection, cutflow, gen_weights, P4
-                    )
-                    skimmed_events = {**skimmed_events, **vars_dict}
+        #########################
+        # Save / derive variables
+        #########################
 
-        # triggers
+        # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
+        for d in gen_selection_dict:
+            if d in dataset:
+                vars_dict, (genbb, genq) = gen_selection_dict[d](
+                    events, events.FatJet, selection, cutflow, gen_weights, P4
+                )
+                skimmed_events = {**skimmed_events, **vars_dict}
+
+        # FatJet vars
+
+        ak8FatJetVars = {
+            f"ak8FatJet{key}": pad_val(events.FatJet[var], num_jets, axis=1)
+            for (var, key) in self.skim_vars["FatJet"].items()
+        }
+
+        # JEC vars
+
+        for var in ["pt"]:
+            key = self.skim_vars["FatJet"][var]
+            for shift, vals in jec_shifted_vars[var].items():
+                if shift != "":
+                    ak8FatJetVars[f"ak8FatJet{key}_{shift}"] = pad_val(vals, num_jets, axis=1)
+
+        # JMSR vars
+
+        for var in ["msoftdrop", "particleNet_mass"]:
+            key = self.skim_vars["FatJet"][var]
+            for shift, vals in jmsr_shifted_vars[var].items():
+                # overwrite saved vars with corrected ones
+                label = "" if shift == "" else "_" + shift
+                ak8FatJetVars[f"ak8FatJet{key}{label}"] = vals
+
+        # particlenet xbb vs qcd
+
+        ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"] = pad_val(
+            events.FatJet.particleNetMD_Xbb
+            / (events.FatJet.particleNetMD_QCD + events.FatJet.particleNetMD_Xbb),
+            num_jets,
+            axis=1,
+        )
+
+        # bb VV assignment
+
+        bb_mask = (
+            ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"][:, 0]
+            >= ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"][:, 1]
+        )
+        bb_mask = np.concatenate((bb_mask, ~bb_mask), axis=1)
+
+        ######################
+        # Selection
+        ######################
+
         # OR-ing HLT triggers
         if isData:
             HLT_triggered = np.any(
@@ -323,35 +354,90 @@ class bbVVSkimmer(processor.ProcessorABC):
                 ),
                 axis=0,
             )
-            add_selection("trigger", HLT_triggered, selection, cutflow, isData, gen_weights)
+            add_selection("trigger", HLT_triggered, *selection_args)
 
-        # pre-selection cuts
-        preselection_cut = np.prod(
-            pad_val(
-                (events.FatJet.pt > self.preselection_cut_vals["pt"])
-                * (events.FatJet.msoftdrop > self.preselection_cut_vals["msd"]),
-                num_jets,
-                False,
+        # pt, eta cuts: check if jet passes pT cut in any of the JEC variations
+        cuts = []
+
+        for pts in jec_shifted_vars["pt"].values():
+            cut = np.prod(
+                pad_val(
+                    (pts > self.ak8_jet_selection["pt"])
+                    * (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"]),
+                    num_jets,
+                    False,
+                    axis=1,
+                ),
                 axis=1,
-            ),
-            axis=1,
+            )
+            cuts.append(cut)
+
+        add_selection("ak8_pt_eta", np.any(cuts, axis=0), *selection_args)
+
+        # mass cuts: check if jet passes mass cut in any of the JMS/R variations
+        cuts = []
+
+        for shift in jmsr_shifted_vars["msoftdrop"]:
+            msds = jmsr_shifted_vars["msoftdrop"][shift]
+            pnetms = jmsr_shifted_vars["particleNet_mass"][shift]
+
+            cut = (msds[~bb_mask] >= self.ak8_jet_selection["VVmsd"]) * (
+                pnetms[bb_mask] >= self.ak8_jet_selection["bbparticleNet_mass"]
+            )
+            cuts.append(cut)
+
+        add_selection("ak8_mass", np.any(cuts, axis=0), *selection_args)
+
+        # Txbb pre-selection cut
+
+        txbb_cut = (
+            ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"][bb_mask]
+            >= self.ak8_jet_selection["bbFatJetParticleNetMD_Txbb"]
         )
+        add_selection("ak8bb_txbb", txbb_cut, *selection_args)
 
-        add_selection(
-            "preselection",
-            preselection_cut.astype(bool),
-            selection,
-            cutflow,
-            isData,
-            gen_weights,
+        #########################
+        # Veto variables
+        #########################
+
+        electrons, muons = events.Electron, events.Muon
+
+        # selection from https://github.com/cmantill/boostedhiggs/blob/e7dc206de17fd108a5e1abcb7d76a52ccb636599/boostedhiggs/hwwprocessor.py#L185-L224
+
+        good_muons = (
+            (muons.pt > 30)
+            & (np.abs(muons.eta) < 2.4)
+            & (np.abs(muons.dz) < 0.1)
+            & (np.abs(muons.dxy) < 0.05)
+            & (muons.sip3d <= 4.0)
+            & muons.mediumId
         )
+        n_good_muons = ak.sum(good_muons, axis=1)
 
-        # select vars
+        good_electrons = (
+            (electrons.pt > 38)
+            & (np.abs(electrons.eta) < 2.4)
+            & ((np.abs(electrons.eta) < 1.44) | (np.abs(electrons.eta) > 1.57))
+            & (np.abs(electrons.dz) < 0.1)
+            & (np.abs(electrons.dxy) < 0.05)
+            & (electrons.sip3d <= 4.0)
+            & (electrons.mvaFall17V2noIso_WP90)
+        )
+        n_good_electrons = ak.sum(good_electrons, axis=1)
 
-        ak8FatJetVars = {
-            f"ak8FatJet{key}": pad_val(events.FatJet[var], 2, -99999, axis=1)
-            for (var, key) in self.skim_vars["FatJet"].items()
-        }
+        goodjets = events.Jet[
+            (events.Jet.pt > 30)
+            & (abs(events.Jet.eta) < 5.0)
+            & events.Jet.isTight
+            & (events.Jet.puId > 0)
+            & (events.Jet.btagDeepB > btagWPs[year])
+        ]
+        n_good_jets = ak.sum(goodjets, axis=1)
+
+        skimmed_events["nGoodMuons"] = n_good_muons.to_numpy()
+        skimmed_events["nGoodElectrons"] = n_good_electrons.to_numpy()
+        skimmed_events["nGoodJets"] = n_good_jets.to_numpy()
+
         otherVars = {
             key: events[var.split("_")[0]]["_".join(var.split("_")[1:])].to_numpy()
             for (var, key) in self.skim_vars["other"].items()
@@ -359,28 +445,10 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         skimmed_events = {**skimmed_events, **ak8FatJetVars, **otherVars}
 
-        # particlenet xbb vs qcd
+        ######################
+        # Weights
+        ######################
 
-        skimmed_events["ak8FatJetParticleNetMD_Txbb"] = pad_val(
-            events.FatJet.particleNetMD_Xbb
-            / (events.FatJet.particleNetMD_QCD + events.FatJet.particleNetMD_Xbb),
-            2,
-            -1,
-            axis=1,
-        )
-
-        # deep-WH to compare SF with resonant WWW
-        # https://indico.cern.ch/event/1023231/contributions/4296222/attachments/2217081/3756197/VVV_0lep_PreApp.pdf
-
-        if "GluGluToHHTobbVV_node_cHHH1" in dataset:
-            skimmed_events["ak8FatJetdeepTagMD_H4qvsQCD"] = pad_val(
-                events.FatJet.deepTagMD_H4qvsQCD,
-                2,
-                -1,
-                axis=1,
-            )
-
-        # calculate weights
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
         else:
@@ -412,10 +480,10 @@ class bbVVSkimmer(processor.ProcessorABC):
 
             # TODO: trigger SFs here once calculated properly
 
-            if self._systematics and shift_name is None:
-                systematics = [None] + list(weights.variations)
-            else:
-                systematics = [shift_name]
+            systematics = [""]
+
+            if self._systematics:
+                systematics += list(weights.variations)
 
             # TODO: need to be careful about the sum of gen weights used for the LHE/QCDScale uncertainties
             logger.debug("weights ", weights._weights.keys())
@@ -447,7 +515,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Lund plane SFs
         ################
 
-        if "GluGluToHHTobbVV_node_cHHH" in dataset and shift_name is None:
+        if isSignal:
             genbb = genbb[sel_all]
             genq = genq[sel_all]
 
@@ -502,6 +570,10 @@ class bbVVSkimmer(processor.ProcessorABC):
 
             skimmed_events = {**skimmed_events, **sf_dicts}
 
+        ######################
+        # HWW Tagger Inference
+        ######################
+
         if self._inference:
             # apply HWW4q tagger
             pnet_vars = {}
@@ -517,27 +589,13 @@ class bbVVSkimmer(processor.ProcessorABC):
             }
 
         if len(skimmed_events["weight"]):
+            df = self.to_pandas(skimmed_events)
             fname = (
                 events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
             )
-            odir_str = None
+            self.dump_table(df, fname)
 
-            # change keys if shift name is not None
-            if shift_name is not None:
-                # logger.debug("renaming keys")
-                # skimmed_events = {f"{key}_{shift_name}":val for key,val in skimmed_events.items()}
-
-                odir_str = f"_{shift_name}"
-
-            df = self.to_pandas(skimmed_events)
-            self.dump_table(df, fname, odir_str)
-
-        if shift_name is not None:
-            out_dict = {shift_name: {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}}
-        else:
-            out_dict = {"all": {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}}
-
-        return out_dict
+        return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
 
     def postprocess(self, accumulator):
         return accumulator

@@ -369,7 +369,7 @@ class TaggerInputSkimmer(ProcessorABC):
 
             # variables
             FatJetVars = {
-                f"fj_{key}": ak.fill_none(fatjets[var], -99999)
+                f"fj_{key}": ak.fill_none(fatjets[var], PAD_VAL)
                 for (var, key) in self.skim_vars["FatJet"].items()
             }
 
@@ -382,7 +382,7 @@ class TaggerInputSkimmer(ProcessorABC):
             )
 
             SubJetVars = {
-                f"fj_subjet{i + 1}_{key}": ak.fill_none(matched_subjets[:, i][var], -99999)
+                f"fj_subjet{i + 1}_{key}": ak.fill_none(matched_subjets[:, i][var], PAD_VAL)
                 for i, (var, key) in itertools.product(
                     range(self.num_subjets), self.skim_vars["SubJet"].items()
                 )

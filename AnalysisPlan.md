@@ -4,8 +4,7 @@
   - [TODOs](#todos)
     - [Trigger Efficiencies](#trigger-efficiencies)
     - [Incorporate remaining systematics](#incorporate-remaining-systematics)
-      - [Weights](#weights)
-      - [Values](#values)
+      - [Skimmer](#skimmer)
       - [Datacard](#datacard)
     - [Full Run 2 and all samples](#full-run-2-and-all-samples)
       - [Update Processor](#update-processor)
@@ -40,26 +39,34 @@
 
 ### Incorporate remaining systematics
 
-#### Weights
- - Measured
-   - [ ] Pileup
-   - [ ] Trigger SFs
-     - [ ] Stat.
-     - [ ] Correlated Syst.
-   - [x] ParticleNet Xbb
+
+#### Skimmer
+ - [x] Pileup
+ - [x] JES/R http://cds.cern.ch/record/2792322/files/DP2021_033.pdf
+   - [ ] Need to update to latest
+ - [x] JMS/R http://cds.cern.ch/record/2256875/files/JME-16-003-pas.pdf
+   - [ ] Need UL mSD and regressed mass corrections
+ - Theory
+   - [x] pdf uncertainties
+   - [x] scale variation?
+   - [x] parton shower weights
+   - [x] W k factor
+
+#### Datacard
+ - [x] MC Stats
+ - [ ] Lumi
+ - [ ] Pileup
+ - [ ] Trigger SFs
+   - [ ] Stat.
+   - [ ] Correlated Syst.
+ - [x] ParticleNet Xbb
+ - [ ] JES/R
+ - [ ] JMS/R
  - Theory
    - [ ] pdf uncertainties
    - [ ] scale variation?
    - [ ] parton shower weights
    - [ ] W k factor??
-
-#### Values
-   - [ ] JES/R http://cds.cern.ch/record/2792322/files/DP2021_033.pdf
-
-#### Datacard
-   - [x] MC Stats
-   - [ ] Lumi
-   - [ ] JMS/R (Need to re-derive?) http://cds.cern.ch/record/2256875/files/JME-16-003-pas.pdf
 
 
 ### Full Run 2 and all samples
@@ -79,9 +86,11 @@
 
 #### Update Processor
 
-- [ ] FatJet selections
-- [ ] Regressed mass cut
-- [ ] Add e, mu, b-tag jets
+- [x] FatJet selections
+- [x] Regressed mass cut
+- [x] Add e, mu, b-tag jets
+- [ ] Add tagger vars
+- [ ] Dijet variables
 
 
 ### Scans
