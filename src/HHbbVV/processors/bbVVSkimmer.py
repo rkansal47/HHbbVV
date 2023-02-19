@@ -9,6 +9,7 @@ import pandas as pd
 
 from coffea import processor
 from coffea.analysis_tools import Weights, PackedSelection
+import vector
 
 import pathlib
 import pickle
@@ -338,6 +339,22 @@ class bbVVSkimmer(processor.ProcessorABC):
         )
         bb_mask = np.concatenate((bb_mask, ~bb_mask), axis=1)
 
+        # dijet variables
+
+        dijetVars = {}
+
+        for shift in jec_shifted_vars["pt"]:
+            label = "" if shift == "" else "_" + shift
+            dijetVars = {**dijetVars, **self.getDijetVars(ak8FatJetVars, bb_mask, pt_shift=label)}
+
+        for shift in jmsr_shifted_vars["msoftdrop"]:
+            if shift != "":
+                label = "_" + shift
+                dijetVars = {
+                    **dijetVars,
+                    **self.getDijetVars(ak8FatJetVars, bb_mask, mass_shift=label),
+                }
+
         ######################
         # Selection
         ######################
@@ -599,3 +616,41 @@ class bbVVSkimmer(processor.ProcessorABC):
 
     def postprocess(self, accumulator):
         return accumulator
+
+    def getDijetVars(
+        ak8FatJetVars: Dict, bb_mask: np.ndarray, pt_shift: str = None, mass_shift: str = None
+    ):
+        """Calculates Dijet variables for given pt / mass JEC / JMS/R variation"""
+        dijetVars = {}
+
+        ptlabel = pt_shift if pt_shift is not None else ""
+        mlabel = mass_shift if mass_shift is not None else ""
+        bbJet = vector.array(
+            {
+                "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][bb_mask],
+                "phi": ak8FatJetVars["ak8FatJetPhi"][bb_mask],
+                "eta": ak8FatJetVars["ak8FatJetEta"][bb_mask],
+                "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][bb_mask],
+            }
+        )
+
+        VVJet = vector.array(
+            {
+                "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][~bb_mask],
+                "phi": ak8FatJetVars["ak8FatJetPhi"][~bb_mask],
+                "eta": ak8FatJetVars["ak8FatJetEta"][~bb_mask],
+                "M": ak8FatJetVars[f"ak8FatJetMsd{mlabel}"][~bb_mask],
+            }
+        )
+
+        Dijet = bbJet + VVJet
+
+        shift = ptlabel + mlabel
+
+        dijetVars[f"DijetPt{shift}"] = Dijet.pt
+        dijetVars[f"DijetMass{shift}"] = Dijet.M
+        dijetVars[f"DijetEta{shift}"] = Dijet.eta
+
+        dijetVars[f"bbFatJetPtOverDijetPt{shift}"] = bbJet.pt / dijetVars["DijetPt"]
+        dijetVars[f"VVFatJetPtOverDijetPt{shift}"] = VVJet.pt / dijetVars["DijetPt"]
+        dijetVars[f"VVFatJetPtOverbbFatJetPt{shift}"] = VVJet.pt / bbJet.pt
