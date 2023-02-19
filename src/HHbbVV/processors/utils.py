@@ -20,10 +20,13 @@ P4 = {
 }
 
 
+PAD_VAL = -99999
+
+
 def pad_val(
     arr: ak.Array,
     target: int,
-    value: float,
+    value: float = PAD_VAL,
     axis: int = 0,
     to_numpy: bool = True,
     clip: bool = True,
