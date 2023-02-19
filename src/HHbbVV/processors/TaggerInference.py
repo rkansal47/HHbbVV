@@ -622,6 +622,7 @@ def runInferenceTriton(
                 f"{jet_label}FatJetParTMD_probHWW4q": np.sum(
                     tagger_outputs[jet_idx][:, 3:6], axis=1
                 ),
+                f"{jet_label}FatJetParTMD_probT": np.sum(tagger_outputs[jet_idx][:, 28:37], axis=1),
             }
 
             derived_vars[f"{jet_label}FatJetParTMD_THWW4q"] = (
