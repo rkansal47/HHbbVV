@@ -87,10 +87,12 @@
 #### Update Processor
 
 - [x] FatJet selections
+- [x] Modify JECs code to save only variations of pT
+- [x] Add JMS/R
 - [x] Regressed mass cut
 - [x] Add e, mu, b-tag jets
-- [ ] Add tagger vars
-- [ ] Dijet variables
+- [x] Add tagger vars
+- [x] Dijet variables
 
 
 ### Scans
