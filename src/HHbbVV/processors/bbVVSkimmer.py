@@ -442,13 +442,13 @@ class bbVVSkimmer(processor.ProcessorABC):
         )
         n_good_electrons = ak.sum(good_electrons, axis=1)
 
-        goodjets = events.Jet[
+        goodjets = (
             (events.Jet.pt > 30)
             & (abs(events.Jet.eta) < 5.0)
             & events.Jet.isTight
             & (events.Jet.puId > 0)
             & (events.Jet.btagDeepB > btagWPs[year])
-        ]
+        )
         n_good_jets = ak.sum(goodjets, axis=1)
 
         skimmed_events["nGoodMuons"] = n_good_muons.to_numpy()
@@ -651,6 +651,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         dijetVars[f"DijetMass{shift}"] = Dijet.M
         dijetVars[f"DijetEta{shift}"] = Dijet.eta
 
-        dijetVars[f"bbFatJetPtOverDijetPt{shift}"] = bbJet.pt / dijetVars["DijetPt"]
-        dijetVars[f"VVFatJetPtOverDijetPt{shift}"] = VVJet.pt / dijetVars["DijetPt"]
+        dijetVars[f"bbFatJetPtOverDijetPt{shift}"] = bbJet.pt / Dijet.pt
+        dijetVars[f"VVFatJetPtOverDijetPt{shift}"] = VVJet.pt / Dijet.pt
         dijetVars[f"VVFatJetPtOverbbFatJetPt{shift}"] = VVJet.pt / bbJet.pt
+
+        return dijetVars
