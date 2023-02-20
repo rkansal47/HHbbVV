@@ -17,7 +17,7 @@ ak.behavior.update(vector.behavior)
 
 import pathlib
 
-import utils
+from . import utils
 from .utils import P4
 
 
