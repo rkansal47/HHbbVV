@@ -429,16 +429,21 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         # 2018 HEM cleaning
         if year == "2018":
-            skimmed_events["hemCleaning"] = hem_cleaning = (events.run >= 319077 & ak.any(
-                (
-                    (events.Jet.pt > 30.0)
-                    & (events.Jet.eta > -3.2)
-                    & (events.Jet.eta < -1.3)
-                    & (events.Jet.phi > -1.57)
-                    & (events.Jet.phi < -0.87)
-                ),
-                -1,
-            ) | ((events.MET.phi > -1.62) & (events.MET.pt < 470.0) & (events.MET.phi < -0.62))).to_numpy()
+            skimmed_events["hemCleaning"] = hem_cleaning = (
+                events.run
+                >= 319077
+                & ak.any(
+                    (
+                        (events.Jet.pt > 30.0)
+                        & (events.Jet.eta > -3.2)
+                        & (events.Jet.eta < -1.3)
+                        & (events.Jet.phi > -1.57)
+                        & (events.Jet.phi < -0.87)
+                    ),
+                    -1,
+                )
+                | ((events.MET.phi > -1.62) & (events.MET.pt < 470.0) & (events.MET.phi < -0.62))
+            ).to_numpy()
 
         skimmed_events = {**skimmed_events, **ak8FatJetVars, **otherVars, **dijetVars}
 

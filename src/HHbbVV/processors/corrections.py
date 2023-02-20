@@ -413,7 +413,7 @@ def get_jec_jets(
     If ``jecs`` is not None, returns the shifted values of variables are affected by JECs.
     """
 
-    jec_vars = ["pt"]  # vars we're saving that are affected by JECs 
+    jec_vars = ["pt"]  # vars we're saving that are affected by JECs
 
     apply_jecs = not (not ak.any(events.FatJet) or isData)
 
