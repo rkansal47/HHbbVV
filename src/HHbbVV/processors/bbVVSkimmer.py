@@ -164,37 +164,6 @@ class bbVVSkimmer(processor.ProcessorABC):
         "JER": "JER",
     }
 
-    # commenting these out until we derive the uncertainties from the regrouped files
-    """
-    shifts = [
-        ({"FatJet": fatjets}, None),
-        ({"FatJet": fatjets.JES_AbsoluteScale / JES_AbsoluteMPFBias / JES_Fragmentation / JES_PileUpDataMC / JES_PileUpPtRef / JES_RelativeFSR / JES_SinglePionECAL / JESSinglePionHCAL }, "JESUp_Abs"),
-        ({"FatJet": }, "JESDown_Abs"),
-        ({"FatJet": fatjets.JES_AbsoluteStat / JES_RelativeStatFSR / JES_TimePtEta }, f"JESUp_Abs_{year_nosuffix}"),
-        ({"FatJet": }, f"JESDown_Abs_{year_nosuffix}"),
-        ({"FatJet": fatjets.JES_PileUpPtBB / PileUpPtEC1 / RelativePtBB }, f"JESUp_BBEC1"),
-        ({"FatJet": },  f"JESDown_BBEC1"),
-        ({"FatJet": fatjets.JES_RelativeJEREC1 / JES_RelativePtEC1 / JES_RelativeStatEC }, f"JESUp_BBEC1_{year_nosuffix}"),
-        ({"FatJet": }, f"JESDown_BBEC1_{year_nosuffix}"),
-        ({"FatJet": fatjets.PileUpPtEC2.up}, "JESUp_EC2")
-        ({"FatJet": fatjets.PileUpPtEC2.down}, "JESDown_EC2")
-        ({"FatJet": RelativeJEREC2 / RelativePtEC2 }, f"JESUp_EC2_{year_nosuffix}"),
-        ({"FatJet": }, f"JESDown_EC2_{year_nosuffix}"),
-        ({"FatJet": fatjets.JES_FlavQCD.up}, "JESUp_FlavQCD"),
-        ({"FatJet": fatjets.JES_FlavQCD.down}, "JESDown_FlavQCD"),
-        ({"FatJet": PileUpPtHF /RelativeJERHF / RelativePtHF }, "JESUp_HF"),
-        ({"FatJet": PileUpPtHF /RelativeJERHF / RelativePtHF }, "JESDown_HF"),
-        ({"FatJet": fatjets.JES_RelativeStatHF.up}, f"JESUp_HF_{year_nosuffix}"),
-        ({"FatJet": fatjets.JES_RelativeStatHF.down}, f"JESDown_HF_{year_nosuffix}"),
-        ({"FatJet": fatjets.JES_RelativeBal.up}, f"JESUp_RelBal"),
-        ({"FatJet": fatjets.JES_RelativeBal.down}, f"JESDown_RelBal"),
-        ({"FatJet": fatjets.JES_RelativeSample.up}, f"JESUp_RelSample_{year_nosuffix}")
-        ({"FatJet": fatjets.JES_RelativeSample.down}, f"JESDown_RelSample_{year_nosuffix}")
-    ]
-    """
-
-    jec_vars = ["pt"]  # vars we're saving that are affected by JECs
-
     def __init__(self, xsecs={}, save_ak15=False, save_systematics=True, inference=True):
         super(bbVVSkimmer, self).__init__()
 
@@ -258,9 +227,6 @@ class bbVVSkimmer(processor.ProcessorABC):
         year_nosuffix = year.replace("APV", "")
         dataset = "_".join(events.metadata["dataset"].split("_")[1:])
 
-        print(year)
-        print(dataset)
-
         isData = "JetHT" in dataset
         isQCD = "QCD" in dataset
         isSignal = "GluGluToHHTobbVV" in dataset
@@ -281,10 +247,11 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
         fatjets, jec_shifted_vars = get_jec_jets(events, year, isData, self.jecs)
-        print("jec shifted vars ",jec_shifted_vars)
 
         # sorting jets by TXbb score
-        fatjets["Txbb"] = fatjets.particleNetMD_Xbb / (fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb)
+        fatjets["Txbb"] = fatjets.particleNetMD_Xbb / (
+            fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb
+        )
         fatjets = fatjets[ak.argsort(fatjets.Txbb, ascending=False)]
 
         # change to year with suffix after updated JMS/R values
@@ -338,7 +305,6 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         for shift in jec_shifted_vars["pt"]:
             label = "" if shift == "" else "_" + shift
-            print(self.getDijetVars(ak8FatJetVars, pt_shift=label))
             dijetVars = {**dijetVars, **self.getDijetVars(ak8FatJetVars, pt_shift=label)}
 
         for shift in jmsr_shifted_vars["msoftdrop"]:
@@ -392,8 +358,8 @@ class bbVVSkimmer(processor.ProcessorABC):
             msds = jmsr_shifted_vars["msoftdrop"][shift]
             pnetms = jmsr_shifted_vars["particleNet_mass"][shift]
 
-            cut = (msds[:,1] >= self.ak8_jet_selection["VVmsd"]) * (
-                pnetms[:,0] >= self.ak8_jet_selection["bbparticleNet_mass"]
+            cut = (msds[:, 1] >= self.ak8_jet_selection["VVmsd"]) * (
+                pnetms[:, 0] >= self.ak8_jet_selection["bbparticleNet_mass"]
             )
             cuts.append(cut)
 
@@ -402,7 +368,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Txbb pre-selection cut
 
         txbb_cut = (
-            ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"][:,0]
+            ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"][:, 0]
             >= self.ak8_jet_selection["bbFatJetParticleNetMD_Txbb"]
         )
         add_selection("ak8bb_txbb", txbb_cut, *selection_args)
@@ -436,13 +402,13 @@ class bbVVSkimmer(processor.ProcessorABC):
         )
         n_good_electrons = ak.sum(good_electrons, axis=1)
 
-        goodjets = events.Jet[
+        goodjets = (
             (events.Jet.pt > 30)
             & (abs(events.Jet.eta) < 5.0)
             & events.Jet.isTight
             & (events.Jet.puId > 0)
             & (events.Jet.btagDeepB > btagWPs[year])
-        ]
+        )
         n_good_jets = ak.sum(goodjets, axis=1)
 
         skimmed_events["nGoodMuons"] = n_good_muons.to_numpy()
@@ -454,7 +420,20 @@ class bbVVSkimmer(processor.ProcessorABC):
             for (var, key) in self.skim_vars["other"].items()
         }
 
-        skimmed_events = {**skimmed_events, **ak8FatJetVars, **otherVars}
+        # 2018 HEM cleaning
+        if year == "2018":
+            skimmed_events["hemCleaning"] = hem_cleaning = (events.run >= 319077 & ak.any(
+                (
+                    (events.Jet.pt > 30.0)
+                    & (events.Jet.eta > -3.2)
+                    & (events.Jet.eta < -1.3)
+                    & (events.Jet.phi > -1.57)
+                    & (events.Jet.phi < -0.87)
+                ),
+                -1,
+            ) | ((events.MET.phi > -1.62) & (events.MET.pt < 470.0) & (events.MET.phi < -0.62))).to_numpy()
+
+        skimmed_events = {**skimmed_events, **ak8FatJetVars, **otherVars, **dijetVars}
 
         ######################
         # Weights
@@ -611,9 +590,7 @@ class bbVVSkimmer(processor.ProcessorABC):
     def postprocess(self, accumulator):
         return accumulator
 
-    def getDijetVars(
-        self, ak8FatJetVars: Dict, pt_shift: str = None, mass_shift: str = None
-    ):
+    def getDijetVars(self, ak8FatJetVars: Dict, pt_shift: str = None, mass_shift: str = None):
         """Calculates Dijet variables for given pt / mass JEC / JMS/R variation"""
         dijetVars = {}
 
@@ -621,19 +598,19 @@ class bbVVSkimmer(processor.ProcessorABC):
         mlabel = mass_shift if mass_shift is not None else ""
         bbJet = vector.array(
             {
-                "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][:,0],
-                "phi": ak8FatJetVars["ak8FatJetPhi"][:,0],
-                "eta": ak8FatJetVars["ak8FatJetEta"][:,0],
-                "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][:,0],
+                "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][:, 0],
+                "phi": ak8FatJetVars["ak8FatJetPhi"][:, 0],
+                "eta": ak8FatJetVars["ak8FatJetEta"][:, 0],
+                "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][:, 0],
             }
         )
 
         VVJet = vector.array(
             {
-                "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][:,1],
-                "phi": ak8FatJetVars["ak8FatJetPhi"][:,1],
-                "eta": ak8FatJetVars["ak8FatJetEta"][:,1],
-                "M": ak8FatJetVars[f"ak8FatJetMsd{mlabel}"][:,1],
+                "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][:, 1],
+                "phi": ak8FatJetVars["ak8FatJetPhi"][:, 1],
+                "eta": ak8FatJetVars["ak8FatJetEta"][:, 1],
+                "M": ak8FatJetVars[f"ak8FatJetMsd{mlabel}"][:, 1],
             }
         )
 
@@ -645,8 +622,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         dijetVars[f"DijetMass{shift}"] = Dijet.M
         dijetVars[f"DijetEta{shift}"] = Dijet.eta
 
-        dijetVars[f"bbFatJetPtOverDijetPt{shift}"] = bbJet.pt / dijetVars[f"DijetPt{shift}"]
-        dijetVars[f"VVFatJetPtOverDijetPt{shift}"] = VVJet.pt / dijetVars[f"DijetPt{shift}"]
+        dijetVars[f"bbFatJetPtOverDijetPt{shift}"] = bbJet.pt / Dijet.pt
+        dijetVars[f"VVFatJetPtOverDijetPt{shift}"] = VVJet.pt / Dijet.pt
         dijetVars[f"VVFatJetPtOverbbFatJetPt{shift}"] = VVJet.pt / bbJet.pt
 
         return dijetVars

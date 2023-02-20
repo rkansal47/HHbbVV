@@ -403,9 +403,6 @@ def _add_jec_variables(jets: JetArray, event_rho: ak.Array) -> JetArray:
     return jets
 
 
-jec_vars = ["pt"]  # vars we're saving that are affected by JECs
-
-
 def get_jec_jets(
     events: NanoEventsArray, year: str, isData: bool = False, jecs: Dict[str, str] = None
 ) -> FatJetArray:
@@ -415,6 +412,8 @@ def get_jec_jets(
 
     If ``jecs`` is not None, returns the shifted values of variables are affected by JECs.
     """
+
+    jec_vars = ["pt"]  # vars we're saving that are affected by JECs 
 
     apply_jecs = not (not ak.any(events.FatJet) or isData)
 
