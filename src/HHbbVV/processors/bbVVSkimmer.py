@@ -45,8 +45,31 @@ gen_selection_dict = {
     "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
 }
 
-# deepcsv medium WP's https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation
-btagWPs = {"2016APV": 0.6001, "2016": 0.5847, "2017": 0.4506, "2018": 0.4168}
+# https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation
+btagWPs = {
+    "deepJet": {
+        "2016APV": {
+            "L": 0.0508,
+            "M": 0.2598,
+            "T": 0.6502,
+        },
+        "2016": {
+            "L": 0.0480,
+            "M": 0.2489,
+            "T": 0.6377,
+        },
+        "2017": {
+            "L": 0.0532,
+            "M": 0.3040,
+            "T": 0.7476,
+        },
+        "2018": {
+            "L": 0.0490,
+            "M": 0.2783,
+            "T": 0.7100,
+        },
+    }
+}
 
 import logging
 
@@ -291,7 +314,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         for var in ["msoftdrop", "particleNet_mass"]:
             key = self.skim_vars["FatJet"][var]
             for shift, vals in jmsr_shifted_vars[var].items():
-                # overwrite saved vars with corrected ones
+                # overwrite saved mass vars with corrected ones
                 label = "" if shift == "" else "_" + shift
                 ak8FatJetVars[f"ak8FatJet{key}{label}"] = vals
 
@@ -414,7 +437,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             & (abs(events.Jet.eta) < 5.0)
             & events.Jet.isTight
             & (events.Jet.puId > 0)
-            & (events.Jet.btagDeepB > btagWPs[year])
+            & (events.Jet.btagDeepFlavB > btagWPs[year]["M"])
         )
         n_good_jets = ak.sum(goodjets, axis=1)
 
