@@ -314,8 +314,12 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         # particlenet xbb vs qcd
 
+        fatjets["Txbb"] = fatjets.particleNetMD_Xbb / (
+            fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb
+        )
+
         ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"] = pad_val(
-            fatjets.particleNetMD_Xbb / (fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb),
+            fatjets["Txbb"],
             num_jets,
             axis=1,
         )
@@ -438,12 +442,15 @@ class bbVVSkimmer(processor.ProcessorABC):
         )
         n_good_electrons = ak.sum(good_electrons, axis=1)
 
+        bbjet = ak.pad_none(fatjets[ak.argsort(fatjets.Txbb, ascending=False)], 1, axis=1)[:, 0]
+
         goodjets = (
             (events.Jet.pt > 30)
-            & (abs(events.Jet.eta) < 5.0)
+            & (np.abs(events.Jet.eta) < 5.0)
             & events.Jet.isTight
             & (events.Jet.puId > 0)
             & (events.Jet.btagDeepFlavB > btagWPs["deepJet"][year]["M"])
+            & (np.abs(events.Jet.delta_r(bbjet)) > 0.8)
         )
         n_good_jets = ak.sum(goodjets, axis=1)
 
