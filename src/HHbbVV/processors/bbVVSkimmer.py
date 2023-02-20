@@ -413,6 +413,25 @@ class bbVVSkimmer(processor.ProcessorABC):
         )
         add_selection("ak8bb_txbb", txbb_cut, *selection_args)
 
+        # 2018 HEM cleaning
+
+        if year == "2018":
+            hem_cleaning = (events.run >= 319077) & (
+                ak.any(
+                    (
+                        (events.Jet.pt > 30.0)
+                        & (events.Jet.eta > -3.2)
+                        & (events.Jet.eta < -1.3)
+                        & (events.Jet.phi > -1.57)
+                        & (events.Jet.phi < -0.87)
+                    ),
+                    -1,
+                )
+                | ((events.MET.phi > -1.62) & (events.MET.pt < 470.0) & (events.MET.phi < -0.62))
+            )
+
+            add_selection("hem_cleaning", hem_cleaning, *selection_args)
+
         #########################
         # Veto variables
         #########################
@@ -457,30 +476,6 @@ class bbVVSkimmer(processor.ProcessorABC):
         skimmed_events["nGoodMuons"] = n_good_muons.to_numpy()
         skimmed_events["nGoodElectrons"] = n_good_electrons.to_numpy()
         skimmed_events["nGoodJets"] = n_good_jets.to_numpy()
-
-        otherVars = {
-            key: events[var.split("_")[0]]["_".join(var.split("_")[1:])].to_numpy()
-            for (var, key) in self.skim_vars["other"].items()
-        }
-
-        # 2018 HEM cleaning
-        if year == "2018":
-            skimmed_events["hemCleaning"] = (
-                (events.run >= 319077)
-                & ak.any(
-                    (
-                        (events.Jet.pt > 30.0)
-                        & (events.Jet.eta > -3.2)
-                        & (events.Jet.eta < -1.3)
-                        & (events.Jet.phi > -1.57)
-                        & (events.Jet.phi < -0.87)
-                    ),
-                    -1,
-                )
-                | ((events.MET.phi > -1.62) & (events.MET.pt < 470.0) & (events.MET.phi < -0.62))
-            ).to_numpy()
-
-        skimmed_events = {**skimmed_events, **ak8FatJetVars, **otherVars, **dijetVars}
 
         ######################
         # Weights
