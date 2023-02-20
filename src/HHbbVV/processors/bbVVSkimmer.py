@@ -618,7 +618,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         return accumulator
 
     def getDijetVars(
-        ak8FatJetVars: Dict, bb_mask: np.ndarray, pt_shift: str = None, mass_shift: str = None
+        self, ak8FatJetVars: Dict, bb_mask: np.ndarray, pt_shift: str = None, mass_shift: str = None
     ):
         """Calculates Dijet variables for given pt / mass JEC / JMS/R variation"""
         dijetVars = {}

@@ -36,6 +36,11 @@ folders_to_index = [
     "/store/user/lpcpfnano/rkansal/v2_3/2017/TTbar",
     "/store/user/lpcpfnano/cmantill/v2_3/2018/TTbar",
     #
+    "/store/group/lpcpfnano/jdickins/v2_3/2016/TTbarBoosted/",
+    "/store/group/lpcpfnano/jdickins/v2_3/2016APV/TTbarBoosted/",
+    "/store/group/lpcpfnano/jdickins/v2_3/2017/TTbarBoosted/",
+    "/store/group/lpcpfnano/jdickins/v2_3/2018/TTbarBoosted/",
+    #
     "/store/user/lpcpfnano/cmantill/v2_3/2016/QCD",
     "/store/user/lpcpfnano/cmantill/v2_3/2016APV/QCD",
     "/store/user/lpcpfnano/cmantill/v2_3/2017/QCD",
@@ -58,6 +63,7 @@ folders_to_index = [
     "/store/user/lpcpfnano/cmantill/v2_3/2016/SingleTop",
     "/store/user/lpcpfnano/cmantill/v2_3/2016APV/SingleTop",
     "/store/user/lpcpfnano/rkansal/v2_3/2017/SingleTop",
+    "/store/user/lpcpfnano/cmantill/v2_3/2017/SingleTop",
     "/store/user/lpcpfnano/cmantill/v2_3/2018/SingleTop",
     #
     "/store/user/lpcpfnano/drankin/v2_2/2016/WJetsToLNu",
@@ -78,25 +84,14 @@ folders_to_index = [
     "/store/user/lpcpfnano/rkansal/v2_3/2017/Diboson/",
     "/store/user/lpcpfnano/rkansal/v2_3/2018/Diboson/",
     #
-    # "/store/user/lpcpfnano/cmantill/v2_3/2016/ttHToBB/"
-    # "/store/user/lpcpfnano/cmantill/v2_3/2016APV/ttHToBB/",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2017/ttHToBB/",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2018/ttHToBB/",
-    # #
-    # "/store/user/lpcpfnano/cmantill/v2_3/2016/VBFHToBB/",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2016APV/VBFHToBB/",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2017/VBFHToBB/",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2018/VBFHToBB/",
-    # #
-    # "/store/user/lpcpfnano/cmantill/v2_3/2016/WHToBB/",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2016APV/WHToBB/",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2017/WHToBB/",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2018/WHToBB/",
-    # #
-    # "/store/user/lpcpfnano/cmantill/v2_3/2016/ZHToBB/",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2016APV/ZHToBB/",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2017/ZHToBB/",
-    # "/store/user/lpcpfnano/cmantill/v2_3/2018/ZHToBB/",
+    "/store/user/lpcpfnano/rkansal/v2_3/2016/GluGluHToBB/",
+    "/store/user/lpcpfnano/rkansal/v2_3/2016APV/GluGluHToBB/",
+    "/store/user/lpcpfnano/rkansal/v2_3/2017/GluGluHToBB/",
+    "/store/user/lpcpfnano/rkansal/v2_3/2018/GluGluHToBB/",
+    "/store/user/lpcpfnano/cmantill/v2_3/2016/HToBB/"
+    "/store/user/lpcpfnano/cmantill/v2_3/2016APV/HToBB/",
+    "/store/user/lpcpfnano/cmantill/v2_3/2017/HToBB/",
+    "/store/user/lpcpfnano/cmantill/v2_3/2018/HToBB/",
     #
     "/store/user/lpcpfnano/cmantill/v2_3/2016/HWW",
     "/store/user/lpcpfnano/cmantill/v2_3/2016APV/HWW",
@@ -108,11 +103,6 @@ folders_to_index = [
     "/store/user/lpcpfnano/cmantill/v2_3/2016APV/HH",
     "/store/user/lpcpfnano/cmantill/v2_3/2017/HH",
     "/store/user/lpcpfnano/cmantill/v2_3/2018/HH",
-    #
-    "/store/user/lpcpfnano/rkansal/v2_3/2016/GluGluHToBB/",
-    "/store/user/lpcpfnano/rkansal/v2_3/2016APV/GluGluHToBB/",
-    "/store/user/lpcpfnano/rkansal/v2_3/2017/GluGluHToBB/",
-    "/store/user/lpcpfnano/rkansal/v2_3/2018/GluGluHToBB/",
 ]
 
 index_APV = {}
@@ -223,6 +213,14 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                                         if x[-5:] == ".root"
                                     ]
                                 )
+
+                        if year == "2016" and "preUL" in subsample_short:
+                            # duplicate preUL 2016 samples into the 2016APV lists
+                            if not sample_short in index_APV:
+                                index_APV[sample_short] = {}
+                            if not subsample_short in index_APV[sample_short]:
+                                index_APV[sample_short][subsample_short] = []
+                                index_APV[sample_short][subsample_short].extend(root_files)
 
                         if year == "2016" and "HIPM" in subsample_short:
                             if not sample_short in index_APV:
