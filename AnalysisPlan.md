@@ -121,10 +121,12 @@
 Raghav:
  - Trigger efficiencies
  - Full run 2, all samples
+   - update xsecs
  - Add to skimmer:
    - num e, mu
    - e, mu 4 vectors 
-   - ak4 b jets (medium btag)
+   - ak4 b jets (medium btag) - outside bb jet
+   - check control plots on num_x
  - Check vetoes on these
 
 Cristina
@@ -133,13 +135,18 @@ Cristina
 
 ### Feb 20 - 24
 
- - Full run 2 fits
-   - Goodness-of-fit, f-test, impacts 
- - Scans repository
+Raghav:
+ - 2017 fits
+   - PR: Systematics into datacard
+
+Cristina:
+ - Goodness-of-fit, f-test, impacts 
+
 
 ### Feb 27 - 3
 
  - ttbar
+ - Scans repository
 
 
 ### In progress:
