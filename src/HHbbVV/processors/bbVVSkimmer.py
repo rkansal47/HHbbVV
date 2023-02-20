@@ -437,7 +437,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             & (abs(events.Jet.eta) < 5.0)
             & events.Jet.isTight
             & (events.Jet.puId > 0)
-            & (events.Jet.btagDeepFlavB > btagWPs[year]["M"])
+            & (events.Jet.btagDeepFlavB > btagWPs["deepJet"][year]["M"])
         )
         n_good_jets = ak.sum(goodjets, axis=1)
 
