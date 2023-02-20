@@ -54,12 +54,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     tag_dir = f"/eos/uscms/store/user/rkansal/bbVV/{args.processor}/{args.tag}"
-    indir = f"{tag_dir}/{args.year}/pickles/"
+    indir = f"{tag_dir}/{args.year}/"
+
+    print(indir)
 
     files = [indir + "/" + file for file in listdir(indir) if file.endswith(".pkl")]
 
     if args.r:
-        dirs = [indir + "/" + d for d in listdir(indir) if os.path.isdir(indir + "/" + d)]
+        dirs = [
+            indir + "/" + d + "/pickles/" for d in listdir(indir) if os.path.isdir(indir + "/" + d)
+        ]
         print(dirs)
 
         for d in dirs:

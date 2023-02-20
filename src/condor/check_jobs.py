@@ -82,6 +82,9 @@ for sample in samples:
         int(out.split(".")[0].split("_")[-1]) for out in listdir(f"{eosdir}/{sample}/pickles")
     ]
 
+    if args.processor == "trigger":
+        print(f"Out pickles: {outs_pickles}")
+
     for i in range(jdl_dict[sample]):
         if i not in outs_pickles:
             print_red(f"Missing output pickle #{i} for sample {sample}")
