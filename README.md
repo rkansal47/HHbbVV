@@ -100,7 +100,7 @@ python -W ignore src/run.py --processor skimmer --year 2017 --files $FILE --file
 Jobs
 
 ```bash
-nohup python src/condor/submit_from_yaml.py --year 2017 --tag $TAG --processor skimmer --submit --yaml src/condor/submit_configs/skimmer_inputs_07_24.yaml &> tmp/submitout.txt &
+nohup python src/condor/submit_from_yaml.py --year 2017 --tag $TAG --processor skimmer --save-systematics --submit --yaml src/condor/submit_configs/skimmer_inputs_23_02_17.yaml &> tmp/submitout.txt &
 ```
 
 To Submit (if not using the --submit flag)

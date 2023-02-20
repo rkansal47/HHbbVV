@@ -49,6 +49,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--yaml", default="", help="yaml file", type=str)
     add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
+    add_bool_arg(parser, "save-systematics", default=False, help="save systematic variations")
+    add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
 
     args = parser.parse_args()
 
