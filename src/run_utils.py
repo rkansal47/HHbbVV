@@ -55,7 +55,8 @@ def get_fileset(
     if processor == "trigger":
         samples = [f"SingleMu{year[:4]}"]
 
-    redirector = "root://cmsxrootd.fnal.gov//" if not coffea_casa else "root://xcache//"
+    # redirector = "root://cmsxrootd.fnal.gov//" if not coffea_casa else "root://xcache//"
+    redirector = "root://cmseos.fnal.gov//" if not coffea_casa else "root://xcache//"
 
     with open(f"data/pfnanoindex_{year}.json", "r") as f:
         full_fileset_pfnano = json.load(f)
