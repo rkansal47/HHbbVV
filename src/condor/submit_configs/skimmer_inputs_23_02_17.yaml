@@ -9,7 +9,11 @@
                             "GluGluToHHTobbVV_node_cHHH1",
                             "GluGluToHHTobbVV_node_cHHH2p45",
                             "GluGluToHHTobbVV_node_cHHH5",
-                            "VBF_HHTobbVV_CV_1_C2V_1_C3_1",
+                            # "VBF_HHTobbVV_CV_1_C2V_1_C3_1",
+			    "GluGluToHHTo4B_node_cHHH0_preUL",
+			    "GluGluToHHTo4B_node_cHHH1_preUL",
+			    "GluGluToHHTo4B_node_cHHH2p45_preUL",
+			    # "GluGluToHHTo4B_node_cHHH5_preUL",
                         ],
                     "files_per_job": 20,
                 },
@@ -35,12 +39,16 @@
                     "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
                     "files_per_job": 20,
                 },
-            "Singletop":
+            "TTbarBoosted": { "files_per_job": 20 },
+            "SingleTop":
                 {
                     "subsamples":
                         [
                             "ST_tW_antitop_5f_inclusiveDecays",
                             "ST_tW_top_5f_inclusiveDecays",
+                            "ST_s-channel_4f_hadronicDecays",
+                            "ST_s-channel_4f_leptonDecays",
+                            "ST_t-channel_antitop_4f_InclusiveDecays",
                         ],
                     "files_per_job": 20,
                 },
@@ -50,11 +58,27 @@
                         [
                             "GluGluHToWW_Pt-200ToInf_M-125",
                             "VBFHToWWToAny_M-125_TuneCP5_withDipoleRecoil",
+                            "HWminusJ_HToWW_M-125",
+                            "HWplusJ_HToWW_M-125",
+                            "HZJ_HToWW_M-125",
                             "ttHToNonbb_M125",
                         ],
                     "files_per_job": 20,
                 },
             "GluGluHToBB": { "files_per_job": 20 },
+	    "HToBB": 
+                {
+                    "subsamples":
+                        [
+                            "VBFHToBB",
+                            "WminusH_HToBB_WToQQ",
+                            "WplusH_HToBB_WToQQ",
+                            "ZH_HToBB_ZToQQ",
+                            "ggZH_HToBB_ZToQQ",
+                            "ttHToBB",
+                        ]
+                    "files_per_job": 20,
+                },
             "JetHT2017": { "files_per_job": 20 },
         },
 }

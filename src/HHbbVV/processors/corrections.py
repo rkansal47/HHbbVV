@@ -17,6 +17,7 @@ ak.behavior.update(vector.behavior)
 
 import pathlib
 
+from . import utils
 from .utils import P4
 
 
@@ -402,15 +403,19 @@ def _add_jec_variables(jets: JetArray, event_rho: ak.Array) -> JetArray:
     return jets
 
 
-def get_jec_jets(events: NanoEventsArray, year: str) -> FatJetArray:
+def get_jec_jets(
+    events: NanoEventsArray, year: str, isData: bool = False, jecs: Dict[str, str] = None
+) -> FatJetArray:
     """
     Based on https://github.com/nsmith-/boostedhiggs/blob/master/boostedhiggs/hbbprocessor.py
     Eventually update to V5 JECs once I figure out what's going on with the 2017 UL V5 JER scale factors
+
+    If ``jecs`` is not None, returns the shifted values of variables are affected by JECs.
     """
 
-    # fatjet_factory.build gies an error if there are no fatjets in event
-    if not ak.any(events.FatJet):
-        return events.FatJet
+    jec_vars = ["pt"]  # vars we're saving that are affected by JECs
+
+    apply_jecs = not (not ak.any(events.FatJet) or isData)
 
     import cachetools
 
@@ -418,11 +423,107 @@ def get_jec_jets(events: NanoEventsArray, year: str) -> FatJetArray:
 
     corr_key = f"{get_vfp_year(year)}mc"
 
-    fatjets = fatjet_factory[corr_key].build(
-        _add_jec_variables(events.FatJet, events.fixedGridRhoFastjetAll), jec_cache
-    )
+    # fatjet_factory.build gives an error if there are no fatjets in event
+    if not apply_jecs:
+        fatjets = events.FatJet
+    else:
+        fatjets = fatjet_factory[corr_key].build(
+            _add_jec_variables(events.FatJet, events.fixedGridRhoFastjetAll), jec_cache
+        )
 
-    return fatjets
+    # return fatjets only if no jecs given
+    if jecs is None:
+        return fatjets
+
+    jec_shifted_vars = {}
+
+    for jec_var in jec_vars:
+        tdict = {"": fatjets[jec_var]}
+        if apply_jecs:
+            for key, shift in jecs.items():
+                for var in ["up", "down"]:
+                    tdict[f"{key}_{var}"] = fatjets[shift][var][jec_var]
+
+        jec_shifted_vars[jec_var] = tdict
+
+    return fatjets, jec_shifted_vars
+
+
+jmsr_vars = ["msoftdrop", "particleNet_mass"]
+
+jmsValues = {}
+jmrValues = {}
+
+# https://github.com/cms-nanoAOD/nanoAOD-tools/blob/959c9ffb084bc974fb26ba2db41e3369cee04ae7/python/postprocessing/modules/jme/jetmetHelperRun2.py#L85-L110
+
+# jet mass resolution: https://twiki.cern.ch/twiki/bin/view/CMS/JetWtagging
+# nominal, down, up (these are switched in the github!!!)
+jmrValues["msoftdrop"] = {
+    "2016": [1.0, 0.8, 1.2],
+    "2017": [1.09, 1.04, 1.14],
+    # Use 2017 values for 2018 until 2018 are released
+    "2018": [1.09, 1.04, 1.14],
+}
+
+# jet mass scale
+# W-tagging PUPPI softdrop JMS values: https://twiki.cern.ch/twiki/bin/view/CMS/JetWtagging
+# 2016 values
+jmsValues["msoftdrop"] = {
+    "2016": [1.00, 0.9906, 1.0094],  # nominal, down, up
+    "2017": [0.982, 0.978, 0.986],
+    # Use 2017 values for 2018 until 2018 are released
+    "2018": [0.982, 0.978, 0.986],
+}
+
+# https://github.com/cmantill/NanoNN/blob/6bd117357e2d7ec66866b5f74790e747411efcad/python/producers/hh4bProducer.py#L154-L159
+
+# nominal, down, up
+jmrValues["particleNet_mass"] = {
+    "2016": [1.028, 1.007, 1.063],
+    "2017": [1.026, 1.009, 1.059],
+    "2018": [1.031, 1.006, 1.075],
+}
+jmsValues["particleNet_mass"] = {
+    "2016": [1.00, 0.998, 1.002],
+    "2017": [1.002, 0.996, 1.008],
+    "2018": [0.994, 0.993, 1.001],
+}
+
+
+def get_jmsr(
+    fatjets: FatJetArray, num_jets: int, year: str, isData: bool = False, seed: int = 42
+) -> Dict:
+    """Calculates post JMS/R masses and shifts"""
+    jmsr_shifted_vars = {}
+
+    for mkey in jmsr_vars:
+        tdict = {}
+
+        mass = utils.pad_val(fatjets[mkey], num_jets, axis=1)
+
+        if isData:
+            tdict[""] = mass
+        else:
+            np.random.seed(seed)
+            smearing = np.random.normal(size=mass.shape)
+            # scale to JMR nom, down, up (minimum at 0)
+            jmr_nom, jmr_down, jmr_up = [
+                (smearing * max(jmrValues[mkey][year][i] - 1, 0) + 1) for i in range(3)
+            ]
+            jms_nom, jms_down, jms_up = jmsValues[mkey][year]
+
+            mass_jms = mass * jms_nom
+            mass_jmr = mass * jmr_nom
+
+            tdict[""] = mass_jms * jmr_nom
+            tdict["JMS_down"] = mass_jmr * jms_down
+            tdict["JMS_up"] = mass_jmr * jms_up
+            tdict["JMR_down"] = mass_jms * jmr_down
+            tdict["JMR_up"] = mass_jms * jmr_up
+
+        jmsr_shifted_vars[mkey] = tdict
+
+    return jmsr_shifted_vars
 
 
 def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Tuple[int, ak.Array], num_prongs: int):

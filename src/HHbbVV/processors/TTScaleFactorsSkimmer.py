@@ -85,8 +85,6 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             "msoftdrop": "Msd",
             "particleNetMD_QCD": "ParticleNetMD_QCD",
             "particleNetMD_Xbb": "ParticleNetMD_Xbb",
-            # "particleNetMD_Xcc": "ParticleNetMD_Xcc",
-            # "particleNetMD_Xqq": "ParticleNetMD_Xqq",
             "particleNet_H4qvsQCD": "ParticleNet_Th4q",
             "nConstituents": "nPFCands",
         },
@@ -323,14 +321,14 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # select vars
 
         ak8FatJetVars = {
-            f"ak8FatJet{key}": pad_val(leading_fatjets[var], num_jets, -99999, axis=1)
+            f"ak8FatJet{key}": pad_val(leading_fatjets[var], num_jets, axis=1)
             for (var, key) in self.skim_vars["FatJet"].items()
         }
 
         for var in self.skim_vars["FatJetDerived"]:
             if var.startswith("tau"):
-                taunum = pad_val(fatjets[f"tau{var[3]}"], num_jets, -99999, axis=1)
-                tauden = pad_val(fatjets[f"tau{var[4]}"], num_jets, -99999, axis=1)
+                taunum = pad_val(fatjets[f"tau{var[3]}"], num_jets, axis=1)
+                tauden = pad_val(fatjets[f"tau{var[4]}"], num_jets, axis=1)
                 ak8FatJetVars[var] = taunum / tauden
 
         otherVars = {

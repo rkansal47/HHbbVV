@@ -13,7 +13,7 @@ from coffea.nanoevents.methods.nanoaod import FatJetArray, GenParticleArray
 
 from typing import List, Dict, Tuple, Union
 
-from .utils import pad_val, add_selection
+from .utils import pad_val, add_selection, PAD_VAL
 
 d_PDGID = 1
 u_PDGID = 2
@@ -40,8 +40,6 @@ b_PDGIDS = [511, 521, 523]
 GRAV_PDGID = 39
 
 GEN_FLAGS = ["fromHardProcess", "isLastCopy"]
-
-FILL_NONE_VALUE = -99999
 
 
 def gen_selection_HYbbVV(
@@ -84,7 +82,7 @@ def gen_selection_HYbbVV(
                 ak.pad_none(
                     ak.pad_none(VV.children[var], 2, axis=1, clip=True), 2, axis=2, clip=True
                 ),
-                FILL_NONE_VALUE,
+                PAD_VAL,
             )
         )
         for (var, key) in skim_vars.items()
@@ -132,10 +130,7 @@ def gen_selection_HHbbVV(
     VV = ak.flatten(higgs_children[is_VV], axis=2)
 
     # have to pad to 2 because of some 4V events
-    GenbbVars = {
-        f"Genbb{key}": pad_val(bb[var], 2, FILL_NONE_VALUE, axis=1)
-        for (var, key) in skim_vars.items()
-    }
+    GenbbVars = {f"Genbb{key}": pad_val(bb[var], 2, axis=1) for (var, key) in skim_vars.items()}
 
     # selecting only up to the 2nd index because of some 4V events
     # (doesn't matter which two are selected since these events will be excluded anyway)
@@ -159,7 +154,7 @@ def gen_selection_HHbbVV(
                 ak.pad_none(
                     ak.pad_none(VV_children[var], 2, axis=1, clip=True), 2, axis=2, clip=True
                 ),
-                FILL_NONE_VALUE,
+                PAD_VAL,
             )
         )
         for (var, key) in skim_vars.items()
@@ -188,9 +183,9 @@ def gen_selection_HHbbVV(
     num_prongs = ak.sum(quarkdrs < match_dR, axis=1)
 
     GenMatchingVars = {
-        "ak8FatJetHbb": pad_val(Hbb_match, 2, FILL_NONE_VALUE, axis=1),
-        "ak8FatJetHVV": pad_val(HVV_match, 2, FILL_NONE_VALUE, axis=1),
-        "ak8FatJetHVVNumProngs": ak.fill_none(num_prongs, -99999).to_numpy(),
+        "ak8FatJetHbb": pad_val(Hbb_match, 2, axis=1),
+        "ak8FatJetHVV": pad_val(HVV_match, 2, axis=1),
+        "ak8FatJetHVVNumProngs": ak.fill_none(num_prongs, PAD_VAL).to_numpy(),
     }
 
     return {**GenHiggsVars, **GenbbVars, **GenVVVars, **Gen4qVars, **GenMatchingVars}, (
@@ -242,7 +237,7 @@ def gen_selection_HH4V(
                 ak.pad_none(
                     ak.pad_none(VV_children[var], 2, axis=1, clip=True), 2, axis=2, clip=True
                 ),
-                FILL_NONE_VALUE,
+                PAD_VAL,
             )
         )
         for (var, key) in skim_vars.items()
@@ -344,14 +339,11 @@ def tagger_gen_H_matching(
     matched_higgs_mask = ak.any(fatjets.delta_r(matched_higgs) < match_dR, axis=1)
     # higgs kinematics
     genResVars = {
-        f"fj_genRes_{key}": ak.fill_none(matched_higgs[var], FILL_NONE_VALUE)
-        for (var, key) in P4.items()
+        f"fj_genRes_{key}": ak.fill_none(matched_higgs[var], PAD_VAL) for (var, key) in P4.items()
     }
     # Higgs parent kinematics
     bulkg = matched_higgs.distinctParent
-    genXVars = {
-        f"fj_genX_{key}": ak.fill_none(bulkg[var], FILL_NONE_VALUE) for (var, key) in P4.items()
-    }
+    genXVars = {f"fj_genX_{key}": ak.fill_none(bulkg[var], PAD_VAL) for (var, key) in P4.items()}
 
     genVars = {**genResVars, **genXVars}
 
@@ -442,12 +434,9 @@ def tagger_gen_H_matching(
 
         matched_mask = matched_higgs_mask & matched_Vs_mask
 
-        genVVars = {
-            f"fj_genV_{key}": ak.fill_none(v[var], FILL_NONE_VALUE) for (var, key) in P4.items()
-        }
+        genVVars = {f"fj_genV_{key}": ak.fill_none(v[var], PAD_VAL) for (var, key) in P4.items()}
         genVstarVars = {
-            f"fj_genVstar_{key}": ak.fill_none(v_star[var], FILL_NONE_VALUE)
-            for (var, key) in P4.items()
+            f"fj_genVstar_{key}": ak.fill_none(v_star[var], PAD_VAL) for (var, key) in P4.items()
         }
 
         # number of c quarks in V decay inside jet
@@ -549,8 +538,7 @@ def tagger_gen_VJets_matching(
     matched_vs = vs[ak.argmin(fatjets.delta_r(vs), axis=1, keepdims=True)]
     matched_vs_mask = ak.any(fatjets.delta_r(matched_vs) < match_dR, axis=1)
     genResVars = {
-        f"fj_genRes_{key}": ak.fill_none(matched_vs[var], FILL_NONE_VALUE)
-        for (var, key) in P4.items()
+        f"fj_genRes_{key}": ak.fill_none(matched_vs[var], PAD_VAL) for (var, key) in P4.items()
     }
 
     daughters = ak.flatten(matched_vs.distinctChildren, axis=2)
@@ -624,8 +612,7 @@ def tagger_gen_Top_matching(
     matched_tops = tops[ak.argmin(fatjets.delta_r(tops), axis=1, keepdims=True)]
     matched_tops_mask = ak.any(fatjets.delta_r(matched_tops) < match_dR, axis=1)
     genResVars = {
-        f"fj_genRes_{key}": ak.fill_none(matched_tops[var], FILL_NONE_VALUE)
-        for (var, key) in P4.items()
+        f"fj_genRes_{key}": ak.fill_none(matched_tops[var], PAD_VAL) for (var, key) in P4.items()
     }
 
     daughters = ak.flatten(matched_tops.distinctChildren, axis=2)

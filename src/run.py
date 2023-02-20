@@ -106,19 +106,6 @@ def run(p: processor, fileset: dict, args):
         import pyarrow.parquet as pq
         import pyarrow as pa
 
-        # combine parquet files for systematic variations
-        if args.processor == "skimmer":
-            out_keys = list(out.keys())
-            if "all" in out_keys and len(out_keys) > 1:
-                for key in out_keys:
-                    # the non-variation parquet is saved in the next line
-                    if key == "all":
-                        continue
-                    local_parquet_dir_variation = f"{local_parquet_dir}_{key}"
-                    pddf = pd.read_parquet(local_parquet_dir_variation)
-                    table = pa.Table.from_pandas(pddf)
-                    pq.write_table(table, f"{local_dir}/{args.starti}-{args.endi}_{key}.parquet")
-
         pddf = pd.read_parquet(local_parquet_dir)
 
         if args.processor in ["skimmer", "ttsfs"]:
