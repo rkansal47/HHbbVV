@@ -430,7 +430,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 | ((events.MET.phi > -1.62) & (events.MET.pt < 470.0) & (events.MET.phi < -0.62))
             )
 
-            add_selection("hem_cleaning", hem_cleaning, *selection_args)
+            add_selection("hem_cleaning", ~hem_cleaning, *selection_args)
 
         #########################
         # Veto variables
