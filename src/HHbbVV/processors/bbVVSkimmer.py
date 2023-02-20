@@ -416,7 +416,11 @@ class bbVVSkimmer(processor.ProcessorABC):
         # 2018 HEM cleaning
 
         if year == "2018":
-            hem_cleaning = (events.run >= 319077) & (
+            hem_cleaning = (
+                ((events.run >= 319077) & isData)  # if data check if in Runs C or D
+                # else for MC randomly cut based on lumi fraction of C&D
+                | ((np.random.rand(len(events)) < 0.632) & ~isData)
+            ) & (
                 ak.any(
                     (
                         (events.Jet.pt > 30.0)
@@ -537,6 +541,8 @@ class bbVVSkimmer(processor.ProcessorABC):
                 else:
                     logger.warning("Weight not normalized to cross section")
                     skimmed_events[weight_name] = weight
+
+        print(cutflow)
 
         # apply selections
         sel_all = selection.all(*selection.names)
