@@ -258,6 +258,8 @@ class bbVVSkimmer(processor.ProcessorABC):
             gen_weights = np.sign(events["genWeight"])  # only signs for HH
         elif not isData:
             gen_weights = events["genWeight"].to_numpy()
+        else:
+            gen_weights = None
 
         n_events = len(events) if isData else np.sum(gen_weights)
         selection = PackedSelection()
@@ -414,7 +416,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         add_selection("ak8bb_txbb", txbb_cut, *selection_args)
 
         # 2018 HEM cleaning
-
+        # https://indico.cern.ch/event/1249623/contributions/5250491/attachments/2594272/4477699/HWW_0228_Draft.pdf
         if year == "2018":
             hem_cleaning = (
                 ((events.run >= 319077) & isData)  # if data check if in Runs C or D
