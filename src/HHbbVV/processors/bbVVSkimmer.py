@@ -337,7 +337,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"][:, 0]
             >= ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"][:, 1]
         )
-        bb_mask = np.concatenate((bb_mask, ~bb_mask), axis=1)
+        bb_mask = np.stack((bb_mask, ~bb_mask)).T
 
         # dijet variables
 
