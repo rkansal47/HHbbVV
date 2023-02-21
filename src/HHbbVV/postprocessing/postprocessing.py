@@ -236,18 +236,14 @@ def apply_weights(
     """
     from coffea.lookup_tools.dense_lookup import dense_lookup
 
-    # with open(
-    #     f"../corrections/trigEffs/{year}_combined.pkl", "rb"
-    # ) as filehandler:
-    #     combined = pickle.load(filehandler)
+    with open(f"../corrections/trigEffs/{year}_combined.pkl", "rb") as filehandler:
+        combined = pickle.load(filehandler)
 
-    with open(
-        f"../corrections/trigEffs/AK8JetHTTriggerEfficiency_{year}.hist", "rb"
-    ) as filehandler:
-        ak8TrigEffs = pickle.load(filehandler)
+    # sum over TH4q bins
+    effs_txbb = combined["num"][:, sum, :, :] / combined["den"][:, sum, :, :]
 
     ak8TrigEffsLookup = dense_lookup(
-        np.nan_to_num(ak8TrigEffs.view(flow=False), 0), np.squeeze(ak8TrigEffs.axes.edges)
+        np.nan_to_num(effs_txbb.view(flow=False), 0), np.squeeze(effs_txbb.axes.edges)
     )
 
     for sample in events_dict:
@@ -256,10 +252,13 @@ def apply_weights(
             events[weight_key] = events["weight"]
         else:
             fj_trigeffs = ak8TrigEffsLookup(
-                events["ak8FatJetPt"].values, events["ak8FatJetMsd"].values
+                events["ak8FatJetParticleNetMD_Txbb"].values,
+                events["ak8FatJetPt"].values,
+                events["ak8FatJetMsd"].values,
             )
             # combined eff = 1 - (1 - fj1_eff) * (1 - fj2_eff)
             combined_trigEffs = 1 - np.prod(1 - fj_trigeffs, axis=1, keepdims=True)
+            events[f"{weight_key}_noTrigEffs"] = events["weight"]
             events[weight_key] = events["weight"] * combined_trigEffs
 
     utils.add_to_cutflow(events_dict, "TriggerEffs", weight_key, cutflow)
@@ -303,7 +302,11 @@ def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataF
 
 
 def postprocess_lpsfs(
-    events: pd.DataFrame, num_jets: int = 2, num_lp_sf_toys: int = 100, save_all: bool = True
+    events: pd.DataFrame,
+    num_jets: int = 2,
+    num_lp_sf_toys: int = 100,
+    save_all: bool = True,
+    weight_key: str = "finalWeight",
 ):
     """
     (1) Splits LP SFs into bb and VV based on gen matching.
@@ -365,6 +368,10 @@ def postprocess_lpsfs(
         else:
             key = "lp_sf_nom"
             events[f"{jet}_{key}"] = td[key]
+
+    events[weight_key + "_noLP"] = events[weight_key]
+    events[weight_key] = events[weight_key] * events["VV_lp_sf_nom"]
+    events[weight_key + "_noTrigEffs"] = events[weight_key + "_noTrigEffs"] * events["VV_lp_sf_nom"]
 
     return events
 
@@ -477,6 +484,7 @@ def control_plots(
     control_plot_vars: Dict[str, Tuple],
     plot_dir: str,
     weight_key: str = "finalWeight",
+    hists: Dict = {},
 ):
     """
     Makes and plots histograms of each variable in ``control_plot_vars``.
@@ -492,9 +500,8 @@ def control_plots(
     sig_scale = np.sum(events_dict[data_key][weight_key]) / np.sum(events_dict[sig_key][weight_key])
     print(f"{sig_scale = }")
 
-    hists = {}
-
     for var, (bins, label) in control_plot_vars.items():
+        # print(var)
         if var not in hists:
             hists[var] = utils.singleVarHist(
                 events_dict, var, bins, label, bb_masks, weight_key=weight_key
@@ -517,6 +524,8 @@ def control_plots(
 
     merger_control_plots.write(f"{plot_dir}/ControlPlots.pdf")
     merger_control_plots.close()
+
+    return hists
 
 
 def get_templates(

@@ -18,7 +18,9 @@ samples = OrderedDict(
         ("HHbbVV", "GluGluToHHTobbVV"),
         ("QCD", "QCD"),
         ("TT", "TT"),
-        ("W+Jets", "WJets"),
+        ("ST", "ST"),
+        ("V+Jets", ("WJets", "ZJets")),
+        ("Diboson", ("WW", "WZ", "ZZ")),
         ("Data", "JetHT"),
     ]
 )
@@ -36,3 +38,41 @@ txbb_wps = {
     "2017": {"HP": 0.987, "MP": 0.9714, "LP": 0.9105},
     "2018": {"HP": 0.988, "MP": 0.9734, "LP": 0.9172},
 }
+
+
+jecs = {
+    "JES": "JES_jes",
+    "JER": "JER",
+}
+
+jmsr = {
+    "JMS": "JMS",
+    "JMR": "JMR",
+}
+
+# variables affected by JECs
+jec_vars = [
+    "bbFatJetPt",
+    "VVFatJetPt",
+    "DijetEta",
+    "DijetPt",
+    "DijetMass",
+    "bbFatJetPtOverDijetPt",
+    "VVFatJetPtOverDijetPt",
+    "VVFatJetPtOverbbFatJetPt",
+]
+
+
+# variables affected by JMS/R
+jmsr_vars = [
+    "bbFatJetMsd",
+    "bbFatJetParticleNetMass",
+    "VVFatJetMsd",
+    "VVFatJetParticleNetMass",
+    "DijetEta",
+    "DijetPt",
+    "DijetMass",
+    "bbFatJetPtOverDijetPt",
+    "VVFatJetPtOverDijetPt",
+    "VVFatJetPtOverbbFatJetPt",
+]

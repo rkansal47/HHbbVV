@@ -29,11 +29,18 @@ colours = {
     "red": "#e31a1c",
     "orange": "#ff7f00",
     "green": "#7CB518",
+    "purple": "#9381FF",
 }
-bg_colours = {"QCD": "lightblue", "TT": "darkblue", "W+Jets": "green", "ST": "orange"}
+bg_colours = {
+    "QCD": "lightblue",
+    "TT": "darkblue",
+    "V+Jets": "green",
+    "ST": "orange",
+    "Diboson": "purple",
+}
 sig_colour = "red"
 
-bg_order = ["W+Jets", "TT", "ST", "QCD"]
+bg_order = ["Diboson", "ST", "V+Jets", "TT", "QCD"]
 
 
 def _fill_error(ax, edges, down, up, scale=1):
