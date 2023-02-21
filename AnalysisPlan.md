@@ -5,6 +5,7 @@
     - [Trigger Efficiencies](#trigger-efficiencies)
     - [Incorporate remaining systematics](#incorporate-remaining-systematics)
       - [Skimmer](#skimmer)
+      - [Shapes](#shapes)
       - [Datacard](#datacard)
     - [Full Run 2 and all samples](#full-run-2-and-all-samples)
       - [Update Processor](#update-processor)
@@ -48,9 +49,22 @@
    - [ ] Need UL mSD and regressed mass corrections
  - Theory
    - [x] pdf uncertainties
-   - [x] scale variation?
+   - [x] scale variation
    - [x] parton shower weights
    - [x] W k factor
+
+
+#### Shapes
+ - [ ] Pileup
+ - [x] ParticleNet Xbb
+ - [ ] JES/R
+ - [ ] JMS/R
+ - Theory
+   - [ ] pdf uncertainties
+   - [ ] parton shower weights
+   - [ ] scale variation
+   - [ ] W k factor
+
 
 #### Datacard
  - [x] MC Stats
