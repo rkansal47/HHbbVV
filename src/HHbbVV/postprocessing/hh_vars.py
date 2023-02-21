@@ -50,6 +50,16 @@ jmsr = {
     "JMR": "JMR",
 }
 
+jec_shifts = []
+for key in jecs:
+    for shift in ["up", "down"]:
+        jec_shifts.append(f"{key}_{shift}")
+
+jmsr_shifts = []
+for key in jmsr:
+    for shift in ["up", "down"]:
+        jmsr_shifts.append(f"{key}_{shift}")
+
 # variables affected by JECs
 jec_vars = [
     "bbFatJetPt",
