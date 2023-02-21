@@ -49,6 +49,23 @@ def timer():
         print(f"Time taken: {new_time - old_time} seconds")
 
 
+def remove_empty_parquets(samples_dir, year):
+    from os import listdir, remove
+
+    full_samples_list = listdir(f"{samples_dir}/{year}")
+    print("Checking for empty parquets")
+
+    for sample in full_samples_list:
+        if sample == ".DS_Store":
+            continue
+        parquet_files = listdir(f"{samples_dir}/{year}/{sample}/parquet")
+        for f in parquet_files:
+            file_path = f"{samples_dir}/{year}/{sample}/parquet/{f}"
+            if not len(pd.read_parquet(file_path)):
+                print("Removing: ", f"{sample}/{f}")
+                remove(file_path)
+
+
 def get_xsecs():
     """Load cross sections json file and evaluate if necessary"""
     import json
@@ -100,7 +117,7 @@ def get_cutflow(pickles_path, year, sample_name):
 
 
 def check_selector(sample: str, selector: Union[str, List[str]]):
-    if isinstance(selector, list):
+    if isinstance(selector, list) or isinstance(selector, tuple):
         for s in selector:
             if sample.startswith(s):
                 return True
@@ -149,6 +166,10 @@ def load_samples(
                 print(f"No parquet file for {sample}")
                 continue
 
+            if sample in ["QCD_HT200to300", "WJetsToQQ_HT-200to400"]:
+                print(f"WARNING: IGNORING {sample} because of empty df bug")
+                continue
+
             # print(f"Loading {sample}")
             events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
             not_empty = len(events) > 0
@@ -166,7 +187,7 @@ def load_samples(
             if not_empty:
                 events_dict[label].append(events)
 
-            # print(f"Loaded {len(events)} entries")
+            print(f"Loaded {sample: <50}: {len(events)} entries")
 
         events_dict[label] = pd.concat(events_dict[label])
 
