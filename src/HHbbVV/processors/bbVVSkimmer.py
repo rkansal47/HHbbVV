@@ -217,7 +217,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         (e.g. FatJet arrays with two columns)
         """
         return pd.concat(
-            [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in events.items()],
+            # [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in events.items()],
+            [pd.DataFrame(v) for k, v in events.items()],
             axis=1,
             keys=list(events.keys()),
         )
@@ -546,16 +547,19 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         print(cutflow)
 
-        # apply selections
+        # reshape and apply selections
         sel_all = selection.all(*selection.names)
 
-        skimmed_events = {key: value[sel_all] for (key, value) in skimmed_events.items()}
+        skimmed_events = {
+            key: value.reshape(len(skimmed_events["weight"]), -1)[sel_all]
+            for (key, value) in skimmed_events.items()
+        }
 
         ################
         # Lund plane SFs
         ################
 
-        if isSignal:
+        if isSignal and len(skimmed_events["weight"]):
             genbb = genbb[sel_all]
             genq = genq[sel_all]
 
@@ -582,8 +586,8 @@ class bbVVSkimmer(processor.ProcessorABC):
                 selected_sfs = {}
 
                 for key, (selector, gen_quarks, num_prongs) in selectors.items():
-                    sel_events = events[sel_all][selector]
                     if np.sum(selector) > 0:
+                        sel_events = events[sel_all][selector]
                         selected_sfs[key] = get_lund_SFs(
                             sel_events,
                             i,
@@ -629,12 +633,9 @@ class bbVVSkimmer(processor.ProcessorABC):
                 **{key: value for (key, value) in pnet_vars.items()},
             }
 
-        if len(skimmed_events["weight"]):
-            df = self.to_pandas(skimmed_events)
-            fname = (
-                events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
-            )
-            self.dump_table(df, fname)
+        df = self.to_pandas(skimmed_events)
+        fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
+        self.dump_table(df, fname)
 
         return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
 
