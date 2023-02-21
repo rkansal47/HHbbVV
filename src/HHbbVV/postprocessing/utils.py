@@ -182,6 +182,7 @@ def load_samples(
                     n_events = get_nevents(pickles_path, year, sample)
 
                 if not_empty:
+                    events["weight_nonorm"] = events["weight"]
                     events["weight"] /= n_events
 
             if not_empty:

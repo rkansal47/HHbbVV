@@ -18,15 +18,19 @@ formatter.set_powerlimits((-3, 3))
 from hist import Hist
 from hist.intervals import ratio_uncertainty
 
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Tuple
 from numpy.typing import ArrayLike
 
 from hh_vars import sig_key, data_key
 
+from copy import deepcopy
+
 colours = {
     "darkblue": "#1f78b4",
     "lightblue": "#a6cee3",
+    "lightred": "#FF502E",
     "red": "#e31a1c",
+    "darkred": "#A21315",
     "orange": "#ff7f00",
     "green": "#7CB518",
     "purple": "#9381FF",
@@ -67,13 +71,30 @@ def ratioHistPlot(
     name: str = "",
     sig_scale: float = 1.0,
     show: bool = True,
+    variation: Tuple = None,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
     scaled) with a data/mc ratio plot below
     """
-
+    sig_key = "HHbbVV"
     bg_keys = [key for key in bg_order if key in bg_keys]
+    bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
+    bg_labels = deepcopy(bg_keys)
+    sig_label = f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key
+
+    if variation is not None:
+        wshift, shift, wsamples = variation
+        skey = {"up": " Up", "down": " Down"}[shift]
+
+        for i, key in enumerate(bg_keys):
+            if key in wsamples:
+                bg_keys[i] += f"_{wshift}_{shift}"
+                bg_labels[i] += skey
+
+        if sig_key in wsamples:
+            sig_key = f"{sig_key}_{wshift}_{shift}"
+            sig_label += skey
 
     fig, (ax, rax) = plt.subplots(
         2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
@@ -85,25 +106,28 @@ def ratioHistPlot(
         ax=ax,
         histtype="fill",
         stack=True,
-        label=bg_keys,
-        color=[colours[bg_colours[sample]] for sample in bg_keys],
+        label=bg_labels,
+        color=bg_colours,
     )
     hep.histplot(
         hists[sig_key, :] * sig_scale,
         ax=ax,
         histtype="step",
-        label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
+        label=sig_label,
         color=colours[sig_colour],
     )
 
     if type(sig_err) == str:
-        _fill_error(
-            ax,
-            hists.axes[1].edges,
-            hists[f"{sig_key}_{sig_err}_down", :].values(),
-            hists[f"{sig_key}_{sig_err}_up", :].values(),
-            sig_scale,
-        )
+        scolours = {"down": colours["lightred"], "up": colours["darkred"]}
+        for skey, shift in [("Up", "up"), ("Down", "down")]:
+            hep.histplot(
+                hists[f"{sig_key}_{sig_err}_{shift}", :] * sig_scale,
+                yerr=0,
+                ax=ax,
+                histtype="step",
+                label=f"{sig_key} {skey}",
+                color=scolours[shift],
+            )
     elif sig_err is not None:
         _fill_error(
             ax,
@@ -121,8 +145,6 @@ def ratioHistPlot(
 
     bg_tot = sum([hists[sample, :] for sample in bg_keys])
     yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")
-
-    # print(hists[data_key, :] / (bg_tot.values() + 1e-5))
 
     hep.histplot(
         hists[data_key, :] / (bg_tot.values() + 1e-5),

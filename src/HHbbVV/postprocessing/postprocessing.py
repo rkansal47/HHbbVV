@@ -26,7 +26,17 @@ from typing import Dict, List, Tuple
 from inspect import cleandoc
 from textwrap import dedent
 
-from hh_vars import years, sig_key, data_key, qcd_key, bg_keys, samples, txbb_wps
+from hh_vars import (
+    years,
+    sig_key,
+    data_key,
+    qcd_key,
+    bg_keys,
+    samples,
+    txbb_wps,
+    jec_shifts,
+    jmsr_shifts,
+)
 from utils import CUT_MAX_VAL
 
 from pprint import pprint
@@ -121,7 +131,7 @@ for bdtcut in np.arange(0.97, 1, 0.002):
 
 
 # bb msd is final shape var
-shape_var = ("bbFatJetMsd", r"$m^{bb}$ (GeV)")
+shape_var = ("bbFatJetMsd", r"$m^{bb}_{Reg}$ (GeV)")
 shape_bins = [20, 50, 250]  # num bins, min, max
 blind_window = [100, 150]
 
@@ -370,8 +380,10 @@ def postprocess_lpsfs(
             events[f"{jet}_{key}"] = td[key]
 
     events[weight_key + "_noLP"] = events[weight_key]
-    events[weight_key] = events[weight_key] * events["VV_lp_sf_nom"]
-    events[weight_key + "_noTrigEffs"] = events[weight_key + "_noTrigEffs"] * events["VV_lp_sf_nom"]
+    events[weight_key] = events[weight_key][0] * events["VV_lp_sf_nom"][0]
+    events[weight_key + "_noTrigEffs"] = (
+        events[weight_key + "_noTrigEffs"][0] * events["VV_lp_sf_nom"][0]
+    )
 
     return events
 
@@ -385,7 +397,7 @@ def get_lpsf(events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True):
 
     tot_matched = np.sum(np.sum(events[f"ak8FatJetH{jet}"].astype(bool)))
 
-    weight = events["finalWeight_preLP"].values
+    weight = events["finalWeight_noLP"].values
     tot_pre = np.sum(weight)
     tot_post = np.sum(weight * events[f"{jet}_lp_sf_nom"][0])
     lp_sf = tot_post / tot_pre
@@ -458,23 +470,39 @@ def derive_variables(events_dict: Dict[str, pd.DataFrame], bb_masks: Dict[str, p
 
 
 def load_bdt_preds(
-    events_dict: Dict[str, pd.DataFrame], bdt_preds: str, bdt_sample_order: List[str]
+    events_dict: Dict[str, pd.DataFrame],
+    year: str,
+    bdt_preds_dir: str,
+    bdt_sample_order: List[str],
+    jec_jmsr_shifts: bool = False,
 ):
     """
     Loads the BDT scores for each event and saves in the dataframe in the "BDTScore" column.
+    If ``jec_jmsr_shifts``, also loads BDT preds for every JEC / JMSR shift in MC.
 
     Args:
         bdt_preds (str): Path to the bdt_preds .npy file.
         bdt_sample_order (List[str]): Order of samples in the predictions file.
 
     """
-    bdt_preds = np.load(bdt_preds)
+    bdt_preds = np.load(f"{bdt_preds_dir}/{year}_preds.npy")
+
+    if jec_jmsr_shifts:
+        shift_preds = {
+            jshift: np.load(f"{bdt_preds_dir}/{year}_preds_{jshift}.npy")
+            for jshift in jec_shifts + jmsr_shifts
+        }
 
     i = 0
     for sample in bdt_sample_order:
         events = events_dict[sample]
         num_events = len(events)
         events["BDTScore"] = bdt_preds[i : i + num_events]
+
+        if jec_jmsr_shifts and sample != data_key:
+            for jshift in jec_shifts + jmsr_shifts:
+                events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events]
+
         i += num_events
 
 

@@ -56,10 +56,10 @@ var_label_map = {
     "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$ (GeV)"),
     "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$ (GeV)"),
     "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$ (GeV)"),
-    "VVFatJetParTMD_probT": ([50, 0, 1], r"ParT Prob(Top)$^{VV}$"),
-    "VVFatJetParTMD_probQCD": ([50, 0, 1], r"ParT Prob(QCD)$^{VV}$"),
-    "VVFatJetParTMD_probHWW3q": ([50, 0, 1], r"ParT Prob(HWW3q)$^{VV}$"),
-    "VVFatJetParTMD_probHWW4q": ([50, 0, 1], r"ParT Prob(HWW4q)$^{VV}$"),
+    "VVFatJetParTMD_probT": ([50, 0, 1], r"ParT $Prob(Top)^{VV}$"),
+    "VVFatJetParTMD_probQCD": ([50, 0, 1], r"ParT $Prob(QCD)^{VV}$"),
+    "VVFatJetParTMD_probHWW3q": ([50, 0, 1], r"ParT $Prob(HWW3q)^{VV}$"),
+    "VVFatJetParTMD_probHWW4q": ([50, 0, 1], r"ParT $Prob(HWW4q)^{VV}$"),
     "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
     "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
     "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.0], r"$p^{VV}_T / p^{bb}_T$"),
@@ -295,6 +295,8 @@ def do_inference(
     jec_jmsr_shifts: bool = True,
 ):
     """ """
+    os.system(f"mkdir -p {model_dir}/inferences/")
+
     import time
 
     start = time.time()
@@ -302,7 +304,7 @@ def do_inference(
     X = get_X(data)
     preds = model.predict_proba(X)[:, 1]
     print(f"Finished in {time.time() - start:.2f}s")
-    np.save(f"{model_dir}/{year}_preds.npy", preds)
+    np.save(f"{model_dir}/inferences/{year}_preds.npy", preds)
 
     if jec_jmsr_shifts:
         for jshift in jec_shifts:
@@ -311,7 +313,7 @@ def do_inference(
             # have to change model's feature names since we're passing in a dataframe
             model.get_booster().feature_names = mcvars
             preds = model.predict_proba(X)[:, 1]
-            np.save(f"{model_dir}/{year}_preds_{jshift}.npy", preds)
+            np.save(f"{model_dir}/inferences/{year}_preds_{jshift}.npy", preds)
 
         for jshift in jmsr_shifts:
             print("Running inference for", jshift)
@@ -319,7 +321,7 @@ def do_inference(
             # have to change model's feature names since we're passing in a dataframe
             model.get_booster().feature_names = mcvars
             preds = model.predict_proba(X)[:, 1]
-            np.save(f"{model_dir}/{year}_preds_{jshift}.npy", preds)
+            np.save(f"{model_dir}/inferences/{year}_preds_{jshift}.npy", preds)
 
 
 if __name__ == "__main__":
