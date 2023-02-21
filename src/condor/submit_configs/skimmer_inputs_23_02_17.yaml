@@ -12,7 +12,7 @@
                     # "GluGluToHHTo4B_node_cHHH1_preUL",
                     # "GluGluToHHTo4B_node_cHHH2p45_preUL",
                     # "GluGluToHHTo4B_node_cHHH5_preUL",
-                    "files_per_job": 20,
+                    "files_per_job": 15,
                 },
             "QCD":
                 {
