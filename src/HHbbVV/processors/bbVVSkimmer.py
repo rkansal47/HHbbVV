@@ -178,6 +178,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         "pt": 300.0,
         "eta": 2.4,
         "VVmsd": 50,
+        "VVparticleNet_mass": 50,
         "bbparticleNet_mass": 50,
         "bbFatJetParticleNetMD_Txbb": 0.8,
     }
@@ -401,9 +402,10 @@ class bbVVSkimmer(processor.ProcessorABC):
             msds = jmsr_shifted_vars["msoftdrop"][shift]
             pnetms = jmsr_shifted_vars["particleNet_mass"][shift]
 
-            cut = (msds[~bb_mask] >= self.ak8_jet_selection["VVmsd"]) * (
-                pnetms[bb_mask] >= self.ak8_jet_selection["bbparticleNet_mass"]
-            )
+            cut = (
+                (msds[~bb_mask] >= self.ak8_jet_selection["VVmsd"])
+                | (pnetms[~bb_mask] >= self.ak8_jet_selection["VVparticleNet_mass"])
+            ) * (pnetms[bb_mask] >= self.ak8_jet_selection["bbparticleNet_mass"])
             cuts.append(cut)
 
         add_selection("ak8_mass", np.any(cuts, axis=0), *selection_args)
