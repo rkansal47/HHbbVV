@@ -19,7 +19,7 @@ from typing import Dict, List, Union
 from coffea.analysis_tools import PackedSelection
 from hist import Hist
 
-from hh_vars import sig_key, data_key
+from hh_vars import sig_key, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
 
 MAIN_DIR = "./"
 CUT_MAX_VAL = 9999.0
@@ -338,6 +338,18 @@ def add_selection(name, sel, selection, cutflow, events, weight_key):
     cutflow[name] = np.sum(events[weight_key][selection.all(*selection.names)])
 
 
+def check_get_jec_var(var, jshift):
+    """Checks if var is affected by the JEC / JMSR and if so, returns the shfited var name"""
+
+    if jshift in jec_shifts and var in jec_vars:
+        return var + "_" + jshift
+
+    if jshift in jmsr_shifts and var in jmsr_vars:
+        return var + "_" + jshift
+
+    return var
+
+
 def make_selection(
     var_cuts: Dict[str, List[float]],
     events_dict: Dict[str, pd.DataFrame],
@@ -345,6 +357,7 @@ def make_selection(
     weight_key: str = "finalWeight",
     prev_cutflow: dict = None,
     selection: dict = None,
+    jshift: str = "",
     MAX_VAL: float = CUT_MAX_VAL,
 ):
     """
@@ -383,6 +396,9 @@ def make_selection(
             selection[sample] = PackedSelection()
 
         for var, brange in var_cuts.items():
+            if jshift != "" and sample != data_key:
+                var = check_get_jec_var(var, jshift)
+
             if brange[0] > -MAX_VAL:
                 add_selection(
                     f"{var} > {brange[0]}",
