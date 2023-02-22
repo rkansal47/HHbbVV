@@ -96,10 +96,11 @@
 - [x] Diboson
 - [x] HHbbWW (all kL)
 - Need xsecs for:
-  - [ ] VBF HHbbWW (kL = 1, k2V = 1)
-  - [ ] HH4b (kL = 1) (Pre-UL)
-  - [ ] HWW (ggF, VH, VBF, ttH)
-  - [ ] Hbb (ggF, VBF, VH, ttH)
+  https://docs.google.com/spreadsheets/d/1XQQsN4rl3xGDa35W516TwKyadccpfoT7M1mFGxZ4UjQ/edit#gid=1223976475
+  - [x] VBF HHbbWW (kL = 1, k2V = 1)
+  - [x] HH4b (kL = 1) (Pre-UL)
+  - [x] HWW (ggF, VH, VBF, ttH)
+  - [x] Hbb (ggF, VBF, VH, ttH)
 
 #### Update Processor
 
