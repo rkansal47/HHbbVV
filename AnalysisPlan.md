@@ -5,7 +5,7 @@
     - [Trigger Efficiencies](#trigger-efficiencies)
     - [Incorporate remaining systematics](#incorporate-remaining-systematics)
       - [Skimmer](#skimmer)
-      - [Shapes](#shapes)
+      - [Shapes / Values](#shapes--values)
       - [Datacard](#datacard)
     - [Full Run 2 and all samples](#full-run-2-and-all-samples)
       - [Update Processor](#update-processor)
@@ -54,14 +54,17 @@
    - [x] W k factor
 
 
-#### Shapes
- - [ ] Pileup
+#### Shapes / Values
+ - [x] Pileup
  - [x] ParticleNet Xbb
- - [ ] JES/R
- - [ ] JMS/R
+ - [x] JES/R
+ - [x] JMS/R
+ - [x] Trigger SFs
+   - [x] Stat. Unc.
+   - [ ] Correlated Syst.
  - Theory
-   - [ ] pdf uncertainties
-   - [ ] parton shower weights
+   - [x] pdf uncertainties
+   - [x] parton shower weights
    - [ ] scale variation
    - [ ] W k factor
 
