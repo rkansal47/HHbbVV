@@ -37,10 +37,12 @@
   "TTToSemiLeptonic_ext1": 306.137405,
   "TT_Mtt-1000toInf": 76.61,
   "TT_Mtt-700to1000": 20.58,
-
+  
+  "WJetsToQQ_HT-200to400": 2549.0,
   "WJetsToQQ_HT-400to600": 277.0,
   "WJetsToQQ_HT-600to800": 59.06,
   "WJetsToQQ_HT-800toInf": 28.75,
+
   "WJetsToLNu_HT-70To100": 1270.0,
   "WJetsToLNu_HT-100To200": 1252.0,
   "WJetsToLNu_HT-200To400": 336.5,
@@ -49,6 +51,8 @@
   "WJetsToLNu_HT-800To1200": 4.938,
   "WJetsToLNu_HT-1200To2500": 1.155,
   "WJetsToLNu_HT-2500ToInf": 0.02625,
+
+  "ZJetsToQQ_HT-200to400": 1012.0,
   "ZJetsToQQ_HT-400to600": 114.5,
   "ZJetsToQQ_HT-600to800": 25.41,
   "ZJetsToQQ_HT-800toInf": 12.91,
@@ -57,9 +61,38 @@
   "WZ": 27.56,
   "ZZ": 12.14,
 
-  "GluGluToHHTobbVV_node_cHHH0": "31.05e-3 * 0.5807 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
-  "GluGluToHHTobbVV_node_cHHH1": "31.05e-3 * 0.5807 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
-  "GluGluToHHTobbVV_node_cHHH2p45": "31.05e-3 * 0.5807 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
-  "GluGluToHHTobbVV_node_cHHH5": "31.05e-3 * 0.5807 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
-  "GluGluToHHTobbVV_node_cHHH1_pn4q": "31.05e-3 * 0.5807 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2"
+  "GluGluToHHTobbVV_node_cHHH0": "0.069725 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "GluGluToHHTobbVV_node_cHHH1": "31.05e-3 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "GluGluToHHTobbVV_node_cHHH2p45": "0.013124 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "GluGluToHHTobbVV_node_cHHH5": "0.091172 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "GluGluToHHTobbVV_node_cHHH1_pn4q": "31.05e-3 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+
+  "VBF_HHTobbVV_CV_1_C2V_1_C3_1": "0.0017260 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "VBF_HHTobbVV_CV_1_C2V_1_C3_0": "0.0046089 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "VBF_HHTobbVV_CV_1_C2V_1_C3_2": "0.0014228 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "VBF_HHTobbVV_CV_1_C2V_0_C3_1": "0.0270800 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "VBF_HHTobbVV_CV_1_C2V_2_C3_1": "0.0142178 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "VBF_HHTobbVV_CV_0_5_C2V_1_C3_1": "0.0108237 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+  "VBF_HHTobbVV_CV_1_5_C2V_1_C3_1": "0.0660185 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
+
+  "GluGluToHHTo4B_node_cHHH0_preUL": "0.069725 * 5.824e-01 * 5.824e-01",
+  "GluGluToHHTo4B_node_cHHH1_preUL": "31.05e-3 * 5.824e-01 * 5.824e-01",
+  "GluGluToHHTo4B_node_cHHH2p45_preUL": "0.013124 * 5.824e-01 * 5.824e-01",
+  "GluGluToHHTo4B_node_cHHH5_preUL": "0.091172 * 5.824e-01 * 5.824e-01",
+
+  "GluGluHToWW_Pt-200ToInf_M-125": 0.10078,
+  "VBFHToWWToAny_M-125_TuneCP5_withDipoleRecoil": 0.8127,
+  "HWminusJ_HToWW_M-125": 0.116,
+  "HWplusJ_HToWW_M-125": 0.186,
+  "HZJ_HToWW_M-125": 0.205,
+  "ttHToNonbb_M125": 0.21,
+
+  "GluGluHToBB": 0.27395244,
+  "VBFHToBB": 2.2498257,
+  "WminusH_HToBB_WToQQ": 0.21348075,
+  "WplusH_HToBB_WToQQ": 0.342150,
+  "ZH_HToBB_ZToQQ": 0.326,
+  "ggZH_HToBB_ZToQQ": 0.025,
+  "ttHToBB": 0.2912
+
 }
