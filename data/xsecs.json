@@ -35,8 +35,8 @@
   "TTToHadronic": 303.8527975,
   "TTToSemiLeptonic": 306.137405,
   "TTToSemiLeptonic_ext1": 306.137405,
-  "TT_Mtt-1000toInf": 76.61,
-  "TT_Mtt-700to1000": 20.58,
+  "TT_MTT1000ToInf": 76.61,
+  "TT_MTT700To1000": 20.58,
   
   "WJetsToQQ_HT-200to400": 2549.0,
   "WJetsToQQ_HT-400to600": 277.0,
