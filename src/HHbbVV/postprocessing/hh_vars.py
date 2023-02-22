@@ -70,6 +70,7 @@ jec_vars = [
     "bbFatJetPtOverDijetPt",
     "VVFatJetPtOverDijetPt",
     "VVFatJetPtOverbbFatJetPt",
+    "BDTScore",
 ]
 
 
@@ -85,4 +86,5 @@ jmsr_vars = [
     "bbFatJetPtOverDijetPt",
     "VVFatJetPtOverDijetPt",
     "VVFatJetPtOverbbFatJetPt",
+    "BDTScore",
 ]
