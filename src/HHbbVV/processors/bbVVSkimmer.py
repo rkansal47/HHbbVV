@@ -543,6 +543,10 @@ class bbVVSkimmer(processor.ProcessorABC):
                         * self.LUMI[year]
                         * weight  # includes genWeight (or signed genWeight)
                     )
+
+                    if systematic == "":
+                        # to check later for xsec, lumi normalisation
+                        skimmed_events["weight_noxsec"] = weight
                 else:
                     logger.warning("Weight not normalized to cross section")
                     skimmed_events[weight_name] = weight

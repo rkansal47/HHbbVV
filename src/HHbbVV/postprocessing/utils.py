@@ -19,7 +19,7 @@ from typing import Dict, List, Union
 from coffea.analysis_tools import PackedSelection
 from hist import Hist
 
-from hh_vars import sig_key, data_key
+from hh_vars import sig_key, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
 
 MAIN_DIR = "./"
 CUT_MAX_VAL = 9999.0
@@ -47,6 +47,23 @@ def timer():
     finally:
         new_time = time.monotonic()
         print(f"Time taken: {new_time - old_time} seconds")
+
+
+def remove_empty_parquets(samples_dir, year):
+    from os import listdir, remove
+
+    full_samples_list = listdir(f"{samples_dir}/{year}")
+    print("Checking for empty parquets")
+
+    for sample in full_samples_list:
+        if sample == ".DS_Store":
+            continue
+        parquet_files = listdir(f"{samples_dir}/{year}/{sample}/parquet")
+        for f in parquet_files:
+            file_path = f"{samples_dir}/{year}/{sample}/parquet/{f}"
+            if not len(pd.read_parquet(file_path)):
+                print("Removing: ", f"{sample}/{f}")
+                remove(file_path)
 
 
 def get_xsecs():
@@ -100,7 +117,7 @@ def get_cutflow(pickles_path, year, sample_name):
 
 
 def check_selector(sample: str, selector: Union[str, List[str]]):
-    if isinstance(selector, list):
+    if isinstance(selector, list) or isinstance(selector, tuple):
         for s in selector:
             if sample.startswith(s):
                 return True
@@ -149,10 +166,18 @@ def load_samples(
                 print(f"No parquet file for {sample}")
                 continue
 
+            if sample in ["QCD_HT200to300", "WJetsToQQ_HT-200to400"]:
+                print(f"WARNING: IGNORING {sample} because of empty df bug")
+                continue
+
             # print(f"Loading {sample}")
             events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
             not_empty = len(events) > 0
             pickles_path = f"{data_dir}/{year}/{sample}/pickles"
+
+            if sample == "ZJetsToQQ_HT-200to400":
+                print(f"WARNING: Normalising {sample} by hand")
+                events["weight"] *= 1012.0 * 41480.0
 
             if label != data_key:
                 if label == sig_key:
@@ -161,12 +186,19 @@ def load_samples(
                     n_events = get_nevents(pickles_path, year, sample)
 
                 if not_empty:
+                    if "weight_noxsec" in events:
+                        if np.all(events["weight"] == events["weight_noxsec"]):
+                            print(f"WARNING: {sample} has not been scaled by its xsec and lumi")
+                        else:
+                            print("xsec check passed")
+
+                    events["weight_nonorm"] = events["weight"]
                     events["weight"] /= n_events
 
             if not_empty:
                 events_dict[label].append(events)
 
-            # print(f"Loaded {len(events)} entries")
+            print(f"Loaded {sample: <50}: {len(events)} entries")
 
         events_dict[label] = pd.concat(events_dict[label])
 
@@ -316,6 +348,18 @@ def add_selection(name, sel, selection, cutflow, events, weight_key):
     cutflow[name] = np.sum(events[weight_key][selection.all(*selection.names)])
 
 
+def check_get_jec_var(var, jshift):
+    """Checks if var is affected by the JEC / JMSR and if so, returns the shfited var name"""
+
+    if jshift in jec_shifts and var in jec_vars:
+        return var + "_" + jshift
+
+    if jshift in jmsr_shifts and var in jmsr_vars:
+        return var + "_" + jshift
+
+    return var
+
+
 def make_selection(
     var_cuts: Dict[str, List[float]],
     events_dict: Dict[str, pd.DataFrame],
@@ -323,6 +367,7 @@ def make_selection(
     weight_key: str = "finalWeight",
     prev_cutflow: dict = None,
     selection: dict = None,
+    jshift: str = "",
     MAX_VAL: float = CUT_MAX_VAL,
 ):
     """
@@ -361,6 +406,9 @@ def make_selection(
             selection[sample] = PackedSelection()
 
         for var, brange in var_cuts.items():
+            if jshift != "" and sample != data_key:
+                var = check_get_jec_var(var, jshift)
+
             if brange[0] > -MAX_VAL:
                 add_selection(
                     f"{var} > {brange[0]}",
