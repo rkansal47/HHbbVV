@@ -77,8 +77,11 @@ for skey, (sname, ssamples) in uncorr_year_shape_systs.items():
         shape_systs[skey] = (f"{sname}_{year}", ssamples)
         # systs[skey + year] = (f"{sname}_{year}", ssamples)
 
+# systematics which apply only in the pass region
+pass_only = ["txbb"]
+
 shape_systs_dict = {
-    skey: rl.NuisanceParameter(sname, "shape") for skey, (sname,) in shape_systs.items()
+    skey: rl.NuisanceParameter(sname, "shape") for skey, (sname, _) in shape_systs.items()
 }
 
 
@@ -93,6 +96,7 @@ def main(args):
     with open(args.templates_file, "rb") as f:
         templates = pickle.load(f)
 
+    global syst_vals
     syst_vals = {**syst_vals, **templates["systematics"]}  # LP SF and trig effs.
 
     # random template from which to extract common data
@@ -135,6 +139,7 @@ def main(args):
 
     for region in regions:
         region_templates = templates[region]
+        pass_region = "pass" in region
 
         logging.info("starting region: %s" % region)
         ch = rl.Channel(region.replace("_", ""))  # can't have '_'s in name
@@ -182,10 +187,8 @@ def main(args):
             # TODO: shape systematics
 
             for skey, (sname, ssamples) in shape_systs.items():
-                if sample_name not in ssamples:
+                if sample_name not in ssamples or (not pass_region and skey in pass_only):
                     continue
-
-                print(f"{skey} for {sample_name}")
 
                 values_up = region_templates[f"{sample_name}_{skey}_up", :].values()
                 values_down = region_templates[f"{sample_name}_{skey}_down", :].values()
