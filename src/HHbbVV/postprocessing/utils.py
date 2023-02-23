@@ -175,6 +175,10 @@ def load_samples(
             not_empty = len(events) > 0
             pickles_path = f"{data_dir}/{year}/{sample}/pickles"
 
+            if sample == "ZJetsToQQ_HT-200to400":
+                print(f"WARNING: Normalising {sample} by hand")
+                events["weight"] *= 1012.0 * 41480.0
+
             if label != data_key:
                 if label == sig_key:
                     n_events = get_cutflow(pickles_path, year, sample)["has_4q"]
@@ -182,6 +186,12 @@ def load_samples(
                     n_events = get_nevents(pickles_path, year, sample)
 
                 if not_empty:
+                    if "weight_noxsec" in events:
+                        if np.all(events["weight"] == events["weight_noxsec"]):
+                            print(f"WARNING: {sample} has not been scaled by its xsec and lumi")
+                        else:
+                            print("xsec check passed")
+
                     events["weight_nonorm"] = events["weight"]
                     events["weight"] /= n_events
 

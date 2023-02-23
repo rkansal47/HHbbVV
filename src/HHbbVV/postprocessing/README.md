@@ -1,5 +1,7 @@
 # Example Commands
 
+
+
 ## BDT Trainings
 
 ```bash
@@ -9,11 +11,7 @@ python TrainBDT.py --model-dir testBDT --use-sample-weights --equalize-weights -
 ## PostProcessing
 
 ```bash
-python PostProcess.py --templates \
---template-file "templates/bdtcut_0.986_bbcut_0.976.pkl" \
---plot-dir "../../../plots/PostProcess/09_02/" \
---bdt-preds "../../../../data/skimmer/Apr28/absolute_weights_preds.npy" \
---data-dir "../../../../data/skimmer/Apr28/" 
+python postprocessing.py --templates --control-plots --year "2017" --template-file "templates/$TAG.pkl" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb20/"
 ```
 
 ## PlotFits

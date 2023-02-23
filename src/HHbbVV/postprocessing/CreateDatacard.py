@@ -26,56 +26,74 @@ logging.basicConfig(level=logging.INFO)
 adjust_posdef_yields = False
 
 # from utils import add_bool_arg
-from hh_vars import qcd_key, data_key
+from hh_vars import sig_key, qcd_key, data_key, years
 
-LUMI = {"2017": 41.48}
-LP_SF = 1.3
+years = "2017"
 
 mc_samples = OrderedDict(
     [
         ("ggHH_kl_1_kt_1_hbbhww4q", "HHbbVV"),
         ("ttbar", "TT"),
+        ("singletop", "ST"),
+        ("vjets", "V+Jets"),
     ]
 )
 
+all_mc = list(mc_samples.keys())
 
 # dictionary of nuisance params -> modifier
-nuisance_params = {"lumi_13TeV_2017": "lnN", "lp_sf": "lnN"}
+nuisance_params = {"lumi_13TeV_2017": "lnN", "lp_sf": "lnN", "trigger": "lnN"}
 nuisance_params_dict = {
     param: rl.NuisanceParameter(param, unc) for param, unc in nuisance_params.items()
 }
 
-# dictionary of shape systematics -> name in cards
-systs = OrderedDict([])
+# https://gitlab.cern.ch/hh/naming-conventions#experimental-uncertainties
+syst_vals = {
+    "lumi_13TeV_2016": 1.01,
+    "lumi_13TeV_2017": 1.02,
+    "lumi_13TeV_2018": 1.015,
+}
+
+
+# dictionary of shape systematics -> (name in cards, samples affected by it)
+shape_systs = {
+    "FSRPartonShower": ("ps_fsr", [sig_key, "V+Jets"]),
+    "ISRPartonShower": ("ps_isr", [sig_key, "V+Jets"]),
+    "PDFalphaS": ("CMS_bbbb_boosted_ggf_ggHHPDFacc", [sig_key]),
+    "JES": ("CMS_scale_j_2017", all_mc),  # TODO: separate into individual
+    "txbb": ("CMS_bbbb_boosted_ggf_PNetHbbScaleFactors_correlated", [sig_key]),
+    # 'triggerEffSF': 'CMS_bbbb_boosted_ggf_triggerEffSF_uncorrelated'  # TODO: update once trigger uncs. are sorted
+}
+
+uncorr_year_shape_systs = {
+    "pileup": ("CMS_pileup", all_mc),
+    "JER": ("CMS_res_j", all_mc),
+    "JMS": ("CMS_bbbb_boosted_ggf_jms", all_mc),
+    "JMR": ("CMS_bbbb_boosted_ggf_jmr", all_mc),
+}
+
+for skey, (sname, ssamples) in uncorr_year_shape_systs.items():
+    for year in ["2017"]:
+        shape_systs[skey] = (f"{sname}_{year}", ssamples)
+        # systs[skey + year] = (f"{sname}_{year}", ssamples)
+
+shape_systs_dict = {
+    skey: rl.NuisanceParameter(sname, "shape") for skey, (sname,) in shape_systs.items()
+}
+
 
 CMS_PARAMS_LABEL = "CMS_bbWW_boosted_ggf"
 PARAMS_LABEL = "bbWW_boosted_ggf"
 
 
-# # for local interactive testing
-# args = type("test", (object,), {})()
-# args.data_dir = "../../../../data/skimmer/Apr28/"
-# args.plot_dir = "../../../plots/05_26_testing"
-# args.year = "2017"
-# args.bdt_preds = f"{args.data_dir}/absolute_weights_preds.npy"
-# args.templates_file = "templates/test2.pkl"
-# args.cat = "1"
-# args.nDataTF = 2
-
-
 def main(args):
-    # pass, fail x unblinded, blinded
-    regions = [
-        f"{pf}{blind_str}"
-        for pf in [f"passCat{args.cat}", "fail"]
-        for blind_str in ["", "Blinded"]
-        # f"{pf}{blind_str}"
-        # for pf in [f"passCat{args.cat}", "fail"]
-        # for blind_str in ["Blinded"]
-    ]
+    # (pass, fail) x (unblinded, blinded)
+    regions = [f"{pf}{blind_str}" for pf in [f"pass", "fail"] for blind_str in ["", "Blinded"]]
 
     with open(args.templates_file, "rb") as f:
         templates = pickle.load(f)
+
+    syst_vals = {**syst_vals, **templates["systematics"]}  # LP SF and trig effs.
 
     # random template from which to extract common data
     sample_templates = templates[regions[0]]
@@ -90,13 +108,12 @@ def main(args):
 
     # QCD overall pass / fail efficiency
     qcd_eff = (
-        templates[f"passCat{args.cat}"][qcd_key, :].sum().value
-        / templates[f"fail"][qcd_key, :].sum().value
+        templates[f"pass"][qcd_key, :].sum().value / templates[f"fail"][qcd_key, :].sum().value
     )
 
     # transfer factor
     tf_dataResidual = rl.BasisPoly(
-        f"{CMS_PARAMS_LABEL}_tf_dataResidual_cat{args.cat}",
+        f"{CMS_PARAMS_LABEL}_tf_dataResidual",
         (args.nDataTF,),
         [shape_var],
         basis="Bernstein",
@@ -130,14 +147,17 @@ def main(args):
 
             sample_template = region_templates[sample_name, :]
 
+            # TODO: might need to change if HH4b is a background
             stype = rl.Sample.SIGNAL if "HH" in card_name else rl.Sample.BACKGROUND
             sample = rl.TemplateSample(ch.name + "_" + card_name, stype, sample_template)
 
             # systematics
-            sample.setParamEffect(nuisance_params_dict["lumi_13TeV_2017"], 1.02)
+            sample.setParamEffect(
+                nuisance_params_dict["lumi_13TeV_2017"], syst_vals["lumi_13TeV_2017"]
+            )
 
             if sample_name == "HHbbVV":
-                sample.setParamEffect(nuisance_params_dict["lp_sf"], LP_SF)
+                sample.setParamEffect(nuisance_params_dict["lp_sf"], 1 + syst_vals["lp_sf_unc"])
 
             # nominal values, errors
             values_nominal = np.maximum(sample_template.values(), 0.0)
@@ -151,14 +171,49 @@ def main(args):
             logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
             logging.debug("error     : {errors}".format(errors=errors_nominal))
 
-            # set mc stat uncs
-            logging.info("setting autoMCStats for %s in %s" % (sample_name, region))
-
-            sample_name = region.split("Blinded")[0] + f"_{sample_name}"
             if not args.bblite:
-                sample.autoMCStats(sample_name=sample_name)
+                # set mc stat uncs
+                logging.info("setting autoMCStats for %s in %s" % (sample_name, region))
+
+                # same stats unc. for blinded and unblinded cards
+                stats_sample_name = region.split("Blinded")[0] + f"_{sample_name}"
+                sample.autoMCStats(sample_name=stats_sample_name)
 
             # TODO: shape systematics
+
+            for skey, (sname, ssamples) in shape_systs.items():
+                if sample_name not in ssamples:
+                    continue
+
+                print(f"{skey} for {sample_name}")
+
+                values_up = region_templates[f"{sample_name}_{skey}_up", :].values()
+                values_down = region_templates[f"{sample_name}_{skey}_down", :].values()
+
+                effect_up = np.ones_like(values_nominal)
+                effect_down = np.ones_like(values_nominal)
+
+                mask_up = values_up >= 0
+                mask_down = values_down >= 0
+
+                effect_up[mask & mask_up] = (
+                    values_up[mask & mask_up] / values_nominal[mask & mask_up]
+                )
+                effect_down[mask & mask_down] = (
+                    values_down[mask & mask_down] / values_nominal[mask & mask_down]
+                )
+
+                logger = logging.getLogger(
+                    "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
+                )
+                shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger)
+
+                logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
+                logging.debug("effect_up  : {effect_up}".format(effect_up=effect_up))
+                logging.debug("effect_down: {effect_down}".format(effect_down=effect_down))
+
+                sample.setParamEffect(shape_systs_dict[skey], effect_up, effect_down)
+
             ch.addSample(sample)
 
         if args.bblite:
@@ -170,7 +225,7 @@ def main(args):
 
     for blind_str in ["", "Blinded"]:
         # for blind_str in ["Blinded"]:
-        passChName = f"passCat{args.cat}{blind_str}".replace("_", "")
+        passChName = f"pass{blind_str}".replace("_", "")
         failChName = f"fail{blind_str}".replace("_", "")
         logging.info(
             "setting transfer factor for pass region %s, fail region %s" % (passChName, failChName)
@@ -223,6 +278,43 @@ def main(args):
 
     with open(f"{out_dir}/model.pkl", "wb") as fout:
         pickle.dump(model, fout, 2)  # use python 2 compatible protocol
+
+
+def shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger):
+    norm_up = np.sum(values_up)
+    norm_down = np.sum(values_down)
+    norm_nominal = np.sum(values_nominal)
+    prob_up = values_up / norm_up
+    prob_down = values_down / norm_down
+    prob_nominal = values_nominal / norm_nominal
+    shapeEffect_up = np.sum(
+        np.abs(prob_up - prob_nominal) / (np.abs(prob_up) + np.abs(prob_nominal))
+    )
+    shapeEffect_down = np.sum(
+        np.abs(prob_down - prob_nominal) / (np.abs(prob_down) + np.abs(prob_nominal))
+    )
+
+    valid = True
+    if np.allclose(effect_up, 1.0) and np.allclose(effect_down, 1.0):
+        valid = False
+        logger.warning("No shape effect")
+    elif np.allclose(effect_up, effect_down):
+        valid = False
+        logger.warning("Up is the same as Down, but different from nominal")
+    elif np.allclose(effect_up, 1.0) or np.allclose(effect_down, 1.0):
+        valid = False
+        logger.warning("Up or Down is the same as nominal (one-sided)")
+    elif shapeEffect_up < 0.001 and shapeEffect_down < 0.001:
+        valid = False
+        logger.warning("No genuine shape effect (just norm)")
+    elif (norm_up > norm_nominal and norm_down > norm_nominal) or (
+        norm_up < norm_nominal and norm_down < norm_nominal
+    ):
+        valid = False
+        logger.warning("Up and Down vary norm in the same direction")
+
+    if valid:
+        logger.info("Shapes are valid")
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
