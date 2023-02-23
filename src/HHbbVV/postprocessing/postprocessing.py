@@ -49,19 +49,21 @@ _ = importlib.reload(utils)
 _ = importlib.reload(plotting)
 
 
-# Both Jet's Msds > 50 & at least one jet with Txbb > 0.8
-filters = [
-    [
-        ("('ak8FatJetMsd', '0')", ">=", 50),
-        ("('ak8FatJetMsd', '1')", ">=", 50),
-        ("('ak8FatJetParticleNetMD_Txbb', '0')", ">=", 0.8),
-    ],
-    [
-        ("('ak8FatJetMsd', '0')", ">=", 50),
-        ("('ak8FatJetMsd', '1')", ">=", 50),
-        ("('ak8FatJetParticleNetMD_Txbb', '1')", ">=", 0.8),
-    ],
-]
+# # Both Jet's Msds > 50 & at least one jet with Txbb > 0.8
+# filters = [
+#     [
+#         ("('ak8FatJetMsd', '0')", ">=", 50),
+#         ("('ak8FatJetMsd', '1')", ">=", 50),
+#         ("('ak8FatJetParticleNetMD_Txbb', '0')", ">=", 0.8),
+#     ],
+#     [
+#         ("('ak8FatJetMsd', '0')", ">=", 50),
+#         ("('ak8FatJetMsd', '1')", ">=", 50),
+#         ("('ak8FatJetParticleNetMD_Txbb', '1')", ">=", 0.8),
+#     ],
+# ]
+
+filters = None
 
 # {var: (bins, label)}
 control_plot_vars = {
@@ -124,6 +126,8 @@ for year in years:
     selection_regions[year] = sr
 
 
+del year  # creates bugs later
+
 scan_regions = {}
 
 for bdtcut in np.arange(0.97, 1, 0.002):
@@ -174,13 +178,7 @@ def main(args):
     systematics = {}
 
     # utils.remove_empty_parquets(samples_dir, year)
-    events_dict = utils.load_samples(
-        args.signal_samples_dir, {sig_key: samples[sig_key]}, year, filters
-    )
-    events_dict |= utils.load_samples(
-        args.samples_dir, {k: samples[k] for k in samples.keys() - [sig_key]}, year, filters
-    )
-
+    events_dict = utils.load_samples(args.data_dir, samples, args.year, filters)
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", cutflow)
 
     # print weighted sample yields
@@ -188,21 +186,26 @@ def main(args):
         tot_weight = np.sum(events_dict[sample]["weight"].values)
         print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
 
-    apply_weights(events_dict, year, cutflow)
+    apply_weights(events_dict, args.year, cutflow)
     bb_masks = bb_VV_assignment(events_dict)
     events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
-
+    cutflow.to_csv(f"{args.plot_dir}/cutflows/bdt_cutflow.csv")
     print(cutflow)
 
-    load_bdt_preds(events_dict, year, args.samples_dir, list(samples.keys()), jec_jmsr_shifts=True)
+    print("\nLoading BDT predictions\n")
+    load_bdt_preds(
+        events_dict, args.year, args.data_dir, list(samples.keys()), jec_jmsr_shifts=True
+    )
 
     if args.control_plots:
-        control_plots(events_dict, bb_masks, control_plot_vars, args.plot_dir)
-        print("\nMade control plots\n")
+        print("\nMaking control plots\n")
+        control_plots(
+            events_dict, bb_masks, control_plot_vars, f"{args.plot_dir}/control_plots/", show=False
+        )
 
     # BDT LP SF
     sel, cf = utils.make_selection(
-        selection_regions[year]["BDTOnly"], events_dict, bb_masks, prev_cutflow=cutflow
+        selection_regions[args.year]["BDTOnly"], events_dict, bb_masks, prev_cutflow=cutflow
     )
     lp_sf, unc, uncs = get_lpsf(events_dict[sig_key], sel[sig_key])
     print(f"BDT LP Scale Factor: {lp_sf:.2f} ± {unc:.2f}")
@@ -213,6 +216,8 @@ def main(args):
     check_weights(events_dict)
 
     if args.templates:
+        print("\nMaking templates\n")
+
         templates = {}
 
         for jshift in [""] + jec_shifts + jmsr_shifts:
@@ -220,7 +225,8 @@ def main(args):
             ttemps, tsyst = get_templates(
                 events_dict,
                 bb_masks,
-                selection_regions[year],
+                args.year,
+                selection_regions[args.year],
                 shape_var,
                 shape_bins,
                 blind_window,
@@ -234,8 +240,9 @@ def main(args):
             templates = {**templates, **ttemps}
             systematics = {**systematics, **tsyst}
 
+        print("\nSaving templates\n")
         save_templates(templates, blind_window, args.template_file, systematics)
-        print("\nMade and saved templates\n")
+        print("\nSaved templates\n")
 
     if args.scan:
         os.system(f"mkdir -p {args.template_file}")
@@ -260,7 +267,9 @@ def main(args):
 
 def make_dirs(args):
     if args.plot_dir:
-        os.system(f"mkdir -p {args.plot_dir}")
+        os.system(f"mkdir -p {args.plot_dir}/cutflows/")
+        os.system(f"mkdir -p {args.plot_dir}/control_plots/")
+        os.system(f"mkdir -p {args.plot_dir}/templates/")
 
     if args.template_file:
         from pathlib import Path
@@ -268,7 +277,9 @@ def make_dirs(args):
         path = Path(args.template_file)
 
         if path.exists() and not args.overwrite_template:
-            print("Template file already exists -- exiting!")
+            print(
+                "Template file already exists -- exiting! (Use --overwrite-template if you wish to overwrite)"
+            )
             sys.exit()
 
         os.system(f"mkdir -p {path.parent}")
@@ -490,29 +501,6 @@ def get_lpsf(events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True):
     return lp_sf, tot_unc, uncs
 
 
-def derive_variables(events_dict: Dict[str, pd.DataFrame], bb_masks: Dict[str, pd.DataFrame]):
-    """Derives more dijet kinematic variables for control plots."""
-    for sample, events in events_dict.items():
-        bb_mask = bb_masks[sample]
-
-        fatjet_vectors = utils.make_vector(events, "ak8FatJet")
-        Dijet = fatjet_vectors[:, 0] + fatjet_vectors[:, 1]
-
-        events["DijetPt"] = Dijet.pt
-        events["DijetMass"] = Dijet.M
-        events["DijetEta"] = Dijet.eta
-
-        events["bbFatJetPtOverDijetPt"] = (
-            utils.get_feat(events, "bbFatJetPt", bb_mask) / events["DijetPt"]
-        )
-        events["VVFatJetPtOverDijetPt"] = (
-            utils.get_feat(events, "VVFatJetPt", bb_mask) / events["DijetPt"]
-        )
-        events["VVFatJetPtOverbbFatJetPt"] = utils.get_feat(
-            events, "VVFatJetPt", bb_mask
-        ) / utils.get_feat(events, "bbFatJetPt", bb_mask)
-
-
 def load_bdt_preds(
     events_dict: Dict[str, pd.DataFrame],
     year: str,
@@ -549,6 +537,8 @@ def load_bdt_preds(
 
         i += num_events
 
+    assert i == len(bdt_preds), f"# events {i} != # of BDT preds {len(bdt_preds)}"
+
 
 def control_plots(
     events_dict: Dict[str, pd.DataFrame],
@@ -557,6 +547,7 @@ def control_plots(
     plot_dir: str,
     weight_key: str = "finalWeight",
     hists: Dict = {},
+    show: bool = False,
 ):
     """
     Makes and plots histograms of each variable in ``control_plot_vars``.
@@ -591,6 +582,7 @@ def control_plots(
             bg_keys,
             name=name,
             sig_scale=sig_scale,
+            show=show,
         )
         merger_control_plots.append(name)
 
@@ -617,6 +609,7 @@ def check_weights(events_dict):
 def get_templates(
     events_dict: Dict[str, pd.DataFrame],
     bb_masks: Dict[str, pd.DataFrame],
+    year: str,
     selection_regions: Dict[str, Dict],
     shape_var: Tuple[str],
     shape_bins: List[float],
@@ -659,18 +652,18 @@ def get_templates(
     # print(selection_regions)
 
     for label, region in selection_regions.items():
-        print(label)
         pass_region = label.startswith("pass")
 
         if label == "BDTOnly":
             continue
 
-        # if not pass_region:
-        #     continue
+        if not do_jshift:
+            print(label)
 
         sel, cf = utils.make_selection(
             region, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
+        cf.to_csv(f"{plot_dir}/cutflows/{label}_cutflow{jlabel}.csv")
 
         if not do_jshift:
             systematics[label] = {}
@@ -756,7 +749,7 @@ def get_templates(
             plotting.ratioHistPlot(
                 **plot_params,
                 title=title,
-                name=f"{plot_dir}/{cutstr}{label}_region_bb_mass{jlabel}.pdf",
+                name=f"{plot_dir}/templates/{cutstr}{label}_region_bb_mass{jlabel}.pdf",
             )
 
             if not do_jshift:
@@ -768,7 +761,7 @@ def get_templates(
                             **plot_params,
                             sig_err=wshift,
                             title=f"{selection_regions_label[label]} Region {wlabel} Unc. Shapes",
-                            name=f"{plot_dir}/{cutstr}{label}_region_bb_mass_{wshift}.pdf",
+                            name=f"{plot_dir}/templates/{cutstr}{label}_region_bb_mass_{wshift}.pdf",
                         )
                     else:
                         for skey, shift in [("Down", "down"), ("Up", "up")]:
@@ -776,7 +769,7 @@ def get_templates(
                                 **plot_params,
                                 variation=(wshift, shift, wsamples),
                                 title=f"{selection_regions_label[label]} Region {wlabel} Unc. {skey} Shapes",
-                                name=f"{plot_dir}/{cutstr}{label}_region_bb_mass_{wshift}_{shift}.pdf",
+                                name=f"{plot_dir}/templates/{cutstr}{label}_region_bb_mass_{wshift}_{shift}.pdf",
                             )
 
             if pass_region and not do_jshift:
@@ -784,7 +777,7 @@ def get_templates(
                     **plot_params,
                     sig_err="txbb",
                     title=rf"{selection_regions_label[label]} Region $T_{{Xbb}}$ Shapes",
-                    name=f"{plot_dir}/{cutstr}{label}_region_bb_mass_txbb.pdf",
+                    name=f"{plot_dir}/templates/{cutstr}{label}_region_bb_mass_txbb.pdf",
                 )
 
     return templates, systematics

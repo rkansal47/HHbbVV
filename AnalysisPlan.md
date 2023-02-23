@@ -71,18 +71,18 @@
 
 #### Datacard
  - [x] MC Stats
- - [ ] Lumi
- - [ ] Pileup
+ - [x] Lumi
+ - [x] Pileup
  - [ ] Trigger SFs
    - [ ] Stat.
    - [ ] Correlated Syst.
  - [x] ParticleNet Xbb
- - [ ] JES/R
- - [ ] JMS/R
+ - [x] JES/R
+ - [x] JMS/R
  - Theory
-   - [ ] pdf uncertainties
+   - [x] pdf uncertainties
+   - [x] parton shower weights
    - [ ] scale variation?
-   - [ ] parton shower weights
    - [ ] W k factor??
 
 
