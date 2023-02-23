@@ -16,11 +16,14 @@ import xgboost as xgb
 import utils
 import plotting
 
-from hh_vars import sig_key, data_key
+from hh_vars import sig_key, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
 
+from copy import deepcopy
 
 weight_key = "finalWeight"
 
+# only vars used for training
+# TODO: Change VV msd to regressed mass?
 bdtVars = [
     "MET_pt",
     "DijetEta",
@@ -32,6 +35,7 @@ bdtVars = [
     "VVFatJetMsd",
     # "VVFatJetParTMD_THWW4q",
     "VVFatJetParTMD_probQCD",
+    "VVFatJetParTMD_probT",
     "VVFatJetParTMD_probHWW3q",
     "VVFatJetParTMD_probHWW4q",
     "bbFatJetPtOverDijetPt",
@@ -40,8 +44,53 @@ bdtVars = [
 ]
 
 
-def get_X(data: pd.DataFrame):
-    return data.filter(items=bdtVars)
+# ignore bins
+var_label_map = {
+    "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
+    "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
+    "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
+    "DijetMass": ([50, 500, 3000], r"$m^{jj}$ (GeV)"),
+    "bbFatJetEta": ([50, -2.4, 2.4], r"$\eta^{bb}$"),
+    "bbFatJetPt": ([50, 300, 1300], r"$p^{bb}_T$ (GeV)"),
+    "VVFatJetEta": ([50, -2.4, 2.4], r"$\eta^{VV}$"),
+    "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$ (GeV)"),
+    "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$ (GeV)"),
+    "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$ (GeV)"),
+    "VVFatJetParTMD_probT": ([50, 0, 1], r"ParT $Prob(Top)^{VV}$"),
+    "VVFatJetParTMD_probQCD": ([50, 0, 1], r"ParT $Prob(QCD)^{VV}$"),
+    "VVFatJetParTMD_probHWW3q": ([50, 0, 1], r"ParT $Prob(HWW3q)^{VV}$"),
+    "VVFatJetParTMD_probHWW4q": ([50, 0, 1], r"ParT $Prob(HWW4q)^{VV}$"),
+    "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
+    "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
+    "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.0], r"$p^{VV}_T / p^{bb}_T$"),
+}
+
+
+def get_X(data: pd.DataFrame, jec_shift: str = None, jmsr_shift: str = None):
+    """
+    Gets variables for BDT for all samples in ``data``.
+    Optionally gets shifted variables (in which returns only MC samples).
+    """
+    if jec_shift is None and jmsr_shift is None:
+        return data.filter(items=bdtVars)
+
+    mc_vars = deepcopy(bdtVars)
+
+    if jec_shift is not None:
+        for i, var in enumerate(mc_vars):
+            if var in jec_vars:
+                mc_vars[i] = f"{var}_{jec_shift}"
+
+        # print(data.filter(items=[f"bbFatJetPt_{jec_shift}", f"VVFatJetPt_{jec_shift}"])[data["Dataset"] != "Data"].iloc[0])
+        # print(data.filter(items=[f"bbFatJetPt_{jec_shift}", f"VVFatJetPt_{jec_shift}"])[data["Dataset"] != "Data"].iloc[13])
+        # print(data.filter(items=[f"bbFatJetPt_{jec_shift}", f"VVFatJetPt_{jec_shift}"])[data["Dataset"] != "Data"].iloc[21])
+
+    if jmsr_shift is not None:
+        for i, var in enumerate(mc_vars):
+            if var in jmsr_vars:
+                mc_vars[i] = f"{var}_{jmsr_shift}"
+
+    return data.filter(items=mc_vars)[data["Dataset"] != "Data"], mc_vars
 
 
 def get_Y(data: pd.DataFrame):
@@ -73,8 +122,6 @@ def equalize_weights(data: pd.DataFrame):
 
 
 def main(args):
-    print("Setup")
-
     classifier_params = {
         "max_depth": 3,
         "learning_rate": 0.1,
@@ -86,14 +133,19 @@ def main(args):
 
     data = pd.read_parquet(args.data_path)
     training_data = data[
-        (data["Dataset"] == sig_key) | (data["Dataset"] == "QCD") | (data["Dataset"] == "TT")
+        (data["Dataset"] == sig_key)
+        | (data["Dataset"] == "QCD")
+        | (data["Dataset"] == "TT")
+        | (data["Dataset"] == "V+Jets")
     ]
 
-    print(np.unique(training_data["Dataset"]))
+    print("Training samples: ", np.unique(training_data["Dataset"]))
 
     if args.test:
+        data = pd.concat(
+            (data[:50], data[1000000:1000050], data[2000000:2000050], data[-50:]), axis=0
+        )
         # 100 signal, 100 bg events
-        data = data[:100]
         training_data = pd.concat((training_data[:100], training_data[-100:]), axis=0)
 
     if args.equalize_weights:
@@ -127,7 +179,7 @@ def main(args):
         evaluate_model(model, args.model_dir, test)
 
     if not args.evaluate_only:
-        do_inference(model, args.model_dir, data)
+        do_inference(model, args.model_dir, data, "2017")
 
 
 def train_model(
@@ -146,6 +198,7 @@ def train_model(
     print("Training model")
     model = xgb.XGBClassifier(**classifier_params)
     print("Training features: ", list(X_train.columns))
+    assert set(bdtVars) == set(X_train.columns), "Missing Training Vars!"
     trained_model = model.fit(
         X_train,
         y_train,
@@ -172,14 +225,17 @@ def evaluate_model(
 
     preds = model.predict_proba(get_X(test))
 
+    var_labels = [var_label_map[var][1] for var in bdtVars]
+
     # sorting by importance
-    feature_importances = np.stack((bdtVars, model.feature_importances_)).T[
+    feature_importances = np.stack((var_labels, model.feature_importances_)).T[
         np.argsort(model.feature_importances_)[::-1]
     ]
 
     feature_importance_df = pd.DataFrame.from_dict({"Importance": feature_importances[:, 1]})
     feature_importance_df.index = feature_importances[:, 0]
     feature_importance_df.to_csv(f"{model_dir}/feature_importances.csv")
+    feature_importance_df.to_markdown(f"{model_dir}/feature_importances.md")
 
     print(feature_importance_df)
 
@@ -235,15 +291,37 @@ def do_inference(
     model: xgb.XGBClassifier,
     model_dir: str,
     data: pd.DataFrame,
+    year: str,
+    jec_jmsr_shifts: bool = True,
 ):
     """ """
+    os.system(f"mkdir -p {model_dir}/inferences/")
+
     import time
 
     start = time.time()
-    print("Running inference ")
-    preds = model.predict_proba(get_X(data))[:, 1]
+    print("Running inference")
+    X = get_X(data)
+    preds = model.predict_proba(X)[:, 1]
     print(f"Finished in {time.time() - start:.2f}s")
-    np.save(f"{model_dir}/preds.npy", preds)
+    np.save(f"{model_dir}/inferences/{year}_preds.npy", preds)
+
+    if jec_jmsr_shifts:
+        for jshift in jec_shifts:
+            print("Running inference for", jshift)
+            X, mcvars = get_X(data, jec_shift=jshift)
+            # have to change model's feature names since we're passing in a dataframe
+            model.get_booster().feature_names = mcvars
+            preds = model.predict_proba(X)[:, 1]
+            np.save(f"{model_dir}/inferences/{year}_preds_{jshift}.npy", preds)
+
+        for jshift in jmsr_shifts:
+            print("Running inference for", jshift)
+            X, mcvars = get_X(data, jmsr_shift=jshift)
+            # have to change model's feature names since we're passing in a dataframe
+            model.get_booster().feature_names = mcvars
+            preds = model.predict_proba(X)[:, 1]
+            np.save(f"{model_dir}/inferences/{year}_preds_{jshift}.npy", preds)
 
 
 if __name__ == "__main__":
@@ -251,7 +329,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--data-path",
-        default="/hhbbvvvol/data/2017/bdt_data.parquet",
+        default="/hhbbvvvol/data/2017_bdt_data.parquet",
         help="path to training parquet",
         type=str,
     )

@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 import numpy as np
 import gzip
 import pickle
@@ -526,7 +526,7 @@ def get_jmsr(
     return jmsr_shifted_vars
 
 
-def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Tuple[int, ak.Array], num_prongs: int):
+def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Union[int, ak.Array], num_prongs: int):
     """
     Gets the ``num_prongs`` subjet pTs and Delta and kT per primary LP splitting of fatjets at
     ``fatjet_idx`` in each event.
@@ -707,7 +707,7 @@ def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = Fals
 
 def get_lund_SFs(
     events: NanoEventsArray,
-    fatjet_idx: Tuple[int, ak.Array],
+    fatjet_idx: Union[int, ak.Array],
     num_prongs: int,
     gen_quarks: GenParticleArray,
     seed: int = 42,

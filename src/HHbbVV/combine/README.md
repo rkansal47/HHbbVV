@@ -1,4 +1,9 @@
-# combine scripts
+# Combine Scripts
+
+- [Combine Scripts](#combine-scripts)
+  - [CMSSW + Combine Quickstart](#cmssw--combine-quickstart)
+  - [Run basic fits and diagnostics](#run-basic-fits-and-diagnostics)
+
 
 ## CMSSW + Combine Quickstart
 ```bash
@@ -12,4 +17,10 @@ scramv1 b clean; scramv1 b
 cd $CMSSW_BASE/src/
 git clone -b 113x https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 scram b
+```
+
+## Run basic fits and diagnostics
+
+```bash
+/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh "./"
 ```

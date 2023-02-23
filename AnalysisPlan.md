@@ -5,6 +5,7 @@
     - [Trigger Efficiencies](#trigger-efficiencies)
     - [Incorporate remaining systematics](#incorporate-remaining-systematics)
       - [Skimmer](#skimmer)
+      - [Shapes / Values](#shapes--values)
       - [Datacard](#datacard)
     - [Full Run 2 and all samples](#full-run-2-and-all-samples)
       - [Update Processor](#update-processor)
@@ -32,7 +33,7 @@
 
 ### Trigger Efficiencies
 
- - [ ] Measure for all years
+ - [x] Measure for all years
  - [x] **Update selection**
  - [x] Check if binning in VV tagger is necessary (probably not since only btag is in the trigger)
 
@@ -48,24 +49,40 @@
    - [ ] Need UL mSD and regressed mass corrections
  - Theory
    - [x] pdf uncertainties
-   - [x] scale variation?
+   - [x] scale variation
    - [x] parton shower weights
    - [x] W k factor
 
+
+#### Shapes / Values
+ - [x] Pileup
+ - [x] ParticleNet Xbb
+ - [x] JES/R
+ - [x] JMS/R
+ - [x] Trigger SFs
+   - [x] Stat. Unc.
+   - [ ] Correlated Syst.
+ - Theory
+   - [x] pdf uncertainties
+   - [x] parton shower weights
+   - [ ] scale variation
+   - [ ] W k factor
+
+
 #### Datacard
  - [x] MC Stats
- - [ ] Lumi
- - [ ] Pileup
+ - [x] Lumi
+ - [x] Pileup
  - [ ] Trigger SFs
    - [ ] Stat.
    - [ ] Correlated Syst.
  - [x] ParticleNet Xbb
- - [ ] JES/R
- - [ ] JMS/R
+ - [x] JES/R
+ - [x] JMS/R
  - Theory
-   - [ ] pdf uncertainties
+   - [x] pdf uncertainties
+   - [x] parton shower weights
    - [ ] scale variation?
-   - [ ] parton shower weights
    - [ ] W k factor??
 
 
@@ -74,15 +91,16 @@
 - [x] JetHT
 - [x] QCD
 - [x] TTbar
-- [ ] ST: Figure out error in 2017)
+- [x] ST
 - [x] W, Z+jets
 - [x] Diboson
-- [ ] HH4b (kL = 1): Re-run PFNano on preUL (no UL)
 - [x] HHbbWW (all kL)
-- [x] VBF HHbbWW (kL = 1, k2V = 1)
-- [x] Hbb, HWW (ggF, VH, VBF, ttH)
-  - [ ] Missing VBF, VH ttH Hbb
-  - [ ] Missing VH HWW
+- Need xsecs for:
+  https://docs.google.com/spreadsheets/d/1XQQsN4rl3xGDa35W516TwKyadccpfoT7M1mFGxZ4UjQ/edit#gid=1223976475
+  - [x] VBF HHbbWW (kL = 1, k2V = 1)
+  - [x] HH4b (kL = 1) (Pre-UL)
+  - [x] HWW (ggF, VH, VBF, ttH)
+  - [x] Hbb (ggF, VBF, VH, ttH)
 
 #### Update Processor
 
