@@ -138,9 +138,6 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
         sample_short = f1.split("/")[-1]
         print(f" {sample_short}")
 
-        if year == "2016" and sample_short.endswith("HIPM"):
-            continue
-
         if not year in index:
             index[year] = {}
         if not sample_short in index[year]:
@@ -166,6 +163,9 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                 subsample_short = f3.replace("/", "")
                 if "ext1" in subsample_short:
                     print("   Ext1")
+
+                if year == "2016" and subsample_short.endswith("HIPM"):
+                    continue
 
                 # skip non-PSWeights files, and rename PSWeights ones
                 if year == "2018" and subsample_short.startswith("QCD"):

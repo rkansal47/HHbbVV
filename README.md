@@ -21,6 +21,8 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [TaggerInputSkimmer](#taggerinputskimmer)
     - [TTScaleFactorsSkimmer](#ttscalefactorsskimmer)
   - [Misc](#misc)
+    - [Command for copying directories to PRP in background](#command-for-copying-directories-to-prp-in-background)
+    - [Get all running job names:](#get-all-running-job-names)
 
 ## Instructions for running coffea processors
 
@@ -168,9 +170,20 @@ python src/condor/submit.py --year 2018 --tag $TAG --sample TTbar --subsamples T
 
 ## Misc
 
-Command for copying directories to PRP in background ([krsync](https://serverfault.com/a/887402))
+### Command for copying directories to PRP in background 
+
+([krsync](https://serverfault.com/a/887402))
 (you may need to install `rsync` in the PRP pod first if it's been restarted)
+
 ```bash
 cd ~/eos/bbVV/input/${TAG}_${JETS}/2017
 mkdir ../copy_logs
-for i in *; do echo $i && sleep 3 && (nohup sh -c "krsync -av --progress --stats $i/root/ $HWWTAGGERDEP_POD:/hwwtaggervol/training/$FOLDER/$i" &> ../copy_logs/$i.txt &) done```
+for i in *; do echo $i && sleep 3 && (nohup sh -c "krsync -av --progress --stats $i/root/ $HWWTAGGERDEP_POD:/hwwtaggervol/training/$FOLDER/$i" &> ../copy_logs/$i.txt &) done
+```
+
+
+### Get all running job names:
+
+```bash
+condor_q | awk '{ print $9}' | grep -o '[^ ]*\.sh'
+```
