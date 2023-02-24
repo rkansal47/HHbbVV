@@ -23,6 +23,7 @@ import json
 
 import time
 
+import tritonclient
 import tritonclient.grpc as triton_grpc
 import tritonclient.http as triton_http
 
@@ -524,12 +525,19 @@ class wrapped_triton:
 
         output = triton_protocol.InferRequestedOutput(out_name)
 
-        request = client.infer(
-            self._model,
-            model_version=self._version,
-            inputs=inputs,
-            outputs=[output],
-        )
+        # in case of a server error, keep trying to connect for 5 minutes
+        for i in range(60):
+            try:
+                request = client.infer(
+                    self._model,
+                    model_version=self._version,
+                    inputs=inputs,
+                    outputs=[output],
+                )
+                break
+            except tritonclient.utils.InferenceServerException as e:
+                print("Triton Error:", e)
+                time.sleep(5)
 
         return request.as_numpy(out_name)
 
@@ -568,11 +576,6 @@ def runInferenceTriton(
         jet_idx = in_jet_idx if in_jet_idx is not None else j
 
         feature_dict = {
-            # REMOVE FALSE NORMALIZATION!!!!!!!!!!!!!!!!!!!!!
-            #!!!!!!!!!!!!!!!!!
-            #!!!!!!!!!!!!!!!!!!!!!!
-            # **get_pfcands_features(tagger_vars, events, jet_idx, jets, fatjet_label, pfcands_label, normalize=False),
-            # **get_svs_features(tagger_vars, events, jet_idx, jets, fatjet_label, svs_label, normalize=False),
             **get_pfcands_features(tagger_vars, events, jet_idx, jets, fatjet_label, pfcands_label),
             **get_svs_features(tagger_vars, events, jet_idx, jets, fatjet_label, svs_label),
             # **get_lep_features(tagger_vars, events, jet_idx, fatjet_label, muon_label, electron_label),
