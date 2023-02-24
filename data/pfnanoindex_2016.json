@@ -1423,10 +1423,6 @@
       ]
     },
     "JetHT2016": {
-      "JetHT_Run2016B_ver2_HIPM": [],
-      "JetHT_Run2016C_HIPM": [],
-      "JetHT_Run2016D_HIPM": [],
-      "JetHT_Run2016E_HIPM": [],
       "JetHT_Run2016F": [
         "/store/user/lpcpfnano/cmantill/v2_3/2016/JetHT2016/JetHT/JetHT_Run2016F/220701_193506/0000/nano_data2016_1-1.root",
         "/store/user/lpcpfnano/cmantill/v2_3/2016/JetHT2016/JetHT/JetHT_Run2016F/220701_193506/0000/nano_data2016_1-10.root",
@@ -1516,7 +1512,6 @@
         "/store/user/lpcpfnano/cmantill/v2_3/2016/JetHT2016/JetHT/JetHT_Run2016F/220701_193506/0000/nano_data2016_8.root",
         "/store/user/lpcpfnano/cmantill/v2_3/2016/JetHT2016/JetHT/JetHT_Run2016F/220701_193506/0000/nano_data2016_9.root"
       ],
-      "JetHT_Run2016F_HIPM": [],
       "JetHT_Run2016G": [
         "/store/user/lpcpfnano/cmantill/v2_3/2016/JetHT2016/JetHT/JetHT_Run2016G/220701_193626/0000/nano_data2016_1-1.root",
         "/store/user/lpcpfnano/cmantill/v2_3/2016/JetHT2016/JetHT/JetHT_Run2016G/220701_193626/0000/nano_data2016_1-10.root",
