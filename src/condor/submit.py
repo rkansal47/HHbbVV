@@ -97,6 +97,7 @@ def main(args):
                     "subsample": subsample,
                     "processor": args.processor,
                     "maxchunks": args.maxchunks,
+                    "chunksize": args.chunksize,
                     "label": args.label,
                     "njets": args.njets,
                     "eosoutpkl": f"{eosoutput_dir}/pickles/out_{j}.pkl",
@@ -158,6 +159,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--files-per-job", default=20, help="# files per condor job", type=int)
     parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
+    parser.add_argument("--chunksize", default=10000, help="chunk size", type=int)
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
     parser.add_argument("--njets", default=2, help="njets", type=int)
 
