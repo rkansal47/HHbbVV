@@ -74,7 +74,10 @@ def concatenate_dicts(dicts_list: List[Dict[str, np.ndarray]]):
     if len(dicts_list) > 1:
         return {
             key: np.concatenate(
-                [dicts_list[i][key][:, np.newaxis] for i in range(len(dicts_list))],
+                [
+                    dicts_list[i][key].reshape(dicts_list[i][key].shape[0], -1)
+                    for i in range(len(dicts_list))
+                ],
                 axis=1,
             )
             for key in dicts_list[0]

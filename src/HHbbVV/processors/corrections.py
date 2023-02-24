@@ -385,7 +385,7 @@ def add_top_pt_weight(weights: Weights, events: NanoEventsArray):
 
 # find corrections path using this file's path
 try:
-    with gzip.open(package_path + "/corrections/jec_compiled.pkl.gz", "rb") as filehandler:
+    with open(package_path + "/corrections/jec_compiled.pkl", "rb") as filehandler:
         jmestuff = pickle.load(filehandler)
 
     fatjet_factory = jmestuff["fatjet_factory"]
