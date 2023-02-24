@@ -117,7 +117,7 @@ def add_VJets_kFactors(weights, genpart, dataset):
     """Revised version of add_VJets_NLOkFactor, for both NLO EW and ~NNLO QCD"""
 
     vjets_kfactors = correctionlib.CorrectionSet.from_file(
-        package_path + "/data/ULvjets_corrections.json"
+        package_path + "/corrections/ULvjets_corrections.json"
     )
 
     common_systs = [
@@ -385,7 +385,7 @@ def add_top_pt_weight(weights: Weights, events: NanoEventsArray):
 
 # find corrections path using this file's path
 try:
-    with gzip.open(package_path + "/data/jec_compiled.pkl.gz", "rb") as filehandler:
+    with gzip.open(package_path + "/corrections/jec_compiled.pkl.gz", "rb") as filehandler:
         jmestuff = pickle.load(filehandler)
 
     fatjet_factory = jmestuff["fatjet_factory"]
