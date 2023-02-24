@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import awkward as ak
 from coffea import processor
 from hist import Hist
@@ -5,7 +6,7 @@ import numpy as np
 
 from coffea.analysis_tools import PackedSelection
 
-from .utils import add_selection_no_cutflow
+from .utils import add_selection
 from .common import HLTs
 
 
@@ -13,9 +14,9 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
     """Accumulates two 2D (pT, msd) histograms from all input events: 1) before triggers, and 2) after triggers"""
 
     muon_HLTs = {
-        2016: ["IsoMu24", "IsoTkMu24", "Mu50"],
-        2017: ["IsoMu27", "Mu50"],
-        2018: ["IsoMu24", "Mu50"],
+        "2016": ["IsoMu24", "IsoTkMu24", "Mu50"],
+        "2017": ["IsoMu27", "Mu50"],
+        "2018": ["IsoMu24", "Mu50"],
     }
 
     # same selection as in AN-2020-201
@@ -30,14 +31,14 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
     ak8_jet_selection = {
         "eta": 2.4,
-        "delta_phi_muon": 1.5,
+        "delta_r_muon": 1.5,
     }
 
-    # step, min, max
-    pt_bins = (50, 0, 1000)
+    # # bins, min, max
     msd_bins = (15, 0, 300)
 
     # edges
+    pt_bins = [250, 275, 300, 325, 350, 375, 400, 450, 500, 600, 800, 1000]
     tagger_bins = [0.0, 0.9, 0.95, 0.98, 1.0]
 
     def __init__(self, ak15=False):
@@ -51,6 +52,11 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         year = events.metadata["dataset"][:4]
 
         selection = PackedSelection()
+
+        cutflow = OrderedDict()
+        cutflow["all"] = len(events)
+
+        selection_args = (selection, cutflow, True)
 
         # objects
         num_jets = 1
@@ -85,18 +91,18 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         muon = ak.pad_none(muon[muon_selector], 1, axis=1)[:, 0]
 
         muon_selector = ak.any(muon_selector, axis=1)
-        add_selection_no_cutflow("muon", muon_selector, selection)
+        add_selection("muon", muon_selector, *selection_args)
 
         # ak8 jet selection
         fatjet_selector = (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"]) * (
-            np.abs(fatjets.delta_phi(muon)) > self.ak8_jet_selection["delta_phi_muon"]
+            np.abs(fatjets.delta_r(muon)) > self.ak8_jet_selection["delta_r_muon"]
         )
 
-        leading_fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
+        fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
         fatjet_idx = ak.argmax(fatjet_selector, axis=1)  # gets first index which is true
         fatjet_selector = ak.any(fatjet_selector, axis=1)
 
-        add_selection_no_cutflow("ak8_jet", fatjet_selector, selection)
+        add_selection("ak8_jet", fatjet_selector, *selection_args)
 
         fatjets.txbb = fatjets.particleNetMD_Xbb / (
             fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb
@@ -106,7 +112,7 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         h = (
             Hist.new.Var(self.tagger_bins, name="jet1txbb", label="$T_{Xbb}$ Score")
             .Var(self.tagger_bins, name="jet1th4q", label="$T_{H4q}$ Score")
-            .Reg(*self.pt_bins, name="jet1pt", label="$p_T$ (GeV)")
+            .Var(self.pt_bins, name="jet1pt", label="$p_T$ (GeV)")
             .Reg(*self.msd_bins, name="jet1msd", label="$m_{SD}$ (GeV)")
             .Double()
         )
@@ -129,6 +135,8 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
                 jet1pt=fatjets.pt[selection][:, 0].to_numpy(),
                 jet1msd=fatjets.msoftdrop[selection][:, 0].to_numpy(),
             )
+
+        hists["cutflow"] = cutflow
 
         return hists
 
