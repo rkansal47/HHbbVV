@@ -63,6 +63,9 @@ if __name__ == "__main__":
     tag = args.tag
     for key, tdict in samples_to_submit.items():
         for sample, sdict in tdict.items():
+            if sample in ["JetHT", "SingleMu"]:
+                sample += args.year[:4]
+
             args.samples = [sample]
             args.subsamples = sdict.get("subsamples", [])
             args.files_per_job = sdict["files_per_job"]

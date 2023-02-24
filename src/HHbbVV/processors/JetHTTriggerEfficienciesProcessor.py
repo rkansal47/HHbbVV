@@ -6,6 +6,7 @@ import numpy as np
 from coffea.analysis_tools import PackedSelection
 
 from .utils import add_selection_no_cutflow
+from .common import HLTs
 
 
 class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
@@ -32,62 +33,6 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         "delta_phi_muon": 1.5,
     }
 
-    HLTs = {
-        2016: [
-            "AK8DiPFJet250_200_TrimMass30_BTagCSV_p20",
-            "AK8DiPFJet280_200_TrimMass30_BTagCSV_p20",
-            #
-            "AK8PFHT600_TrimR0p1PT0p03Mass50_BTagCSV_p20",
-            "AK8PFHT700_TrimR0p1PT0p03Mass50",
-            #
-            "AK8PFJet360_TrimMass30",
-            "AK8PFJet450",
-            "PFJet450",
-            #
-            "PFHT800",
-            "PFHT900",
-            "PFHT1050",
-            #
-            "PFHT750_4JetPt50",
-            "PFHT750_4JetPt70",
-            "PFHT800_4JetPt50",
-        ],
-        2017: [
-            "PFJet450",
-            "PFJet500",
-            #
-            "AK8PFJet400",
-            "AK8PFJet450",
-            "AK8PFJet500",
-            #
-            "AK8PFJet360_TrimMass30",
-            "AK8PFJet380_TrimMass30",
-            "AK8PFJet400_TrimMass30",
-            #
-            "AK8PFHT750_TrimMass50",
-            "AK8PFHT800_TrimMass50",
-            #
-            "PFHT1050",
-            #
-            "AK8PFJet330_PFAK8BTagCSV_p17",
-        ],
-        2018: [
-            "PFJet500",
-            #
-            "AK8PFJet500",
-            #
-            "AK8PFJet360_TrimMass30",
-            "AK8PFJet380_TrimMass30",
-            "AK8PFJet400_TrimMass30",
-            "AK8PFHT750_TrimMass50",
-            "AK8PFHT800_TrimMass50",
-            #
-            "PFHT1050",
-            #
-            "HLT_AK8PFJet330_TrimMass30_PFAK8BTagCSV_p17_v",
-        ],
-    }
-
     # step, min, max
     pt_bins = (50, 0, 1000)
     msd_bins = (15, 0, 300)
@@ -103,7 +48,7 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
     def process(self, events):
         """Returns pre- (den) and post- (num) trigger 2D (pT, msd) histograms from input NanoAOD events"""
 
-        year = int(events.metadata["dataset"][:4])
+        year = events.metadata["dataset"][:4]
 
         selection = PackedSelection()
 
@@ -121,7 +66,7 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         # passing our triggers
         bbVV_triggered = np.any(
             np.array(
-                [events.HLT[trigger] for trigger in self.HLTs[year] if trigger in events.HLT.fields]
+                [events.HLT[trigger] for trigger in HLTs[year] if trigger in events.HLT.fields]
             ),
             axis=0,
         )
