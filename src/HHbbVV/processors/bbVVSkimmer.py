@@ -518,11 +518,12 @@ class bbVVSkimmer(processor.ProcessorABC):
                             trunc_gauss=False,
                             lnN=True,
                         )
+                        items = selected_sfs[key].items()
 
                 sf_dict = {}
 
                 # collect all the scale factors, fill in 0s for unmatched jets
-                for key, val in selected_sfs["bb"].items():
+                for key, val in items:
                     arr = np.ones((np.sum(sel_all), val.shape[1]))
 
                     for select_key, (selector, _, _) in selectors.items():
