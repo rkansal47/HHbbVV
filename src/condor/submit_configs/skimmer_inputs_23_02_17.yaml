@@ -25,8 +25,8 @@
                             "QCD_HT1500to2000",
                             "QCD_HT2000toInf",
                         ], "chunksize": 30000 },
-            "WJetsToQQ": { "files_per_job": 20, "chunksize": 30000 },
-            "ZJetsToQQ": { "files_per_job": 20, "chunksize": 30000 },
+            "WJetsToQQ": { "files_per_job": 20, "chunksize": 50000 },
+            "ZJetsToQQ": { "files_per_job": 20, "chunksize": 50000 },
             "Diboson": { "files_per_job": 20, "chunksize": 100000 },
             "TTbar":
                 {
