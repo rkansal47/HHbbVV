@@ -1,6 +1,6 @@
 { "Skimmer": {
             # submit script will append year to this
-            "JetHT": { "files_per_job": 20, "chunksize": 40000 },
+            "JetHT": { "files_per_job": 20, "chunksize": 80000 },
             "HH": {
                     "subsamples": [
                             # "GluGluToHHTobbVV_node_cHHH0",
@@ -13,7 +13,7 @@
                     # "GluGluToHHTo4B_node_cHHH1_preUL",
                     # "GluGluToHHTo4B_node_cHHH2p45_preUL",
                     # "GluGluToHHTo4B_node_cHHH5_preUL",
-                    "files_per_job": 10,
+                    "files_per_job": 8,
                     "chunksize": 10000,
                 },
             "QCD": { "files_per_job": 20, "subsamples": [

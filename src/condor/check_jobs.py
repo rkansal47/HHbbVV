@@ -76,6 +76,7 @@ else:
 
 
 missing_files = []
+err_files = []
 
 
 for sample in samples:
@@ -117,7 +118,9 @@ for sample in samples:
 
             print_red(f"Missing output pickle #{i} for sample {sample}")
             jdl_file = f"condor/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
+            err_file = f"condor/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
             missing_files.append(jdl_file)
+            err_files.append(err_file)
             if args.submit_missing:
                 os.system(f"condor_submit {jdl_file}")
 
@@ -128,4 +131,8 @@ for sample in samples:
 
 print(f"{len(missing_files)} files to re-run:")
 for f in missing_files:
+    print(f)
+
+print(f"\nError files:")
+for f in err_files:
     print(f)
