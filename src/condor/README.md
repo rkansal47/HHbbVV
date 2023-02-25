@@ -20,7 +20,7 @@ nohup version:
 (Do `condor_q | awk '{ print $9}' | grep -o '[^ ]*\.sh' > running_jobs.txt` first to get a list of jobs which are running.)
 
 ```bash
-nohup bash -c 'for year in 2016APV 2016 2017 2018; do python src/condor/check_jobs.py --year $year --tag '"${TAG}"' --processor skimmer --submit --yaml --check-running; done' &> tmp/submitout.txt &
+nohup bash -c 'for year in 2016APV 2016 2017 2018; do python src/condor/check_jobs.py --year $year --tag '"${TAG}"' --processor skimmer --submit --check-running; done' &> tmp/submitout.txt &
 ```
 
 ### Combine pickles
