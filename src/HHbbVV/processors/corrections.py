@@ -415,7 +415,7 @@ def get_jec_jets(
 
     jec_vars = ["pt"]  # vars we're saving that are affected by JECs
 
-    apply_jecs = not (not ak.any(events.FatJet) or isData)
+    apply_jecs = not (not ak.any(events.FatJet.pt) or isData)
 
     import cachetools
 
