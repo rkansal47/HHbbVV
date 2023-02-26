@@ -1,5 +1,6 @@
 { "Skimmer": {
-            "JetHT": { "files_per_job": 20 },  # submit script will append year to this
+            # submit script will append year to this
+            "JetHT": { "files_per_job": 20, "chunksize": 80000 },
             "HH": {
                     "subsamples": [
                             # "GluGluToHHTobbVV_node_cHHH0",
@@ -12,29 +13,26 @@
                     # "GluGluToHHTo4B_node_cHHH1_preUL",
                     # "GluGluToHHTo4B_node_cHHH2p45_preUL",
                     # "GluGluToHHTo4B_node_cHHH5_preUL",
-                    "files_per_job": 10,
+                    "files_per_job": 8,
+                    "chunksize": 10000,
                 },
-            "QCD":
-                {
-                    "files_per_job": 20,
-                    "subsamples":
-                        [
-                            "QCD_HT200to300",
+            "QCD": { "files_per_job": 20, "subsamples": [
+                            # "QCD_HT200to300",
                             "QCD_HT300to500",
                             "QCD_HT500to700",
                             "QCD_HT700to1000",
                             "QCD_HT1000to1500",
                             "QCD_HT1500to2000",
                             "QCD_HT2000toInf",
-                        ],
-                },
-            "WJetsToQQ": { "files_per_job": 20 },
-            "ZJetsToQQ": { "files_per_job": 20 },
-            "Diboson": { "files_per_job": 20 },
+                        ], "chunksize": 30000 },
+            "WJetsToQQ": { "files_per_job": 20, "chunksize": 50000 },
+            "ZJetsToQQ": { "files_per_job": 20, "chunksize": 50000 },
+            "Diboson": { "files_per_job": 20, "chunksize": 100000 },
             "TTbar":
                 {
                     "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
                     "files_per_job": 20,
+                    "chunksize": 30000,
                 },
             # "TTbarBoosted": { "files_per_job": 20 },
             "SingleTop":
@@ -44,10 +42,10 @@
                             "ST_tW_antitop_5f_inclusiveDecays",
                             "ST_tW_top_5f_inclusiveDecays",
                             "ST_s-channel_4f_hadronicDecays",
-                            "ST_s-channel_4f_leptonDecays",
                             "ST_t-channel_antitop_4f_InclusiveDecays",
                         ],
                     "files_per_job": 20,
+                    "chunksize": 100000,
                 },
         } }
 # "HWW":
