@@ -72,6 +72,7 @@ if __name__ == "__main__":
     indir = f"{tag_dir}/{args.year}/"
 
     outdir = f"/eos/uscms/store/user/{args.outuser}/bbVV/{args.processor}/{args.tag}/"
+    os.system(f"mkdir -p {outdir}")
 
     print(f"Inputs directory:", indir)
     print(f"Outputs directory:", outdir)
@@ -80,7 +81,9 @@ if __name__ == "__main__":
 
     if args.r:
         dirs = [
-            indir + "/" + d + "/pickles/" for d in listdir(indir) if os.path.isdir(indir + "/" + d)
+            indir + "/" + d + "/pickles/"
+            for d in listdir(indir)
+            if os.path.isdir(indir + "/" + d + "/pickles/")
         ]
         print(dirs)
 
