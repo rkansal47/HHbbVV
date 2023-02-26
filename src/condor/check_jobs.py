@@ -31,6 +31,12 @@ parser.add_argument("--tag", default="", help="tag for jobs", type=str)
 parser.add_argument("--year", default="2017", help="year", type=str)
 parser.add_argument("--user", default="rkansal", help="user", type=str)
 run_utils.add_bool_arg(parser, "submit-missing", default=False, help="submit missing files")
+run_utils.add_bool_arg(
+    parser,
+    "check-running",
+    default=False,
+    help="check against running jobs as well (running_jobs.txt must be updated)",
+)
 
 args = parser.parse_args()
 
@@ -48,7 +54,11 @@ jdls = [
 
 jdl_dict = {
     sample: np.sort(
-        [int(jdl[:-4].split("_")[-1]) for jdl in jdls if "_".join(jdl.split("_")[1:-1]) == sample]
+        [
+            int(jdl[:-4].split("_")[-1])
+            for jdl in jdls
+            if jdl.split("_")[0] == args.year and "_".join(jdl.split("_")[1:-1]) == sample
+        ]
     )[-1]
     for sample in samples
 }
@@ -58,7 +68,15 @@ def print_red(s):
     return print(f"{Fore.RED}{s}{Style.RESET_ALL}")
 
 
+if args.check_running:
+    with open("running_jobs.txt", "r") as f:
+        running_jobs = [s[:-1] for s in f.readlines()]
+else:
+    running_jobs = []
+
+
 missing_files = []
+err_files = []
 
 
 for sample in samples:
@@ -67,6 +85,13 @@ for sample in samples:
     if args.processor != "trigger":
         if not exists(f"{eosdir}/{sample}/parquet"):
             print_red(f"No parquet directory for {sample}!")
+
+            for i in range(jdl_dict[sample]):
+                jdl_file = f"condor/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
+                missing_files.append(jdl_file)
+                if args.submit_missing:
+                    os.system(f"condor_submit {jdl_file}")
+
             continue
 
         outs_parquet = [
@@ -87,9 +112,15 @@ for sample in samples:
 
     for i in range(jdl_dict[sample]):
         if i not in outs_pickles:
+            if f"{args.year}_{sample}_{i}.sh" in running_jobs:
+                print(f"Job #{i} for sample {sample} is running.")
+                continue
+
             print_red(f"Missing output pickle #{i} for sample {sample}")
             jdl_file = f"condor/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
+            err_file = f"condor/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
             missing_files.append(jdl_file)
+            err_files.append(err_file)
             if args.submit_missing:
                 os.system(f"condor_submit {jdl_file}")
 
@@ -98,6 +129,10 @@ for sample in samples:
                 print_red(f"Missing output parquet #{i} for sample {sample}")
 
 
-print("Files to re-run:")
+print(f"{len(missing_files)} files to re-run:")
 for f in missing_files:
+    print(f)
+
+print(f"\nError files:")
+for f in err_files:
     print(f)
