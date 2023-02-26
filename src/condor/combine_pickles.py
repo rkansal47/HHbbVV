@@ -48,15 +48,33 @@ if __name__ == "__main__":
     )
     parser.add_argument("--tag", type=str, required=True)
     parser.add_argument("--name", default="combined", help="name of combined files", type=str)
+    parser.add_argument(
+        "--inuser", default="", help="username where pickles are saved (if not you)", type=str
+    )
+    parser.add_argument(
+        "--outuser",
+        default="",
+        help="username where combined output will be saved (if not you)",
+        type=str,
+    )
     run_utils.add_bool_arg(
         parser, "r", default=False, help="combine files in sub and subsubdirectories of indir"
     )
     args = parser.parse_args()
 
-    tag_dir = f"/eos/uscms/store/user/rkansal/bbVV/{args.processor}/{args.tag}"
+    user = os.getlogin()
+    if args.inuser == "":
+        args.inuser = user
+    if args.outuser == "":
+        args.outuser = user
+
+    tag_dir = f"/eos/uscms/store/user/{args.inuser}/bbVV/{args.processor}/{args.tag}"
     indir = f"{tag_dir}/{args.year}/"
 
-    print(indir)
+    outdir = f"/eos/uscms/store/user/{args.outuser}/bbVV/{args.processor}/{args.tag}/"
+
+    print(f"Inputs directory:", indir)
+    print(f"Outputs directory:", outdir)
 
     files = [indir + "/" + file for file in listdir(indir) if file.endswith(".pkl")]
 
@@ -75,7 +93,7 @@ if __name__ == "__main__":
     print(f"Accumulating {len(files)} files")
     out = accumulate_files(files)
 
-    with open(f"{tag_dir}/{args.year}_{args.name}.pkl", "wb") as f:
+    with open(f"{outdir}/{args.year}_{args.name}.pkl", "wb") as f:
         pickle.dump(out, f)
 
-    print(f"Saved to {tag_dir}/{args.year}_{args.name}.pkl")
+    print(f"Saved to {outdir}/{args.year}_{args.name}.pkl")
