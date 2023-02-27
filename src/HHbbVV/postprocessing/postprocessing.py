@@ -171,7 +171,7 @@ def main(args):
         return
 
     # make plot, template dirs if needed
-    make_dirs(args)
+    _make_dirs(args)
 
     # save cutflow as pandas table
     cutflow = pd.DataFrame(index=list(samples.keys()))
@@ -265,8 +265,8 @@ def main(args):
             save_templates(templates[cutstr], blind_window, f"{args.template_file}/{cutstr}.pkl")
 
 
-def make_dirs(args):
-    if args.plot_dir:
+def _make_dirs(args):
+    if args.plot_dir != "":
         os.system(f"mkdir -p {args.plot_dir}/cutflows/")
         os.system(f"mkdir -p {args.plot_dir}/control_plots/")
         os.system(f"mkdir -p {args.plot_dir}/templates/")

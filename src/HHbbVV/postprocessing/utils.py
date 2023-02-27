@@ -166,18 +166,10 @@ def load_samples(
                 print(f"No parquet file for {sample}")
                 continue
 
-            if sample in ["QCD_HT200to300", "WJetsToQQ_HT-200to400"]:
-                print(f"WARNING: IGNORING {sample} because of empty df bug")
-                continue
-
             # print(f"Loading {sample}")
             events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
             not_empty = len(events) > 0
             pickles_path = f"{data_dir}/{year}/{sample}/pickles"
-
-            if sample == "ZJetsToQQ_HT-200to400":
-                print(f"WARNING: Normalising {sample} by hand")
-                events["weight"] *= 1012.0 * 41480.0
 
             if label != data_key:
                 if label == sig_key:
@@ -189,8 +181,6 @@ def load_samples(
                     if "weight_noxsec" in events:
                         if np.all(events["weight"] == events["weight_noxsec"]):
                             print(f"WARNING: {sample} has not been scaled by its xsec and lumi")
-                        else:
-                            print("xsec check passed")
 
                     events["weight_nonorm"] = events["weight"]
                     events["weight"] /= n_events
