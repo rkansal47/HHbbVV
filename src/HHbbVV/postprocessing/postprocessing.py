@@ -509,11 +509,11 @@ def load_bdt_preds(
         bdt_sample_order (List[str]): Order of samples in the predictions file.
 
     """
-    bdt_preds = np.load(f"{bdt_preds_dir}/{year}_preds.npy")
+    bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
 
     if jec_jmsr_shifts:
         shift_preds = {
-            jshift: np.load(f"{bdt_preds_dir}/{year}_preds_{jshift}.npy")
+            jshift: np.load(f"{bdt_preds_dir}/{year}/preds_{jshift}.npy")
             for jshift in jec_shifts + jmsr_shifts
         }
 
