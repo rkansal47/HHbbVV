@@ -20,6 +20,12 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [bbVVSkimmer](#bbvvskimmer)
     - [TaggerInputSkimmer](#taggerinputskimmer)
     - [TTScaleFactorsSkimmer](#ttscalefactorsskimmer)
+  - [Post Processing](#post-processing)
+    - [BDT Pre-Processing](#bdt-pre-processing)
+    - [BDT Trainings](#bdt-trainings)
+    - [Post-Processing](#post-processing-1)
+    - [CreateDatacard.py](#createdatacardpy)
+    - [PlotFits](#plotfits)
   - [Misc](#misc)
     - [Command for copying directories to PRP in background](#command-for-copying-directories-to-prp-in-background)
     - [Get all running job names:](#get-all-running-job-names)
@@ -166,6 +172,46 @@ Or to submit only the signal:
 python src/condor/submit.py --year 2018 --tag $TAG --sample TTbar --subsamples TTToSemiLeptonic --processor ttsfs --submit
 ```
 
+
+## Post Processing
+
+In `src/HHbbVV/postprocessing':
+
+
+### BDT Pre-Processing
+
+```bash
+python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --plot-dir "../../../plots/PostProcessing/$TAG/" --year "2017" --bdt-data (--control-plots)
+```
+
+### BDT Trainings
+
+```bash
+python TrainBDT.py --model-dir testBDT --use-sample-weights --equalize-weights --absolute-weights --data-path "../../../../data/skimmer/Feb20/bdt_data.parquet"
+```
+
+
+### Post-Processing
+
+```bash
+python postprocessing.py --templates --control-plots --year "2017" --template-file "templates/$TAG.pkl" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb20/"
+```
+
+
+### CreateDatacard.py
+
+Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rhalphalib installed (`pip install -e . --user` after checking out the branch). `CMSSW_11_2_0` recommended.
+
+```bash
+python3 postprocessing/CreateDatacard.py --templates-file templates/Jan31/templates.pkl --model-name Jan31
+```
+
+
+### PlotFits
+
+```bash
+python PlotFits.py --fit-file "cards/test_tied_stats/fitDiagnosticsBlindedBkgOnly.root" --plots-dir "../../../plots/PostFit/09_02/"
+```
 
 
 ## Misc
