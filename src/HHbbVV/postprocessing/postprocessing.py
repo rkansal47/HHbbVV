@@ -574,6 +574,7 @@ def control_plots(
         name = f"{plot_dir}/{var}.pdf"
         plotting.ratioHistPlot(
             var_hist,
+            year,
             bg_keys,
             name=name,
             sig_scale=sig_scale,
