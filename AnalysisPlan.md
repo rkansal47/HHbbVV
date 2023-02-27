@@ -8,7 +8,8 @@
       - [Shapes / Values](#shapes--values)
       - [Datacard](#datacard)
     - [Full Run 2 and all samples](#full-run-2-and-all-samples)
-      - [Update Processor](#update-processor)
+      - [Update processor](#update-processor)
+      - [Update post-processing](#update-post-processing)
     - [Scans](#scans)
     - [TTbar corrections](#ttbar-corrections)
     - [Statistical tests of fits](#statistical-tests-of-fits)
@@ -17,7 +18,7 @@
     - [Feb 13 - 17](#feb-13---17)
     - [Feb 20 - 24](#feb-20---24)
     - [Feb 27 - 3](#feb-27---3)
-    - [In progress:](#in-progress)
+  - [In progress:](#in-progress)
   - [~Completed:](#completed)
     - [Preliminary 2017 cut-based signal and background yields estimate](#preliminary-2017-cut-based-signal-and-background-yields-estimate)
     - [Preliminary 2017 trigger scale factor measurements](#preliminary-2017-trigger-scale-factor-measurements)
@@ -27,6 +28,7 @@
     - [Tagger](#tagger)
     - [Fits, combine](#fits-combine)
     - [Samples generation](#samples-generation)
+    - [Lund plane scale factors](#lund-plane-scale-factors)
 
 
 ## TODOs
@@ -36,6 +38,7 @@
  - [x] Measure for all years
  - [x] **Update selection**
  - [x] Check if binning in VV tagger is necessary (probably not since only btag is in the trigger)
+ - [ ] Investigate high unc.
 
 
 ### Incorporate remaining systematics
@@ -102,7 +105,7 @@
   - [x] HWW (ggF, VH, VBF, ttH)
   - [x] Hbb (ggF, VBF, VH, ttH)
 
-#### Update Processor
+#### Update processor
 
 - [x] FatJet selections
 - [x] Modify JECs code to save only variations of pT
@@ -111,6 +114,15 @@
 - [x] Add e, mu, b-tag jets
 - [x] Add tagger vars
 - [x] Dijet variables
+  - [ ] Re-run with VV regressed mass for Dijet variables
+
+
+#### Update post-processing
+
+ - [x] Check control plots for all years
+ - [ ] Re-train BDT for all years
+ - [ ] Templates, systematics for all years
+ - [ ] Update datacard with all years
 
 
 ### Scans
@@ -148,45 +160,41 @@
 ### Feb 13 - 17
 
 Raghav:
- - Trigger efficiencies
- - Full run 2, all samples
-   - update xsecs
- - Add to skimmer:
-   - num e, mu
-   - e, mu 4 vectors 
-   - ak4 b jets (medium btag) - outside bb jet
-   - check control plots on num_x
- - Check vetoes on these
+ - [x] Trigger efficiencies
+ - [x] Add to skimmer:
+   - [x] num e, mu
+   - [ ] e, mu 4 vectors 
+   - [x] ak4 b jets (medium btag) - outside bb jet
+   - [x] check control plots on num_x
+ - [ ] Check vetoes on these
 
 Cristina
- - Systematics
+ - [x] Systematics
 
 
 ### Feb 20 - 24
 
 Raghav:
- - 2017 fits
-   - PR: Systematics into datacard
+ - [x] 2017 fits
+   - [x] PR: Systematics into datacard
 
 Cristina:
- - Goodness-of-fit, f-test, impacts 
+ - [x] update xsecs
+ - [ ] Goodness-of-fit, f-test, impacts 
 
 
 ### Feb 27 - 3
 
- - ttbar
- - Scans repository
+Raghav:
+- [ ] Full run 2, all samples
 
 
-### In progress:
+## In progress:
 
- - Applying Lund plane scale factors to non-resonant signal
- - New fits, limits on HH with scale factors
  - AN: https://gitlab.cern.ch/tdr/notes/AN-21-126
 
 
 ## ~Completed:
-
 
 
 ### Preliminary 2017 cut-based signal and background yields estimate 
@@ -247,3 +255,8 @@ Currently have for UL 2017:
 
 2) Need to use `RunIISummer20UL17` in PFNano for next production
 
+
+### Lund plane scale factors
+
+ - Implemented and validated for top jets in control region
+ - Implemented and measured for nonresonant signal
