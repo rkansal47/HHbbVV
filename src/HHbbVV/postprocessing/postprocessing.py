@@ -16,6 +16,7 @@ import pickle
 
 import numpy as np
 import pandas as pd
+from pandas.errors import SettingWithCopyWarning
 from hist import Hist
 
 import utils
@@ -42,11 +43,11 @@ from utils import CUT_MAX_VAL
 
 from pprint import pprint
 from copy import deepcopy
+import warnings
 
-import importlib
 
-_ = importlib.reload(utils)
-_ = importlib.reload(plotting)
+# ignore these because they don't seem to apply
+warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
 
 # Both Jet's Regressed Mass above 50, electron veto
@@ -88,18 +89,19 @@ control_plot_vars = {
     "BDTScore": ([50, 0, 1], r"BDT Score"),
 }
 
+bdt_cut = 0.99
 
 # {label: {cutvar: [min, max], ...}, ...}
 selection_regions_year = {
     "pass": {
-        "BDTScore": [0.986, CUT_MAX_VAL],
+        "BDTScore": [bdt_cut, CUT_MAX_VAL],
         "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
     },
     "fail": {
         "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
     },
     "BDTOnly": {
-        "BDTScore": [0.986, CUT_MAX_VAL],
+        "BDTScore": [bdt_cut, CUT_MAX_VAL],
     },
 }
 
@@ -174,6 +176,7 @@ def main(args):
     events_dict = utils.load_samples(args.data_dir, samples, args.year, filters)
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", cutflow)
 
+    print("")
     # print weighted sample yields
     for sample in events_dict:
         tot_weight = np.sum(events_dict[sample]["weight"].values)
@@ -183,11 +186,15 @@ def main(args):
     bb_masks = bb_VV_assignment(events_dict)
     events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
     cutflow.to_csv(f"{args.plot_dir}/cutflows/bdt_cutflow.csv")
-    print(cutflow)
+    print("\nCutflow\n", cutflow)
 
     print("\nLoading BDT predictions\n")
     load_bdt_preds(
-        events_dict, args.year, args.data_dir, list(samples.keys()), jec_jmsr_shifts=True
+        events_dict,
+        args.year,
+        f"{args.data_dir}/inferences/" if args.bdt_preds == "" else args.bdt_preds,
+        list(samples.keys()),
+        jec_jmsr_shifts=True,
     )
 
     if args.control_plots:
@@ -205,7 +212,7 @@ def main(args):
     print(uncs)
     systematics["lp_sf_unc"] = unc / lp_sf
 
-    print(cf)
+    print("\nCutflow\n", cf)
     check_weights(events_dict)
 
     if args.templates:
@@ -261,7 +268,8 @@ def main(args):
 def _make_dirs(args):
     if args.plot_dir != "":
         os.system(f"mkdir -p {args.plot_dir}/cutflows/")
-        os.system(f"mkdir -p {args.plot_dir}/control_plots/")
+        if args.control_plots:
+            os.system(f"mkdir -p {args.plot_dir}/control_plots/")
         os.system(f"mkdir -p {args.plot_dir}/templates/")
 
     if args.template_file:
@@ -487,8 +495,8 @@ def get_lpsf(
     tot_rel_unc = np.linalg.norm([val for val in uncs.values()])
     tot_unc = lp_sf * tot_rel_unc
 
-    events[weight_key] = events[weight_key][0] * lp_sf
-    events[weight_key + "_noTrigEffs"] = events[weight_key + "_noTrigEffs"][0] * lp_sf
+    events[weight_key] = events[weight_key] * lp_sf
+    events[weight_key + "_noTrigEffs"] = events[weight_key + "_noTrigEffs"] * lp_sf
 
     return lp_sf, tot_unc, uncs
 
@@ -591,7 +599,7 @@ def control_plots(
 def check_weights(events_dict):
     # Check for 0 weights - would be an issue for weight shifts
     print(
-        "Any 0 weights:",
+        "\nAny 0 weights:",
         np.any(
             [
                 np.any(events["weight_nonorm"] == 0)
@@ -666,6 +674,7 @@ def get_templates(
             systematics[label]["trig_unc"] = corrections.get_uncorr_trig_eff_unc(
                 events_dict, bb_masks, year, sel
             )
+            print("Trigger SF Unc.:", systematics[label]["trig_unc"])
 
         # ParticleNetMD Txbb SFs
         sig_events = deepcopy(events_dict[sig_key][sel[sig_key]])
@@ -735,7 +744,13 @@ def get_templates(
 
         if plot_dir != "":
             sig_scale = utils.getSignalPlotScaleFactor(events_dict, selection=sel)
-            plot_params = {"hists": h, "bg_keys": bg_keys, "sig_scale": sig_scale / 2, "show": show}
+            plot_params = {
+                "hists": h,
+                "bg_keys": bg_keys,
+                "sig_scale": sig_scale / 2,
+                "show": show,
+                "year": year,
+            }
 
             if not do_jshift:
                 title = f"{selection_regions_label[label]} Region Pre-Fit Shapes"
@@ -809,7 +824,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data-dir",
         dest="data_dir",
-        default="../../../../data/skimmer/Apr28/",
+        default="../../../../data/skimmer/Feb24/",
         help="path to skimmed parquet",
         type=str,
     )
@@ -823,8 +838,8 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--bdt-preds",
-        help="path to bdt predictions, if empty, don't load",
-        default="../../../../data/skimmer/Apr28/absolute_weights_preds.npy",
+        help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
+        default="",
         type=str,
     )
 
