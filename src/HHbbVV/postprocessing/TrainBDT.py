@@ -12,7 +12,8 @@ import warnings
 
 import numpy as np
 import pandas as pd
-from pandas.errors import SettingWithCopyWarning
+
+# from pandas.errors import SettingWithCopyWarning
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc
@@ -27,7 +28,7 @@ from copy import deepcopy
 
 
 # ignore these because they don't seem to apply
-warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
+# warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
 
 weight_key = "finalWeight"
