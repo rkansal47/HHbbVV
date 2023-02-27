@@ -9,11 +9,11 @@ import matplotlib.pyplot as plt
 import mplhep as hep
 import matplotlib.ticker as mticker
 
-plt.rcParams.update({"font.size": 16})
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
 formatter = mticker.ScalarFormatter(useMathText=True)
 formatter.set_powerlimits((-3, 3))
+plt.rcParams.update({"font.size": 28})
 
 from hist import Hist
 from hist.intervals import ratio_uncertainty
@@ -77,11 +77,7 @@ def ratioHistPlot(
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
     scaled) with a data/mc ratio plot below
     """
-    plt.style.use(hep.style.CMS)
-    hep.style.use("CMS")
-    formatter = mticker.ScalarFormatter(useMathText=True)
-    formatter.set_powerlimits((-3, 3))
-    plt.rcParams.update({"font.size": 16})
+    # plt.rcParams.update({"font.size": 28})
 
     sig_key = "HHbbVV"
     bg_keys = [key for key in bg_order if key in bg_keys]

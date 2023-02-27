@@ -181,7 +181,7 @@ In `src/HHbbVV/postprocessing':
 ### BDT Pre-Processing
 
 ```bash
-python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --plot-dir "../../../plots/PostProcessing/$TAG/" --year "2017" --bdt-data (--control-plots)
+python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --plot-dir "../../../plots/BDTPreProcessing/$TAG/" --year "2017" --bdt-data (--control-plots)
 ```
 
 ### BDT Trainings
