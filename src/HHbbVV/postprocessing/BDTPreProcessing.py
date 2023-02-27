@@ -85,13 +85,18 @@ def main(args):
 
     if args.bdt_data:
         print("\nSaving BDT Data")
-        save_bdt_data(events_dict, bb_masks, f"{args.data_dir}/{args.year}_bdt_data.parquet")
+        save_bdt_data(
+            events_dict, bb_masks, f"{args.data_dir}/bdt_data/{args.year}_bdt_data.parquet"
+        )
         print("Saved BDT Data")
 
 
 def _make_dirs(args):
     if args.plot_dir != "" and args.control_plots:
         os.system(f"mkdir -p {args.plot_dir}/{args.year}/")
+
+    if args.bdt_data:
+        os.system(f"mkdir -p {args.data_dir}/bdt_data/")
 
 
 def save_bdt_data(
