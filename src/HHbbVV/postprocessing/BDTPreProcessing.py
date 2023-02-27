@@ -42,10 +42,6 @@ BDT_data_vars = [
 
 
 def main(args):
-    if not (args.control_plots or args.bdt_data):
-        print("No option selected")
-        sys.exit()
-
     # make plot, template dirs if needed
     _make_dirs(args)
 
@@ -67,6 +63,7 @@ def main(args):
     postprocessing.apply_weights(events_dict, args.year, cutflow)
     bb_masks = postprocessing.bb_VV_assignment(events_dict)
     _ = postprocessing.postprocess_lpsfs(events_dict[sig_key], save_all=False)
+    cutflow.to_csv(f"{args.plot_dir}/{args.year}/cutflow.csv")
     print("\nCutflow:\n", cutflow)
 
     control_plot_vars = postprocessing.control_plot_vars
