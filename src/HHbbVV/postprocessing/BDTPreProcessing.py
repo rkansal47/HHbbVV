@@ -50,6 +50,10 @@ BDT_data_vars = [
 
 
 def main(args):
+    if not (args.control_plots or args.bdt_data):
+        print("No option selected")
+        sys.exit()
+
     # make plot, template dirs if needed
     _make_dirs(args)
 
@@ -57,13 +61,13 @@ def main(args):
     cutflow = pd.DataFrame(index=list(samples.keys()))
     systematics = {}
 
-    # utils.remove_empty_parquets(samples_dir, year)
     events_dict = utils.load_samples(
         args.data_dir, samples, args.year, filters if args.filters else None
     )
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", cutflow)
 
     # print weighted sample yields
+    print("")
     for sample in events_dict:
         tot_weight = np.sum(events_dict[sample]["weight"].values)
         print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
@@ -71,7 +75,7 @@ def main(args):
     postprocessing.apply_weights(events_dict, args.year, cutflow)
     bb_masks = postprocessing.bb_VV_assignment(events_dict)
     _ = postprocessing.postprocess_lpsfs(events_dict[sig_key], save_all=False)
-    print(cutflow)
+    print("\nCutflow:\n", cutflow)
 
     control_plot_vars = postprocessing.control_plot_vars
     del control_plot_vars["BDTScore"]
@@ -157,6 +161,7 @@ if __name__ == "__main__":
     )
 
     utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
+    utils.add_bool_arg(parser, "bdt-data", "save bdt training data", default=False)
     utils.add_bool_arg(
         parser, "filters", "use pre-selection filters when loading samples", default=True
     )
