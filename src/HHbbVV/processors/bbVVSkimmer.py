@@ -587,7 +587,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][~bb_mask],
                 "phi": ak8FatJetVars["ak8FatJetPhi"][~bb_mask],
                 "eta": ak8FatJetVars["ak8FatJetEta"][~bb_mask],
-                "M": ak8FatJetVars[f"ak8FatJetMsd{mlabel}"][~bb_mask],
+                "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][~bb_mask],
             }
         )
 
