@@ -184,10 +184,11 @@ In `src/HHbbVV/postprocessing':
 python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --plot-dir "../../../plots/BDTPreProcessing/$TAG/" --year "2017" --bdt-data (--control-plots)
 ```
 
+
 ### BDT Trainings
 
 ```bash
-python TrainBDT.py --model-dir testBDT --use-sample-weights --equalize-weights --absolute-weights --data-path "../../../../data/skimmer/Feb20/bdt_data.parquet"
+python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb24/" (--year 2017 or --all-years) (--test)
 ```
 
 

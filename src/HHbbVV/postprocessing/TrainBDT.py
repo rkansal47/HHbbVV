@@ -8,9 +8,12 @@ import argparse
 from collections import OrderedDict
 import os
 from typing import Dict
+import warnings
 
 import numpy as np
 import pandas as pd
+from pandas.errors import SettingWithCopyWarning
+
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc
 import xgboost as xgb
@@ -21,6 +24,11 @@ import plotting
 from hh_vars import years, sig_key, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
 
 from copy import deepcopy
+
+
+# ignore these because they don't seem to apply
+warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
+
 
 weight_key = "finalWeight"
 
@@ -122,38 +130,12 @@ def equalize_weights(data: pd.DataFrame):
     """Scales signal such that total signal = total background"""
     sig_total = np.sum(data[data["Dataset"] == sig_key][weight_key])
     bg_total = np.sum(data[data["Dataset"] != sig_key][weight_key])
-
-    print(
-        ("Pre-equalization sig total: " f'{np.sum(data[data["Dataset"] == sig_key][weight_key])}')
-    )
-
     data[weight_key].loc[data["Dataset"] == sig_key] *= bg_total / sig_total
-
-    print(
-        ("Post-equalization sig total: " f'{np.sum(data[data["Dataset"] == sig_key][weight_key])}')
-    )
-
-
-data = pd.concat(
-    [
-        pd.concat((data[:50], data[1000000:1000050], data[2000000:2000050], data[-50:]), axis=0)
-        for data in data_dict.items()
-    ],
-    axis=0,
-)
-# 100 signal, 100 bg events
-training_data = pd.concat(
-    [
-        pd.concat((training_data[:100], training_data[-100:]), axis=0)
-        for training_data in training_data_dict.items()
-    ],
-    axis=0,
-)
 
 
 def load_data(data_path: str, year: str, all_years: bool):
     if not all_years:
-        return OrderedDict([(year, pd.read_parquet(data_path))])
+        return OrderedDict([(year, pd.read_parquet(f"{data_path}/{year}_bdt_data.parquet"))])
     else:
         return OrderedDict(
             [(year, pd.read_parquet(f"{data_path}/{year}_bdt_data.parquet")) for year in years]
@@ -181,7 +163,7 @@ def main(args):
         for year, data in data_dict.items()
     }
 
-    print("Training samples: ", np.unique(training_data_dict.items()[0]["Dataset"]))
+    print("Training samples:", np.unique(list(training_data_dict.values())[0]["Dataset"]))
 
     if args.test:
         data_dict = {
@@ -197,8 +179,22 @@ def main(args):
         }
 
     if args.equalize_weights:
-        for data in training_data_dict:
+        for year, data in training_data_dict.items():
+            print(
+                (
+                    f"Pre-equalization {year} sig total: "
+                    f'{np.sum(data[data["Dataset"] == sig_key][weight_key])}'
+                )
+            )
+
             equalize_weights(data)
+
+            print(
+                (
+                    f"Post-equalization {year} sig total: "
+                    f'{np.sum(data[data["Dataset"] == sig_key][weight_key])}'
+                )
+            )
 
     train, test = {}, {}
 
@@ -263,10 +259,18 @@ def train_model(
     return model
 
 
+def _txbb_thresholds(test: Dict[str, pd.DataFrame], txbb_threshold: float):
+    t = []
+    for year, data in test.items():
+        t.append(data["bbFatJetParticleNetMD_Txbb"] < txbb_threshold)
+
+    return pd.concat(t, axis=0)
+
+
 def evaluate_model(
     model: xgb.XGBClassifier,
     model_dir: str,
-    test: pd.DataFrame,
+    test: Dict[str, pd.DataFrame],
     txbb_threshold: float = 0.98,
 ):
     """ """
@@ -313,11 +317,11 @@ def evaluate_model(
         print(f"Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
 
     if txbb_threshold > 0:
-        preds_txbb_threshold = preds[:, 1].copy()
-        preds_txbb_threshold[test["bbFatJetParticleNetMD_Txbb"] < txbb_threshold] = 0
+        preds_txbb_thresholded = preds[:, 1].copy()
+        preds_txbb_thresholded[_txbb_thresholds(test, txbb_threshold)] = 0
 
         fpr_txbb_threshold, tpr_txbb_threshold, thresholds_txbb_threshold = roc_curve(
-            Y_test, preds_txbb_threshold, sample_weight=weights_test
+            Y_test, preds_txbb_thresholded, sample_weight=weights_test
         )
 
         plotting.rocCurve(
@@ -353,9 +357,12 @@ def do_inference(
     for year, data in data_dict.items():
         year_data_dict = {year: data}
         os.system(f"mkdir -p {model_dir}/inferences/{year}")
-        start = time.time()
+
         print("Running inference")
         X = get_X(year_data_dict)
+        model.get_booster().feature_names = bdtVars
+
+        start = time.time()
         preds = model.predict_proba(X)[:, 1]
         print(f"Finished in {time.time() - start:.2f}s")
         np.save(f"{model_dir}/inferences/{year}/preds.npy", preds)
@@ -367,7 +374,7 @@ def do_inference(
                 # have to change model's feature names since we're passing in a dataframe
                 model.get_booster().feature_names = mcvars
                 preds = model.predict_proba(X)[:, 1]
-                np.save(f"{model_dir}/inferences/{year}_preds_{jshift}.npy", preds)
+                np.save(f"{model_dir}/inferences/{year}/preds_{jshift}.npy", preds)
 
             for jshift in jmsr_shifts:
                 print("Running inference for", jshift)
@@ -375,7 +382,7 @@ def do_inference(
                 # have to change model's feature names since we're passing in a dataframe
                 model.get_booster().feature_names = mcvars
                 preds = model.predict_proba(X)[:, 1]
-                np.save(f"{model_dir}/inferences/{year}_preds_{jshift}.npy", preds)
+                np.save(f"{model_dir}/inferences/{year}/preds_{jshift}.npy", preds)
 
 
 if __name__ == "__main__":
@@ -399,7 +406,7 @@ if __name__ == "__main__":
         choices=["2016", "2016APV", "2017", "2018"],
         type=str,
     )
-    utils.add_bool_arg(parser, "all-years", "Combine data from all years", default=True)
+    utils.add_bool_arg(parser, "all-years", "Combine data from all years", default=False)
     utils.add_bool_arg(parser, "load-data", "Load pre-processed data if done already", default=True)
     utils.add_bool_arg(
         parser, "save-data", "Save pre-processed data if loading the data", default=True
