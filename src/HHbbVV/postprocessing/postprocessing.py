@@ -49,21 +49,14 @@ _ = importlib.reload(utils)
 _ = importlib.reload(plotting)
 
 
-# # Both Jet's Msds > 50 & at least one jet with Txbb > 0.8
-# filters = [
-#     [
-#         ("('ak8FatJetMsd', '0')", ">=", 50),
-#         ("('ak8FatJetMsd', '1')", ">=", 50),
-#         ("('ak8FatJetParticleNetMD_Txbb', '0')", ">=", 0.8),
-#     ],
-#     [
-#         ("('ak8FatJetMsd', '0')", ">=", 50),
-#         ("('ak8FatJetMsd', '1')", ">=", 50),
-#         ("('ak8FatJetParticleNetMD_Txbb', '1')", ">=", 0.8),
-#     ],
-# ]
-
-filters = None
+# Both Jet's Regressed Mass above 50, electron veto
+filters = [
+    [
+        ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
+        ("('ak8FatJetParticleNetMass', '1')", ">=", 50),
+        ("('nGoodElectrons', '0')", "==", 0),
+    ],
+]
 
 # {var: (bins, label)}
 control_plot_vars = {
@@ -341,7 +334,7 @@ def apply_weights(
         QCD_SCALE_FACTOR = (trig_yields[data_key] - non_qcd_bgs_yield) / trig_yields[qcd_key]
         events_dict[qcd_key][weight_key] *= QCD_SCALE_FACTOR
 
-        print(f"{QCD_SCALE_FACTOR = }")
+        print(f"\n{QCD_SCALE_FACTOR = }")
 
         utils.add_to_cutflow(events_dict, "QCD SF", weight_key, cutflow)
 
@@ -434,16 +427,12 @@ def postprocess_lpsfs(
             key = "lp_sf_nom"
             events[f"{jet}_{key}"] = td[key]
 
-    events[weight_key + "_noLP"] = events[weight_key]
-    events[weight_key] = events[weight_key][0] * events["VV_lp_sf_nom"][0]
-    events[weight_key + "_noTrigEffs"] = (
-        events[weight_key + "_noTrigEffs"][0] * events["VV_lp_sf_nom"][0]
-    )
-
     return events
 
 
-def get_lpsf(events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True):
+def get_lpsf(
+    events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True, weight_key: str = "finalWeight"
+):
     """Calculates LP SF and uncertainties in current phase space. ``postprocess_lpsfs`` must be called first."""
 
     jet = "VV" if VV else "bb"
@@ -452,7 +441,7 @@ def get_lpsf(events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True):
 
     tot_matched = np.sum(np.sum(events[f"ak8FatJetH{jet}"].astype(bool)))
 
-    weight = events["finalWeight_noLP"].values
+    weight = events[weight_key].values
     tot_pre = np.sum(weight)
     tot_post = np.sum(weight * events[f"{jet}_lp_sf_nom"][0])
     lp_sf = tot_post / tot_pre
@@ -497,6 +486,9 @@ def get_lpsf(events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True):
 
     tot_rel_unc = np.linalg.norm([val for val in uncs.values()])
     tot_unc = lp_sf * tot_rel_unc
+
+    events[weight_key] = events[weight_key][0] * lp_sf
+    events[weight_key + "_noTrigEffs"] = events[weight_key + "_noTrigEffs"][0] * lp_sf
 
     return lp_sf, tot_unc, uncs
 
@@ -545,6 +537,7 @@ def control_plots(
     bb_masks: Dict[str, pd.DataFrame],
     control_plot_vars: Dict[str, Tuple],
     plot_dir: str,
+    year: str,
     weight_key: str = "finalWeight",
     hists: Dict = {},
     show: bool = False,
@@ -560,7 +553,9 @@ def control_plots(
 
     from PyPDF2 import PdfMerger
 
-    sig_scale = np.sum(events_dict[data_key][weight_key]) / np.sum(events_dict[sig_key][weight_key])
+    sig_scale = (
+        np.sum(events_dict[data_key][weight_key]) / np.sum(events_dict[sig_key][weight_key]) / 2
+    )
     print(f"{sig_scale = }")
 
     for var, (bins, label) in control_plot_vars.items():
@@ -586,7 +581,7 @@ def control_plots(
         )
         merger_control_plots.append(name)
 
-    merger_control_plots.write(f"{plot_dir}/ControlPlots.pdf")
+    merger_control_plots.write(f"{plot_dir}/{year}_ControlPlots.pdf")
     merger_control_plots.close()
 
     return hists

@@ -316,7 +316,12 @@ def singleVarHist(
 
     for sample in samples:
         events = events_dict[sample]
-        fill_data = {var: get_feat(events, var, bb_masks[sample])}
+        if sample == data_key and (var.endswith("_up") or var.endswith("_down")):
+            fill_var = "_".join(var.split("_")[:-2])
+        else:
+            fill_var = var
+
+        fill_data = {var: get_feat(events, fill_var, bb_masks[sample])}
         weight = events[weight_key].values.squeeze()
 
         if selection is not None:

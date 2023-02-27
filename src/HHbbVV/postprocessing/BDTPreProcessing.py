@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from typing import Dict
 import utils
 import plotting
@@ -13,15 +14,6 @@ import os, sys
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
 from copy import deepcopy
-
-
-# Both Jet's Regressed Mass above 50
-filters = [
-    [
-        ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
-        ("('ak8FatJetParticleNetMass', '1')", ">=", 50),
-    ],
-]
 
 
 BDT_samples = list(samples.keys())
@@ -62,7 +54,7 @@ def main(args):
     systematics = {}
 
     events_dict = utils.load_samples(
-        args.data_dir, samples, args.year, filters if args.filters else None
+        args.data_dir, samples, args.year, postprocessing.filters if args.filters else None
     )
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", cutflow)
 
@@ -83,7 +75,11 @@ def main(args):
     if args.control_plots:
         print("\nMaking control plots")
         postprocessing.control_plots(
-            events_dict, bb_masks, control_plot_vars, f"{args.plot_dir}/{args.year}"
+            events_dict,
+            bb_masks,
+            control_plot_vars,
+            f"{args.plot_dir}/{args.year}",
+            args.year,
         )
         print("Made and saved control plots")
 
