@@ -10,6 +10,12 @@ from collections import OrderedDict
 
 years = ["2016APV", "2016", "2017", "2018"]
 
+LUMI = {  # in pb^-1
+    "2016": 16830.0,
+    "2016APV": 19500.0,
+    "2017": 41480.0,
+    "2018": 59830.0,
+}
 
 # order is important for loading BDT preds
 # label: selector

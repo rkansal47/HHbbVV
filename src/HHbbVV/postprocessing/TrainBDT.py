@@ -5,7 +5,9 @@ Author(s): Raghav Kansal
 """
 
 import argparse
+from collections import OrderedDict
 import os
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -16,14 +18,13 @@ import xgboost as xgb
 import utils
 import plotting
 
-from hh_vars import sig_key, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
+from hh_vars import years, sig_key, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
 
 from copy import deepcopy
 
 weight_key = "finalWeight"
 
 # only vars used for training
-# TODO: Change VV msd to regressed mass?
 bdtVars = [
     "MET_pt",
     "DijetEta",
@@ -32,7 +33,7 @@ bdtVars = [
     "bbFatJetPt",
     "VVFatJetEta",
     "VVFatJetPt",
-    "VVFatJetMsd",
+    "VVFatJetParticleNetMass",
     # "VVFatJetParTMD_THWW4q",
     "VVFatJetParTMD_probQCD",
     "VVFatJetParTMD_probT",
@@ -55,7 +56,7 @@ var_label_map = {
     "VVFatJetEta": ([50, -2.4, 2.4], r"$\eta^{VV}$"),
     "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$ (GeV)"),
     "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$ (GeV)"),
-    "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$ (GeV)"),
+    # "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$ (GeV)"),
     "VVFatJetParTMD_probT": ([50, 0, 1], r"ParT $Prob(Top)^{VV}$"),
     "VVFatJetParTMD_probQCD": ([50, 0, 1], r"ParT $Prob(QCD)^{VV}$"),
     "VVFatJetParTMD_probHWW3q": ([50, 0, 1], r"ParT $Prob(HWW3q)^{VV}$"),
@@ -66,13 +67,18 @@ var_label_map = {
 }
 
 
-def get_X(data: pd.DataFrame, jec_shift: str = None, jmsr_shift: str = None):
+def get_X(data_dict: Dict[str, pd.DataFrame], jec_shift: str = None, jmsr_shift: str = None):
     """
     Gets variables for BDT for all samples in ``data``.
     Optionally gets shifted variables (in which returns only MC samples).
     """
+    X = []
+
     if jec_shift is None and jmsr_shift is None:
-        return data.filter(items=bdtVars)
+        for year, data in data_dict.items():
+            X.append(data.filter(items=bdtVars))
+
+        return pd.concat(X, axis=0)
 
     mc_vars = deepcopy(bdtVars)
 
@@ -81,24 +87,31 @@ def get_X(data: pd.DataFrame, jec_shift: str = None, jmsr_shift: str = None):
             if var in jec_vars:
                 mc_vars[i] = f"{var}_{jec_shift}"
 
-        # print(data.filter(items=[f"bbFatJetPt_{jec_shift}", f"VVFatJetPt_{jec_shift}"])[data["Dataset"] != "Data"].iloc[0])
-        # print(data.filter(items=[f"bbFatJetPt_{jec_shift}", f"VVFatJetPt_{jec_shift}"])[data["Dataset"] != "Data"].iloc[13])
-        # print(data.filter(items=[f"bbFatJetPt_{jec_shift}", f"VVFatJetPt_{jec_shift}"])[data["Dataset"] != "Data"].iloc[21])
-
     if jmsr_shift is not None:
         for i, var in enumerate(mc_vars):
             if var in jmsr_vars:
                 mc_vars[i] = f"{var}_{jmsr_shift}"
 
-    return data.filter(items=mc_vars)[data["Dataset"] != "Data"], mc_vars
+    for year, data in data_dict.items():
+        X.append(data.filter(items=mc_vars)[data["Dataset"] != data_key])
+
+    return pd.concat(X, axis=0), mc_vars
 
 
-def get_Y(data: pd.DataFrame):
-    return (data["Dataset"] == sig_key).astype(int)
+def get_Y(data_dict: Dict[str, pd.DataFrame]):
+    Y = []
+    for year, data in data_dict.items():
+        Y.append((data["Dataset"] == sig_key).astype(int))
+
+    return pd.concat(Y, axis=0)
 
 
-def get_weights(data: pd.DataFrame, abs_weights: bool = True):
-    return np.abs(data[weight_key]) if abs_weights else data[weight_key]
+def get_weights(data_dict: Dict[str, pd.DataFrame], abs_weights: bool = True):
+    weights = []
+    for year, data in data_dict.items():
+        weights.append(np.abs(data[weight_key]) if abs_weights else data[weight_key])
+
+    return pd.concat(weights, axis=0)
 
 
 def remove_neg_weights(data: pd.DataFrame):
@@ -121,6 +134,32 @@ def equalize_weights(data: pd.DataFrame):
     )
 
 
+data = pd.concat(
+    [
+        pd.concat((data[:50], data[1000000:1000050], data[2000000:2000050], data[-50:]), axis=0)
+        for data in data_dict.items()
+    ],
+    axis=0,
+)
+# 100 signal, 100 bg events
+training_data = pd.concat(
+    [
+        pd.concat((training_data[:100], training_data[-100:]), axis=0)
+        for training_data in training_data_dict.items()
+    ],
+    axis=0,
+)
+
+
+def load_data(data_path: str, year: str, all_years: bool):
+    if not all_years:
+        return OrderedDict([(year, pd.read_parquet(data_path))])
+    else:
+        return OrderedDict(
+            [(year, pd.read_parquet(f"{data_path}/{year}_bdt_data.parquet")) for year in years]
+        )
+
+
 def main(args):
     classifier_params = {
         "max_depth": 3,
@@ -131,31 +170,44 @@ def main(args):
         "reg_lambda": 1.0,
     }
 
-    data = pd.read_parquet(args.data_path)
-    training_data = data[
-        (data["Dataset"] == sig_key)
-        | (data["Dataset"] == "QCD")
-        | (data["Dataset"] == "TT")
-        | (data["Dataset"] == "V+Jets")
-    ]
+    data_dict = load_data(args.data_path, args.year, args.all_years)
+    training_data_dict = {
+        year: data[
+            (data["Dataset"] == sig_key)
+            | (data["Dataset"] == "QCD")
+            | (data["Dataset"] == "TT")
+            | (data["Dataset"] == "V+Jets")
+        ]
+        for year, data in data_dict.items()
+    }
 
-    print("Training samples: ", np.unique(training_data["Dataset"]))
+    print("Training samples: ", np.unique(training_data_dict.items()[0]["Dataset"]))
 
     if args.test:
-        data = pd.concat(
-            (data[:50], data[1000000:1000050], data[2000000:2000050], data[-50:]), axis=0
-        )
+        data_dict = {
+            year: pd.concat(
+                (data[:50], data[1000000:1000050], data[2000000:2000050], data[-50:]), axis=0
+            )
+            for year, data in data_dict.items()
+        }
         # 100 signal, 100 bg events
-        training_data = pd.concat((training_data[:100], training_data[-100:]), axis=0)
+        training_data_dict = {
+            year: pd.concat((data[:100], data[-100:]), axis=0)
+            for year, data in training_data_dict.items()
+        }
 
     if args.equalize_weights:
-        equalize_weights(training_data)
+        for data in training_data_dict:
+            equalize_weights(data)
 
-    train, test = train_test_split(
-        remove_neg_weights(training_data) if not args.absolute_weights else training_data,
-        test_size=args.test_size,
-        random_state=args.seed,
-    )
+    train, test = {}, {}
+
+    for year, data in training_data_dict.items():
+        train[year], test[year] = train_test_split(
+            remove_neg_weights(data) if not args.absolute_weights else data,
+            test_size=args.test_size,
+            random_state=args.seed,
+        )
 
     if args.evaluate_only or args.inference_only:
         model = xgb.XGBClassifier()
@@ -179,7 +231,7 @@ def main(args):
         evaluate_model(model, args.model_dir, test)
 
     if not args.evaluate_only:
-        do_inference(model, args.model_dir, data, "2017")
+        do_inference(model, args.model_dir, data_dict)
 
 
 def train_model(
@@ -290,38 +342,40 @@ def evaluate_model(
 def do_inference(
     model: xgb.XGBClassifier,
     model_dir: str,
-    data: pd.DataFrame,
-    year: str,
+    data_dict: Dict[str, pd.DataFrame],
     jec_jmsr_shifts: bool = True,
 ):
     """ """
-    os.system(f"mkdir -p {model_dir}/inferences/")
-
     import time
 
-    start = time.time()
-    print("Running inference")
-    X = get_X(data)
-    preds = model.predict_proba(X)[:, 1]
-    print(f"Finished in {time.time() - start:.2f}s")
-    np.save(f"{model_dir}/inferences/{year}_preds.npy", preds)
+    os.system(f"mkdir -p {model_dir}/inferences/")
 
-    if jec_jmsr_shifts:
-        for jshift in jec_shifts:
-            print("Running inference for", jshift)
-            X, mcvars = get_X(data, jec_shift=jshift)
-            # have to change model's feature names since we're passing in a dataframe
-            model.get_booster().feature_names = mcvars
-            preds = model.predict_proba(X)[:, 1]
-            np.save(f"{model_dir}/inferences/{year}_preds_{jshift}.npy", preds)
+    for year, data in data_dict.items():
+        year_data_dict = {year: data}
+        os.system(f"mkdir -p {model_dir}/inferences/{year}")
+        start = time.time()
+        print("Running inference")
+        X = get_X(year_data_dict)
+        preds = model.predict_proba(X)[:, 1]
+        print(f"Finished in {time.time() - start:.2f}s")
+        np.save(f"{model_dir}/inferences/{year}/preds.npy", preds)
 
-        for jshift in jmsr_shifts:
-            print("Running inference for", jshift)
-            X, mcvars = get_X(data, jmsr_shift=jshift)
-            # have to change model's feature names since we're passing in a dataframe
-            model.get_booster().feature_names = mcvars
-            preds = model.predict_proba(X)[:, 1]
-            np.save(f"{model_dir}/inferences/{year}_preds_{jshift}.npy", preds)
+        if jec_jmsr_shifts:
+            for jshift in jec_shifts:
+                print("Running inference for", jshift)
+                X, mcvars = get_X(year_data_dict, jec_shift=jshift)
+                # have to change model's feature names since we're passing in a dataframe
+                model.get_booster().feature_names = mcvars
+                preds = model.predict_proba(X)[:, 1]
+                np.save(f"{model_dir}/inferences/{year}_preds_{jshift}.npy", preds)
+
+            for jshift in jmsr_shifts:
+                print("Running inference for", jshift)
+                X, mcvars = get_X(year_data_dict, jmsr_shift=jshift)
+                # have to change model's feature names since we're passing in a dataframe
+                model.get_booster().feature_names = mcvars
+                preds = model.predict_proba(X)[:, 1]
+                np.save(f"{model_dir}/inferences/{year}_preds_{jshift}.npy", preds)
 
 
 if __name__ == "__main__":
@@ -329,7 +383,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--data-path",
-        default="/hhbbvvvol/data/2017_bdt_data.parquet",
+        default="/hhbbvvvol/data/",
         help="path to training parquet",
         type=str,
     )
@@ -339,6 +393,13 @@ if __name__ == "__main__":
         help="directory in which to save model and evaluation output",
         type=str,
     )
+    parser.add_argument(
+        "--year",
+        default="",
+        choices=["2016", "2016APV", "2017", "2018"],
+        type=str,
+    )
+    utils.add_bool_arg(parser, "all-years", "Combine data from all years", default=True)
     utils.add_bool_arg(parser, "load-data", "Load pre-processed data if done already", default=True)
     utils.add_bool_arg(
         parser, "save-data", "Save pre-processed data if loading the data", default=True

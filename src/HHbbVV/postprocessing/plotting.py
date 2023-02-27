@@ -21,7 +21,7 @@ from hist.intervals import ratio_uncertainty
 from typing import Dict, List, Union, Tuple
 from numpy.typing import ArrayLike
 
-from hh_vars import sig_key, data_key
+from hh_vars import LUMI, sig_key, data_key
 
 from copy import deepcopy
 
@@ -61,6 +61,7 @@ def _fill_error(ax, edges, down, up, scale=1):
 
 def ratioHistPlot(
     hists: Hist,
+    year: str,
     bg_keys: List[str],
     bg_colours: Dict[str, str] = bg_colours,
     sig_colour: str = sig_colour,
@@ -163,7 +164,7 @@ def ratioHistPlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    hep.cms.label("Work in Progress", data=True, lumi=40, year=2017, ax=ax)
+    hep.cms.label("Work in Progress", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
     if len(name):
         plt.savefig(name, bbox_inches="tight")
 
