@@ -29,7 +29,6 @@ adjust_posdef_yields = False
 # from utils import add_bool_arg
 from hh_vars import LUMI, sig_key, qcd_key, data_key, years, jecs, jmsr
 
-years = "2017"
 
 # (name in card, name in templates)
 mc_samples = OrderedDict(
@@ -42,28 +41,28 @@ mc_samples = OrderedDict(
 )
 
 all_mc = list(mc_samples.keys())
-lumi_run2 = np.sum(LUMI.values())
+lumi_run2 = np.sum(list(LUMI.values()))
 
 
 # https://gitlab.cern.ch/hh/naming-conventions#experimental-uncertainties
 # dictionary of nuisance params -> (modifier, samples affected by it, value)
 nuisance_params = {
-    "lumi_13TeV_2016": (
+    "lumi_13TeV_2016": [
         "lnN",
         all_mc,
         1.01 ** ((LUMI["2016"] + LUMI["2016APV"]) / lumi_run2),
-    ),
-    "lumi_13TeV_2017": (
+    ],
+    "lumi_13TeV_2017": [
         "lnN",
         all_mc,
         1.02 ** (LUMI["2017"] / lumi_run2),
-    ),
-    "lumi_13TeV_2018": (
+    ],
+    "lumi_13TeV_2018": [
         "lnN",
         all_mc,
         1.015 ** (LUMI["2018"] / lumi_run2),
-    ),
-    "lumi_13TeV_correlated": (
+    ],
+    "lumi_13TeV_correlated": [
         "lnN",
         all_mc,
         (
@@ -71,18 +70,18 @@ nuisance_params = {
             * (1.009 ** (LUMI["2017"] / lumi_run2))
             * (1.02 ** (LUMI["2018"] / lumi_run2))
         ),
-    ),
-    "lumi_13TeV_1718": (
+    ],
+    "lumi_13TeV_1718": [
         "lnN",
         all_mc,
         ((1.002 ** (LUMI["2017"] / lumi_run2)) * (1.006 ** (LUMI["2018"] / lumi_run2))),
-    ),
+    ],
     # these values will be added in from the systematics JSON
-    "triggerEffSF_uncorrelated": ("lnN", all_mc, 0),
-    "lp_sf": ("lnN", [sig_key], 0),
+    "triggerEffSF_uncorrelated": ["lnN", all_mc, 0],
+    "lp_sf": ["lnN", [sig_key], 0],
 }
 nuisance_params_dict = {
-    param: rl.NuisanceParameter(param, unc) for param, unc in nuisance_params.items()
+    param: rl.NuisanceParameter(param, unc) for param, (unc, _, _) in nuisance_params.items()
 }
 
 # syst_vals = {
@@ -106,7 +105,6 @@ corr_year_shape_systs = {
     "PDFalphaS": ("CMS_bbbb_boosted_ggf_ggHHPDFacc", [sig_key]),
     "JES": ("CMS_scale_j_2017", all_mc),  # TODO: separate into individual
     "txbb": ("CMS_bbbb_boosted_ggf_PNetHbbScaleFactors_correlated", [sig_key]),
-    "triggerEffSF": "CMS_bbbb_boosted_ggf_triggerEffSF_uncorrelated",
 }
 
 uncorr_year_shape_systs = {
@@ -122,12 +120,12 @@ for skey, (sname, ssamples) in uncorr_year_shape_systs.items():
     for year in years:
         shape_systs[f"{skey}_{year}"] = (f"{sname}_{year}", ssamples)
 
-# systematics which apply only in the pass region
-pass_only = ["txbb"]
-
 shape_systs_dict = {
     skey: rl.NuisanceParameter(sname, "shape") for skey, (sname, _) in shape_systs.items()
 }
+
+# systematics which apply only in the pass region
+pass_only = ["txbb"]
 
 
 CMS_PARAMS_LABEL = "CMS_bbWW_boosted_ggf"
@@ -337,8 +335,6 @@ def main(args):
 
 
 def sum_templates(template_dict: Dict):
-    print(template_dict)
-
     ttemplate = list(template_dict.values())[0]  # sample templates to extract values from
     combined = {}
 
@@ -350,7 +346,6 @@ def sum_templates(template_dict: Dict):
 
         combined[region] = sum(thists)
 
-    print(f"{combined = }")
     return combined
 
 
@@ -361,8 +356,6 @@ def process_systematics(systematics: Dict):
 
     tdict = {}
     for region in systematics["2017"]:
-        print(region)
-
         trig_totals, trig_total_errs = [], []
         for year in years:
             trig_totals.append(systematics[year][region]["trig_total"])
@@ -371,12 +364,11 @@ def process_systematics(systematics: Dict):
         trig_total = np.sum(trig_totals)
         trig_total_errs = np.linalg.norm(trig_total_errs)
 
-        print(f"{trig_total = }")
-        print(f"{trig_total_errs = }")
-
         tdict[region] = 1 + (trig_total_errs / trig_total)
 
     nuisance_params["triggerEffSF_uncorrelated"][2] = tdict
+
+    print(nuisance_params)
 
 
 def _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger):
@@ -432,6 +424,8 @@ def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
     logging.debug("effect_up  : {effect_up}".format(effect_up=effect_up))
     logging.debug("effect_down: {effect_down}".format(effect_down=effect_down))
 
+    return effect_up, effect_down
+
 
 def get_year_updown(templates_dict, sample, region, year, skey):
     updown = []
@@ -472,7 +466,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--templates-file",
+        "--templates-dir",
         default="",
         type=str,
         help="input pickle file of dict of hist.Hist templates",
