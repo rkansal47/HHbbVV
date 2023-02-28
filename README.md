@@ -195,7 +195,7 @@ python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb
 ### Post-Processing
 
 ```bash
-python postprocessing.py --templates --year "2017" --template-file "templates/$TAG.pkl" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" (--control-plots)
+python postprocessing.py --templates --year "2017" --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" (--control-plots)
 ```
 
 
