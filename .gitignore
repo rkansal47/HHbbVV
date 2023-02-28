@@ -34,7 +34,7 @@ src/*
 src/HHbbVV/postprocessing/data/*
 src/HHbbVV/postprocessing/*.pkl
 src/HHbbVV/postprocessing/cards
-src/HHbbVV/postprocessing/templates
+src/HHbbVV/postprocessing/templates_old
 src/HHbbVV/postprocessing/*.txt
 
 !src/HHbbVV/scale_factors
