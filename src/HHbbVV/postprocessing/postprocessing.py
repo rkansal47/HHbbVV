@@ -12,7 +12,7 @@ Author(s): Raghav Kansal, Cristina Mantilla Suarez
 
 import os
 import sys
-import pickle
+import pickle, json
 
 import numpy as np
 import pandas as pd
@@ -168,9 +168,11 @@ def main(args):
     # make plot, template dirs if needed
     _make_dirs(args)
 
+    systs_file = f"{args.template_dir}/systematics.json"
+
     # save cutflow as pandas table
     cutflow = pd.DataFrame(index=list(samples.keys()))
-    systematics = {}
+    systematics = _check_load_systematics(systs_file)
 
     # utils.remove_empty_parquets(samples_dir, year)
     events_dict = utils.load_samples(args.data_dir, samples, args.year, filters)
@@ -184,18 +186,19 @@ def main(args):
 
     apply_weights(events_dict, args.year, cutflow)
     bb_masks = bb_VV_assignment(events_dict)
-    events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
     cutflow.to_csv(f"{args.plot_dir}/cutflows/bdt_cutflow.csv")
     print("\nCutflow\n", cutflow)
 
-    print("\nLoading BDT predictions\n")
+    print("\nLoading BDT predictions")
+    bdt_preds_dir = f"{args.data_dir}/inferences/" if args.bdt_preds == "" else args.bdt_preds
     load_bdt_preds(
         events_dict,
         args.year,
-        f"{args.data_dir}/inferences/" if args.bdt_preds == "" else args.bdt_preds,
+        bdt_preds_dir,
         list(samples.keys()),
         jec_jmsr_shifts=True,
     )
+    print("Loaded BDT preds\n")
 
     if args.control_plots:
         print("\nMaking control plots\n")
@@ -204,19 +207,40 @@ def main(args):
         )
 
     # BDT LP SF
-    sel, cf = utils.make_selection(
-        selection_regions[args.year]["BDTOnly"], events_dict, bb_masks, prev_cutflow=cutflow
-    )
-    lp_sf, unc, uncs = get_lpsf(events_dict[sig_key], sel[sig_key])
-    print(f"BDT LP Scale Factor: {lp_sf:.2f} ± {unc:.2f}")
-    print(uncs)
-    systematics["lp_sf_unc"] = unc / lp_sf
+    if "lp_sf" not in systematics:
+        if args.lp_sf_all_years:
+            systematics = {
+                **systematics,
+                **get_lpsf_all_years(
+                    events_dict, sig_key, args.data_dir, bdt_preds_dir, list(samples.keys())
+                ),
+            }
+        else:
+            # calculate only for current year
+            events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
+            sel, cf = utils.make_selection(
+                selection_regions[args.year]["BDTOnly"], events_dict, bb_masks, prev_cutflow=cutflow
+            )
+            lp_sf, unc, uncs = get_lpsf(events_dict[sig_key], sel[sig_key])
+            print(f"BDT LP Scale Factor: {lp_sf:.2f} ± {unc:.2f}")
+            print(uncs)
+            systematics["lp_sf"] = lp_sf
+            systematics["lp_sf_unc"] = unc / lp_sf
 
-    print("\nCutflow\n", cf)
+    with open(systs_file, "w") as f:
+        json.dump(systematics, f)
+
+    # scale signal by LP SF
+    for wkey in ["finalWeight", "finalWeight_noTrigEffs"]:
+        events_dict[sig_key][wkey] *= systematics["lp_sf"]
+
+    utils.add_to_cutflow(events_dict, "LP SF", "finalWeight", cutflow)
+
+    # Check for 0 weights - would be an issue for weight shifts
     check_weights(events_dict)
 
     if args.templates:
-        print("\nMaking templates\n")
+        print("\nMaking templates")
 
         templates = {}
 
@@ -238,11 +262,14 @@ def main(args):
             )
 
             templates = {**templates, **ttemps}
-            systematics = {**systematics, **tsyst}
+            if jshift == "":
+                systematics[args.year] = tsyst
 
-        print("\nSaving templates\n")
-        save_templates(templates, blind_window, args.template_file, systematics)
-        print("\nSaved templates\n")
+        print("\nSaving templates")
+        save_templates(templates, blind_window, f"{args.template_dir}/{args.year}_templates.pkl")
+
+        with open(systs_file, "w") as f:
+            json.dump(systematics, f)
 
     if args.scan:
         os.system(f"mkdir -p {args.template_file}")
@@ -262,7 +289,7 @@ def main(args):
                 prev_cutflow=cutflow,
                 cutstr=cutstr,
             )
-            save_templates(templates[cutstr], blind_window, f"{args.template_file}/{cutstr}.pkl")
+            save_templates(templates[cutstr], blind_window, f"{args.template_dir}/{cutstr}.pkl")
 
 
 def _make_dirs(args):
@@ -272,24 +299,25 @@ def _make_dirs(args):
             os.system(f"mkdir -p {args.plot_dir}/control_plots/")
         os.system(f"mkdir -p {args.plot_dir}/templates/")
 
-    if args.template_file:
-        from pathlib import Path
+    if args.template_dir != "":
+        os.system(f"mkdir -p {args.template_dir}")
 
-        path = Path(args.template_file)
 
-        if path.exists() and not args.overwrite_template:
-            print(
-                "Template file already exists -- exiting! (Use --overwrite-template if you wish to overwrite)"
-            )
-            sys.exit()
+def _check_load_systematics(systs_file: str):
+    if os.path.exists(systs_file):
+        print("Loading systematics")
+        with open(systs_file, "r") as f:
+            systematics = json.load(f)
+    else:
+        systematics = {}
 
-        os.system(f"mkdir -p {path.parent}")
+    return systematics
 
 
 def apply_weights(
     events_dict: Dict[str, pd.DataFrame],
     year: str,
-    cutflow: pd.DataFrame,
+    cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
 ):
     """
@@ -327,7 +355,8 @@ def apply_weights(
             events[f"{weight_key}_noTrigEffs"] = events["weight"]
             events[weight_key] = events["weight"] * combined_trigEffs
 
-    utils.add_to_cutflow(events_dict, "TriggerEffs", weight_key, cutflow)
+    if cutflow is not None:
+        utils.add_to_cutflow(events_dict, "TriggerEffs", weight_key, cutflow)
 
     # calculate QCD scale factor
     if qcd_key in events_dict:
@@ -344,7 +373,8 @@ def apply_weights(
 
         print(f"\n{QCD_SCALE_FACTOR = }")
 
-        utils.add_to_cutflow(events_dict, "QCD SF", weight_key, cutflow)
+        if cutflow is not None:
+            utils.add_to_cutflow(events_dict, "QCD SF", weight_key, cutflow)
 
 
 def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
@@ -495,10 +525,60 @@ def get_lpsf(
     tot_rel_unc = np.linalg.norm([val for val in uncs.values()])
     tot_unc = lp_sf * tot_rel_unc
 
-    events[weight_key] = events[weight_key] * lp_sf
-    events[weight_key + "_noTrigEffs"] = events[weight_key + "_noTrigEffs"] * lp_sf
-
     return lp_sf, tot_unc, uncs
+
+
+def get_lpsf_all_years(
+    full_events_dict: Dict[str, pd.DataFrame],
+    sig_key: str,
+    data_dir: str,
+    bdt_preds_dir: str,
+    bdt_sample_order: List[str],
+):
+    print("Getting LP SF for all years combined")
+    events_all = []
+    sels_all = []
+
+    for year in years:
+        events_dict = utils.load_samples(data_dir, {sig_key: samples[sig_key]}, year, filters)
+
+        # print weighted sample yields
+        tot_weight = np.sum(events_dict[sig_key]["weight"].values)
+        # print(f"Pre-selection {year} yield: {tot_weight:.2f}")
+
+        apply_weights(events_dict, year)
+        bb_masks = bb_VV_assignment(events_dict)
+        events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
+
+        # load bdt preds for sig only
+        bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
+        i = 0
+        for sample in bdt_sample_order:
+            if sample != sig_key:
+                i += len(full_events_dict[sample])
+                continue
+            else:
+                events = events_dict[sample]
+                num_events = len(events)
+                events["BDTScore"] = bdt_preds[i : i + num_events]
+                break
+
+        sel, _ = utils.make_selection(
+            selection_regions[args.year]["BDTOnly"], events_dict, bb_masks
+        )
+
+        events_all.append(events_dict[sig_key])
+        sels_all.append(sel[sig_key])
+
+    events = pd.concat(events_all, axis=0)
+    sel = np.concatenate(sels_all, axis=0)
+
+    lp_sf, unc, uncs = get_lpsf(events, sel)
+
+    print(f"BDT LP Scale Factor: {lp_sf:.2f} ± {unc:.2f}")
+    print(uncs)
+
+    return {"lp_sf": lp_sf, "lp_sf_unc": unc / lp_sf}
 
 
 def load_bdt_preds(
@@ -667,14 +747,20 @@ def get_templates(
         sel, cf = utils.make_selection(
             region, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
+        if not do_jshift:
+            print("\nCutflow:\n", cf)
+
         cf.to_csv(f"{plot_dir}/cutflows/{label}_cutflow{jlabel}.csv")
 
         if not do_jshift:
             systematics[label] = {}
-            systematics[label]["trig_unc"] = corrections.get_uncorr_trig_eff_unc(
-                events_dict, bb_masks, year, sel
-            )
-            print("Trigger SF Unc.:", systematics[label]["trig_unc"])
+
+            total, total_err = corrections.get_uncorr_trig_eff_unc(events_dict, bb_masks, year, sel)
+
+            systematics[label]["trig_total"] = total
+            systematics[label]["trig_total_err"] = total_err
+
+            print(f"\nTrigger SF Unc.: {total_err / total:.3f}\n")
 
         # ParticleNetMD Txbb SFs
         sig_events = deepcopy(events_dict[sig_key][sel[sig_key]])
@@ -702,6 +788,8 @@ def get_templates(
 
         for sample in events_dict:
             events = sig_events if sample == sig_key else events_dict[sample][sel[sample]]
+            if not len(events):
+                continue
 
             bb_mask = bb_masks[sample][sel[sample]]
             fill_var = (
@@ -798,7 +886,6 @@ def save_templates(
     templates: Dict[str, Hist],
     blind_window: List[float],
     template_file: str,
-    systematics: Dict = None,
 ):
     """Creates blinded copies of each region's templates and saves a pickle of the templates"""
 
@@ -809,11 +896,10 @@ def save_templates(
         utils.blindBins(blinded_template, blind_window)
         templates[f"{label}Blinded"] = blinded_template
 
-    if systematics is not None:
-        templates["systematics"] = systematics
-
     with open(template_file, "wb") as f:
         pickle.dump(templates, f)
+
+    print("Saved templates to", template_file)
 
 
 if __name__ == "__main__":
@@ -851,7 +937,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--template-file",
+        "--template-dir",
         help="If saving templates, path to file to save them in. If scanning, directory to save in.",
         default="",
         type=str,
@@ -863,6 +949,8 @@ if __name__ == "__main__":
         parser, "overwrite-template", "if template file already exists, overwrite it", default=False
     )
     utils.add_bool_arg(parser, "scan", "Scan BDT + Txbb cuts and save templates", default=False)
+
+    utils.add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
 
     args = parser.parse_args()
     main(args)

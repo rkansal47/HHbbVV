@@ -168,7 +168,11 @@ def get_uncorr_trig_eff_unc(
 
     for sample, events in events_dict.items():
         if sample not in [data_key, qcd_key]:
+            if not len(events) or (sel is not None and not len(events[sel[sample]])):
+                continue
+
             # print(sample)
+
             total, total_err = _get_uncorr_trig_eff_unc_per_sample(
                 events[sel[sample]] if sel is not None else events,
                 bb_masks[sample][sel[sample]] if sel is not None else bb_masks[sample],
@@ -182,7 +186,11 @@ def get_uncorr_trig_eff_unc(
             totals.append(total)
             total_errs.append(total_err)
 
-    total = np.sum(total)
+    total = np.sum(totals)
     total_err = np.linalg.norm(total_errs)
 
-    return total_err / total
+    # print("")
+    # print(f"{total = }")
+    # print(f"{total_err = }")
+
+    return total, total_err
