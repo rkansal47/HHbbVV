@@ -10,13 +10,14 @@ Author: Raghav Kansal
 
 
 import os
+from typing import Dict
 import numpy as np
-import pickle
+import pickle, json
 import logging
 from collections import OrderedDict
 
 # import hist
-# from hist import Hist
+from hist import Hist
 import rhalphalib as rl
 
 rl.util.install_roofit_helpers()
@@ -26,10 +27,11 @@ logging.basicConfig(level=logging.INFO)
 adjust_posdef_yields = False
 
 # from utils import add_bool_arg
-from hh_vars import sig_key, qcd_key, data_key, years
+from hh_vars import LUMI, sig_key, qcd_key, data_key, years, jecs, jmsr
 
 years = "2017"
 
+# (name in card, name in templates)
 mc_samples = OrderedDict(
     [
         ("ggHH_kl_1_kt_1_hbbhww4q", "HHbbVV"),
@@ -40,29 +42,71 @@ mc_samples = OrderedDict(
 )
 
 all_mc = list(mc_samples.keys())
+lumi_run2 = np.sum(LUMI.values())
 
-# dictionary of nuisance params -> modifier
-nuisance_params = {"lumi_13TeV_2017": "lnN", "lp_sf": "lnN", "trigger": "lnN"}
+
+# https://gitlab.cern.ch/hh/naming-conventions#experimental-uncertainties
+# dictionary of nuisance params -> (modifier, samples affected by it, value)
+nuisance_params = {
+    "lumi_13TeV_2016": (
+        "lnN",
+        all_mc,
+        1.01 ** ((LUMI["2016"] + LUMI["2016APV"]) / lumi_run2),
+    ),
+    "lumi_13TeV_2017": (
+        "lnN",
+        all_mc,
+        1.02 ** (LUMI["2017"] / lumi_run2),
+    ),
+    "lumi_13TeV_2018": (
+        "lnN",
+        all_mc,
+        1.015 ** (LUMI["2018"] / lumi_run2),
+    ),
+    "lumi_13TeV_correlated": (
+        "lnN",
+        all_mc,
+        (
+            (1.006 ** ((LUMI["2016"] + LUMI["2016APV"]) / lumi_run2))
+            * (1.009 ** (LUMI["2017"] / lumi_run2))
+            * (1.02 ** (LUMI["2018"] / lumi_run2))
+        ),
+    ),
+    "lumi_13TeV_1718": (
+        "lnN",
+        all_mc,
+        ((1.002 ** (LUMI["2017"] / lumi_run2)) * (1.006 ** (LUMI["2018"] / lumi_run2))),
+    ),
+    # these values will be added in from the systematics JSON
+    "triggerEffSF_uncorrelated": ("lnN", all_mc, 0),
+    "lp_sf": ("lnN", [sig_key], 0),
+}
 nuisance_params_dict = {
     param: rl.NuisanceParameter(param, unc) for param, unc in nuisance_params.items()
 }
 
-# https://gitlab.cern.ch/hh/naming-conventions#experimental-uncertainties
-syst_vals = {
-    "lumi_13TeV_2016": 1.01,
-    "lumi_13TeV_2017": 1.02,
-    "lumi_13TeV_2018": 1.015,
-}
-
+# syst_vals = {
+#     "lumi_13TeV_2016": 1.01 ** ((LUMI["2016"] + LUMI["2016APV"]) / lumi_run2),
+#     "lumi_13TeV_2017": 1.02 ** (LUMI["2017"] / lumi_run2),
+#     "lumi_13TeV_2018": 1.015 ** (LUMI["2018"] / lumi_run2),
+#     "lumi_13TeV_correlated": (
+#         (1.006 ** ((LUMI["2016"] + LUMI["2016APV"]) / lumi_run2))
+#         * (1.009 ** (LUMI["2017"] / lumi_run2))
+#         * (1.02 ** (LUMI["2018"] / lumi_run2))
+#     ),
+#     "lumi_13TeV_1718": (
+#         (1.002 ** (LUMI["2017"] / lumi_run2)) * (1.006 ** (LUMI["2018"] / lumi_run2))
+#     ),
+# }
 
 # dictionary of shape systematics -> (name in cards, samples affected by it)
-shape_systs = {
+corr_year_shape_systs = {
     "FSRPartonShower": ("ps_fsr", [sig_key, "V+Jets"]),
     "ISRPartonShower": ("ps_isr", [sig_key, "V+Jets"]),
     "PDFalphaS": ("CMS_bbbb_boosted_ggf_ggHHPDFacc", [sig_key]),
     "JES": ("CMS_scale_j_2017", all_mc),  # TODO: separate into individual
     "txbb": ("CMS_bbbb_boosted_ggf_PNetHbbScaleFactors_correlated", [sig_key]),
-    # 'triggerEffSF': 'CMS_bbbb_boosted_ggf_triggerEffSF_uncorrelated'  # TODO: update once trigger uncs. are sorted
+    "triggerEffSF": "CMS_bbbb_boosted_ggf_triggerEffSF_uncorrelated",
 }
 
 uncorr_year_shape_systs = {
@@ -72,10 +116,11 @@ uncorr_year_shape_systs = {
     "JMR": ("CMS_bbbb_boosted_ggf_jmr", all_mc),
 }
 
+shape_systs = {**corr_year_shape_systs}
+
 for skey, (sname, ssamples) in uncorr_year_shape_systs.items():
-    for year in ["2017"]:
-        shape_systs[skey] = (f"{sname}_{year}", ssamples)
-        # systs[skey + year] = (f"{sname}_{year}", ssamples)
+    for year in years:
+        shape_systs[f"{skey}_{year}"] = (f"{sname}_{year}", ssamples)
 
 # systematics which apply only in the pass region
 pass_only = ["txbb"]
@@ -93,14 +138,21 @@ def main(args):
     # (pass, fail) x (unblinded, blinded)
     regions = [f"{pf}{blind_str}" for pf in [f"pass", "fail"] for blind_str in ["", "Blinded"]]
 
-    with open(args.templates_file, "rb") as f:
-        templates = pickle.load(f)
+    templates_dict = {}
 
-    global syst_vals
-    syst_vals = {**syst_vals, **templates["systematics"]}  # LP SF and trig effs.
+    for year in years:
+        with open(f"{args.templates_dir}/{year}_templates.pkl", "rb") as f:
+            templates_dict[year] = pickle.load(f)
+
+    templates_all = sum_templates(templates_dict)
+
+    with open(f"{args.templates_dir}/systematics.json", "r") as f:
+        systematics = json.load(f)
+
+    process_systematics(systematics)  # LP SF and trig effs.
 
     # random template from which to extract common data
-    sample_templates = templates[regions[0]]
+    sample_templates = templates_all[regions[0]]
     shape_var = sample_templates.axes[1].name
 
     # get bins, centers, and scale centers for polynomial evaluation
@@ -112,7 +164,8 @@ def main(args):
 
     # QCD overall pass / fail efficiency
     qcd_eff = (
-        templates[f"pass"][qcd_key, :].sum().value / templates[f"fail"][qcd_key, :].sum().value
+        templates_all[f"pass"][qcd_key, :].sum().value
+        / templates_all[f"fail"][qcd_key, :].sum().value
     )
 
     # transfer factor
@@ -138,31 +191,20 @@ def main(args):
     model = rl.Model("HHModel")
 
     for region in regions:
-        region_templates = templates[region]
+        region_templates = templates_all[region]
         pass_region = "pass" in region
 
         logging.info("starting region: %s" % region)
         ch = rl.Channel(region.replace("_", ""))  # can't have '_'s in name
         model.addChannel(ch)
 
-        # TODO: shape systs
-
         for card_name, sample_name in mc_samples.items():
             logging.info("get templates for: %s" % sample_name)
 
             sample_template = region_templates[sample_name, :]
 
-            # TODO: might need to change if HH4b is a background
-            stype = rl.Sample.SIGNAL if "HH" in card_name else rl.Sample.BACKGROUND
+            stype = rl.Sample.SIGNAL if "HHbbVV" in sample_name else rl.Sample.BACKGROUND
             sample = rl.TemplateSample(ch.name + "_" + card_name, stype, sample_template)
-
-            # systematics
-            sample.setParamEffect(
-                nuisance_params_dict["lumi_13TeV_2017"], syst_vals["lumi_13TeV_2017"]
-            )
-
-            if sample_name == "HHbbVV":
-                sample.setParamEffect(nuisance_params_dict["lp_sf"], 1 + syst_vals["lp_sf_unc"])
 
             # nominal values, errors
             values_nominal = np.maximum(sample_template.values(), 0.0)
@@ -184,38 +226,49 @@ def main(args):
                 stats_sample_name = region.split("Blinded")[0] + f"_{sample_name}"
                 sample.autoMCStats(sample_name=stats_sample_name)
 
-            # TODO: shape systematics
+            # rate systematics
+            for key, (_, ssamples, sval) in nuisance_params.items():
+                if sample_name not in ssamples:
+                    continue
 
-            for skey, (sname, ssamples) in shape_systs.items():
+                param = nuisance_params_dict[key]
+                val = sval[region] if isinstance(sval, dict) else sval
+                sample.setParamEffect(param, val)
+
+            # shape systematics
+            for skey, (sname, ssamples) in corr_year_shape_systs.items():
                 if sample_name not in ssamples or (not pass_region and skey in pass_only):
                     continue
 
                 values_up = region_templates[f"{sample_name}_{skey}_up", :].values()
                 values_down = region_templates[f"{sample_name}_{skey}_down", :].values()
-
-                effect_up = np.ones_like(values_nominal)
-                effect_down = np.ones_like(values_nominal)
-
-                mask_up = values_up >= 0
-                mask_down = values_down >= 0
-
-                effect_up[mask & mask_up] = (
-                    values_up[mask & mask_up] / values_nominal[mask & mask_up]
-                )
-                effect_down[mask & mask_down] = (
-                    values_down[mask & mask_down] / values_nominal[mask & mask_down]
-                )
-
                 logger = logging.getLogger(
                     "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
                 )
-                shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger)
 
-                logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
-                logging.debug("effect_up  : {effect_up}".format(effect_up=effect_up))
-                logging.debug("effect_down: {effect_down}".format(effect_down=effect_down))
-
+                effect_up, effect_down = get_effect_updown(
+                    values_nominal, values_up, values_down, mask, logger
+                )
                 sample.setParamEffect(shape_systs_dict[skey], effect_up, effect_down)
+
+            for skey, (sname, ssamples) in uncorr_year_shape_systs.items():
+                if sample_name not in ssamples or (not pass_region and skey in pass_only):
+                    continue
+
+                for year in years:
+                    values_up, values_down = get_year_updown(
+                        templates_dict, sample_name, region, year, skey
+                    )
+                    logger = logging.getLogger(
+                        "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
+                    )
+
+                    effect_up, effect_down = get_effect_updown(
+                        values_nominal, values_up, values_down, mask, logger
+                    )
+                    sample.setParamEffect(
+                        shape_systs_dict[f"{skey}_{year}"], effect_up, effect_down
+                    )
 
             ch.addSample(sample)
 
@@ -283,7 +336,50 @@ def main(args):
         pickle.dump(model, fout, 2)  # use python 2 compatible protocol
 
 
-def shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger):
+def sum_templates(template_dict: Dict):
+    print(template_dict)
+
+    ttemplate = list(template_dict.values())[0]  # sample templates to extract values from
+    combined = {}
+
+    for region in ttemplate:
+        thists = []
+
+        for year in years:
+            thists.append(template_dict[year][region])
+
+        combined[region] = sum(thists)
+
+    print(f"{combined = }")
+    return combined
+
+
+def process_systematics(systematics: Dict):
+    """Get total uncertainties from per-year systs in ``systematics``"""
+    global nuisance_params
+    nuisance_params["lp_sf"][2] = 1 + systematics["lp_sf_unc"]  # already for all years
+
+    tdict = {}
+    for region in systematics["2017"]:
+        print(region)
+
+        trig_totals, trig_total_errs = [], []
+        for year in years:
+            trig_totals.append(systematics[year][region]["trig_total"])
+            trig_total_errs.append(systematics[year][region]["trig_total_err"])
+
+        trig_total = np.sum(trig_totals)
+        trig_total_errs = np.linalg.norm(trig_total_errs)
+
+        print(f"{trig_total = }")
+        print(f"{trig_total_errs = }")
+
+        tdict[region] = 1 + (trig_total_errs / trig_total)
+
+    nuisance_params["triggerEffSF_uncorrelated"][2] = tdict
+
+
+def _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger):
     norm_up = np.sum(values_up)
     norm_down = np.sum(values_down)
     norm_nominal = np.sum(values_nominal)
@@ -318,6 +414,43 @@ def shape_checks(values_up, values_down, values_nominal, effect_up, effect_down,
 
     if valid:
         logger.info("Shapes are valid")
+
+
+def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
+    effect_up = np.ones_like(values_nominal)
+    effect_down = np.ones_like(values_nominal)
+
+    mask_up = values_up >= 0
+    mask_down = values_down >= 0
+
+    effect_up[mask & mask_up] = values_up[mask & mask_up] / values_nominal[mask & mask_up]
+    effect_down[mask & mask_down] = values_down[mask & mask_down] / values_nominal[mask & mask_down]
+
+    _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger)
+
+    logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
+    logging.debug("effect_up  : {effect_up}".format(effect_up=effect_up))
+    logging.debug("effect_down: {effect_down}".format(effect_down=effect_down))
+
+
+def get_year_updown(templates_dict, sample, region, year, skey):
+    updown = []
+
+    for shift in ["up", "down"]:
+        sshift = f"{skey}_{shift}"
+        # get nominal templates for each year
+        templates = {y: templates_dict[y][region][sample, :] for y in years}
+        # replace template for this year with the shifted tempalte
+        if skey in jecs or skey in jmsr:
+            # JEC/JMCs saved as different "region" in dict
+            templates[year] = templates_dict[year][f"{region}_{sshift}"][sample, :]
+        else:
+            # weight uncertainties saved as different "sample" in dict
+            templates[year] = templates_dict[year][region][f"{sample}_{sshift}", :]
+        # sum templates with year's template replaced with shifted
+        updown.append(sum(list(templates.values())))
+
+    return updown
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
