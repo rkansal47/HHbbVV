@@ -120,8 +120,8 @@
 #### Update post-processing
 
  - [x] Check control plots for all years
- - [ ] Re-train BDT for all years
- - [ ] Templates, systematics for all years
+ - [x] Re-train BDT for all years
+ - [x] Templates, systematics for all years
  - [ ] Update datacard with all years
 
 
