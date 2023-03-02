@@ -44,35 +44,42 @@ GEN_FLAGS = ["fromHardProcess", "isLastCopy"]
 
 def gen_selection_HYbbVV(
     events: NanoEventsArray,
+    fatjets: FatJetArray,
     selection: PackedSelection,
     cutflow: dict,
     signGenWeights: ak.Array,
     skim_vars: dict,
 ):
     """Gets HY, bb, VV, and 4q 4-vectors"""
+
+    # gen higgs and kids
     higgs = events.GenPart[
         (abs(events.GenPart.pdgId) == HIGGS_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)
     ]
     GenHiggsVars = {f"GenHiggs{key}": higgs[var].to_numpy() for (var, key) in skim_vars.items()}
-    GenHiggsVars["GenHiggsChildren"] = abs(higgs.children.pdgId[:, :, 0]).to_numpy()
     is_bb = abs(higgs.children.pdgId) == b_PDGID
     has_bb = ak.sum(ak.flatten(is_bb, axis=2), axis=1) == 2
 
-    ys = events.GenPart[(abs(events.GenPart.pdgId) == Y_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)]
-    GenYVars = {f"GenY{key}": ys[var].to_numpy() for (var, key) in skim_vars.items()}
-    GenYVars["GenYChildren"] = abs(ys.children.pdgId[:, :, 0]).to_numpy()
-    is_VV = (abs(ys.children.pdgId) == W_PDGID) + (abs(ys.children.pdgId) == Z_PDGID)
+    bb = ak.flatten(higgs.children[is_bb], axis=2)
+    GenbbVars = {f"Genbb{key}": pad_val(bb[var], 2, axis=1) for (var, key) in skim_vars.items()}
+
+    # gen Y and kids
+    Ys = events.GenPart[(abs(events.GenPart.pdgId) == Y_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)]
+    GenYVars = {f"GenY{key}": Ys[var].to_numpy() for (var, key) in skim_vars.items()}
+    is_VV = (abs(Ys.children.pdgId) == W_PDGID) + (abs(Ys.children.pdgId) == Z_PDGID)
     has_VV = ak.sum(ak.flatten(is_VV, axis=2), axis=1) == 2
 
     add_selection("has_bbVV", has_bb * has_VV, selection, cutflow, False, signGenWeights)
 
-    VV = ak.flatten(ys.children[is_VV], axis=2)
+    VV = ak.flatten(Ys.children[is_VV], axis=2)
     GenVVVars = {f"GenVV{key}": VV[var][:, :2].to_numpy() for (var, key) in skim_vars.items()}
-    quarks = abs(VV.children.pdgId) <= b_PDGID
+
+    VV_children = VV.children
+    quarks = abs(VV_children.pdgId) <= b_PDGID
     all_q = ak.all(ak.all(quarks, axis=2), axis=1)
     add_selection("all_q", all_q, selection, cutflow, False, signGenWeights)
 
-    V_has_2q = ak.count(VV.children.pdgId, axis=2) == 2
+    V_has_2q = ak.count(VV_children.pdgId, axis=2) == 2
     has_4q = ak.values_astype(ak.prod(V_has_2q, axis=1), np.bool)
     add_selection("has_4q", has_4q, selection, cutflow, False, signGenWeights)
 
@@ -80,7 +87,7 @@ def gen_selection_HYbbVV(
         f"Gen4q{key}": ak.to_numpy(
             ak.fill_none(
                 ak.pad_none(
-                    ak.pad_none(VV.children[var], 2, axis=1, clip=True), 2, axis=2, clip=True
+                    ak.pad_none(VV_children[var], 2, axis=1, clip=True), 2, axis=2, clip=True
                 ),
                 PAD_VAL,
             )
@@ -88,7 +95,35 @@ def gen_selection_HYbbVV(
         for (var, key) in skim_vars.items()
     }
 
-    return {**GenHiggsVars, **GenYVars, **GenVVVars, **Gen4qVars}
+    # fatjet gen matching
+    Hbb = ak.pad_none(higgs, 1, axis=1, clip=True)[:, 0]
+    HVV = ak.pad_none(Ys, 1, axis=1, clip=True)[:, 0]
+
+    bbdr = fatjets[:, :2].delta_r(Hbb)
+    vvdr = fatjets[:, :2].delta_r(HVV)
+
+    match_dR = 0.8
+    Hbb_match = bbdr <= match_dR
+    HVV_match = vvdr <= match_dR
+
+    # overlap removal - in the case where fatjet is matched to both, match it only to the closest Higgs
+    Hbb_match = (Hbb_match * ~HVV_match) + (bbdr <= vvdr) * (Hbb_match * HVV_match)
+    HVV_match = (HVV_match * ~Hbb_match) + (bbdr > vvdr) * (Hbb_match * HVV_match)
+
+    VVJets = ak.pad_none(fatjets[HVV_match], 1, axis=1)[:, 0]
+    quarkdrs = ak.flatten(VVJets.delta_r(VV_children), axis=2)
+    num_prongs = ak.sum(quarkdrs < match_dR, axis=1)
+
+    GenMatchingVars = {
+        "ak8FatJetHbb": pad_val(Hbb_match, 2, axis=1),
+        "ak8FatJetHVV": pad_val(HVV_match, 2, axis=1),
+        "ak8FatJetHVVNumProngs": ak.fill_none(num_prongs, PAD_VAL).to_numpy(),
+    }
+
+    return {**GenHiggsVars, **GenbbVars, **GenVVVars, **Gen4qVars, **GenMatchingVars}, (
+        bb,
+        ak.flatten(VV_children, axis=2),
+    )
 
 
 def gen_selection_HHbbVV(

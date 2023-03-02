@@ -24,7 +24,7 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [BDT Pre-Processing](#bdt-pre-processing)
     - [BDT Trainings](#bdt-trainings)
     - [Post-Processing](#post-processing-1)
-    - [CreateDatacard.py](#createdatacardpy)
+    - [Create Datacard](#create-datacard)
     - [PlotFits](#plotfits)
   - [Misc](#misc)
     - [Command for copying directories to PRP in background](#command-for-copying-directories-to-prp-in-background)
@@ -199,12 +199,12 @@ python postprocessing.py --templates --year "2017" --template-dir "templates/$TA
 ```
 
 
-### CreateDatacard.py
+### Create Datacard
 
 Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rhalphalib installed (`pip install -e . --user` after checking out the branch). `CMSSW_11_2_0` recommended.
 
 ```bash
-python3 postprocessing/CreateDatacard.py --templates-file templates/Jan31/templates.pkl --model-name Jan31
+python3 postprocessing/CreateDatacard.py --templates-dir templates/Feb28 --model-name Feb28
 ```
 
 
