@@ -166,10 +166,12 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         isData = "JetHT" in dataset
         isQCD = "QCD" in dataset
-        isSignal = "GluGluToHHTobbVV" in dataset
+        isSignal = "GluGluToHHTobbVV" in dataset or "HTo2bYTo2W" in dataset
 
         if isSignal:
-            gen_weights = np.sign(events["genWeight"])  # only signs for HH
+            # only signs for HH
+            # TODO: check if this is also the case for HY
+            gen_weights = np.sign(events["genWeight"])
         elif not isData:
             gen_weights = events["genWeight"].to_numpy()
         else:
@@ -318,6 +320,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             msds = jmsr_shifted_vars["msoftdrop"][shift]
             pnetms = jmsr_shifted_vars["particleNet_mass"][shift]
 
+            # TODO: change to cut on regressed mass only
             cut = (
                 (msds[~bb_mask] >= self.ak8_jet_selection["VVmsd"])
                 | (pnetms[~bb_mask] >= self.ak8_jet_selection["VVparticleNet_mass"])
@@ -453,15 +456,15 @@ class bbVVSkimmer(processor.ProcessorABC):
                     weight_name = "weight"
 
                 # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)
-                if dataset in self.XSECS:
+                if dataset in self.XSECS or "HTo2bYTo2W" in dataset:
+                    # 1 fb xsec for now for resonant signal
+                    xsec = self.XSECS[dataset] if dataset in self.XSECS else 1e-3  # in pb
                     skimmed_events[weight_name] = (
-                        self.XSECS[dataset]
-                        * LUMI[year]
-                        * weight  # includes genWeight (or signed genWeight)
+                        xsec * LUMI[year] * weight  # includes genWeight (or signed genWeight)
                     )
 
                     if systematic == "":
-                        # to check later for xsec, lumi normalisation
+                        # to check in postprocessing for xsec & lumi normalisation
                         skimmed_events["weight_noxsec"] = weight
                 else:
                     logger.warning("Weight not normalized to cross section")
@@ -542,6 +545,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # HWW Tagger Inference
         ######################
 
+        # TODO: only need to run inference for the WW candidate jet
         if self._inference:
             # apply HWW4q tagger
             pnet_vars = {}
@@ -587,7 +591,9 @@ class bbVVSkimmer(processor.ProcessorABC):
                 "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][~bb_mask],
                 "phi": ak8FatJetVars["ak8FatJetPhi"][~bb_mask],
                 "eta": ak8FatJetVars["ak8FatJetEta"][~bb_mask],
-                "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][~bb_mask],
+                "M": ak8FatJetVars[f"ak8FatJetMsd{mlabel}"][~bb_mask],
+                # TODO: change this to ParticleNetMass for next run
+                # "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][~bb_mask],
             }
         )
 
