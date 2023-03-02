@@ -29,41 +29,41 @@ adjust_posdef_yields = False
 # from utils import add_bool_arg
 from hh_vars import LUMI, sig_key, qcd_key, data_key, years, jecs, jmsr
 
-years = "2017"
 
 # (name in card, name in templates)
 mc_samples = OrderedDict(
     [
         ("ggHH_kl_1_kt_1_hbbhww4q", "HHbbVV"),
+        ("diboson", "Diboson"),
         ("ttbar", "TT"),
         ("singletop", "ST"),
         ("vjets", "V+Jets"),
     ]
 )
 
-all_mc = list(mc_samples.keys())
-lumi_run2 = np.sum(LUMI.values())
+all_mc = list(mc_samples.values())
+lumi_run2 = np.sum(list(LUMI.values()))
 
 
 # https://gitlab.cern.ch/hh/naming-conventions#experimental-uncertainties
 # dictionary of nuisance params -> (modifier, samples affected by it, value)
 nuisance_params = {
-    "lumi_13TeV_2016": (
+    "lumi_13TeV_2016": [
         "lnN",
         all_mc,
         1.01 ** ((LUMI["2016"] + LUMI["2016APV"]) / lumi_run2),
-    ),
-    "lumi_13TeV_2017": (
+    ],
+    "lumi_13TeV_2017": [
         "lnN",
         all_mc,
         1.02 ** (LUMI["2017"] / lumi_run2),
-    ),
-    "lumi_13TeV_2018": (
+    ],
+    "lumi_13TeV_2018": [
         "lnN",
         all_mc,
         1.015 ** (LUMI["2018"] / lumi_run2),
-    ),
-    "lumi_13TeV_correlated": (
+    ],
+    "lumi_13TeV_correlated": [
         "lnN",
         all_mc,
         (
@@ -71,18 +71,18 @@ nuisance_params = {
             * (1.009 ** (LUMI["2017"] / lumi_run2))
             * (1.02 ** (LUMI["2018"] / lumi_run2))
         ),
-    ),
-    "lumi_13TeV_1718": (
+    ],
+    "lumi_13TeV_1718": [
         "lnN",
         all_mc,
         ((1.002 ** (LUMI["2017"] / lumi_run2)) * (1.006 ** (LUMI["2018"] / lumi_run2))),
-    ),
+    ],
     # these values will be added in from the systematics JSON
-    "triggerEffSF_uncorrelated": ("lnN", all_mc, 0),
-    "lp_sf": ("lnN", [sig_key], 0),
+    "triggerEffSF_uncorrelated": ["lnN", all_mc, 0],
+    "lp_sf": ["lnN", [sig_key], 0],
 }
 nuisance_params_dict = {
-    param: rl.NuisanceParameter(param, unc) for param, unc in nuisance_params.items()
+    param: rl.NuisanceParameter(param, unc) for param, (unc, _, _) in nuisance_params.items()
 }
 
 # syst_vals = {
@@ -104,9 +104,8 @@ corr_year_shape_systs = {
     "FSRPartonShower": ("ps_fsr", [sig_key, "V+Jets"]),
     "ISRPartonShower": ("ps_isr", [sig_key, "V+Jets"]),
     "PDFalphaS": ("CMS_bbbb_boosted_ggf_ggHHPDFacc", [sig_key]),
-    "JES": ("CMS_scale_j_2017", all_mc),  # TODO: separate into individual
+    "JES": ("CMS_scale_j", all_mc),  # TODO: separate into individual
     "txbb": ("CMS_bbbb_boosted_ggf_PNetHbbScaleFactors_correlated", [sig_key]),
-    "triggerEffSF": "CMS_bbbb_boosted_ggf_triggerEffSF_uncorrelated",
 }
 
 uncorr_year_shape_systs = {
@@ -122,12 +121,12 @@ for skey, (sname, ssamples) in uncorr_year_shape_systs.items():
     for year in years:
         shape_systs[f"{skey}_{year}"] = (f"{sname}_{year}", ssamples)
 
-# systematics which apply only in the pass region
-pass_only = ["txbb"]
-
 shape_systs_dict = {
     skey: rl.NuisanceParameter(sname, "shape") for skey, (sname, _) in shape_systs.items()
 }
+
+# systematics which apply only in the pass region
+pass_only = ["txbb"]
 
 
 CMS_PARAMS_LABEL = "CMS_bbWW_boosted_ggf"
@@ -193,6 +192,8 @@ def main(args):
     for region in regions:
         region_templates = templates_all[region]
         pass_region = "pass" in region
+        region_noblinded = region.split("Blinded")[0]
+        blind_str = "Blinded" if region.endswith("Blinded") else ""
 
         logging.info("starting region: %s" % region)
         ch = rl.Channel(region.replace("_", ""))  # can't have '_'s in name
@@ -227,12 +228,14 @@ def main(args):
                 sample.autoMCStats(sample_name=stats_sample_name)
 
             # rate systematics
-            for key, (_, ssamples, sval) in nuisance_params.items():
+            for skey, (_, ssamples, sval) in nuisance_params.items():
                 if sample_name not in ssamples:
                     continue
 
-                param = nuisance_params_dict[key]
-                val = sval[region] if isinstance(sval, dict) else sval
+                logging.info(f"Getting {skey} rate")
+
+                param = nuisance_params_dict[skey]
+                val = sval[region_noblinded] if isinstance(sval, dict) else sval
                 sample.setParamEffect(param, val)
 
             # shape systematics
@@ -240,8 +243,21 @@ def main(args):
                 if sample_name not in ssamples or (not pass_region and skey in pass_only):
                     continue
 
-                values_up = region_templates[f"{sample_name}_{skey}_up", :].values()
-                values_down = region_templates[f"{sample_name}_{skey}_down", :].values()
+                logging.info(f"Getting {skey} shapes")
+
+                if skey in jecs or skey in jmsr:
+                    # JEC/JMCs saved as different "region" in dict
+                    values_up = templates_all[f"{region_noblinded}_{skey}_up{blind_str}"][
+                        sample_name, :
+                    ].values()
+                    values_down = templates_all[f"{region_noblinded}_{skey}_down{blind_str}"][
+                        sample_name, :
+                    ].values()
+                else:
+                    # weight uncertainties saved as different "sample" in dict
+                    values_up = region_templates[f"{sample_name}_{skey}_up", :].values()
+                    values_down = region_templates[f"{sample_name}_{skey}_down", :].values()
+
                 logger = logging.getLogger(
                     "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
                 )
@@ -255,9 +271,11 @@ def main(args):
                 if sample_name not in ssamples or (not pass_region and skey in pass_only):
                     continue
 
+                logging.info(f"Getting {skey} shapes")
+
                 for year in years:
                     values_up, values_down = get_year_updown(
-                        templates_dict, sample_name, region, year, skey
+                        templates_dict, sample_name, region, region_noblinded, blind_str, year, skey
                     )
                     logger = logging.getLogger(
                         "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
@@ -273,7 +291,7 @@ def main(args):
             ch.addSample(sample)
 
         if args.bblite:
-            channel_name = region.split("Blinded")[0]
+            channel_name = region_noblinded
             ch.autoMCStats(channel_name=channel_name)
 
         # data observed
@@ -337,8 +355,6 @@ def main(args):
 
 
 def sum_templates(template_dict: Dict):
-    print(template_dict)
-
     ttemplate = list(template_dict.values())[0]  # sample templates to extract values from
     combined = {}
 
@@ -350,7 +366,6 @@ def sum_templates(template_dict: Dict):
 
         combined[region] = sum(thists)
 
-    print(f"{combined = }")
     return combined
 
 
@@ -361,8 +376,6 @@ def process_systematics(systematics: Dict):
 
     tdict = {}
     for region in systematics["2017"]:
-        print(region)
-
         trig_totals, trig_total_errs = [], []
         for year in years:
             trig_totals.append(systematics[year][region]["trig_total"])
@@ -371,12 +384,12 @@ def process_systematics(systematics: Dict):
         trig_total = np.sum(trig_totals)
         trig_total_errs = np.linalg.norm(trig_total_errs)
 
-        print(f"{trig_total = }")
-        print(f"{trig_total_errs = }")
-
         tdict[region] = 1 + (trig_total_errs / trig_total)
 
     nuisance_params["triggerEffSF_uncorrelated"][2] = tdict
+
+    print("Nuisance Parameters")
+    print(nuisance_params)
 
 
 def _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger):
@@ -432,8 +445,10 @@ def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
     logging.debug("effect_up  : {effect_up}".format(effect_up=effect_up))
     logging.debug("effect_down: {effect_down}".format(effect_down=effect_down))
 
+    return effect_up, effect_down
 
-def get_year_updown(templates_dict, sample, region, year, skey):
+
+def get_year_updown(templates_dict, sample, region, region_noblinded, blind_str, year, skey):
     updown = []
 
     for shift in ["up", "down"]:
@@ -443,12 +458,14 @@ def get_year_updown(templates_dict, sample, region, year, skey):
         # replace template for this year with the shifted tempalte
         if skey in jecs or skey in jmsr:
             # JEC/JMCs saved as different "region" in dict
-            templates[year] = templates_dict[year][f"{region}_{sshift}"][sample, :]
+            templates[year] = templates_dict[year][f"{region_noblinded}_{sshift}{blind_str}"][
+                sample, :
+            ]
         else:
             # weight uncertainties saved as different "sample" in dict
             templates[year] = templates_dict[year][region][f"{sample}_{sshift}", :]
         # sum templates with year's template replaced with shifted
-        updown.append(sum(list(templates.values())))
+        updown.append(sum(list(templates.values())).values())
 
     return updown
 
@@ -472,7 +489,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--templates-file",
+        "--templates-dir",
         default="",
         type=str,
         help="input pickle file of dict of hist.Hist templates",
