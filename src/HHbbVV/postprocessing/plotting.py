@@ -164,7 +164,18 @@ def ratioHistPlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    hep.cms.label("Work in Progress", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
+    if year == "all":
+        hep.cms.label(
+            "Work in Progress",
+            data=True,
+            lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
+            year=None,
+            ax=ax,
+        )
+    else:
+        hep.cms.label(
+            "Work in Progress", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax
+        )
     if len(name):
         plt.savefig(name, bbox_inches="tight")
 
