@@ -105,7 +105,7 @@ selection_regions_year = {
     },
 }
 
-selection_regions_label = {"pass": "Pass", "fail": "Fail", "BDTOnly": "BDT Cut"}
+selection_regions_label = {"pass": "Pass", "fail": "Fail", "BDTOnly": "BDT Cut", "top": "Top"}
 
 selection_regions = {}
 
@@ -140,7 +140,7 @@ for bdtcut in np.arange(0.97, 1, 0.002):
 
 
 # bb msd is final shape var
-shape_var = ("bbFatJetMsd", r"$m^{bb}_{Reg}$ (GeV)")
+shape_var = ("bbFatJetParticleNetMass", r"$m^{bb}_{Reg}$ (GeV)")
 shape_bins = [20, 50, 250]  # num bins, min, max
 blind_window = [100, 150]
 
@@ -294,6 +294,7 @@ def main(args):
 
 def _make_dirs(args):
     if args.plot_dir != "":
+        args.plot_dir = f"{args.plot_dir}/{args.year}/"
         os.system(f"mkdir -p {args.plot_dir}/cutflows/")
         if args.control_plots:
             os.system(f"mkdir -p {args.plot_dir}/control_plots/")
@@ -628,6 +629,7 @@ def control_plots(
     year: str,
     weight_key: str = "finalWeight",
     hists: Dict = {},
+    cutstr: str = "",
     show: bool = False,
 ):
     """
@@ -640,6 +642,10 @@ def control_plots(
     """
 
     from PyPDF2 import PdfMerger
+
+    print(np.sum(events_dict["HHbbVV"]["finalWeight"]))
+    print(np.sum(events_dict["QCD"]["finalWeight"]))
+    print(control_plot_vars)
 
     sig_scale = (
         np.sum(events_dict[data_key][weight_key]) / np.sum(events_dict[sig_key][weight_key]) / 2
@@ -659,7 +665,7 @@ def control_plots(
     merger_control_plots = PdfMerger()
 
     for var, var_hist in hists.items():
-        name = f"{plot_dir}/{var}.pdf"
+        name = f"{plot_dir}/{cutstr}{var}.pdf"
         plotting.ratioHistPlot(
             var_hist,
             year,
@@ -670,7 +676,7 @@ def control_plots(
         )
         merger_control_plots.append(name)
 
-    merger_control_plots.write(f"{plot_dir}/{year}_ControlPlots.pdf")
+    merger_control_plots.write(f"{plot_dir}/{year}_{cutstr}ControlPlots.pdf")
     merger_control_plots.close()
 
     return hists
@@ -704,6 +710,7 @@ def get_templates(
     cutstr: str = "",
     weight_shifts: Dict = {},
     jshift: str = "",
+    selection_regions_label: Dict = selection_regions_label,
     show: bool = False,
 ) -> Dict[str, Hist]:
     """
@@ -760,7 +767,7 @@ def get_templates(
             systematics[label]["trig_total"] = total
             systematics[label]["trig_total_err"] = total_err
 
-            print(f"\nTrigger SF Unc.: {total_err / total:.3f}\n")
+            # print(f"\nTrigger SF Unc.: {total_err / total:.3f}\n")
 
         # ParticleNetMD Txbb SFs
         sig_events = deepcopy(events_dict[sig_key][sel[sig_key]])

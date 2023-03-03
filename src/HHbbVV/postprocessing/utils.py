@@ -329,7 +329,8 @@ def singleVarHist(
             fill_data[var] = fill_data[var][sel]
             weight = weight[sel]
 
-        h.fill(Sample=sample, **fill_data, weight=weight)
+        if len(fill_data[var]):
+            h.fill(Sample=sample, **fill_data, weight=weight)
 
     if blind_region is not None:
         blindBins(h, blind_region, data_key)
