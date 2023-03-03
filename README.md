@@ -198,13 +198,17 @@ python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb
 python postprocessing.py --templates --year "2017" --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" (--control-plots)
 ```
 
+All years:
+```bash
+for year in 2016APV 2016 2017 2018; do python postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/"; done 
+```
 
 ### Create Datacard
 
 Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rhalphalib installed (`pip install -e . --user` after checking out the branch). `CMSSW_11_2_0` recommended.
 
 ```bash
-python3 postprocessing/CreateDatacard.py --templates-dir templates/Feb28 --model-name Feb28
+python3 postprocessing/CreateDatacard.py --templates-dir templates/$TAG --model-name $TAG
 ```
 
 
