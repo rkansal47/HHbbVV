@@ -292,7 +292,7 @@ def main(args):
 
         if args.bblite:
             channel_name = region_noblinded
-            ch.autoMCStats(channel_name=channel_name)
+            ch.autoMCStats(channel_name=channel_name, threshold=0.1)
 
         # data observed
         ch.setObservation(region_templates[data_key, :])
