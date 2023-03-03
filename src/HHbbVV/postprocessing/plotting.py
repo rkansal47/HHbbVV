@@ -158,7 +158,7 @@ def ratioHistPlot(
         capsize=4,
     )
     rax.set_ylabel("Data/MC")
-    rax.set_ylim([0, 5])
+    rax.set_ylim([0, 2])
     rax.grid()
 
     if title is not None:
