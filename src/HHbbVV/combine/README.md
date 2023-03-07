@@ -24,3 +24,9 @@ scram b
 ```bash
 /uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh "./"
 ```
+
+## Get data and toy test statistics for simple GoF
+
+```bash
+/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/gof.sh "./"
+```
