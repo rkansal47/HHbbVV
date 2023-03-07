@@ -19,7 +19,7 @@ from typing import Dict, List, Union
 from coffea.analysis_tools import PackedSelection
 from hist import Hist
 
-from hh_vars import sig_key, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
+from hh_vars import sig_keys, res_sig_keys, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
 
 MAIN_DIR = "./"
 CUT_MAX_VAL = 9999.0
@@ -172,7 +172,7 @@ def load_samples(
             pickles_path = f"{data_dir}/{year}/{sample}/pickles"
 
             if label != data_key:
-                if label == sig_key:
+                if label in sig_keys + res_sig_keys:
                     n_events = get_cutflow(pickles_path, year, sample)["has_4q"]
                 else:
                     n_events = get_nevents(pickles_path, year, sample)
@@ -190,7 +190,10 @@ def load_samples(
 
             print(f"Loaded {sample: <50}: {len(events)} entries")
 
-        events_dict[label] = pd.concat(events_dict[label])
+        if len(events_dict[label]):
+            events_dict[label] = pd.concat(events_dict[label])
+        else:
+            del events_dict[label]
 
     return events_dict
 
@@ -437,6 +440,7 @@ def make_selection(
 
 def getSigSidebandBGYields(
     mass_key: str,
+    sig_key: str,
     mass_cuts: List[int],
     events_dict: Dict[str, pd.DataFrame],
     bb_masks: Dict[str, pd.DataFrame],
@@ -482,12 +486,23 @@ def getSigSidebandBGYields(
 
 
 def getSignalPlotScaleFactor(
-    events_dict: Dict[str, pd.DataFrame], weight_key: str = "finalWeight", selection: dict = None
+    events_dict: Dict[str, pd.DataFrame],
+    sig_keys: List[str],
+    weight_key: str = "finalWeight",
+    selection: dict = None,
 ):
-    """Get scale factor for signal in histogram plots"""
+    """Get scale factor for signals in histogram plots"""
+    sig_scale_dict = {}
+
     if selection is None:
-        return np.sum(events_dict[data_key][weight_key]) / np.sum(events_dict[sig_key][weight_key])
+        data_sum = np.sum(events_dict[data_key][weight_key])
+        for sig_key in sig_keys:
+            sig_scale_dict[sig_key] = data_sum / np.sum(events_dict[sig_key][weight_key])
     else:
-        return np.sum(events_dict[data_key][weight_key][selection[data_key]]) / np.sum(
-            events_dict[sig_key][weight_key][selection[sig_key]]
-        )
+        data_sum = np.sum(events_dict[data_key][weight_key][selection[data_key]])
+        for sig_key in sig_keys:
+            sig_scale_dict[sig_key] = (
+                data_sum / events_dict[sig_key][weight_key][selection[sig_key]]
+            )
+
+    return sig_scale_dict
