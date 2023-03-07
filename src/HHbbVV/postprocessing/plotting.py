@@ -4,6 +4,7 @@ Common plotting functions.
 Author(s): Raghav Kansal
 """
 
+from collections import OrderedDict
 import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
@@ -13,7 +14,7 @@ plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
 formatter = mticker.ScalarFormatter(useMathText=True)
 formatter.set_powerlimits((-3, 3))
-plt.rcParams.update({"font.size": 28})
+plt.rcParams.update({"font.size": 20})
 
 from hist import Hist
 from hist.intervals import ratio_uncertainty
@@ -21,7 +22,7 @@ from hist.intervals import ratio_uncertainty
 from typing import Dict, List, Union, Tuple
 from numpy.typing import ArrayLike
 
-from hh_vars import LUMI, sig_key, data_key
+from hh_vars import LUMI, sig_keys, res_sig_keys, data_key
 
 from copy import deepcopy
 
@@ -44,6 +45,15 @@ bg_colours = {
 }
 sig_colour = "red"
 
+sig_colours = [
+    "#23CE6B",
+    "#ffbaba",
+    "#ff7b7b",
+    "#ff5252",
+    "#EDB458",
+    "#a70000",
+]
+
 bg_order = ["Diboson", "ST", "V+Jets", "TT", "QCD"]
 
 
@@ -62,15 +72,16 @@ def _fill_error(ax, edges, down, up, scale=1):
 def ratioHistPlot(
     hists: Hist,
     year: str,
+    sig_keys: List[str],
     bg_keys: List[str],
     bg_colours: Dict[str, str] = bg_colours,
-    sig_colour: str = sig_colour,
+    sig_colours: str = sig_colours,
     sig_err: Union[ArrayLike, str] = None,
     data_err: Union[ArrayLike, bool, None] = None,
     title: str = None,
     blind_region: list = None,
     name: str = "",
-    sig_scale: float = 1.0,
+    sig_scale_dict: float = None,
     show: bool = True,
     variation: Tuple = None,
 ):
@@ -78,13 +89,20 @@ def ratioHistPlot(
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
     scaled) with a data/mc ratio plot below
     """
-    # plt.rcParams.update({"font.size": 28})
 
-    sig_key = "HHbbVV"
     bg_keys = [key for key in bg_order if key in bg_keys]
     bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
     bg_labels = deepcopy(bg_keys)
-    sig_label = f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key
+
+    if sig_scale_dict is None:
+        sig_scale_dict = OrderedDict([(sig_key, 1.0) for sig_key in sig_keys])
+
+    sig_labels = OrderedDict(
+        [
+            (sig_key, f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key)
+            for sig_key, sig_scale in sig_scale_dict.items()
+        ]
+    )
 
     if variation is not None:
         wshift, shift, wsamples = variation
@@ -113,18 +131,21 @@ def ratioHistPlot(
         color=bg_colours,
     )
     hep.histplot(
-        hists[sig_key, :] * sig_scale,
+        [hists[sig_key, :] * sig_scale for sig_key, sig_scale in sig_scale_dict.items()],
         ax=ax,
         histtype="step",
-        label=sig_label,
-        color=colours[sig_colour],
+        label=list(sig_labels.values()),
+        color=sig_colours,
     )
 
     if type(sig_err) == str:
         scolours = {"down": colours["lightred"], "up": colours["darkred"]}
         for skey, shift in [("Up", "up"), ("Down", "down")]:
             hep.histplot(
-                hists[f"{sig_key}_{sig_err}_{shift}", :] * sig_scale,
+                [
+                    hists[f"{sig_key}_{sig_err}_{shift}", :] * sig_scale
+                    for sig_key, sig_scale in sig_scale_dict.items()
+                ],
                 yerr=0,
                 ax=ax,
                 histtype="step",
@@ -132,13 +153,14 @@ def ratioHistPlot(
                 color=scolours[shift],
             )
     elif sig_err is not None:
-        _fill_error(
-            ax,
-            hists.axes[1].edges,
-            hists[sig_key, :].values() * (1 - sig_err),
-            hists[sig_key, :].values() * (1 + sig_err),
-            sig_scale,
-        )
+        for sig_key, sig_scale in sig_scale_dict.items():
+            _fill_error(
+                ax,
+                hists.axes[1].edges,
+                hists[sig_key, :].values() * (1 - sig_err),
+                hists[sig_key, :].values() * (1 + sig_err),
+                sig_scale,
+            )
 
     hep.histplot(
         hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"

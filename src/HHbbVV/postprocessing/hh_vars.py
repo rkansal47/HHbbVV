@@ -31,10 +31,32 @@ samples = OrderedDict(
     ]
 )
 
-sig_key = "HHbbVV"
+res_samples = OrderedDict([])
+# for mX in [600, 1000, 1600, 2000, 3000]:
+#     for mY in [100, 450, 800, 1000, 1800, 2400]:
+#         res_samples[f"X{mX}->H(bb)Y{mY}(VV)"] = f"NMSSM_XToYH_MX{mX}_MY{mY}_HTo2bYTo2W_hadronicDecay"
+
+
+res_mps = [
+    (600, 100),
+    (1000, 100),
+    # (1000, 450),
+    (2000, 100),
+    # (2000, 450),
+    (2000, 1000),
+    (3000, 100),
+    # (3000, 450),
+    # (3000, 1000),
+]
+
+for mX, mY in res_mps:
+    res_samples[f"X{mX}->H(bb)Y{mY}(VV)"] = f"NMSSM_XToYH_MX{mX}_MY{mY}_HTo2bYTo2W_hadronicDecay"
+
+sig_keys = ["HHbbVV"]
+res_sig_keys = list(res_samples.keys())
 data_key = "Data"
 qcd_key = "QCD"
-bg_keys = [key for key in samples.keys() if key not in [sig_key, data_key]]
+bg_keys = [key for key in samples.keys() if key not in sig_keys + [data_key]]
 
 
 # from https://cms.cern.ch/iCMS/jsp/db_notes/noteInfo.jsp?cmsnoteid=CMS%20AN-2021/005

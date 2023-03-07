@@ -10,6 +10,7 @@ Post processing skimmed parquet files (output of bbVVSkimmer processor):
 Author(s): Raghav Kansal, Cristina Mantilla Suarez
 """
 
+from collections import OrderedDict
 import os
 import sys
 import pickle, json
@@ -30,7 +31,8 @@ from textwrap import dedent
 import corrections
 from hh_vars import (
     years,
-    sig_key,
+    sig_keys,
+    res_sig_keys,
     data_key,
     qcd_key,
     bg_keys,
@@ -145,11 +147,12 @@ shape_bins = [20, 50, 250]  # num bins, min, max
 blind_window = [100, 150]
 
 
+# TODO: check which of these applies to resonant as well
 weight_shifts = {
-    "pileup": [sig_key] + bg_keys,
-    "PDFalphaS": [sig_key],
-    "ISRPartonShower": [sig_key, "V+Jets"],
-    "FSRPartonShower": [sig_key, "V+Jets"],
+    "pileup": sig_keys + res_sig_keys + bg_keys,
+    "PDFalphaS": sig_keys,
+    "ISRPartonShower": sig_keys + ["V+Jets"],
+    "FSRPartonShower": sig_keys + ["V+Jets"],
 }
 
 weight_labels = {
@@ -209,23 +212,27 @@ def main(args):
     # BDT LP SF
     if "lp_sf" not in systematics:
         if args.lp_sf_all_years:
-            systematics = {
-                **systematics,
-                **get_lpsf_all_years(
+            for sig_key in sig_keys:
+                systematics[sig_key] = get_lpsf_all_years(
                     events_dict, sig_key, args.data_dir, bdt_preds_dir, list(samples.keys())
-                ),
-            }
+                )
         else:
-            # calculate only for current year
-            events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
-            sel, cf = utils.make_selection(
-                selection_regions[args.year]["BDTOnly"], events_dict, bb_masks, prev_cutflow=cutflow
-            )
-            lp_sf, unc, uncs = get_lpsf(events_dict[sig_key], sel[sig_key])
-            print(f"BDT LP Scale Factor: {lp_sf:.2f} ± {unc:.2f}")
-            print(uncs)
-            systematics["lp_sf"] = lp_sf
-            systematics["lp_sf_unc"] = unc / lp_sf
+            for sig_key in sig_keys:
+                systematics[sig_key] = {}
+                # calculate only for current year
+                events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
+                sel, cf = utils.make_selection(
+                    selection_regions[args.year]["BDTOnly"],
+                    events_dict,
+                    bb_masks,
+                    prev_cutflow=cutflow,
+                )
+                lp_sf, unc, uncs = get_lpsf(events_dict[sig_key], sel[sig_key])
+                print(f"BDT LP Scale Factor for {sig_key}: {lp_sf:.2f} ± {unc:.2f}")
+                print(uncs)
+
+                systematics[sig_key]["lp_sf"] = lp_sf
+                systematics[sig_key]["lp_sf_unc"] = unc / lp_sf
 
     with open(systs_file, "w") as f:
         json.dump(systematics, f)
@@ -366,7 +373,7 @@ def apply_weights(
             [
                 trig_yields[sample]
                 for sample in events_dict
-                if sample not in {sig_key, qcd_key, data_key}
+                if sample not in {*sig_keys, qcd_key, data_key, *res_sig_keys}
             ]
         )
         QCD_SCALE_FACTOR = (trig_yields[data_key] - non_qcd_bgs_yield) / trig_yields[qcd_key]
@@ -624,6 +631,7 @@ def load_bdt_preds(
 def control_plots(
     events_dict: Dict[str, pd.DataFrame],
     bb_masks: Dict[str, pd.DataFrame],
+    sig_keys: List[str],
     control_plot_vars: Dict[str, Tuple],
     plot_dir: str,
     year: str,
@@ -643,14 +651,10 @@ def control_plots(
 
     from PyPDF2 import PdfMerger
 
-    print(np.sum(events_dict["HHbbVV"]["finalWeight"]))
-    print(np.sum(events_dict["QCD"]["finalWeight"]))
-    print(control_plot_vars)
-
-    sig_scale = (
-        np.sum(events_dict[data_key][weight_key]) / np.sum(events_dict[sig_key][weight_key]) / 2
-    )
-    print(f"{sig_scale = }")
+    # sig_scale_dict = utils.getSignalPlotScaleFactor(events_dict, sig_keys)
+    sig_scale_dict = {sig_key: 2e4 for sig_key in sig_keys}
+    sig_scale_dict["HHbbVV"] = 2e5
+    # print(f"{sig_scale_dict = }")
 
     for var, (bins, label) in control_plot_vars.items():
         # print(var)
@@ -669,9 +673,10 @@ def control_plots(
         plotting.ratioHistPlot(
             var_hist,
             year,
+            sig_keys,
             bg_keys,
             name=name,
-            sig_scale=sig_scale,
+            sig_scale_dict=sig_scale_dict,
             show=show,
         )
         merger_control_plots.append(name)
@@ -700,6 +705,7 @@ def get_templates(
     events_dict: Dict[str, pd.DataFrame],
     bb_masks: Dict[str, pd.DataFrame],
     year: str,
+    sig_keys: List[str],
     selection_regions: Dict[str, Dict],
     shape_var: Tuple[str],
     shape_bins: List[float],
@@ -770,10 +776,12 @@ def get_templates(
             # print(f"\nTrigger SF Unc.: {total_err / total:.3f}\n")
 
         # ParticleNetMD Txbb SFs
-        sig_events = deepcopy(events_dict[sig_key][sel[sig_key]])
-        sig_bb_mask = bb_masks[sig_key][sel[sig_key]]
-        if pass_region:
-            corrections.apply_txbb_sfs(sig_events, sig_bb_mask, year, weight_key)
+        sig_events = {}
+        for sig_key in sig_keys:
+            sig_events[sig_key] = deepcopy(events_dict[sig_key][sel[sig_key]])
+            sig_bb_mask = bb_masks[sig_key][sel[sig_key]]
+            if pass_region:
+                corrections.apply_txbb_sfs(sig_events, sig_bb_mask, year, weight_key)
 
         # set up samples
         hist_samples = list(events_dict.keys())
@@ -781,7 +789,8 @@ def get_templates(
         if not do_jshift:
             for shift in ["down", "up"]:
                 if pass_region:
-                    hist_samples.append(f"{sig_key}_txbb_{shift}")
+                    for sig_key in sig_keys:
+                        hist_samples.append(f"{sig_key}_txbb_{shift}")
 
                 for wshift, wsamples in weight_shifts.items():
                     for wsample in wsamples:
@@ -794,7 +803,7 @@ def get_templates(
         )
 
         for sample in events_dict:
-            events = sig_events if sample == sig_key else events_dict[sample][sel[sample]]
+            events = sig_events[sample] if sample in sig_keys else events_dict[sample][sel[sample]]
             if not len(events):
                 continue
 
@@ -838,11 +847,11 @@ def get_templates(
         templates[label + jlabel] = h
 
         if plot_dir != "":
-            sig_scale = utils.getSignalPlotScaleFactor(events_dict, selection=sel)
+            sig_scale_dict = utils.getSignalPlotScaleFactor(events_dict, sig_keys, selection=sel)
             plot_params = {
                 "hists": h,
                 "bg_keys": bg_keys,
-                "sig_scale": sig_scale / 2,
+                "sig_scale_dict": {key: val / 2 for key, val in sig_scale_dict.items()},
                 "show": show,
                 "year": year,
             }
