@@ -26,5 +26,8 @@ echo "expected significance"
 combine -M Significance -d ${wsm_snapshot}.root --significance -m 125 -n pass --snapshotName MultiDimFit -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit --setParameters mask_pass=0,mask_fail=0,mask_passBlinded=1,mask_failBlinded=1,r=1 --floatParameters r --toysFrequentist 2>&1 | tee $outsdir/Significance.txt
 
 echo "fitdiagnostics"
-combine -M FitDiagnostics -m 125 -d ${wsm}.root --setParameters mask_pass=1,mask_fail=1,mask_passBlinded=0,mask_failBlinded=0 --saveNormalizations --saveShapes --saveWithUncertainties --saveOverallShapes -n Blinded --ignoreCovWarning -v 9 --freezeParameters CMS_bbWW_boosted_ggf_qcdparam_msdbin5,CMS_bbWW_boosted_ggf_qcdparam_msdbin6,CMS_bbWW_boosted_ggf_qcdparam_msdbin7,CMS_bbWW_boosted_ggf_qcdparam_msdbin8,CMS_bbWW_boosted_ggf_qcdparam_msdbin9 2>&1 | tee $outsdir/FitDiagnostics.txt
+combine -M FitDiagnostics -m 125 -d ${wsm}.root \
+--setParameters mask_pass=1,mask_fail=1,mask_passBlinded=0,mask_failBlinded=0 --saveNormalizations \
+--freezeParameters CMS_bbWW_boosted_ggf_qcdparam_msdbin5,CMS_bbWW_boosted_ggf_qcdparam_msdbin6,CMS_bbWW_boosted_ggf_qcdparam_msdbin7,CMS_bbWW_boosted_ggf_qcdparam_msdbin8,CMS_bbWW_boosted_ggf_qcdparam_msdbin9 \
+--saveShapes --saveWithUncertainties --saveOverallShapes -n Blinded --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnostics.txt
 
