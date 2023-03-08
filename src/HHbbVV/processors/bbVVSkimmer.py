@@ -402,9 +402,41 @@ class bbVVSkimmer(processor.ProcessorABC):
         )
         n_good_jets = ak.sum(goodjets, axis=1)
 
+        # selection from https://github.com/jennetd/hbb-coffea/blob/85bc3692be9e0e0a0c82ae3c78e22cdf5b3e4d68/boostedhiggs/vhbbprocessor.py#L283-L307
+        # https://indico.cern.ch/event/1154430/#b-471403-higgs-meeting-special
+
+        goodelectron = (
+            (events.Electron.pt > 10)
+            & (abs(events.Electron.eta) < 2.5)
+            & (events.Electron.cutBased >= events.Electron.LOOSE)
+        )
+        nelectrons = ak.sum(goodelectron, axis=1)
+
+        goodmuon = (
+            (events.Muon.pt > 10)
+            & (abs(events.Muon.eta) < 2.4)
+            & (events.Muon.pfRelIso04_all < 0.25)
+            & events.Muon.looseId
+        )
+        nmuons = ak.sum(goodmuon, axis=1)
+
+        ntaus = ak.sum(
+            (
+                (events.Tau.pt > 20)
+                & (abs(events.Tau.eta) < 2.3)
+                & (events.Tau.rawIso < 5)
+                & (events.Tau.idDeepTau2017v2p1VSjet)
+            ),
+            axis=1,
+        )
+
         skimmed_events["nGoodMuons"] = n_good_muons.to_numpy()
         skimmed_events["nGoodElectrons"] = n_good_electrons.to_numpy()
         skimmed_events["nGoodJets"] = n_good_jets.to_numpy()
+
+        skimmed_events["nGoodMuonsv2"] = nmuons.to_numpy()
+        skimmed_events["nGoodElectronsv2"] = nelectrons.to_numpy()
+        skimmed_events["nGoodTausv2"] = ntaus.to_numpy()
 
         ######################
         # Weights
@@ -592,9 +624,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][~bb_mask],
                 "phi": ak8FatJetVars["ak8FatJetPhi"][~bb_mask],
                 "eta": ak8FatJetVars["ak8FatJetEta"][~bb_mask],
-                "M": ak8FatJetVars[f"ak8FatJetMsd{mlabel}"][~bb_mask],
-                # TODO: change this to ParticleNetMass for next run
-                # "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][~bb_mask],
+                "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][~bb_mask],
             }
         )
 
