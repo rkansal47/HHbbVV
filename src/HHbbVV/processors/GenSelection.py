@@ -80,7 +80,7 @@ def gen_selection_HYbbVV(
     add_selection("all_q", all_q, selection, cutflow, False, signGenWeights)
 
     V_has_2q = ak.count(VV_children.pdgId, axis=2) == 2
-    has_4q = ak.values_astype(ak.prod(V_has_2q, axis=1), np.bool)
+    has_4q = ak.values_astype(ak.prod(V_has_2q, axis=1), bool)
     add_selection("has_4q", has_4q, selection, cutflow, False, signGenWeights)
 
     Gen4qVars = {
