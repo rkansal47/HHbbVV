@@ -135,3 +135,7 @@ def get_processor(
         from HHbbVV.processors import TTScaleFactorsSkimmer
 
         return TTScaleFactorsSkimmer(xsecs=get_xsecs())
+    elif processor == "xhy":
+        from HHbbVV.processors import XHYProcessor
+
+        return XHYProcessor()
