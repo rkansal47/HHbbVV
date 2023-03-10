@@ -229,7 +229,7 @@ class XHYProcessor(processor.ProcessorABC):
         if len(skimmed_events["ak8FatJetHVVNumProngs"]):
             h.fill(numquarks=skimmed_events["ak8FatJetHVVNumProngs"].squeeze())
 
-        return {"h": h, "cutflow": cutflow}
+        return {year: {dataset: {"h": h, "cutflow": cutflow}}}
 
     def postprocess(self, accumulator):
         return accumulator
