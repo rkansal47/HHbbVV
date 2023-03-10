@@ -60,6 +60,12 @@ if __name__ == "__main__":
     run_utils.add_bool_arg(
         parser, "r", default=False, help="combine files in sub and subsubdirectories of indir"
     )
+    run_utils.add_bool_arg(
+        parser,
+        "separate-samples",
+        default=False,
+        help="combine different samples' pickles separately",
+    )
     args = parser.parse_args()
 
     user = os.getlogin()
@@ -78,23 +84,28 @@ if __name__ == "__main__":
     print(f"Outputs directory:", outdir)
 
     files = [indir + "/" + file for file in listdir(indir) if file.endswith(".pkl")]
+    out_dict = {}
 
     if args.r:
-        dirs = [
-            indir + "/" + d + "/pickles/"
-            for d in listdir(indir)
-            if os.path.isdir(indir + "/" + d + "/pickles/")
-        ]
-        print(dirs)
+        samples = [d for d in listdir(indir) if os.path.isdir(indir + "/" + d + "/pickles/")]
 
-        for d in dirs:
-            files += [d + "/" + file for file in listdir(d) if file.endswith(".pkl")]
-            subdirs = [d + "/" + sd for sd in listdir(d) if os.path.isdir(d + "/" + sd)]
-            for sd in subdirs:
-                files += [sd + "/" + file for file in listdir(sd) if file.endswith(".pkl")]
+        for sample in samples:
+            print(sample)
+            pickle_path = f"{indir}/{sample}/pickles/"
+            sample_files = [
+                pickle_path + "/" + file for file in listdir(pickle_path) if file.endswith(".pkl")
+            ]
 
-    print(f"Accumulating {len(files)} files")
-    out = accumulate_files(files)
+            if args.separate_samples:
+                files += sample_files
+            else:
+                out_dict[sample] = accumulate_files(sample_files)
+
+    if args.separate_samples:
+        out = {args.year: out_dict}
+    else:
+        print(f"Accumulating {len(files)} files")
+        out = accumulate_files(files)
 
     with open(f"{outdir}/{args.year}_{args.name}.pkl", "wb") as f:
         pickle.dump(out, f)
