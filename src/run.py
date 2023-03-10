@@ -170,7 +170,7 @@ if __name__ == "__main__":
         default="trigger",
         help="Trigger processor",
         type=str,
-        choices=["trigger", "skimmer", "input", "ttsfs", "hxy"],
+        choices=["trigger", "skimmer", "input", "ttsfs", "xhy"],
     )
     parser.add_argument(
         "--executor",
