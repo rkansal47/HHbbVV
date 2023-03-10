@@ -35,14 +35,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def update(events, collections):
-    """Return a shallow copy of events array with some collections swapped out"""
-    out = events
-    for name, value in collections.items():
-        out = ak.with_field(out, value, name)
-    return out
-
-
 class XHYProcessor(processor.ProcessorABC):
     """
     Histograms of quarks captured per YVV fatjet.
