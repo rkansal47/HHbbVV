@@ -125,18 +125,11 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--year", help="year", type=str, required=True)
+    run_utils.parse_common_args(parser)
     parser.add_argument("--script", default="run.py", help="script to run", type=str)
     parser.add_argument("--tag", default="Test", help="process tag", type=str)
     parser.add_argument(
         "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
-    )
-    parser.add_argument(
-        "--processor",
-        default="trigger",
-        help="which processor",
-        type=str,
-        choices=["trigger", "skimmer", "input", "ttsfs", "xhy"],
     )
     parser.add_argument(
         "--site",
@@ -145,42 +138,17 @@ if __name__ == "__main__":
         type=str,
         choices=["lpc", "ucsd"],
     )
-    parser.add_argument(
-        "--samples",
-        default=[],
-        help="which samples to run",  # , default will be all samples",
-        nargs="*",
-    )
-    parser.add_argument(
-        "--subsamples",
-        default=[],
-        help="which subsamples, by default will be all in the specified sample(s)",
-        nargs="*",
-    )
-    parser.add_argument("--files-per-job", default=20, help="# files per condor job", type=int)
-    parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
-    parser.add_argument("--chunksize", default=10000, help="chunk size", type=int)
-    parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
-    parser.add_argument("--njets", default=2, help="njets", type=int)
-
     run_utils.add_bool_arg(
         parser,
         "test",
         default=False,
         help="test run or not - test run means only 2 jobs per sample will be created",
     )
+    parser.add_argument("--files-per-job", default=20, help="# files per condor job", type=int)
 
     run_utils.add_bool_arg(
         parser, "submit", default=False, help="submit files as well as create them"
     )
-
-    run_utils.add_bool_arg(
-        parser, "save-ak15", default=False, help="run inference for and save ak15 jets"
-    )
-    run_utils.add_bool_arg(
-        parser, "save-systematics", default=False, help="save systematic variations"
-    )
-    run_utils.add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
 
     args = parser.parse_args()
 

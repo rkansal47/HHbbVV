@@ -36,16 +36,7 @@ def accumulate_files(files: list):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--year", help="year", type=str, required=True, choices=["2016APV", "2016", "2017", "2018"]
-    )
-    parser.add_argument(
-        "--processor",
-        default="trigger",
-        help="Trigger processor",
-        type=str,
-        choices=["trigger", "skimmer", "input", "ttsfs"],
-    )
+    run_utils.parse_common_args(parser)  # year, processor
     parser.add_argument("--tag", type=str, required=True)
     parser.add_argument("--name", default="combined", help="name of combined files", type=str)
     parser.add_argument(
