@@ -160,18 +160,9 @@ if __name__ == "__main__":
     # inside a dask job:  python run.py --year 2017 --processor trigger --dask
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--year", help="year", type=str, required=True, choices=["2016APV", "2016", "2017", "2018"]
-    )
+    run_utils.parse_common_args(parser)
     parser.add_argument("--starti", default=0, help="start index of files", type=int)
     parser.add_argument("--endi", default=-1, help="end index of files", type=int)
-    parser.add_argument(
-        "--processor",
-        default="trigger",
-        help="Trigger processor",
-        type=str,
-        choices=["trigger", "skimmer", "input", "ttsfs", "xhy"],
-    )
     parser.add_argument(
         "--executor",
         type=str,
@@ -179,8 +170,6 @@ if __name__ == "__main__":
         choices=["futures", "iterative", "dask"],
         help="type of processor executor",
     )
-    parser.add_argument("--samples", default=[], help="samples", nargs="*")
-    parser.add_argument("--subsamples", default=[], help="subsamples", nargs="*")
     parser.add_argument(
         "--files", default=[], help="set of files to run on instead of samples", nargs="*"
     )
@@ -190,18 +179,6 @@ if __name__ == "__main__":
         default="files",
         help="sample name of files being run on, if --files option used",
     )
-    parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
-    parser.add_argument("--label", default="AK8_H_VV", help="label", type=str)
-    parser.add_argument("--njets", default=2, help="njets", type=int)
-    parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
-
-    run_utils.add_bool_arg(
-        parser, "save-ak15", default=False, help="run inference for and save ak15 jets"
-    )
-    run_utils.add_bool_arg(
-        parser, "save-systematics", default=False, help="save systematic variations"
-    )
-    run_utils.add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
 
     args = parser.parse_args()
 

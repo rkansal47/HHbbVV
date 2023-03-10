@@ -139,3 +139,39 @@ def get_processor(
         from HHbbVV.processors import XHYProcessor
 
         return XHYProcessor()
+
+
+def parse_common_args(parser):
+    parser.add_argument(
+        "--processor",
+        default="trigger",
+        help="Trigger processor",
+        type=str,
+        choices=["trigger", "skimmer", "input", "ttsfs", "xhy"],
+    )
+
+    parser.add_argument(
+        "--year", help="year", type=str, required=True, choices=["2016APV", "2016", "2017", "2018"]
+    )
+
+    parser.add_argument(
+        "--samples",
+        default=[],
+        help="which samples to run",  # , default will be all samples",
+        nargs="*",
+    )
+    parser.add_argument(
+        "--subsamples",
+        default=[],
+        help="which subsamples, by default will be all in the specified sample(s)",
+        nargs="*",
+    )
+
+    parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
+    parser.add_argument("--chunksize", default=10000, help="chunk size", type=int)
+    parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
+    parser.add_argument("--njets", default=2, help="njets", type=int)
+
+    add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
+    add_bool_arg(parser, "save-systematics", default=False, help="save systematic variations")
+    add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
