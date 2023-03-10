@@ -88,9 +88,9 @@ if __name__ == "__main__":
             ]
 
             if args.separate_samples:
-                files += sample_files
-            else:
                 out_dict[sample] = accumulate_files(sample_files)
+            else:
+                files += sample_files
 
     if args.separate_samples:
         out = {args.year: out_dict}
