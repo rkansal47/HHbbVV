@@ -37,6 +37,9 @@ src/HHbbVV/postprocessing/cards
 src/HHbbVV/postprocessing/templates_old
 src/HHbbVV/postprocessing/*.txt
 
+!src/HHbbVV/resonant_studies
+!src/HHbbVV/resonant_studies/**
+
 !src/HHbbVV/scale_factors
 !src/HHbbVV/scale_factors/**
 
