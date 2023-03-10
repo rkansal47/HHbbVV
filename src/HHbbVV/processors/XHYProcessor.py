@@ -62,8 +62,28 @@ class XHYProcessor(processor.ProcessorABC):
         "JER": "JER",
     }
 
+    # key is name in nano files, value will be the name in the skimmed output
+    skim_vars = {
+        "FatJet": {
+            **P4,
+            "msoftdrop": "Msd",
+            "particleNetMD_QCD": "ParticleNetMD_QCD",
+            "particleNetMD_Xbb": "ParticleNetMD_Xbb",
+            "particleNet_H4qvsQCD": "ParticleNet_Th4q",
+            "particleNet_mass": "ParticleNetMass",
+        },
+        "GenHiggs": P4,
+        "other": {"MET_pt": "MET_pt"},
+    }
+
     def __init__(self):
         super(XHYProcessor, self).__init__()
+
+        self._accumulator = processor.dict_accumulator({})
+
+    @property
+    def accumulator(self):
+        return self._accumulator
 
     def process(self, events: ak.Array):
         """Runs event processor for different types of jets"""
@@ -206,18 +226,18 @@ class XHYProcessor(processor.ProcessorABC):
         sel_all = selection.all(*selection.names)
 
         skimmed_events = {
-            key: value.reshape(len(skimmed_events["weight"]), -1)[sel_all]
-            for (key, value) in skimmed_events.items()
+            key: value.reshape(len(events), -1)[sel_all] for (key, value) in skimmed_events.items()
         }
 
         # initialize histograms
         h = Hist.new.Var(
-            [0, 1, 2, 3, 4], name="numquarks", label="Number of quarks in AK8 Jet"
+            [0, 1, 2, 3, 4, 5], name="numquarks", label="Number of quarks in AK8 Jet"
         ).Double()
 
-        h.fill(numquarks=skimmed_events["ak8FatJetHVVNumProngs"])
+        if len(skimmed_events["ak8FatJetHVVNumProngs"]):
+            h.fill(numquarks=skimmed_events["ak8FatJetHVVNumProngs"].squeeze())
 
-        return h
+        return {"h": h, "cutflow": cutflow}
 
     def postprocess(self, accumulator):
         return accumulator
