@@ -22,7 +22,7 @@ from hist.intervals import ratio_uncertainty
 from typing import Dict, List, Union, Tuple
 from numpy.typing import ArrayLike
 
-from hh_vars import LUMI, sig_keys, res_sig_keys, data_key
+from hh_vars import LUMI, data_key
 
 from copy import deepcopy
 
@@ -50,8 +50,10 @@ sig_colours = [
     "#ffbaba",
     "#ff7b7b",
     "#ff5252",
-    "#EDB458",
+    # "#EDB458",
     "#a70000",
+    "#885053",
+    "#3C0919",
 ]
 
 bg_order = ["Diboson", "ST", "V+Jets", "TT", "QCD"]
@@ -89,7 +91,6 @@ def ratioHistPlot(
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
     scaled) with a data/mc ratio plot below
     """
-
     bg_keys = [key for key in bg_order if key in bg_keys]
     bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
     bg_labels = deepcopy(bg_keys)
@@ -135,7 +136,7 @@ def ratioHistPlot(
         ax=ax,
         histtype="step",
         label=list(sig_labels.values()),
-        color=sig_colours,
+        color=sig_colours[: len(sig_keys)],
     )
 
     if type(sig_err) == str:

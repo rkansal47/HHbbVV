@@ -102,12 +102,34 @@ selection_regions_year = {
     "fail": {
         "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
     },
-    "BDTOnly": {
+    "lpsf": {  # cut for which LP SF is calculated
         "BDTScore": [bdt_cut, CUT_MAX_VAL],
     },
 }
 
-selection_regions_label = {"pass": "Pass", "fail": "Fail", "BDTOnly": "BDT Cut", "top": "Top"}
+res_selection_regions_year = {
+    "pass": {
+        "bbFatJetParticleNetMass": [110, 140],
+        "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
+        "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
+    },
+    "fail": {
+        "bbFatJetParticleNetMass": [110, 140],
+        "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
+        "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
+    },
+    "lpsf": {  # cut for which LP SF is calculated
+        "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
+    },
+}
+
+selection_regions_label = {
+    "pass": "Pass",
+    "fail": "Fail",
+    "BDTOnly": "BDT Cut",
+    "lpsf": "LP SF Cut",
+    "top": "Top",
+}
 
 selection_regions = {}
 
@@ -121,6 +143,20 @@ for year in years:
                     sr[region][cuts][i] = txbb_wps[year]["HP"]
 
     selection_regions[year] = sr
+
+
+res_selection_regions = {}
+
+for year in years:
+    sr = deepcopy(res_selection_regions_year)
+
+    for region in sr:
+        for cuts in sr[region]:
+            for i in range(2):
+                if sr[region][cuts][i] == "HP":
+                    sr[region][cuts][i] = txbb_wps[year]["HP"]
+
+    res_selection_regions[year] = sr
 
 
 del year  # creates bugs later
@@ -638,6 +674,7 @@ def control_plots(
     weight_key: str = "finalWeight",
     hists: Dict = {},
     cutstr: str = "",
+    sig_splits: List[List[str]] = None,
     show: bool = False,
 ):
     """
@@ -646,6 +683,7 @@ def control_plots(
     Args:
         control_plot_vars (Dict[str, Tuple]): Dictionary of variables to plot, formatted as
           {var1: ([num bins, min, max], label), var2...}.
+        sig_splits: split up signals into different plots (in case there are too many for one)
 
     """
 
@@ -666,23 +704,30 @@ def control_plots(
     with open(f"{plot_dir}/hists.pkl", "wb") as f:
         pickle.dump(hists, f)
 
-    merger_control_plots = PdfMerger()
+    if sig_splits is None:
+        sig_splits = [sig_keys]
 
-    for var, var_hist in hists.items():
-        name = f"{plot_dir}/{cutstr}{var}.pdf"
-        plotting.ratioHistPlot(
-            var_hist,
-            year,
-            sig_keys,
-            bg_keys,
-            name=name,
-            sig_scale_dict=sig_scale_dict,
-            show=show,
-        )
-        merger_control_plots.append(name)
+    for i, plot_sig_keys in enumerate(sig_splits):
+        tplot_dir = plot_dir if len(sig_splits) == 1 else f"{plot_dir}/sigs{i}/"
+        tsig_scale_dict = {key: sig_scale_dict[key] for key in plot_sig_keys}
 
-    merger_control_plots.write(f"{plot_dir}/{year}_{cutstr}ControlPlots.pdf")
-    merger_control_plots.close()
+        merger_control_plots = PdfMerger()
+
+        for var, var_hist in hists.items():
+            name = f"{tplot_dir}/{cutstr}{var}.pdf"
+            plotting.ratioHistPlot(
+                var_hist,
+                year,
+                plot_sig_keys,
+                bg_keys,
+                name=name,
+                sig_scale_dict=tsig_scale_dict,
+                show=show,
+            )
+            merger_control_plots.append(name)
+
+        merger_control_plots.write(f"{tplot_dir}/{year}_{cutstr}ControlPlots.pdf")
+        merger_control_plots.close()
 
     return hists
 

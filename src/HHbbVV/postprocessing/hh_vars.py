@@ -37,20 +37,40 @@ res_samples = OrderedDict([])
 #         res_samples[f"X{mX}->H(bb)Y{mY}(VV)"] = f"NMSSM_XToYH_MX{mX}_MY{mY}_HTo2bYTo2W_hadronicDecay"
 
 
+# res_mps = [
+#     (600, 100),
+#     (1000, 100),
+#     # (1000, 450),
+#     (2000, 100),
+#     # (2000, 450),
+#     (2000, 1000),
+#     (3000, 100),
+#     # (3000, 450),
+#     # (3000, 1000),
+# ]
+
 res_mps = [
-    (600, 100),
-    (1000, 100),
-    # (1000, 450),
-    (2000, 100),
-    # (2000, 450),
-    (2000, 1000),
-    (3000, 100),
-    # (3000, 450),
-    # (3000, 1000),
+    (1000, 125),
+    (1400, 125),
+    (1400, 150),
+    (1800, 125),
+    (1800, 150),
+    (1800, 190),
+    (2200, 125),
+    (2200, 150),
+    (2200, 190),
+    (2200, 250),
+    (3000, 125),
+    (3000, 150),
+    (3000, 190),
+    (3000, 250),
+    (3000, 350),
 ]
 
 for mX, mY in res_mps:
-    res_samples[f"X{mX}->H(bb)Y{mY}(VV)"] = f"NMSSM_XToYH_MX{mX}_MY{mY}_HTo2bYTo2W_hadronicDecay"
+    res_samples[
+        f"X[{mX}]->H(bb)Y[{mY}](VV)"
+    ] = f"NMSSM_XToYH_MX{mX}_MY{mY}_HTo2bYTo2W_hadronicDecay"
 
 sig_keys = ["HHbbVV"]
 res_sig_keys = list(res_samples.keys())
