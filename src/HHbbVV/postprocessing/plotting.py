@@ -84,12 +84,16 @@ def ratioHistPlot(
     blind_region: list = None,
     name: str = "",
     sig_scale_dict: float = None,
+    ylim: int = None,
     show: bool = True,
     variation: Tuple = None,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
     scaled) with a data/mc ratio plot below
+
+    Args:
+        ylim (optional): y-limit on plot
     """
     bg_keys = [key for key in bg_order if key in bg_keys]
     bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
@@ -150,8 +154,9 @@ def ratioHistPlot(
                 yerr=0,
                 ax=ax,
                 histtype="step",
-                label=f"{sig_key} {skey}",
-                color=scolours[shift],
+                label=[f"{sig_key} {skey}" for sig_key in sig_scale_dict],
+                alpha=0.6,
+                color=sig_colours[: len(sig_keys)],
             )
     elif sig_err is not None:
         for sig_key, sig_scale in sig_scale_dict.items():
@@ -167,7 +172,11 @@ def ratioHistPlot(
         hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
     )
     ax.legend()
-    ax.set_ylim(0)
+
+    if ylim is not None:
+        ax.set_ylim([0, ylim])
+    else:
+        ax.set_ylim(0)
 
     bg_tot = sum([hists[sample, :] for sample in bg_keys])
     yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")

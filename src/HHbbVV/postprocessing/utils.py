@@ -270,12 +270,16 @@ def make_vector(events: dict, name: str, bb_mask: pd.DataFrame = None, mask=None
         )
 
 
-def blindBins(h: Hist, blind_region: List, blind_sample: str = None):
+# TODO: extend to multi axis using https://stackoverflow.com/a/47859801/3759946 for 2D blinding
+def blindBins(h: Hist, blind_region: List, blind_sample: str = None, axis=0):
     """
     Blind (i.e. zero) bins in histogram ``h``.
     If ``blind_sample`` specified, only blind that sample, else blinds all.
     """
-    bins = h.axes[1].edges
+    if axis > 0:
+        raise Exception("not implemented > 1D blinding yet")
+
+    bins = h.axes[axis + 1].edges
     lv = int(np.searchsorted(bins, blind_region[0], "right"))
     rv = int(np.searchsorted(bins, blind_region[1], "left") + 1)
 
@@ -315,7 +319,10 @@ def singleVarHist(
     """
     samples = list(events_dict.keys())
 
-    h = Hist.new.StrCat(samples, name="Sample").Reg(*bins, name=var, label=label).Weight()
+    if len(bins) == 3:
+        h = Hist.new.StrCat(samples, name="Sample").Reg(*bins, name=var, label=label).Weight()
+    else:
+        h = Hist.new.StrCat(samples, name="Sample").Var(bins, name=var, label=label).Weight()
 
     for sample in samples:
         events = events_dict[sample]
@@ -411,7 +418,7 @@ def make_selection(
             if brange[0] > -MAX_VAL:
                 add_selection(
                     f"{var} > {brange[0]}",
-                    get_feat(events, var, bb_mask) > brange[0],
+                    get_feat(events, var, bb_mask) >= brange[0],
                     selection[sample],
                     cutflow[sample],
                     events,
