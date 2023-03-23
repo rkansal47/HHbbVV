@@ -18,6 +18,7 @@ import pickle, json
 import numpy as np
 import pandas as pd
 from pandas.errors import SettingWithCopyWarning
+import hist
 from hist import Hist
 
 import utils
@@ -50,6 +51,36 @@ import warnings
 
 # ignore these because they don't seem to apply
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
+
+
+class ShapeVar:
+    """Class to store attributes of the variable to be fit on.
+
+    Args:
+        var (str): variable name
+        label (str): variable label
+        bins (List[int]): bins
+        reg (bool, optional): Use a regular axis or variable binning. Defaults to True.
+        blind_window (List[int], optional): if blinding . Defaults to None.
+    """
+
+    def __init__(
+        self,
+        var: str,
+        label: str,
+        bins: List[int],
+        reg: bool = True,
+        blind_window: List[int] = None,
+    ):
+        self.var = var
+        self.label = label
+        self.blind_window = blind_window
+
+        # create axis used for histogramming
+        if reg:
+            self.axis = hist.axis.Regular(*bins, name=var, label=label)
+        else:
+            self.axis = hist.axis.Variable(bins, name=var, label=label)
 
 
 # Both Jet's Regressed Mass above 50, electron veto
@@ -108,15 +139,57 @@ selection_regions_year = {
 }
 
 res_selection_regions_year = {
-    "pass": {
-        "bbFatJetParticleNetMass": [110, 140],
+    # "unblinded" regions:
+    # "pass": {
+    #     "bbFatJetParticleNetMass": [110, 140],
+    #     "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
+    #     "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
+    # },
+    # "fail": {
+    #     "bbFatJetParticleNetMass": [110, 140],
+    #     "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
+    #     "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
+    # },
+    # "blinded" validation regions:
+    "pass_valid": {
+        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
+        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
         "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
         "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
     },
-    "fail": {
-        "bbFatJetParticleNetMass": [110, 140],
+    "fail_valid": {
+        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
+        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
         "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
         "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
+    },
+    "pass_valid_eveto": {
+        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
+        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
+        "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
+        "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
+        "nGoodElectrons": [-CUT_MAX_VAL, 1],
+    },
+    "fail_valid_eveto": {
+        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
+        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
+        "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
+        "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
+        "nGoodElectrons": [-CUT_MAX_VAL, 1],
+    },
+    "pass_valid_eveto_hwwvt": {
+        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
+        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
+        "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
+        "VVFatJetParTMD_THWWvsT": [0.961, CUT_MAX_VAL],
+        "nGoodElectrons": [-CUT_MAX_VAL, 1],
+    },
+    "fail_valid_eveto_hwwvt": {
+        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
+        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
+        "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
+        "VVFatJetParTMD_THWWvsT": [0.961, CUT_MAX_VAL],
+        "nGoodElectrons": [-CUT_MAX_VAL, 1],
     },
     "lpsf": {  # cut for which LP SF is calculated
         "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
@@ -129,6 +202,12 @@ selection_regions_label = {
     "BDTOnly": "BDT Cut",
     "lpsf": "LP SF Cut",
     "top": "Top",
+    "pass_valid": "Validation Pass",
+    "fail_valid": "Validation Fail",
+    "pass_valid_eveto": "Validation Pass + e Veto",
+    "fail_valid_eveto": "Validation Fail + e Veto",
+    "pass_valid_eveto_hwwvt": "Validation Pass, Cut on THWWvsT + e Veto",
+    "fail_valid_eveto_hwwvt": "Validation Fail, Cut on THWWvsT + e Veto",
 }
 
 selection_regions = {}
@@ -177,10 +256,35 @@ for bdtcut in np.arange(0.97, 1, 0.002):
         }
 
 
-# bb msd is final shape var
-shape_var = ("bbFatJetParticleNetMass", r"$m^{bb}_{Reg}$ (GeV)")
-shape_bins = [20, 50, 250]  # num bins, min, max
-blind_window = [100, 150]
+# fitting on bb regressed mass for nonresonant
+shape_vars = [
+    ShapeVar(
+        "bbFatJetParticleNetMass",
+        r"$m^{bb}_{Reg}$ (GeV)",
+        [20, 50, 250],
+        reg=True,
+        blind_window=[100, 150],
+    )
+]
+
+
+# fitting on VV regressed mass + dijet mass for resonant
+res_shape_vars = [
+    ShapeVar(
+        "VVFatJetParticleNetMass",
+        r"$m^{VV}_{Reg}$ (GeV)",
+        list(range(50, 180, 10)) + list(range(180, 301, 15)),
+        reg=False,
+        # blind_window=[100, 150],
+    ),
+    ShapeVar(
+        "DijetMass",
+        r"$m^{jj}$ (GeV)",
+        list(range(800, 1000, 50)) + list(range(1000, 2000, 100)) + list(range(2000, 4001, 200)),
+        reg=False,
+        # blind_window=[100, 150],
+    ),
+]
 
 
 # TODO: check which of these applies to resonant as well
@@ -687,6 +791,8 @@ def control_plots(
 
     """
 
+    print(control_plot_vars)
+
     from PyPDF2 import PdfMerger
 
     # sig_scale_dict = utils.getSignalPlotScaleFactor(events_dict, sig_keys)
@@ -746,22 +852,37 @@ def check_weights(events_dict):
     )
 
 
+def _get_fill_data(
+    events: pd.DataFrame, bb_mask: pd.DataFrame, shape_vars: List[ShapeVar], jshift: str = ""
+):
+    return {
+        shape_var.var: utils.get_feat(
+            events,
+            shape_var.var if jshift == "" else utils.check_get_jec_var(shape_var.var, jshift),
+            bb_mask,
+        )
+        for shape_var in shape_vars
+    }
+
+
 def get_templates(
     events_dict: Dict[str, pd.DataFrame],
     bb_masks: Dict[str, pd.DataFrame],
     year: str,
     sig_keys: List[str],
     selection_regions: Dict[str, Dict],
-    shape_var: Tuple[str],
-    shape_bins: List[float],
-    blind_window: List[float],
+    shape_vars: List[ShapeVar],
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
     cutstr: str = "",
+    sig_splits: List[List[str]] = None,
     weight_shifts: Dict = {},
     jshift: str = "",
     selection_regions_label: Dict = selection_regions_label,
+    plot_shifts: bool = True,
+    pass_ylim: int = None,
+    fail_ylim: int = None,
     show: bool = False,
 ) -> Dict[str, Hist]:
     """
@@ -789,14 +910,10 @@ def get_templates(
     jlabel = "" if not do_jshift else "_" + jshift
     templates, systematics = {}, {}
 
-    var = shape_var[0]
-
-    # print(selection_regions)
-
     for label, region in selection_regions.items():
         pass_region = label.startswith("pass")
 
-        if label == "BDTOnly":
+        if label == "lpsf":
             continue
 
         if not do_jshift:
@@ -805,10 +922,11 @@ def get_templates(
         sel, cf = utils.make_selection(
             region, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
-        if not do_jshift:
-            print("\nCutflow:\n", cf)
+        # if not do_jshift:
+        #     print("\nCutflow:\n", cf)
 
-        cf.to_csv(f"{plot_dir}/cutflows/{label}_cutflow{jlabel}.csv")
+        if plot_dir != "":
+            cf.to_csv(f"{plot_dir}/cutflows/{label}_cutflow{jlabel}.csv")
 
         if not do_jshift:
             systematics[label] = {}
@@ -826,7 +944,7 @@ def get_templates(
             sig_events[sig_key] = deepcopy(events_dict[sig_key][sel[sig_key]])
             sig_bb_mask = bb_masks[sig_key][sel[sig_key]]
             if pass_region:
-                corrections.apply_txbb_sfs(sig_events, sig_bb_mask, year, weight_key)
+                corrections.apply_txbb_sfs(sig_events[sig_key], sig_bb_mask, year, weight_key)
 
         # set up samples
         hist_samples = list(events_dict.keys())
@@ -841,10 +959,10 @@ def get_templates(
                     for wsample in wsamples:
                         hist_samples.append(f"{wsample}_{wshift}_{shift}")
 
-        h = (
-            Hist.new.StrCat(hist_samples, name="Sample")
-            .Reg(*shape_bins, name=var, label=shape_var[1])
-            .Weight()
+        h = Hist(
+            hist.axis.StrCategory(hist_samples, name="Sample"),
+            *[shape_var.axis for shape_var in shape_vars],
+            storage="weight",
         )
 
         for sample in events_dict:
@@ -853,10 +971,9 @@ def get_templates(
                 continue
 
             bb_mask = bb_masks[sample][sel[sample]]
-            fill_var = (
-                var if sample == data_key or not do_jshift else utils.check_get_jec_var(var, jshift)
+            fill_data = _get_fill_data(
+                events, bb_mask, shape_vars, jshift=jshift if sample != data_key else None
             )
-            fill_data = {var: utils.get_feat(events, fill_var, bb_mask)}
             weight = events[weight_key].values.squeeze()
             h.fill(Sample=sample, **fill_data, weight=weight)
 
@@ -876,69 +993,88 @@ def get_templates(
                             h.fill(Sample=f"{sample}_{wshift}_{shift}", **fill_data, weight=sweight)
 
         if pass_region:
-            # blind Higgs mass window in pass region in data
-            utils.blindBins(h, blind_window, data_key)
+            # blind signal mass windows in pass region in data
+            for i, shape_var in enumerate(shape_vars):
+                if shape_var.blind_window is not None:
+                    utils.blindBins(h, shape_var.blind_window, data_key, axis=i)
 
         if pass_region and not do_jshift:
-            # ParticleNetMD Txbb SFs
-            fill_data = {var: utils.get_feat(sig_events, var, sig_bb_mask)}
-            for shift in ["down", "up"]:
-                h.fill(
-                    Sample=f"{sig_key}_txbb_{shift}",
-                    **fill_data,
-                    weight=sig_events[f"{weight_key}_txbb_{shift}"],
+            for sig_key in sig_keys:
+                # ParticleNetMD Txbb SFs
+                fill_data = _get_fill_data(
+                    sig_events[sig_key], bb_masks[sig_key][sel[sig_key]], shape_vars
                 )
+                for shift in ["down", "up"]:
+                    h.fill(
+                        Sample=f"{sig_key}_txbb_{shift}",
+                        **fill_data,
+                        weight=sig_events[sig_key][f"{weight_key}_txbb_{shift}"],
+                    )
 
         templates[label + jlabel] = h
 
+        # plot templates incl variations
         if plot_dir != "":
-            sig_scale_dict = utils.getSignalPlotScaleFactor(events_dict, sig_keys, selection=sel)
-            plot_params = {
-                "hists": h,
-                "bg_keys": bg_keys,
-                "sig_scale_dict": {key: val / 2 for key, val in sig_scale_dict.items()},
-                "show": show,
-                "year": year,
-            }
+            if pass_region:
+                sig_scale_dict = {"HHbbVV": 1e2, **{skey: 1 for skey in res_sig_keys}}
 
             if not do_jshift:
                 title = f"{selection_regions_label[label]} Region Pre-Fit Shapes"
             else:
                 title = f"{selection_regions_label[label]} Region {jshift} Shapes"
 
-            plotting.ratioHistPlot(
-                **plot_params,
-                title=title,
-                name=f"{plot_dir}/templates/{cutstr}{label}_region_bb_mass{jlabel}.pdf",
-            )
+            for i, shape_var in enumerate(shape_vars):
+                for j, plot_sig_keys in enumerate(sig_splits):
+                    split_str = "" if len(sig_splits) == 1 else f"sigs{j}_"
+                    plot_params = {
+                        "hists": h.project(0, i + 1),
+                        "sig_keys": plot_sig_keys,
+                        "bg_keys": bg_keys,
+                        "sig_scale_dict": {key: sig_scale_dict[key] for key in plot_sig_keys}
+                        if pass_region
+                        else None,
+                        "show": show,
+                        "year": year,
+                        "ylim": pass_ylim if pass_region else fail_ylim,
+                    }
 
-            if not do_jshift:
-                for wshift, wsamples in weight_shifts.items():
-                    wlabel = weight_labels[wshift]
+                    plot_name = (
+                        f"{plot_dir}/templates/{split_str}{cutstr}{label}_region_{shape_var.var}"
+                    )
 
-                    if wsamples == [sig_key]:
-                        plotting.ratioHistPlot(
-                            **plot_params,
-                            sig_err=wshift,
-                            title=f"{selection_regions_label[label]} Region {wlabel} Unc. Shapes",
-                            name=f"{plot_dir}/templates/{cutstr}{label}_region_bb_mass_{wshift}.pdf",
-                        )
-                    else:
-                        for skey, shift in [("Down", "down"), ("Up", "up")]:
+                    plotting.ratioHistPlot(
+                        **plot_params,
+                        title=title,
+                        name=f"{plot_name}{jlabel}.pdf",
+                    )
+
+                    if not do_jshift and plot_shifts:
+                        for wshift, wsamples in weight_shifts.items():
+                            wlabel = weight_labels[wshift]
+
+                            if wsamples == [sig_key]:
+                                plotting.ratioHistPlot(
+                                    **plot_params,
+                                    sig_err=wshift,
+                                    title=f"{selection_regions_label[label]} Region {wlabel} Unc. Shapes",
+                                    name=f"{plot_name}_{wshift}.pdf",
+                                )
+                            else:
+                                for skey, shift in [("Down", "down"), ("Up", "up")]:
+                                    plotting.ratioHistPlot(
+                                        **plot_params,
+                                        variation=(wshift, shift, wsamples),
+                                        title=f"{selection_regions_label[label]} Region {wlabel} Unc. {skey} Shapes",
+                                        name=f"{plot_name}_{wshift}_{shift}.pdf",
+                                    )
+
+                        if pass_region:
                             plotting.ratioHistPlot(
                                 **plot_params,
-                                variation=(wshift, shift, wsamples),
-                                title=f"{selection_regions_label[label]} Region {wlabel} Unc. {skey} Shapes",
-                                name=f"{plot_dir}/templates/{cutstr}{label}_region_bb_mass_{wshift}_{shift}.pdf",
+                                sig_err="txbb",
+                                title=rf"{selection_regions_label[label]} Region $T_{{Xbb}}$ Shapes",
+                                name=f"{plot_name}_txbb.pdf",
                             )
-
-            if pass_region and not do_jshift:
-                plotting.ratioHistPlot(
-                    **plot_params,
-                    sig_err="txbb",
-                    title=rf"{selection_regions_label[label]} Region $T_{{Xbb}}$ Shapes",
-                    name=f"{plot_dir}/templates/{cutstr}{label}_region_bb_mass_txbb.pdf",
-                )
 
     return templates, systematics
 

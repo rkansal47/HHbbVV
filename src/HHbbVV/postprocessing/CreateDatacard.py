@@ -10,7 +10,7 @@ Author: Raghav Kansal
 
 
 import os
-from typing import Dict
+from typing import Dict, List, Tuple
 import numpy as np
 import pickle, json
 import logging
@@ -27,13 +27,57 @@ logging.basicConfig(level=logging.INFO)
 adjust_posdef_yields = False
 
 # from utils import add_bool_arg
-from hh_vars import LUMI, sig_key, qcd_key, data_key, years, jecs, jmsr
+from hh_vars import LUMI, res_sig_keys, qcd_key, data_key, years, jecs, jmsr, res_mps
 
+
+import argparse
+
+
+def add_bool_arg(parser, name, help, default=False, no_name=None):
+    """Add a boolean command line argument for argparse"""
+    varname = "_".join(name.split("-"))  # change hyphens to underscores
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument("--" + name, dest=varname, action="store_true", help=help)
+    if no_name is None:
+        no_name = "no-" + name
+        no_help = "don't " + help
+    else:
+        no_help = help
+    group.add_argument("--" + no_name, dest=varname, action="store_false", help=no_help)
+    parser.set_defaults(**{varname: default})
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--templates-dir",
+    default="",
+    type=str,
+    help="input pickle file of dict of hist.Hist templates",
+)
+parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
+parser.add_argument("--cat", default="1", type=str, choices=["1"], help="category")
+parser.add_argument(
+    "--nDataTF",
+    default=2,
+    type=int,
+    dest="nDataTF",
+    help="order of polynomial for TF from Data",
+)
+parser.add_argument("--model-name", default=None, type=str, help="output model name")
+parser.add_argument(
+    "--year",
+    help="year",
+    type=str,
+    default="all",
+    choices=["2016APV", "2016", "2017", "2018", "all"],
+)
+add_bool_arg(parser, "bblite", "use barlow-beeston-lite method", default=True)
+add_bool_arg(parser, "resonant", "for resonant or nonresonat", default=False)
+args = parser.parse_args()
 
 # (name in card, name in templates)
 mc_samples = OrderedDict(
     [
-        ("ggHH_kl_1_kt_1_hbbhww4q", "HHbbVV"),
         ("diboson", "Diboson"),
         ("ttbar", "TT"),
         ("singletop", "ST"),
@@ -41,9 +85,24 @@ mc_samples = OrderedDict(
     ]
 )
 
-all_mc = list(mc_samples.values())
-lumi_run2 = np.sum(list(LUMI.values()))
+nonres_sig_keys = ["HHbbVV"]
 
+if args.resonant:
+    for mX, mY in res_mps:
+        mc_samples[f"xhy_mx{mX}_my{mY}"] = f"X[{mX}]->H(bb)Y[{mY}](VV)"
+
+    sig_keys = res_sig_keys
+else:
+    mc_samples["ggHH_kl_1_kt_1_hbbhww4q"] = "HHbbVV"
+    sig_keys = ["HHbbVV"]  # add different couplings
+
+all_mc = list(mc_samples.values())
+
+if args.year != "all":
+    years = [args.year]
+    full_lumi = LUMI[args.year]
+else:
+    full_lumi = np.sum(list(LUMI.values()))
 
 # https://gitlab.cern.ch/hh/naming-conventions#experimental-uncertainties
 # dictionary of nuisance params -> (modifier, samples affected by it, value)
@@ -51,61 +110,61 @@ nuisance_params = {
     "lumi_13TeV_2016": [
         "lnN",
         all_mc,
-        1.01 ** ((LUMI["2016"] + LUMI["2016APV"]) / lumi_run2),
+        1.01 ** ((LUMI["2016"] + LUMI["2016APV"]) / full_lumi),
     ],
     "lumi_13TeV_2017": [
         "lnN",
         all_mc,
-        1.02 ** (LUMI["2017"] / lumi_run2),
+        1.02 ** (LUMI["2017"] / full_lumi),
     ],
     "lumi_13TeV_2018": [
         "lnN",
         all_mc,
-        1.015 ** (LUMI["2018"] / lumi_run2),
+        1.015 ** (LUMI["2018"] / full_lumi),
     ],
     "lumi_13TeV_correlated": [
         "lnN",
         all_mc,
         (
-            (1.006 ** ((LUMI["2016"] + LUMI["2016APV"]) / lumi_run2))
-            * (1.009 ** (LUMI["2017"] / lumi_run2))
-            * (1.02 ** (LUMI["2018"] / lumi_run2))
+            (1.006 ** ((LUMI["2016"] + LUMI["2016APV"]) / full_lumi))
+            * (1.009 ** (LUMI["2017"] / full_lumi))
+            * (1.02 ** (LUMI["2018"] / full_lumi))
         ),
     ],
     "lumi_13TeV_1718": [
         "lnN",
         all_mc,
-        ((1.002 ** (LUMI["2017"] / lumi_run2)) * (1.006 ** (LUMI["2018"] / lumi_run2))),
+        ((1.002 ** (LUMI["2017"] / full_lumi)) * (1.006 ** (LUMI["2018"] / full_lumi))),
     ],
     # these values will be added in from the systematics JSON
     "triggerEffSF_uncorrelated": ["lnN", all_mc, 0],
-    "lp_sf": ["lnN", [sig_key], 0],
+    "lp_sf": ["lnN", sig_keys, 0],
 }
+
+# remove keys in
+if args.year != "all":
+    for key in [
+        "lumi_13TeV_2016",
+        "lumi_13TeV_2017",
+        "lumi_13TeV_2018",
+        "lumi_13TeV_correlated",
+        "lumi_13TeV_1718",
+    ]:
+        if key != f"lumi_13TeV{args.year}":
+            del nuisance_params[key]
+
 nuisance_params_dict = {
     param: rl.NuisanceParameter(param, unc) for param, (unc, _, _) in nuisance_params.items()
 }
 
-# syst_vals = {
-#     "lumi_13TeV_2016": 1.01 ** ((LUMI["2016"] + LUMI["2016APV"]) / lumi_run2),
-#     "lumi_13TeV_2017": 1.02 ** (LUMI["2017"] / lumi_run2),
-#     "lumi_13TeV_2018": 1.015 ** (LUMI["2018"] / lumi_run2),
-#     "lumi_13TeV_correlated": (
-#         (1.006 ** ((LUMI["2016"] + LUMI["2016APV"]) / lumi_run2))
-#         * (1.009 ** (LUMI["2017"] / lumi_run2))
-#         * (1.02 ** (LUMI["2018"] / lumi_run2))
-#     ),
-#     "lumi_13TeV_1718": (
-#         (1.002 ** (LUMI["2017"] / lumi_run2)) * (1.006 ** (LUMI["2018"] / lumi_run2))
-#     ),
-# }
-
 # dictionary of shape systematics -> (name in cards, samples affected by it)
 corr_year_shape_systs = {
-    "FSRPartonShower": ("ps_fsr", [sig_key, "V+Jets"]),
-    "ISRPartonShower": ("ps_isr", [sig_key, "V+Jets"]),
-    "PDFalphaS": ("CMS_bbbb_boosted_ggf_ggHHPDFacc", [sig_key]),
+    # TODO: check if these apply to resonant
+    "FSRPartonShower": ("ps_fsr", nonres_sig_keys + ["V+Jets"]),
+    "ISRPartonShower": ("ps_isr", nonres_sig_keys + ["V+Jets"]),
+    "PDFalphaS": ("CMS_bbbb_boosted_ggf_ggHHPDFacc", nonres_sig_keys),
     "JES": ("CMS_scale_j", all_mc),  # TODO: separate into individual
-    "txbb": ("CMS_bbbb_boosted_ggf_PNetHbbScaleFactors_correlated", [sig_key]),
+    "txbb": ("CMS_bbbb_boosted_ggf_PNetHbbScaleFactors_correlated", sig_keys),
 }
 
 uncorr_year_shape_systs = {
@@ -129,8 +188,8 @@ shape_systs_dict = {
 pass_only = ["txbb"]
 
 
-CMS_PARAMS_LABEL = "CMS_bbWW_boosted_ggf"
-PARAMS_LABEL = "bbWW_boosted_ggf"
+CMS_PARAMS_LABEL = "CMS_bbWW_boosted_ggf" if not args.resonant else "CMS_XHYbbWW_boosted"
+PARAMS_LABEL = "bbWW_boosted_ggf" if not args.resonant else "XHYbbWW_boosted"
 
 
 def main(args):
@@ -143,7 +202,7 @@ def main(args):
         with open(f"{args.templates_dir}/{year}_templates.pkl", "rb") as f:
             templates_dict[year] = pickle.load(f)
 
-    templates_all = sum_templates(templates_dict)
+    templates_all = sum_templates(templates_dict)  # sum across years
 
     with open(f"{args.templates_dir}/systematics.json", "r") as f:
         systematics = json.load(f)
@@ -155,199 +214,61 @@ def main(args):
     shape_var = sample_templates.axes[1].name
 
     # get bins, centers, and scale centers for polynomial evaluation
-    msd_bins = sample_templates.axes[1].edges
-    msd_pts = msd_bins[:-1] + 0.5 * np.diff(msd_bins)
-    msd_scaled = (msd_pts - msd_bins[0]) / (msd_bins[-1] - msd_bins[0])
+    shape_bins = sample_templates.axes[1].edges
+    shape_pts = shape_bins[:-1] + 0.5 * np.diff(shape_bins)
+    shape_scaled = (shape_pts - shape_bins[0]) / (shape_bins[-1] - shape_bins[0])
 
-    msd_obs = rl.Observable(shape_var, msd_bins)
-
-    # QCD overall pass / fail efficiency
-    qcd_eff = (
-        templates_all[f"pass"][qcd_key, :].sum().value
-        / templates_all[f"fail"][qcd_key, :].sum().value
-    )
-
-    # transfer factor
-    tf_dataResidual = rl.BasisPoly(
-        f"{CMS_PARAMS_LABEL}_tf_dataResidual",
-        (args.nDataTF,),
-        [shape_var],
-        basis="Bernstein",
-        limits=(-20, 20),
-    )
-    tf_dataResidual_params = tf_dataResidual(msd_scaled)
-    tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
-
-    # qcd params
-    qcd_params = np.array(
-        [
-            rl.IndependentParameter(f"{CMS_PARAMS_LABEL}_qcdparam_msdbin{i}", 0)
-            for i in range(msd_obs.nbins)
-        ]
-    )
+    if args.resonant:
+        shape_var2 = sample_templates.axes[2].name
+        # get bins, centers, and scale centers for polynomial evaluation
+        mX_bins = sample_templates.axes[2].edges
+        mX_pts = mX_bins[:-1] + 0.5 * np.diff(mX_bins)
+        mX_scaled = (mX_pts - mX_bins[0]) / (mX_bins[-1] - mX_bins[0])
 
     # build actual fit model now
     model = rl.Model("HHModel")
 
-    for region in regions:
-        region_templates = templates_all[region]
-        pass_region = "pass" in region
-        region_noblinded = region.split("Blinded")[0]
-        blind_str = "Blinded" if region.endswith("Blinded") else ""
+    # Fill templates per sample, incl. systematics
+    # TODO: blinding for resonant
+    fill_args = [
+        model,
+        regions,
+        templates_dict,
+        templates_all,
+        mc_samples,
+        nuisance_params,
+        nuisance_params_dict,
+        corr_year_shape_systs,
+        uncorr_year_shape_systs,
+        shape_systs_dict,
+        pass_only,
+        args.bblite,
+    ]
 
-        logging.info("starting region: %s" % region)
-        ch = rl.Channel(region.replace("_", ""))  # can't have '_'s in name
-        model.addChannel(ch)
+    if args.resonant:
+        for i in range(len(mX_pts)):
+            fill_regions(*fill_args, mX_bin=i)
+    else:
+        fill_regions(*fill_args)
 
-        for card_name, sample_name in mc_samples.items():
-            logging.info("get templates for: %s" % sample_name)
+    if args.resonant:
+        res_alphabet_fit()
+    else:
+        nonres_alphabet_fit(model, shape_var, shape_bins, shape_scaled, templates_all)
 
-            sample_template = region_templates[sample_name, :]
-
-            stype = rl.Sample.SIGNAL if "HHbbVV" in sample_name else rl.Sample.BACKGROUND
-            sample = rl.TemplateSample(ch.name + "_" + card_name, stype, sample_template)
-
-            # nominal values, errors
-            values_nominal = np.maximum(sample_template.values(), 0.0)
-
-            mask = values_nominal > 0
-            errors_nominal = np.ones_like(values_nominal)
-            errors_nominal[mask] = (
-                1.0 + np.sqrt(sample_template.variances()[mask]) / values_nominal[mask]
-            )
-
-            logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
-            logging.debug("error     : {errors}".format(errors=errors_nominal))
-
-            if not args.bblite:
-                # set mc stat uncs
-                logging.info("setting autoMCStats for %s in %s" % (sample_name, region))
-
-                # same stats unc. for blinded and unblinded cards
-                stats_sample_name = region.split("Blinded")[0] + f"_{sample_name}"
-                sample.autoMCStats(sample_name=stats_sample_name)
-
-            # rate systematics
-            for skey, (_, ssamples, sval) in nuisance_params.items():
-                if sample_name not in ssamples:
-                    continue
-
-                logging.info(f"Getting {skey} rate")
-
-                param = nuisance_params_dict[skey]
-                val = sval[region_noblinded] if isinstance(sval, dict) else sval
-                sample.setParamEffect(param, val)
-
-            # shape systematics
-            for skey, (sname, ssamples) in corr_year_shape_systs.items():
-                if sample_name not in ssamples or (not pass_region and skey in pass_only):
-                    continue
-
-                logging.info(f"Getting {skey} shapes")
-
-                if skey in jecs or skey in jmsr:
-                    # JEC/JMCs saved as different "region" in dict
-                    values_up = templates_all[f"{region_noblinded}_{skey}_up{blind_str}"][
-                        sample_name, :
-                    ].values()
-                    values_down = templates_all[f"{region_noblinded}_{skey}_down{blind_str}"][
-                        sample_name, :
-                    ].values()
-                else:
-                    # weight uncertainties saved as different "sample" in dict
-                    values_up = region_templates[f"{sample_name}_{skey}_up", :].values()
-                    values_down = region_templates[f"{sample_name}_{skey}_down", :].values()
-
-                logger = logging.getLogger(
-                    "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
-                )
-
-                effect_up, effect_down = get_effect_updown(
-                    values_nominal, values_up, values_down, mask, logger
-                )
-                sample.setParamEffect(shape_systs_dict[skey], effect_up, effect_down)
-
-            for skey, (sname, ssamples) in uncorr_year_shape_systs.items():
-                if sample_name not in ssamples or (not pass_region and skey in pass_only):
-                    continue
-
-                logging.info(f"Getting {skey} shapes")
-
-                for year in years:
-                    values_up, values_down = get_year_updown(
-                        templates_dict, sample_name, region, region_noblinded, blind_str, year, skey
-                    )
-                    logger = logging.getLogger(
-                        "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
-                    )
-
-                    effect_up, effect_down = get_effect_updown(
-                        values_nominal, values_up, values_down, mask, logger
-                    )
-                    sample.setParamEffect(
-                        shape_systs_dict[f"{skey}_{year}"], effect_up, effect_down
-                    )
-
-            ch.addSample(sample)
-
-        if args.bblite:
-            channel_name = region_noblinded
-            ch.autoMCStats(channel_name=channel_name, threshold=0.1)
-
-        # data observed
-        ch.setObservation(region_templates[data_key, :])
-
-    for blind_str in ["", "Blinded"]:
-        # for blind_str in ["Blinded"]:
-        passChName = f"pass{blind_str}".replace("_", "")
-        failChName = f"fail{blind_str}".replace("_", "")
-        logging.info(
-            "setting transfer factor for pass region %s, fail region %s" % (passChName, failChName)
-        )
-        failCh = model[failChName]
-        passCh = model[passChName]
-
-        # sideband fail
-        # was integer, and numpy complained about subtracting float from it
-        initial_qcd = failCh.getObservation().astype(float)
-        for sample in failCh:
-            logging.debug("subtracting %s from qcd" % sample._name)
-            initial_qcd -= sample.getExpectation(nominal=True)
-
-        if np.any(initial_qcd < 0.0):
-            raise ValueError("initial_qcd negative for some bins..", initial_qcd)
-
-        sigmascale = 10  # to scale the deviation from initial
-        scaled_params = (
-            initial_qcd * (1 + sigmascale / np.maximum(1.0, np.sqrt(initial_qcd))) ** qcd_params
-        )
-
-        # add samples
-        fail_qcd = rl.ParametericSample(
-            f"{failChName}_{PARAMS_LABEL}_qcd_datadriven",
-            rl.Sample.BACKGROUND,
-            msd_obs,
-            scaled_params,
-        )
-        failCh.addSample(fail_qcd)
-
-        pass_qcd = rl.TransferFactorSample(
-            f"{passChName}_{PARAMS_LABEL}_qcd_datadriven",
-            rl.Sample.BACKGROUND,
-            tf_params_pass,
-            fail_qcd,
-        )
-        passCh.addSample(pass_qcd)
-
-    os.system(f"mkdir -p {args.cards_dir}")
+    ##############################################
+    # Save model
+    ##############################################
 
     logging.info("rendering combine model")
 
-    if args.model_name is not None:
-        out_dir = os.path.join(str(args.cards_dir), args.model_name)
-    else:
-        out_dir = args.cards_dir
+    os.system(f"mkdir -p {args.cards_dir}")
 
+    out_dir = (
+        os.path.join(str(args.cards_dir), args.model_name)
+        if args.model_name is not None
+        else args.cards_dir
+    )
     model.renderCombine(out_dir)
 
     with open(f"{out_dir}/model.pkl", "wb") as fout:
@@ -355,6 +276,7 @@ def main(args):
 
 
 def sum_templates(template_dict: Dict):
+    """Sum templates across years"""
     ttemplate = list(template_dict.values())[0]  # sample templates to extract values from
     combined = {}
 
@@ -388,8 +310,331 @@ def process_systematics(systematics: Dict):
 
     nuisance_params["triggerEffSF_uncorrelated"][2] = tdict
 
-    print("Nuisance Parameters")
-    print(nuisance_params)
+    print("Nuisance Parameters\n", nuisance_params)
+
+
+def fill_regions(
+    model: rl.Model,
+    regions: List[str],
+    templates_dict: Dict,
+    templates_all: Dict,
+    mc_samples: Dict[str, str],
+    nuisance_params: Dict[str, Tuple],
+    nuisance_params_dict: Dict[str, rl.NuisanceParameter],
+    corr_year_shape_systs: Dict[str, Tuple],
+    uncorr_year_shape_systs: Dict[str, Tuple],
+    shape_systs_dict: Dict[str, rl.NuisanceParameter],
+    pass_only: List[str],
+    bblite: bool = True,
+    mX_bin: int = None,
+):
+    """Fill samples per region including given rate, shape and mcstats systematics.
+    Ties "blinded" and "nonblinded" mc stats parameters together.
+
+    Args:
+        model (rl.Model): rhalphalib model
+        regions (List[str]): list of regions to fill
+        templates_dict (Dict): dictionary of all templates
+        templates_all (Dict): dictionary of templates summed across years
+        mc_samples (Dict[str, str]): dict of mc samples and their names in the given templates
+        nuisance_params (Dict[str, Tuple]): dict of nuisance parameter names and tuple of their
+          (modifier, samples affected by it, value)
+        nuisance_params_dict (Dict[str, rl.NuisanceParameter]): dict of nuisance parameter names
+          and NuisanceParameter object
+        corr_year_shape_systs (Dict[str, Tuple]): dict of shape systs (correlated across years)
+          and tuple of their (name in cards, samples affected by it)
+        uncorr_year_shape_systs (Dict[str, Tuple]): dict of shape systs (unccorrelated across years)
+          and tuple of their (name in cards, samples affected by it)
+        shape_systs_dict (Dict[str, rl.NuisanceParameter]): dict of shape syst names and
+          NuisanceParameter object
+        pass_only (List[str]): list of systematics which are only applied in the pass region(s)
+        bblite (bool): use Barlow-Beeston-lite method or not (single mcstats param across MC samples)
+        mX_bin (int): if doing 2D fit (for resonant), which mX bin to be filled
+    """
+
+    for region in regions:
+        print("region templates all\n", templates_all[region])
+        if mX_bin is None:
+            region_templates = templates_all[region]
+        else:
+            region_templates = templates_all[region][:, :, mX_bin]
+        print("region templates\n", region_templates)
+
+        pass_region = region.startswith("pass")
+        region_noblinded = region.split("Blinded")[0]
+        blind_str = "Blinded" if region.endswith("Blinded") else ""
+
+        logging.info("starting region: %s" % region)
+        binstr = "" if mX_bin is None else f"mXbin{mX_bin}"
+        ch = rl.Channel(binstr + region.replace("_", ""))  # can't have '_'s in name
+        model.addChannel(ch)
+
+        for card_name, sample_name in mc_samples.items():
+            logging.info("get templates for: %s" % sample_name)
+
+            sample_template = region_templates[sample_name, :]
+
+            stype = rl.Sample.SIGNAL if "HHbbVV" in sample_name else rl.Sample.BACKGROUND
+            sample = rl.TemplateSample(ch.name + "_" + card_name, stype, sample_template)
+
+            # nominal values, errors
+            values_nominal = np.maximum(sample_template.values(), 0.0)
+
+            mask = values_nominal > 0
+            errors_nominal = np.ones_like(values_nominal)
+            errors_nominal[mask] = (
+                1.0 + np.sqrt(sample_template.variances()[mask]) / values_nominal[mask]
+            )
+
+            logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
+            logging.debug("error     : {errors}".format(errors=errors_nominal))
+
+            if not bblite:
+                # set mc stat uncs
+                logging.info("setting autoMCStats for %s in %s" % (sample_name, region))
+
+                # same stats unc. for blinded and unblinded cards
+                stats_sample_name = region.split("Blinded")[0] + f"_{sample_name}"
+                sample.autoMCStats(sample_name=stats_sample_name)
+
+            # rate systematics
+            for skey, (_, ssamples, sval) in nuisance_params.items():
+                if sample_name not in ssamples:
+                    continue
+
+                logging.info(f"Getting {skey} rate")
+
+                param = nuisance_params_dict[skey]
+                val = sval[region_noblinded] if isinstance(sval, dict) else sval
+                sample.setParamEffect(param, val)
+
+            # shape systematics
+            for skey, (sname, ssamples) in corr_year_shape_systs.items():
+                if sample_name not in ssamples or (not pass_region and skey in pass_only):
+                    continue
+
+                logging.info(f"Getting {skey} shapes")
+
+                if skey in jecs or skey in jmsr:
+                    # JEC/JMCs saved as different "region" in dict
+                    up_hist = templates_all[f"{region_noblinded}_{skey}_up{blind_str}"][
+                        sample_name, :
+                    ]
+                    down_hist = templates_all[f"{region_noblinded}_{skey}_down{blind_str}"][
+                        sample_name, :
+                    ]
+
+                    if mX_bin is not None:
+                        up_hist = up_hist[:, mX_bin]
+                        down_hist = down_hist[:, mX_bin]
+
+                    values_up = up_hist.values()
+                    values_down = down_hist.values()
+                else:
+                    # weight uncertainties saved as different "sample" in dict
+                    values_up = region_templates[f"{sample_name}_{skey}_up", :].values()
+                    values_down = region_templates[f"{sample_name}_{skey}_down", :].values()
+
+                logger = logging.getLogger(
+                    "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
+                )
+
+                effect_up, effect_down = get_effect_updown(
+                    values_nominal, values_up, values_down, mask, logger
+                )
+                sample.setParamEffect(shape_systs_dict[skey], effect_up, effect_down)
+
+            for skey, (sname, ssamples) in uncorr_year_shape_systs.items():
+                if sample_name not in ssamples or (not pass_region and skey in pass_only):
+                    continue
+
+                logging.info(f"Getting {skey} shapes")
+
+                for year in years:
+                    values_up, values_down = get_year_updown(
+                        templates_dict,
+                        sample_name,
+                        region,
+                        region_noblinded,
+                        blind_str,
+                        year,
+                        skey,
+                        mX_bin=mX_bin,
+                    )
+                    logger = logging.getLogger(
+                        "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
+                    )
+
+                    effect_up, effect_down = get_effect_updown(
+                        values_nominal, values_up, values_down, mask, logger
+                    )
+                    sample.setParamEffect(
+                        shape_systs_dict[f"{skey}_{year}"], effect_up, effect_down
+                    )
+
+            ch.addSample(sample)
+
+        if bblite:
+            channel_name = region_noblinded
+            ch.autoMCStats(channel_name=channel_name, threshold=0.1)
+
+        # data observed
+        ch.setObservation(region_templates[data_key, :])
+
+
+def nonres_alphabet_fit(
+    model: rl.Model, shape_var: str, bins: List[int], bins_scaled: List[int], templates_all: Dict
+):
+    m_obs = rl.Observable(shape_var, bins)
+
+    # QCD overall pass / fail efficiency
+    qcd_eff = (
+        templates_all[f"pass"][qcd_key, :].sum().value
+        / templates_all[f"fail"][qcd_key, :].sum().value
+    )
+
+    # transfer factor
+    tf_dataResidual = rl.BasisPoly(
+        f"{CMS_PARAMS_LABEL}_tf_dataResidual",
+        (args.nDataTF,),
+        [shape_var],
+        basis="Bernstein",
+        limits=(-20, 20),
+    )
+    tf_dataResidual_params = tf_dataResidual(bins_scaled)
+    tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
+
+    # qcd params
+    qcd_params = np.array(
+        [
+            rl.IndependentParameter(f"{CMS_PARAMS_LABEL}_qcdparam_msdbin{i}", 0)
+            for i in range(m_obs.nbins)
+        ]
+    )
+
+    for blind_str in ["", "Blinded"]:
+        # for blind_str in ["Blinded"]:
+        passChName = f"pass{blind_str}".replace("_", "")
+        failChName = f"fail{blind_str}".replace("_", "")
+        logging.info(
+            "setting transfer factor for pass region %s, fail region %s" % (passChName, failChName)
+        )
+        failCh = model[failChName]
+        passCh = model[passChName]
+
+        # sideband fail
+        # was integer, and numpy complained about subtracting float from it
+        initial_qcd = failCh.getObservation().astype(float)
+        for sample in failCh:
+            logging.debug("subtracting %s from qcd" % sample._name)
+            initial_qcd -= sample.getExpectation(nominal=True)
+
+        if np.any(initial_qcd < 0.0):
+            raise ValueError("initial_qcd negative for some bins..", initial_qcd)
+
+        sigmascale = 10  # to scale the deviation from initial
+        scaled_params = (
+            initial_qcd * (1 + sigmascale / np.maximum(1.0, np.sqrt(initial_qcd))) ** qcd_params
+        )
+
+        # add samples
+        fail_qcd = rl.ParametericSample(
+            f"{failChName}_{PARAMS_LABEL}_qcd_datadriven",
+            rl.Sample.BACKGROUND,
+            m_obs,
+            scaled_params,
+        )
+        failCh.addSample(fail_qcd)
+
+        pass_qcd = rl.TransferFactorSample(
+            f"{passChName}_{PARAMS_LABEL}_qcd_datadriven",
+            rl.Sample.BACKGROUND,
+            tf_params_pass,
+            fail_qcd,
+        )
+        passCh.addSample(pass_qcd)
+
+
+def res_alphabet_fit(
+    model: rl.Model,
+    shape_var_mY: str,
+    mY_bins: List[int],
+    mY_bins_scaled: List[int],
+    shape_var_mX: str,
+    mX_bins: List[int],
+    mX_bins_scaled: List[int],
+    templates_all: Dict,
+):
+    m_obs = rl.Observable(shape_var_mY, mY_bins)
+
+    # QCD overall pass / fail efficiency
+    qcd_eff = (
+        templates_all[f"pass"][qcd_key, :].sum().value
+        / templates_all[f"fail"][qcd_key, :].sum().value
+    )
+
+    # transfer factor
+    tf_dataResidual = rl.BasisPoly(
+        f"{CMS_PARAMS_LABEL}_tf_dataResidual",
+        (args.nDataTF, args.nDataTF),
+        [shape_var_mX, shape_var_mY],
+        basis="Bernstein",
+        limits=(-20, 20),
+    )
+    tf_dataResidual_params = tf_dataResidual(mX_bins_scaled, mY_bins_scaled)
+    tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
+
+    for mX_bin in range(len(mX_bins) - 1):
+        # qcd params
+        qcd_params = np.array(
+            [
+                rl.IndependentParameter(f"{CMS_PARAMS_LABEL}_qcdparam_mXbin{mX_bin}_mYbin{i}", 0)
+                for i in range(m_obs.nbins)
+            ]
+        )
+
+        for blind_str in ["", "Blinded"]:
+            # for blind_str in ["Blinded"]:
+            passChName = f"mXbin{mX_bin}pass{blind_str}".replace("_", "")
+            failChName = f"mXbin{mX_bin}fail{blind_str}".replace("_", "")
+            logging.info(
+                "setting transfer factor for pass region %s, fail region %s"
+                % (passChName, failChName)
+            )
+            failCh = model[failChName]
+            passCh = model[passChName]
+
+            # sideband fail
+            # was integer, and numpy complained about subtracting float from it
+            initial_qcd = failCh.getObservation().astype(float)
+            for sample in failCh:
+                logging.debug("subtracting %s from qcd" % sample._name)
+                initial_qcd -= sample.getExpectation(nominal=True)
+
+            if np.any(initial_qcd < 0.0):
+                raise ValueError("initial_qcd negative for some bins..", initial_qcd)
+
+            sigmascale = 10  # to scale the deviation from initial
+            scaled_params = (
+                initial_qcd * (1 + sigmascale / np.maximum(1.0, np.sqrt(initial_qcd))) ** qcd_params
+            )
+
+            # add samples
+            fail_qcd = rl.ParametericSample(
+                f"{failChName}_{PARAMS_LABEL}_qcd_datadriven",
+                rl.Sample.BACKGROUND,
+                m_obs,
+                scaled_params,
+            )
+            failCh.addSample(fail_qcd)
+
+            pass_qcd = rl.TransferFactorSample(
+                f"{passChName}_{PARAMS_LABEL}_qcd_datadriven",
+                rl.Sample.BACKGROUND,
+                tf_params_pass,
+                fail_qcd,
+            )
+            passCh.addSample(pass_qcd)
 
 
 def _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger):
@@ -448,7 +693,13 @@ def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
     return effect_up, effect_down
 
 
-def get_year_updown(templates_dict, sample, region, region_noblinded, blind_str, year, skey):
+def get_year_updown(
+    templates_dict, sample, region, region_noblinded, blind_str, year, skey, mX_bin=None
+):
+    """
+    Return templates with only the given year's shapes shifted up and down by the ``skey`` systematic.
+    Returns as [up templates, down templates]
+    """
     updown = []
 
     for shift in ["up", "down"]:
@@ -464,47 +715,15 @@ def get_year_updown(templates_dict, sample, region, region_noblinded, blind_str,
         else:
             # weight uncertainties saved as different "sample" in dict
             templates[year] = templates_dict[year][region][f"{sample}_{sshift}", :]
+
+        if mX_bin is not None:
+            for year, template in templates.items():
+                templates[year] = template[:, mX_bin]
+
         # sum templates with year's template replaced with shifted
         updown.append(sum(list(templates.values())).values())
 
     return updown
 
 
-def add_bool_arg(parser, name, help, default=False, no_name=None):
-    """Add a boolean command line argument for argparse"""
-    varname = "_".join(name.split("-"))  # change hyphens to underscores
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument("--" + name, dest=varname, action="store_true", help=help)
-    if no_name is None:
-        no_name = "no-" + name
-        no_help = "don't " + help
-    else:
-        no_help = help
-    group.add_argument("--" + no_name, dest=varname, action="store_false", help=no_help)
-    parser.set_defaults(**{varname: default})
-
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--templates-dir",
-        default="",
-        type=str,
-        help="input pickle file of dict of hist.Hist templates",
-    )
-    parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
-    parser.add_argument("--cat", default="1", type=str, choices=["1"], help="category")
-    parser.add_argument(
-        "--nDataTF",
-        default=2,
-        type=int,
-        dest="nDataTF",
-        help="order of polynomial for TF from Data",
-    )
-    parser.add_argument("--model-name", default=None, type=str, help="output model name")
-    add_bool_arg(parser, "bblite", "use barlow-beeston-lite method", default=True)
-    args = parser.parse_args()
-
-    main(args)
+main(args)
