@@ -88,10 +88,13 @@ mc_samples = OrderedDict(
 nonres_sig_keys = ["HHbbVV"]
 
 if args.resonant:
-    for mX, mY in res_mps:
-        mc_samples[f"xhy_mx{mX}_my{mY}"] = f"X[{mX}]->H(bb)Y[{mY}](VV)"
+    # for mX, mY in res_mps:
+    #     mc_samples[f"xhy_mx{mX}_my{mY}"] = f"X[{mX}]->H(bb)Y[{mY}](VV)"
 
-    sig_keys = res_sig_keys
+    # sig_keys = res_sig_keys
+
+    mc_samples["xhy_mx3000_my190"] = "X[3000]->H(bb)Y[190](VV)"
+    sig_keys = ["X[3000]->H(bb)Y[190](VV)"]
 else:
     mc_samples["ggHH_kl_1_kt_1_hbbhww4q"] = "HHbbVV"
     sig_keys = ["HHbbVV"]  # add different couplings
@@ -138,8 +141,11 @@ nuisance_params = {
     ],
     # these values will be added in from the systematics JSON
     "triggerEffSF_uncorrelated": ["lnN", all_mc, 0],
-    "lp_sf": ["lnN", sig_keys, 0],
+    # "lp_sf": ["lnN", sig_keys, 0],
 }
+
+for sig_key in sig_keys:
+    nuisance_params[f"lp_sf_{sig_key}"] = ["lnN", [sig_key], 0]
 
 # remove keys in
 if args.year != "all":
@@ -303,7 +309,9 @@ def sum_templates(template_dict: Dict):
 def process_systematics(systematics: Dict):
     """Get total uncertainties from per-year systs in ``systematics``"""
     global nuisance_params
-    nuisance_params["lp_sf"][2] = 1 + systematics["lp_sf_unc"]  # already for all years
+    for sig_key in sig_keys:
+        # already for all years
+        nuisance_params[f"lp_sf_{sig_key}"][2] = 1 + systematics[sig_key]["lp_sf_unc"]
 
     tdict = {}
     for region in systematics[years[0]]:
