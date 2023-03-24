@@ -306,16 +306,22 @@ def process_systematics(systematics: Dict):
     nuisance_params["lp_sf"][2] = 1 + systematics["lp_sf_unc"]  # already for all years
 
     tdict = {}
-    for region in systematics["2017"]:
-        trig_totals, trig_total_errs = [], []
-        for year in years:
-            trig_totals.append(systematics[year][region]["trig_total"])
-            trig_total_errs.append(systematics[year][region]["trig_total_err"])
+    for region in systematics[years[0]]:
+        if len(years) > 1:
+            trig_totals, trig_total_errs = [], []
+            for year in years:
+                trig_totals.append(systematics[year][region]["trig_total"])
+                trig_total_errs.append(systematics[year][region]["trig_total_err"])
 
-        trig_total = np.sum(trig_totals)
-        trig_total_errs = np.linalg.norm(trig_total_errs)
+            trig_total = np.sum(trig_totals)
+            trig_total_errs = np.linalg.norm(trig_total_errs)
 
-        tdict[region] = 1 + (trig_total_errs / trig_total)
+            tdict[region] = 1 + (trig_total_errs / trig_total)
+        else:
+            tdict[region] = 1 + (
+                systematics[year][region]["trig_total_err"]
+                / systematics[year][region]["trig_total"]
+            )
 
     nuisance_params["triggerEffSF_uncorrelated"][2] = tdict
 

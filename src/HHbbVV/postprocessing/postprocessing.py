@@ -291,7 +291,7 @@ def main(args):
 
     # save cutflow as pandas table
     cutflow = pd.DataFrame(index=list(samples.keys()))
-    # load systematics for different years if those are saved already
+    # load pre-calculated systematics and those for different years if saved already
     systematics = _check_load_systematics(systs_file)
 
     # utils.remove_empty_parquets(samples_dir, year)
