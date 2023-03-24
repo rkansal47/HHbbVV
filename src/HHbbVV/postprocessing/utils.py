@@ -19,7 +19,15 @@ from typing import Dict, List, Union
 from coffea.analysis_tools import PackedSelection
 from hist import Hist
 
-from hh_vars import sig_keys, res_sig_keys, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
+from hh_vars import (
+    nonres_sig_keys,
+    res_sig_keys,
+    data_key,
+    jec_shifts,
+    jmsr_shifts,
+    jec_vars,
+    jmsr_vars,
+)
 
 MAIN_DIR = "./"
 CUT_MAX_VAL = 9999.0
@@ -172,7 +180,7 @@ def load_samples(
             pickles_path = f"{data_dir}/{year}/{sample}/pickles"
 
             if label != data_key:
-                if label in sig_keys + res_sig_keys:
+                if label in nonres_sig_keys + res_sig_keys:
                     n_events = get_cutflow(pickles_path, year, sample)["has_4q"]
                 else:
                     n_events = get_nevents(pickles_path, year, sample)
@@ -411,28 +419,51 @@ def make_selection(
         else:
             selection[sample] = PackedSelection()
 
-        for var, brange in var_cuts.items():
+        for var, branges in var_cuts.items():
             if jshift != "" and sample != data_key:
                 var = check_get_jec_var(var, jshift)
 
-            if brange[0] > -MAX_VAL:
+            if isinstance(branges[0], list):
+                # OR the cuts
+                sels = []
+                selstrs = []
+                for brange in branges:
+                    sels.append(
+                        (get_feat(events, var, bb_mask) >= brange[0])
+                        * (get_feat(events, var, bb_mask) < brange[1])
+                    )
+                    selstrs.append(f"{brange[0]} ≤ {var} < {brange[1]}")
+                sel = np.sum(sels, axis=0).astype(bool)
+                selstr = " or ".join(selstrs)
+
                 add_selection(
-                    f"{var} > {brange[0]}",
-                    get_feat(events, var, bb_mask) >= brange[0],
+                    selstr,
+                    sel,
                     selection[sample],
                     cutflow[sample],
                     events,
                     weight_key,
                 )
-            if brange[1] < MAX_VAL:
-                add_selection(
-                    f"{var} < {brange[1]}",
-                    get_feat(events, var, bb_mask) < brange[1],
-                    selection[sample],
-                    cutflow[sample],
-                    events,
-                    weight_key,
-                )
+            else:
+                brange = branges
+                if brange[0] > -MAX_VAL:
+                    add_selection(
+                        f"{var} ≥ {brange[0]}",
+                        get_feat(events, var, bb_mask) >= brange[0],
+                        selection[sample],
+                        cutflow[sample],
+                        events,
+                        weight_key,
+                    )
+                if brange[1] < MAX_VAL:
+                    add_selection(
+                        f"{var} < {brange[1]}",
+                        get_feat(events, var, bb_mask) < brange[1],
+                        selection[sample],
+                        cutflow[sample],
+                        events,
+                        weight_key,
+                    )
 
         selection[sample] = selection[sample].all(*selection[sample].names)
 

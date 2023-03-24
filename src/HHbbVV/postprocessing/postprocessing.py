@@ -32,7 +32,7 @@ from textwrap import dedent
 import corrections
 from hh_vars import (
     years,
-    sig_keys,
+    nonres_sig_keys,
     res_sig_keys,
     data_key,
     qcd_key,
@@ -140,59 +140,31 @@ selection_regions_year = {
 
 res_selection_regions_year = {
     # "unblinded" regions:
-    # "pass": {
-    #     "bbFatJetParticleNetMass": [110, 140],
-    #     "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
-    #     "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
-    # },
-    # "fail": {
-    #     "bbFatJetParticleNetMass": [110, 140],
-    #     "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
-    #     "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
-    # },
+    "pass": {
+        "bbFatJetParticleNetMass": [115, 145],
+        "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
+        "VVFatJetParTMD_THWWvsT": [0.961, CUT_MAX_VAL],
+    },
+    "fail": {
+        "bbFatJetParticleNetMass": [115, 145],
+        "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
+        "VVFatJetParTMD_THWWvsT": [0.8, 0.961],
+    },
     # "blinded" validation regions:
-    "pass_valid": {
-        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
-        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
-        "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
-        "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
-    },
-    "fail_valid": {
-        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
-        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
-        "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
-        "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
-    },
-    "pass_valid_eveto": {
-        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
-        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
-        "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
-        "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
-        "nGoodElectrons": [-CUT_MAX_VAL, 1],
-    },
-    "fail_valid_eveto": {
-        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
-        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
-        "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
-        "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
-        "nGoodElectrons": [-CUT_MAX_VAL, 1],
-    },
-    "pass_valid_eveto_hwwvt": {
-        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
-        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
+    "passBlinded": {
+        "bbFatJetParticleNetMass": [[100, 115], [145, 160]],
         "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
         "VVFatJetParTMD_THWWvsT": [0.961, CUT_MAX_VAL],
         "nGoodElectrons": [-CUT_MAX_VAL, 1],
     },
-    "fail_valid_eveto_hwwvt": {
-        "bbFatJetParticleNetMass": [-CUT_MAX_VAL, 110],
-        "bbFatJetParticleNetMass": [140, CUT_MAX_VAL],
+    "failBlinded": {
+        "bbFatJetParticleNetMass": [[100, 115], [145, 160]],
         "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
-        "VVFatJetParTMD_THWWvsT": [0.961, CUT_MAX_VAL],
+        "VVFatJetParTMD_THWWvsT": [0.8, 0.961],
         "nGoodElectrons": [-CUT_MAX_VAL, 1],
     },
     "lpsf": {  # cut for which LP SF is calculated
-        "VVFatJetParTMD_THWW4q": [0.98, CUT_MAX_VAL],
+        "VVFatJetParTMD_THWWvsT": [0.961, CUT_MAX_VAL],
     },
 }
 
@@ -204,6 +176,8 @@ selection_regions_label = {
     "top": "Top",
     "pass_valid": "Validation Pass",
     "fail_valid": "Validation Fail",
+    "passBlinded": "Validation Pass",
+    "failBlinded": "Validation Fail",
     "pass_valid_eveto": "Validation Pass + e Veto",
     "fail_valid_eveto": "Validation Fail + e Veto",
     "pass_valid_eveto_hwwvt": "Validation Pass, Cut on THWWvsT + e Veto",
@@ -289,10 +263,10 @@ res_shape_vars = [
 
 # TODO: check which of these applies to resonant as well
 weight_shifts = {
-    "pileup": sig_keys + res_sig_keys + bg_keys,
-    "PDFalphaS": sig_keys,
-    "ISRPartonShower": sig_keys + ["V+Jets"],
-    "FSRPartonShower": sig_keys + ["V+Jets"],
+    "pileup": nonres_sig_keys + res_sig_keys + bg_keys,
+    "PDFalphaS": nonres_sig_keys,
+    "ISRPartonShower": nonres_sig_keys + ["V+Jets"],
+    "FSRPartonShower": nonres_sig_keys + ["V+Jets"],
 }
 
 weight_labels = {
@@ -308,6 +282,8 @@ def main(args):
         print("You need to pass at least one of --control-plots, --templates, or --scan")
         return
 
+    sig_keys = nonres_sig_keys if not args.resonant else res_sig_keys
+
     # make plot, template dirs if needed
     _make_dirs(args)
 
@@ -315,6 +291,7 @@ def main(args):
 
     # save cutflow as pandas table
     cutflow = pd.DataFrame(index=list(samples.keys()))
+    # load systematics for different years if those are saved already
     systematics = _check_load_systematics(systs_file)
 
     # utils.remove_empty_parquets(samples_dir, year)
@@ -513,7 +490,7 @@ def apply_weights(
             [
                 trig_yields[sample]
                 for sample in events_dict
-                if sample not in {*sig_keys, qcd_key, data_key, *res_sig_keys}
+                if sample not in {*nonres_sig_keys, qcd_key, data_key, *res_sig_keys}
             ]
         )
         QCD_SCALE_FACTOR = (trig_yields[data_key] - non_qcd_bgs_yield) / trig_yields[qcd_key]
@@ -883,6 +860,7 @@ def get_templates(
     plot_shifts: bool = True,
     pass_ylim: int = None,
     fail_ylim: int = None,
+    blind_pass: bool = False,
     show: bool = False,
 ) -> Dict[str, Hist]:
     """
@@ -1023,6 +1001,9 @@ def get_templates(
             else:
                 title = f"{selection_regions_label[label]} Region {jshift} Shapes"
 
+            if sig_splits is None:
+                sig_splits = [sig_keys]
+
             for i, shape_var in enumerate(shape_vars):
                 for j, plot_sig_keys in enumerate(sig_splits):
                     split_str = "" if len(sig_splits) == 1 else f"sigs{j}_"
@@ -1036,11 +1017,10 @@ def get_templates(
                         "show": show,
                         "year": year,
                         "ylim": pass_ylim if pass_region else fail_ylim,
+                        "plot_data": not (label == "pass" and blind_pass),
                     }
 
-                    plot_name = (
-                        f"{plot_dir}/templates/{split_str}{cutstr}{label}_region_{shape_var.var}"
-                    )
+                    plot_name = f"{plot_dir}/templates/{'jshifts/' if do_jshift else ''}{split_str}{cutstr}{label}_region_{shape_var.var}"
 
                     plotting.ratioHistPlot(
                         **plot_params,
@@ -1049,6 +1029,8 @@ def get_templates(
                     )
 
                     if not do_jshift and plot_shifts:
+                        plot_name = f"{plot_dir}/templates/wshifts/{split_str}{cutstr}{label}_region_{shape_var.var}"
+
                         for wshift, wsamples in weight_shifts.items():
                             wlabel = weight_labels[wshift]
 
@@ -1140,6 +1122,7 @@ if __name__ == "__main__":
         type=str,
     )
 
+    utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
     utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
     utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
     utils.add_bool_arg(
