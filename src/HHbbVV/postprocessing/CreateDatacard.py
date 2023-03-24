@@ -252,7 +252,16 @@ def main(args):
         fill_regions(*fill_args)
 
     if args.resonant:
-        res_alphabet_fit()
+        res_alphabet_fit(
+            model,
+            shape_var,
+            shape_bins,
+            shape_scaled,
+            shape_var2,
+            mX_bins,
+            mX_scaled,
+            templates_all,
+        )
     else:
         nonres_alphabet_fit(model, shape_var, shape_bins, shape_scaled, templates_all)
 

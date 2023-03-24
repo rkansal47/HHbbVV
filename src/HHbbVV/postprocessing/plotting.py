@@ -76,24 +76,47 @@ def ratioHistPlot(
     year: str,
     sig_keys: List[str],
     bg_keys: List[str],
+    sig_colours: Dict[str, str] = sig_colours,
     bg_colours: Dict[str, str] = bg_colours,
-    sig_colours: str = sig_colours,
     sig_err: Union[ArrayLike, str] = None,
     data_err: Union[ArrayLike, bool, None] = None,
     title: str = None,
     blind_region: list = None,
     name: str = "",
-    sig_scale_dict: float = None,
+    sig_scale_dict: Dict[str, float] = None,
     ylim: int = None,
     show: bool = True,
     variation: Tuple = None,
+    plot_data: bool = True,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
     scaled) with a data/mc ratio plot below
 
     Args:
+        hists (Hist): input histograms per sample to plot
+        year (str): datataking year
+        sig_keys (List[str]): signal keys
+        bg_keys (List[str]): background keys
+        sig_colours (Dict[str, str], optional): dictionary of colours per signal. Defaults to sig_colours.
+        bg_colours (Dict[str, str], optional): dictionary of colours per background. Defaults to bg_colours.
+        sig_err (Union[ArrayLike, str], optional): plot error on signal.
+          if string, will take up down shapes from the histograms (assuming they're saved as "{sig_key}_{sig_err}_{up/down}")
+          if 1D Array, will take as error per bin
+        data_err (Union[ArrayLike, bool, None], optional): plot error on data.
+          if True, will plot poisson error per bin
+          if array, will plot given errors per bin
+        title (str, optional): plot title. Defaults to None.
+        blind_region (list): [min, max] range of values which should be blinded in the plot
+          i.e. Data set to 0 in those bins
+        name (str): name of file to save plot
+        sig_scale_dict (Dict[str, float]): if scaling signals in the plot, dictionary of factors
+          by which to scale each signal
         ylim (optional): y-limit on plot
+        show (bool): show plots or not
+        variation (Tuple): Tuple of
+          (wshift: name of systematic e.g. pileup, shift: up or down, wsamples: list of samples which are affected by this)
+        plot_data (bool): plot data
     """
     bg_keys = [key for key in bg_order if key in bg_keys]
     bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
@@ -101,6 +124,8 @@ def ratioHistPlot(
 
     if sig_scale_dict is None:
         sig_scale_dict = OrderedDict([(sig_key, 1.0) for sig_key in sig_keys])
+    else:
+        sig_scale_dict = deepcopy(sig_scale_dict)
 
     sig_labels = OrderedDict(
         [
@@ -118,9 +143,12 @@ def ratioHistPlot(
                 bg_keys[i] += f"_{wshift}_{shift}"
                 bg_labels[i] += skey
 
-        if sig_key in wsamples:
-            sig_key = f"{sig_key}_{wshift}_{shift}"
-            sig_label += skey
+        for sig_key in list(sig_scale_dict.keys()):
+            if sig_key in wsamples:
+                new_key = f"{sig_key}_{wshift}_{shift}"
+                sig_scale_dict[new_key] = sig_scale_dict[sig_key]
+                sig_labels[new_key] = sig_labels[sig_key] + skey
+                del sig_scale_dict[sig_key], sig_labels[sig_key]
 
     fig, (ax, rax) = plt.subplots(
         2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
@@ -168,9 +196,15 @@ def ratioHistPlot(
                 sig_scale,
             )
 
-    hep.histplot(
-        hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
-    )
+    if plot_data:
+        hep.histplot(
+            hists[data_key, :],
+            ax=ax,
+            yerr=data_err,
+            histtype="errorbar",
+            label=data_key,
+            color="black",
+        )
     ax.legend()
 
     if ylim is not None:
@@ -178,17 +212,21 @@ def ratioHistPlot(
     else:
         ax.set_ylim(0)
 
-    bg_tot = sum([hists[sample, :] for sample in bg_keys])
-    yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")
+    if plot_data:
+        bg_tot = sum([hists[sample, :] for sample in bg_keys])
+        yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")
 
-    hep.histplot(
-        hists[data_key, :] / (bg_tot.values() + 1e-5),
-        yerr=yerr,
-        ax=rax,
-        histtype="errorbar",
-        color="black",
-        capsize=4,
-    )
+        hep.histplot(
+            hists[data_key, :] / (bg_tot.values() + 1e-5),
+            yerr=yerr,
+            ax=rax,
+            histtype="errorbar",
+            color="black",
+            capsize=4,
+        )
+    else:
+        rax.set_xlabel(hists.axes[1].label)
+
     rax.set_ylabel("Data/MC")
     rax.set_ylim([0, 2])
     rax.grid()
