@@ -29,9 +29,14 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [Post-Processing](#post-processing-1)
     - [Create Datacard](#create-datacard)
     - [PlotFits](#plotfits)
+  - [Combine](#combine)
+    - [CMSSW + Combine Quickstart](#cmssw--combine-quickstart)
+    - [Run basic fits and diagnostics](#run-basic-fits-and-diagnostics)
+    - [Get data and toy test statistics for simple GoF](#get-data-and-toy-test-statistics-for-simple-gof)
   - [Misc](#misc)
     - [Command for copying directories to PRP in background](#command-for-copying-directories-to-prp-in-background)
     - [Get all running job names:](#get-all-running-job-names)
+
 
 ## Instructions for running coffea processors
 
@@ -238,7 +243,7 @@ for year in 2016APV 2016 2017 2018; do python postprocessing.py --templates --ye
 Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rhalphalib installed (`pip install -e . --user` after checking out the branch). `CMSSW_11_2_0` recommended.
 
 ```bash
-python3 postprocessing/CreateDatacard.py --templates-dir templates/$TAG --model-name $TAG
+python3 postprocessing/CreateDatacard.py --templates-dir templates/$TAG --model-name $TAG (--resonant)
 ```
 
 
@@ -246,6 +251,34 @@ python3 postprocessing/CreateDatacard.py --templates-dir templates/$TAG --model-
 
 ```bash
 python PlotFits.py --fit-file "cards/test_tied_stats/fitDiagnosticsBlindedBkgOnly.root" --plots-dir "../../../plots/PostFit/09_02/"
+```
+
+## Combine
+
+### CMSSW + Combine Quickstart
+```bash
+cmsrel CMSSW_11_2_0
+cd CMSSW_11_2_0/src
+cmsenv
+git clone -b py3 https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
+cd HiggsAnalysis/CombinedLimit
+scramv1 b clean; scramv1 b
+
+cd $CMSSW_BASE/src/
+git clone -b 113x https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
+scram b
+```
+
+### Run basic fits and diagnostics
+
+```bash
+/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh "./"
+```
+
+### Get data and toy test statistics for simple GoF
+
+```bash
+/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/gof.sh "./"
 ```
 
 
