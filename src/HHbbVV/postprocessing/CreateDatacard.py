@@ -326,6 +326,7 @@ def process_systematics(systematics: Dict):
 
             tdict[region] = 1 + (trig_total_errs / trig_total)
         else:
+            year = years[0]
             tdict[region] = 1 + (
                 systematics[year][region]["trig_total_err"]
                 / systematics[year][region]["trig_total"]
@@ -376,12 +377,10 @@ def fill_regions(
     """
 
     for region in regions:
-        print("region templates all\n", templates_all[region])
         if mX_bin is None:
             region_templates = templates_all[region]
         else:
             region_templates = templates_all[region][:, :, mX_bin]
-        print("region templates\n", region_templates)
 
         pass_region = region.startswith("pass")
         region_noblinded = region.split("Blinded")[0]
@@ -440,16 +439,17 @@ def fill_regions(
 
                 if skey in jecs or skey in jmsr:
                     # JEC/JMCs saved as different "region" in dict
-                    up_hist = templates_all[f"{region_noblinded}_{skey}_up{blind_str}"][
-                        sample_name, :
-                    ]
-                    down_hist = templates_all[f"{region_noblinded}_{skey}_down{blind_str}"][
-                        sample_name, :
-                    ]
-
-                    if mX_bin is not None:
-                        up_hist = up_hist[:, mX_bin]
-                        down_hist = down_hist[:, mX_bin]
+                    if mX_bin is None:
+                        up_hist = templates_all[f"{region_noblinded}_{skey}_up{blind_str}"][
+                            sample_name, :
+                        ]
+                        down_hist = templates_all[f"{region_noblinded}_{skey}_down{blind_str}"][
+                            sample_name, :
+                        ]
+                    else:
+                        # regions names are different from different blinding strats
+                        up_hist = templates_all[f"{region}_{skey}_up"][sample_name, :, mX_bin]
+                        down_hist = templates_all[f"{region}_{skey}_down"][sample_name, :, mX_bin]
 
                     values_up = up_hist.values()
                     values_down = down_hist.values()
@@ -592,8 +592,8 @@ def res_alphabet_fit(
 
     # QCD overall pass / fail efficiency
     qcd_eff = (
-        templates_all[f"pass"][qcd_key, :].sum().value
-        / templates_all[f"fail"][qcd_key, :].sum().value
+        templates_all[f"pass"][qcd_key, ...].sum().value
+        / templates_all[f"fail"][qcd_key, ...].sum().value
     )
 
     # transfer factor
@@ -604,7 +604,10 @@ def res_alphabet_fit(
         basis="Bernstein",
         limits=(-20, 20),
     )
-    tf_dataResidual_params = tf_dataResidual(mX_bins_scaled, mY_bins_scaled)
+
+    # based on https://github.com/nsmith-/rhalphalib/blob/9472913ef0bab3eb47bc942c1da4e00d59fb5202/tests/test_rhalphalib.py#L38
+    mX_scaled_grid, mY_scaled_grid = np.meshgrid(mX_bins_scaled, mY_bins_scaled, indexing="ij")
+    tf_dataResidual_params = tf_dataResidual(mX_scaled_grid, mY_scaled_grid)
     tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
 
     for mX_bin in range(len(mX_bins) - 1):
@@ -635,7 +638,9 @@ def res_alphabet_fit(
                 initial_qcd -= sample.getExpectation(nominal=True)
 
             if np.any(initial_qcd < 0.0):
-                raise ValueError("initial_qcd negative for some bins..", initial_qcd)
+                # raise ValueError("initial_qcd negative for some bins..", initial_qcd)
+                logging.warning(f"initial_qcd negative for some bins... {initial_qcd}")
+                initial_qcd[initial_qcd < 0] = 0
 
             sigmascale = 10  # to scale the deviation from initial
             scaled_params = (
@@ -654,7 +659,7 @@ def res_alphabet_fit(
             pass_qcd = rl.TransferFactorSample(
                 f"{passChName}_{PARAMS_LABEL}_qcd_datadriven",
                 rl.Sample.BACKGROUND,
-                tf_params_pass,
+                tf_params_pass[mX_bin, :],
                 fail_qcd,
             )
             passCh.addSample(pass_qcd)
@@ -728,16 +733,19 @@ def get_year_updown(
     for shift in ["up", "down"]:
         sshift = f"{skey}_{shift}"
         # get nominal templates for each year
-        templates = {y: templates_dict[y][region][sample, :] for y in years}
+        templates = {y: templates_dict[y][region][sample, ...] for y in years}
         # replace template for this year with the shifted tempalte
         if skey in jecs or skey in jmsr:
             # JEC/JMCs saved as different "region" in dict
-            templates[year] = templates_dict[year][f"{region_noblinded}_{sshift}{blind_str}"][
-                sample, :
-            ]
+            reg_name = (
+                f"{region_noblinded}_{sshift}{blind_str}"
+                if mX_bin is None
+                else f"{region}_{sshift}"
+            )
+            templates[year] = templates_dict[year][reg_name][sample, :, ...]
         else:
             # weight uncertainties saved as different "sample" in dict
-            templates[year] = templates_dict[year][region][f"{sample}_{sshift}", :]
+            templates[year] = templates_dict[year][region][f"{sample}_{sshift}", ...]
 
         if mX_bin is not None:
             for year, template in templates.items():
