@@ -11,7 +11,18 @@ mkdir -p $outsdir
 
 
 echo "combine cards"
-combineCards.py fail=${cards_dir}/fail.txt failBlinded=${cards_dir}/failBlinded.txt pass=${cards_dir}/pass.txt passBlinded=${cards_dir}/passBlinded.txt > $ws.txt
+
+# one channel per bin
+ccargs=""
+for bin in {0..23}
+do
+    for channel in fail failBlinded pass passBlinded;
+    do
+        ccargs+="mXbin${bin}${channel}=${cards_dir}/mXbin${bin}${channel}.txt "
+    done
+done
+
+combineCards.py $ccargs > $ws.txt
 
 echo "text2workspace"
 text2workspace.py -D $dataset $ws.txt --channel-masks -o $wsm.root 2>&1 | tee $outsdir/text2workspace.txt
@@ -26,4 +37,3 @@ echo "fitdiagnostics"
 combine -M FitDiagnostics -m 125 -d ${wsm}.root \
 --setParameters mask_pass=1,mask_fail=1,mask_passBlinded=0,mask_failBlinded=0 \
 --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes -n Blinded --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnostics.txt
-
