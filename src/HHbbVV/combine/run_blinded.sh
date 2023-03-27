@@ -23,10 +23,16 @@ combine -D $dataset -M MultiDimFit --saveWorkspace -m 125 -d ${wsm}.root --verbo
 -n Snapshot 2>&1 | tee $outsdir/MultiDimFit.txt
 
 echo "asymptotic limit"
-combine -M AsymptoticLimits -m 125 -n pass -d ${wsm_snapshot}.root --snapshotName MultiDimFit --saveWorkspace --saveToys --bypassFrequentistFit --setParameters mask_pass=0,mask_fail=0,mask_passBlinded=1,mask_failBlinded=1 --floatParameters r --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
+combine -M AsymptoticLimits -m 125 -n pass -d ${wsm_snapshot}.root --snapshotName MultiDimFit \
+--saveWorkspace --saveToys --bypassFrequentistFit \
+--setParameters mask_pass=0,mask_fail=0,mask_passBlinded=1,mask_failBlinded=1 \
+--floatParameters r --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
 
 echo "expected significance"
-combine -M Significance -d ${wsm_snapshot}.root --significance -m 125 -n pass --snapshotName MultiDimFit -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit --setParameters mask_pass=0,mask_fail=0,mask_passBlinded=1,mask_failBlinded=1,r=1 --floatParameters r --toysFrequentist 2>&1 | tee $outsdir/Significance.txt
+combine -M Significance -d ${wsm_snapshot}.root --significance -m 125 -n pass --snapshotName MultiDimFit \
+-t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit \
+--setParameters mask_pass=0,mask_fail=0,mask_passBlinded=1,mask_failBlinded=1,r=1 \
+--floatParameters r --toysFrequentist 2>&1 | tee $outsdir/Significance.txt
 
 echo "fitdiagnostics"
 combine -M FitDiagnostics -m 125 -d ${wsm}.root \
