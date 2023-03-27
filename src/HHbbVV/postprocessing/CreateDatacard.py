@@ -501,7 +501,7 @@ def fill_regions(
         if bblite:
             # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
             channel_name = region if args.resonant else region_noblinded
-            ch.autoMCStats(channel_name=channel_name, threshold=0.1)
+            ch.autoMCStats(channel_name=channel_name, threshold=100)
 
         # data observed
         ch.setObservation(region_templates[data_key, :])
