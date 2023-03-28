@@ -75,13 +75,13 @@ add_bool_arg(parser, "bblite", "use barlow-beeston-lite method", default=True)
 add_bool_arg(parser, "resonant", "for resonant or nonresonat", default=False)
 args = parser.parse_args()
 
-# (name in card, name in templates)
+# (name in templates, name in cards)
 mc_samples = OrderedDict(
     [
-        ("diboson", "Diboson"),
-        ("ttbar", "TT"),
-        ("singletop", "ST"),
-        ("vjets", "V+Jets"),
+        ("Diboson", "diboson"),
+        ("TT", "ttbar"),
+        ("ST", "singletop"),
+        ("V+Jets", "vjets"),
     ]
 )
 
@@ -89,14 +89,14 @@ nonres_sig_keys = ["HHbbVV"]
 
 if args.resonant:
     # for mX, mY in res_mps:
-    #     mc_samples[f"xhy_mx{mX}_my{mY}"] = f"X[{mX}]->H(bb)Y[{mY}](VV)"
+    #     mc_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"xhy_mx{mX}_my{mY}"
 
     # sig_keys = res_sig_keys
 
-    mc_samples["xhy_mx3000_my190"] = "X[3000]->H(bb)Y[190](VV)"
+    mc_samples["X[3000]->H(bb)Y[190](VV)"] = "xhy_mx3000_my190"
     sig_keys = ["X[3000]->H(bb)Y[190](VV)"]
 else:
-    mc_samples["ggHH_kl_1_kt_1_hbbhww4q"] = "HHbbVV"
+    mc_samples["HHbbVV"] = "ggHH_kl_1_kt_1_hbbhww4q"
     sig_keys = ["HHbbVV"]  # add different couplings
 
 all_mc = list(mc_samples.values())
@@ -145,7 +145,7 @@ nuisance_params = {
 }
 
 for sig_key in sig_keys:
-    nuisance_params[f"lp_sf_{sig_key}"] = ["lnN", [sig_key], 0]
+    nuisance_params[f"lp_sf_{mc_samples[sig_key]}"] = ["lnN", [sig_key], 0]
 
 # remove keys in
 if args.year != "all":
@@ -311,7 +311,7 @@ def process_systematics(systematics: Dict):
     global nuisance_params
     for sig_key in sig_keys:
         # already for all years
-        nuisance_params[f"lp_sf_{sig_key}"][2] = 1 + systematics[sig_key]["lp_sf_unc"]
+        nuisance_params[f"lp_sf_{mc_samples[sig_key]}"][2] = 1 + systematics[sig_key]["lp_sf_unc"]
 
     tdict = {}
     for region in systematics[years[0]]:
@@ -360,7 +360,7 @@ def fill_regions(
         regions (List[str]): list of regions to fill
         templates_dict (Dict): dictionary of all templates
         templates_all (Dict): dictionary of templates summed across years
-        mc_samples (Dict[str, str]): dict of mc samples and their names in the given templates
+        mc_samples (Dict[str, str]): dict of mc samples and their names in the given templates -> card names
         nuisance_params (Dict[str, Tuple]): dict of nuisance parameter names and tuple of their
           (modifier, samples affected by it, value)
         nuisance_params_dict (Dict[str, rl.NuisanceParameter]): dict of nuisance parameter names
@@ -391,12 +391,12 @@ def fill_regions(
         ch = rl.Channel(binstr + region.replace("_", ""))  # can't have '_'s in name
         model.addChannel(ch)
 
-        for card_name, sample_name in mc_samples.items():
+        for sample_name, card_name in mc_samples.items():
             logging.info("get templates for: %s" % sample_name)
 
             sample_template = region_templates[sample_name, :]
 
-            stype = rl.Sample.SIGNAL if "HHbbVV" in sample_name else rl.Sample.BACKGROUND
+            stype = rl.Sample.SIGNAL if sample_name in sig_keys else rl.Sample.BACKGROUND
             sample = rl.TemplateSample(ch.name + "_" + card_name, stype, sample_template)
 
             # nominal values, errors
@@ -415,8 +415,9 @@ def fill_regions(
                 # set mc stat uncs
                 logging.info("setting autoMCStats for %s in %s" % (sample_name, region))
 
-                # same stats unc. for blinded and unblinded cards
-                stats_sample_name = region.split("Blinded")[0] + f"_{sample_name}"
+                # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
+                stats_sample_name = region if args.resonant else region_noblinded
+                stats_sample_name += f"_{sample_name}"
                 sample.autoMCStats(sample_name=stats_sample_name)
 
             # rate systematics
@@ -498,8 +499,9 @@ def fill_regions(
             ch.addSample(sample)
 
         if bblite:
-            channel_name = region_noblinded
-            ch.autoMCStats(channel_name=channel_name, threshold=0.1)
+            # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
+            channel_name = region if args.resonant else region_noblinded
+            ch.autoMCStats(channel_name=channel_name, threshold=100)
 
         # data observed
         ch.setObservation(region_templates[data_key, :])
