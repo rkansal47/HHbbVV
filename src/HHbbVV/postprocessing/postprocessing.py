@@ -148,7 +148,7 @@ res_selection_regions_year = {
     "fail": {
         "bbFatJetParticleNetMass": [115, 145],
         "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
-        "VVFatJetParTMD_THWWvsT": [0.8, 0.961],
+        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, 0.961],
     },
     # "blinded" validation regions:
     "passBlinded": {
@@ -160,7 +160,7 @@ res_selection_regions_year = {
     "failBlinded": {
         "bbFatJetParticleNetMass": [[100, 115], [145, 160]],
         "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
-        "VVFatJetParTMD_THWWvsT": [0.8, 0.961],
+        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, 0.961],
         "nGoodElectrons": [-CUT_MAX_VAL, 1],
     },
     "lpsf": {  # cut for which LP SF is calculated
@@ -247,16 +247,14 @@ res_shape_vars = [
     ShapeVar(
         "VVFatJetParticleNetMass",
         r"$m^{VV}_{Reg}$ (GeV)",
-        list(range(50, 180, 10)) + list(range(180, 301, 15)),
+        list(range(50, 140, 10)) + list(range(140, 200, 15)) + [200, 220, 240, 270],
         reg=False,
-        # blind_window=[100, 150],
     ),
     ShapeVar(
         "DijetMass",
         r"$m^{jj}$ (GeV)",
-        list(range(800, 1000, 50)) + list(range(1000, 2000, 100)) + list(range(2000, 4001, 200)),
+        list(range(800, 2000, 100)) + list(range(2000, 2800, 200)) + [2800, 3200, 3600, 4400],
         reg=False,
-        # blind_window=[100, 150],
     ),
 ]
 
@@ -883,7 +881,7 @@ def get_templates(
         Dict[str, Hist]: dictionary of templates, saved as hist.Hist objects.
 
     """
-
+    print(fail_ylim)
     do_jshift = jshift != ""
     jlabel = "" if not do_jshift else "_" + jshift
     templates, systematics = {}, {}
