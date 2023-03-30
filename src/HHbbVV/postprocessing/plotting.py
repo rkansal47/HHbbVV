@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mplhep as hep
 import matplotlib.ticker as mticker
+import matplotlib
 
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
@@ -253,6 +254,59 @@ def ratioHistPlot(
         plt.show()
     else:
         plt.close()
+
+
+def hist2ds(
+    hists: Dict[str, Hist],
+    plot_dir: str,
+    regions: List[str] = None,
+    region_labels: Dict[str, str] = None,
+    samples: List[str] = None,
+    fail_zlim: float = None,
+    pass_zlim: float = None,
+    show: bool = True,
+):
+    """
+    2D hists for each region and sample in ``hists``.
+
+    Args:
+        hists (Dict[str, Hist]): dictionary of hists per region.
+        plot_dir (str): directory in which to save plots.
+        regions (List[str], optional): regions to plot. Defaults to None i.e. plot all in hists.
+        region_labels (Dict[str, str], optional): Optional labels for each region in hists.
+        samples (List[str], optional): samples to plot. Defaults to None i.e. plot all in hists.
+        fail_zlim (float, optional): fail region plots upper limit. Defaults to None.
+        pass_zlim (float, optional): pass region plots upper limit. Defaults to None.
+        show (bool, optional): show plot or close. Defaults to True.
+    """
+    if samples is None:
+        samples = list(list(hists.values())[0].axes[0])
+
+    if regions is None:
+        regions = list(hists.keys())
+
+    for region in regions:
+        h = hists[region]
+        region_label = region_labels[region] if region_labels is not None else region
+        lim = pass_zlim if region.startswith("pass") else fail_zlim
+        for sample in samples:
+            if sample == "Data" and region == "pass":
+                continue
+
+            if lim is not None:
+                norm = matplotlib.colors.LogNorm(vmax=lim)
+            else:
+                norm = matplotlib.colors.LogNorm()
+
+            plt.figure(figsize=(12, 12))
+            hep.hist2dplot(hists[region][sample, ...], cmap="turbo", norm=norm)
+            plt.title(f"{sample} in {region_label} Region")
+            plt.savefig(f"{plot_dir}/{region}_{sample}_2d.pdf", bbox_inches="tight")
+
+            if show:
+                plt.show()
+            else:
+                plt.close()
 
 
 def rocCurve(
