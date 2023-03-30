@@ -47,12 +47,12 @@ text2workspace.py -D $dataset $ws.txt --channel-masks -o $wsm.root 2>&1 | tee $o
 echo "blinded bkg-only fit snapshot"
 combine -D $dataset -M MultiDimFit --saveWorkspace -m 125 -d ${wsm}.root -v 9 --cminDefaultMinimizerStrategy 1 \
 --setParameters ${maskunblindedargs}r=0,CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15=0  \
---freezeParameters r,rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15 \
+--freezeParameters r,rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx3000_my190.*},CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15 \
 -n Snapshot 2>&1 | tee $outsdir/MultiDimFit.txt
 
 echo "fitdiagnostics"
 combine -M FitDiagnostics -m 125 -d ${wsm}.root \
 --setParameters ${maskunblindedargs},rgx{pass_.*mcstat.*}=0,rgx{fail_.*mcstat.*}=0,CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15=0,r=0 \
---freezeParameters rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15,r \
+--freezeParameters rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx3000_my190.*},CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15,r \
 --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
--n Blinded --justFit --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnostics.txt
+-n Blinded --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnostics.txt

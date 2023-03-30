@@ -171,16 +171,16 @@ corr_year_shape_systs = {
     # TODO: check if these apply to resonant
     "FSRPartonShower": ("ps_fsr", nonres_sig_keys + ["V+Jets"]),
     "ISRPartonShower": ("ps_isr", nonres_sig_keys + ["V+Jets"]),
-    "PDFalphaS": ("CMS_bbbb_boosted_ggf_ggHHPDFacc", nonres_sig_keys),
+    "PDFalphaS": ("CMS_bbWW_boosted_ggf_ggHHPDFacc", nonres_sig_keys),
     "JES": ("CMS_scale_j", all_mc),  # TODO: separate into individual
-    "txbb": ("CMS_bbbb_boosted_ggf_PNetHbbScaleFactors_correlated", sig_keys),
+    "txbb": ("CMS_bbWW_boosted_ggf_PNetHbbScaleFactors_correlated", sig_keys),
 }
 
 uncorr_year_shape_systs = {
     "pileup": ("CMS_pileup", all_mc),
     "JER": ("CMS_res_j", all_mc),
-    "JMS": ("CMS_bbbb_boosted_ggf_jms", all_mc),
-    "JMR": ("CMS_bbbb_boosted_ggf_jmr", all_mc),
+    "JMS": ("CMS_bbWW_boosted_ggf_jms", all_mc),
+    "JMR": ("CMS_bbWW_boosted_ggf_jmr", all_mc),
 }
 
 shape_systs = {**corr_year_shape_systs}
@@ -421,6 +421,11 @@ def fill_regions(
 
             logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
             logging.debug("error     : {errors}".format(errors=errors_nominal))
+
+            # no systs for signals in fail region because fit issues...
+            if sample_name in sig_keys and not pass_region:
+                ch.addSample(sample)
+                continue
 
             if not bblite and args.mcstats:
                 # set mc stat uncs
@@ -734,11 +739,11 @@ def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
     effect_up[mask_up] = values_up[mask_up] / values_nominal[mask_up]
     effect_down[mask_down] = values_down[mask_down] / values_nominal[mask_down]
 
-    if np.all(effect_up[mask_up] == 0):
-        effect_up[mask_up] = values_nominal[mask_up] * args.epsilon
+    zero_up = values_up == 0
+    zero_down = values_down == 0
 
-    if np.all(effect_down[mask_down] == 0):
-        effect_down[mask_down] = values_nominal[mask_down] * args.epsilon
+    effect_up[mask_up & zero_up] = values_nominal[mask_up & zero_up] * args.epsilon
+    effect_down[mask_down & zero_down] = values_nominal[mask_down & zero_down] * args.epsilon
 
     _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger)
 
