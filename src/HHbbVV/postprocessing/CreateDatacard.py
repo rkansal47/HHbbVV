@@ -73,6 +73,7 @@ parser.add_argument(
     default="all",
     choices=["2016APV", "2016", "2017", "2018", "all"],
 )
+add_bool_arg(parser, "mcstats", "add mc stats nuisances", default=True)
 add_bool_arg(parser, "bblite", "use barlow-beeston-lite method", default=True)
 add_bool_arg(parser, "resonant", "for resonant or nonresonat", default=False)
 args = parser.parse_args()
@@ -421,7 +422,7 @@ def fill_regions(
             logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
             logging.debug("error     : {errors}".format(errors=errors_nominal))
 
-            if not bblite:
+            if not bblite and args.mcstats:
                 # set mc stat uncs
                 logging.info("setting autoMCStats for %s in %s" % (sample_name, region))
 
@@ -513,7 +514,7 @@ def fill_regions(
 
             ch.addSample(sample)
 
-        if bblite:
+        if bblite and args.mcstats:
             # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
             channel_name = region if args.resonant else region_noblinded
             ch.autoMCStats(
