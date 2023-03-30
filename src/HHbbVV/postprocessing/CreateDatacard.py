@@ -56,6 +56,8 @@ parser.add_argument(
 )
 parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
 parser.add_argument("--cat", default="1", type=str, choices=["1"], help="category")
+parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
+parser.add_argument("--epsilon", default=1e-3, type=float, help="epsilon to avoid numerical errs")
 parser.add_argument(
     "--nDataTF",
     default=2,
@@ -253,6 +255,7 @@ def main(args):
 
     if args.resonant:
         for i in range(len(mX_pts)):
+            logging.info(f"\n\nFilling templates for mXbin {i}")
             fill_regions(*fill_args, mX_bin=i)
     else:
         fill_regions(*fill_args)
@@ -425,7 +428,12 @@ def fill_regions(
                 # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
                 stats_sample_name = region if args.resonant else region_noblinded
                 stats_sample_name += f"_{card_name}"
-                sample.autoMCStats(sample_name=stats_sample_name)
+                sample.autoMCStats(
+                    sample_name=stats_sample_name,
+                    # this fn uses a different threshold convention from combine
+                    threshold=np.sqrt(1 / args.mcstats_threshold),
+                    epsilon=args.epsilon,
+                )
 
             # rate systematics
             for skey, (_, ssamples, sval) in nuisance_params.items():
@@ -508,7 +516,9 @@ def fill_regions(
         if bblite:
             # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
             channel_name = region if args.resonant else region_noblinded
-            ch.autoMCStats(channel_name=channel_name, threshold=100, epsilon=0.001)
+            ch.autoMCStats(
+                channel_name=channel_name, threshold=args.mcstats_threshold, epsilon=args.epsilon
+            )
 
         # data observed
         ch.setObservation(region_templates[data_key, :])
@@ -717,11 +727,17 @@ def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
     effect_up = np.ones_like(values_nominal)
     effect_down = np.ones_like(values_nominal)
 
-    mask_up = values_up >= 0
-    mask_down = values_down >= 0
+    mask_up = mask & (values_up >= 0)
+    mask_down = mask & (values_down >= 0)
 
-    effect_up[mask & mask_up] = values_up[mask & mask_up] / values_nominal[mask & mask_up]
-    effect_down[mask & mask_down] = values_down[mask & mask_down] / values_nominal[mask & mask_down]
+    effect_up[mask_up] = values_up[mask_up] / values_nominal[mask_up]
+    effect_down[mask_down] = values_down[mask_down] / values_nominal[mask_down]
+
+    if np.all(effect_up[mask_up] == 0):
+        effect_up[mask_up] = values_nominal[mask_up] * args.epsilon
+
+    if np.all(effect_down[mask_down] == 0):
+        effect_down[mask_down] = values_nominal[mask_down] * args.epsilon
 
     _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger)
 
