@@ -78,9 +78,9 @@ args = parser.parse_args()
 # (name in templates, name in cards)
 mc_samples = OrderedDict(
     [
-        ("Diboson", "diboson"),
+        # ("Diboson", "diboson"),
         ("TT", "ttbar"),
-        ("ST", "singletop"),
+        # ("ST", "singletop"),
         ("V+Jets", "vjets"),
     ]
 )
@@ -99,7 +99,7 @@ else:
     mc_samples["HHbbVV"] = "ggHH_kl_1_kt_1_hbbhww4q"
     sig_keys = ["HHbbVV"]  # add different couplings
 
-all_mc = list(mc_samples.values())
+all_mc = list(mc_samples.keys())
 
 if args.year != "all":
     years = [args.year]
@@ -206,7 +206,7 @@ def main(args):
 
     for year in years:
         with open(f"{args.templates_dir}/{year}_templates.pkl", "rb") as f:
-            templates_dict[year] = pickle.load(f)
+            templates_dict[year] = _rem_neg(pickle.load(f))
 
     templates_all = sum_templates(templates_dict)  # sum across years
 
@@ -288,6 +288,13 @@ def main(args):
 
     with open(f"{out_dir}/model.pkl", "wb") as fout:
         pickle.dump(model, fout, 2)  # use python 2 compatible protocol
+
+
+def _rem_neg(template_dict: Dict):
+    for sample, template in template_dict.items():
+        template.values()[template.values() < 0] = 0
+
+    return template_dict
 
 
 def sum_templates(template_dict: Dict):
@@ -417,7 +424,7 @@ def fill_regions(
 
                 # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
                 stats_sample_name = region if args.resonant else region_noblinded
-                stats_sample_name += f"_{sample_name}"
+                stats_sample_name += f"_{card_name}"
                 sample.autoMCStats(sample_name=stats_sample_name)
 
             # rate systematics
@@ -501,7 +508,7 @@ def fill_regions(
         if bblite:
             # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
             channel_name = region if args.resonant else region_noblinded
-            ch.autoMCStats(channel_name=channel_name, threshold=100)
+            ch.autoMCStats(channel_name=channel_name, threshold=100, epsilon=0.001)
 
         # data observed
         ch.setObservation(region_templates[data_key, :])
@@ -551,6 +558,8 @@ def nonres_alphabet_fit(
         # was integer, and numpy complained about subtracting float from it
         initial_qcd = failCh.getObservation().astype(float)
         for sample in failCh:
+            if args.resonant and sample.sampletype == rl.Sample.SIGNAL:
+                continue
             logging.debug("subtracting %s from qcd" % sample._name)
             initial_qcd -= sample.getExpectation(nominal=True)
 
