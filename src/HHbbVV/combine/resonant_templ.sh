@@ -16,6 +16,8 @@ git clone -b py3 https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git
 # git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 scramv1 b clean; scramv1 b
 
+cd ../../Mar28_nobblmcstats/
+
 dataset=data_obs
 cards_dir="./"
 ws=${cards_dir}/combined
