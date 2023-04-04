@@ -1,7 +1,7 @@
 #!/bin/bash
 
 dataset=data_obs
-cards_dir=$1
+cards_dir="./"
 ws=${cards_dir}/combined
 wsm=${ws}_withmasks
 wsm_snapshot=higgsCombineSnapshot.MultiDimFit.mH125
@@ -12,7 +12,7 @@ mkdir -p $outsdir
 # mask args
 maskunblindedargs=""
 maskblindedargs=""
-for bin in {0..18}
+for bin in {0..9}
 do
     for channel in fail pass;
     do
@@ -25,8 +25,11 @@ done
 maskunblindedargs=${maskunblindedargs%,}
 maskblindedargs=${maskblindedargs%,}
 
-setparams="rgx{pass_.*mcstat.*}=0,rgx{fail_.*mcstat.*}=0,CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15=0"
-freezeparams="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx3000_my190.*},CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15"
+# setparams="rgx{pass_.*mcstat.*}=0,rgx{fail_.*mcstat.*}=0,CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15=0"
+# freezeparams="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx3000_my190.*},CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15"
+
+setparams="rgx{pass_.*mcstat.*}=0,rgx{fail_.*mcstat.*}=0"
+freezeparams="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx3000_my190.*}"
 
 # need to run this for large # of nuisances 
 # https://cms-talk.web.cern.ch/t/segmentation-fault-in-combine/20735
