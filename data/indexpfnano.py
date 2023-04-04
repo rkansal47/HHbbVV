@@ -66,18 +66,19 @@ folders_to_index = [
     "/store/user/lpcpfnano/cmantill/v2_3/2017/SingleTop",
     "/store/user/lpcpfnano/cmantill/v2_3/2018/SingleTop",
     #
-    "/store/user/lpcpfnano/drankin/v2_2/2016/WJetsToLNu",
-    "/store/user/lpcpfnano/drankin/v2_2/2016APV/WJetsToLNu",
-    "/store/user/lpcpfnano/drankin/v2_2/2017/WJetsToLNu",
-    "/store/user/lpcpfnano/drankin/v2_2/2018/WJetsToLNu",
+    # "/store/user/lpcpfnano/drankin/v2_2/2016/WJetsToLNu",
+    # "/store/user/lpcpfnano/drankin/v2_2/2016APV/WJetsToLNu",
+    # "/store/user/lpcpfnano/drankin/v2_2/2017/WJetsToLNu",
+    # "/store/user/lpcpfnano/drankin/v2_2/2018/WJetsToLNu",
     #
     "/store/user/lpcpfnano/cmantill/v2_2/2017/HWWPrivate",
     #
-    "/store/user/lpcpfnano/cmantill/v2_3/2017/Hgg/",
+    # "/store/user/lpcpfnano/cmantill/v2_3/2017/Hgg/",
     #
-    "/store/user/lpcpfnano/cmantill/v2_3/2017/XHYPrivate",
-    "/store/user/lpcpfnano/ammitra/v2_3/2017/XHYPrivate",
-    "/store/user/lpcpfnano/rkansal/v2_3/2017/XHYPrivate",
+    "/store/user/lpcpfnano/rkansal/v2_3/2016/XHY",
+    "/store/user/lpcpfnano/rkansal/v2_3/2016APV/XHY",
+    "/store/user/lpcpfnano/ammitra/v2_3/2017/XHY",
+    "/store/user/lpcpfnano/cmantill/v2_3/2018/XHY",
     #
     "/store/user/lpcpfnano/rkansal/v2_3/2016/Diboson/",
     "/store/user/lpcpfnano/rkansal/v2_3/2016APV/Diboson/",
