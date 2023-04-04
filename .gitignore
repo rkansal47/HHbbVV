@@ -53,6 +53,8 @@ src/HHbbVV/postprocessing/*.txt
 !data/*
 !data/*/**
 
+!paper
+!paper/**
 
 
 !.gitignore

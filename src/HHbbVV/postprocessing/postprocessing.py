@@ -141,30 +141,28 @@ selection_regions_year = {
 res_selection_regions_year = {
     # "unblinded" regions:
     "pass": {
-        "bbFatJetParticleNetMass": [115, 145],
+        "bbFatJetParticleNetMass": [110, 145],
         "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
-        "VVFatJetParTMD_THWWvsT": [0.961, CUT_MAX_VAL],
+        "VVFatJetParTMD_THWWvsT": [0.96, CUT_MAX_VAL],
     },
     "fail": {
-        "bbFatJetParticleNetMass": [115, 145],
+        "bbFatJetParticleNetMass": [110, 145],
         "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
-        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, 0.961],
+        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, 0.96],
     },
     # "blinded" validation regions:
     "passBlinded": {
-        "bbFatJetParticleNetMass": [[100, 115], [145, 160]],
+        "bbFatJetParticleNetMass": [[92.5, 110], [145, 162.5]],
         "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
-        "VVFatJetParTMD_THWWvsT": [0.961, CUT_MAX_VAL],
-        "nGoodElectrons": [-CUT_MAX_VAL, 1],
+        "VVFatJetParTMD_THWWvsT": [0.96, CUT_MAX_VAL],
     },
     "failBlinded": {
-        "bbFatJetParticleNetMass": [[100, 115], [145, 160]],
+        "bbFatJetParticleNetMass": [[92.5, 110], [145, 162.5]],
         "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
-        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, 0.961],
-        "nGoodElectrons": [-CUT_MAX_VAL, 1],
+        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, 0.96],
     },
     "lpsf": {  # cut for which LP SF is calculated
-        "VVFatJetParTMD_THWWvsT": [0.961, CUT_MAX_VAL],
+        "VVFatJetParTMD_THWWvsT": [0.96, CUT_MAX_VAL],
     },
 }
 
@@ -247,13 +245,13 @@ res_shape_vars = [
     ShapeVar(
         "VVFatJetParticleNetMass",
         r"$m^{VV}_{Reg}$ (GeV)",
-        list(range(50, 140, 10)) + list(range(140, 200, 15)) + [200, 220, 240, 270],
+        list(range(50, 110, 10)) + list(range(110, 200, 15)) + [200, 220, 250],
         reg=False,
     ),
     ShapeVar(
         "DijetMass",
         r"$m^{jj}$ (GeV)",
-        list(range(800, 2000, 100)) + list(range(2000, 2800, 200)) + [2800, 3200, 3600, 4400],
+        list(range(800, 1400, 100)) + [1400, 1600, 2000, 3000, 4400],
         reg=False,
     ),
 ]
@@ -771,7 +769,7 @@ def control_plots(
     from PyPDF2 import PdfMerger
 
     # sig_scale_dict = utils.getSignalPlotScaleFactor(events_dict, sig_keys)
-    sig_scale_dict = {sig_key: 2e4 for sig_key in sig_keys}
+    sig_scale_dict = {sig_key: 5e3 for sig_key in sig_keys}
     sig_scale_dict["HHbbVV"] = 2e5
     # print(f"{sig_scale_dict = }")
 
@@ -847,6 +845,7 @@ def get_templates(
     sig_keys: List[str],
     selection_regions: Dict[str, Dict],
     shape_vars: List[ShapeVar],
+    bg_keys: List[str] = bg_keys,
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
@@ -872,9 +871,7 @@ def get_templates(
     Args:
         selection_region (Dict[str, Dict]): Dictionary of cuts for each region
           formatted as {region1: {cutvar1: [min, max], ...}, ...}.
-        shape_var (Tuple[str]): final shape var: (var name, var plotting label).
-        shape_bins (List[float]): binning for shape var: [num bins, min, max].
-        blind_window (List[float]): signal window to blind: [min, max] (min, max should be bin edges).
+        bg_keys (list[str]): background keys to plot.
         cutstr (str): optional string to add to plot file names.
 
     Returns:
@@ -992,7 +989,7 @@ def get_templates(
         # plot templates incl variations
         if plot_dir != "":
             if pass_region:
-                sig_scale_dict = {"HHbbVV": 1e2, **{skey: 1 for skey in res_sig_keys}}
+                sig_scale_dict = {"HHbbVV": 1, **{skey: 1 for skey in res_sig_keys}}
 
             if not do_jshift:
                 title = f"{selection_regions_label[label]} Region Pre-Fit Shapes"
