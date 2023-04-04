@@ -56,6 +56,8 @@ parser.add_argument(
 )
 parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
 parser.add_argument("--cat", default="1", type=str, choices=["1"], help="category")
+parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
+parser.add_argument("--epsilon", default=1e-3, type=float, help="epsilon to avoid numerical errs")
 parser.add_argument(
     "--nDataTF",
     default=2,
@@ -71,6 +73,7 @@ parser.add_argument(
     default="all",
     choices=["2016APV", "2016", "2017", "2018", "all"],
 )
+add_bool_arg(parser, "mcstats", "add mc stats nuisances", default=True)
 add_bool_arg(parser, "bblite", "use barlow-beeston-lite method", default=True)
 add_bool_arg(parser, "resonant", "for resonant or nonresonat", default=False)
 args = parser.parse_args()
@@ -168,16 +171,16 @@ corr_year_shape_systs = {
     # TODO: check if these apply to resonant
     "FSRPartonShower": ("ps_fsr", nonres_sig_keys + ["V+Jets"]),
     "ISRPartonShower": ("ps_isr", nonres_sig_keys + ["V+Jets"]),
-    "PDFalphaS": ("CMS_bbbb_boosted_ggf_ggHHPDFacc", nonres_sig_keys),
+    "PDFalphaS": ("CMS_bbWW_boosted_ggf_ggHHPDFacc", nonres_sig_keys),
     "JES": ("CMS_scale_j", all_mc),  # TODO: separate into individual
-    "txbb": ("CMS_bbbb_boosted_ggf_PNetHbbScaleFactors_correlated", sig_keys),
+    "txbb": ("CMS_bbWW_boosted_ggf_PNetHbbScaleFactors_correlated", sig_keys),
 }
 
 uncorr_year_shape_systs = {
     "pileup": ("CMS_pileup", all_mc),
     "JER": ("CMS_res_j", all_mc),
-    "JMS": ("CMS_bbbb_boosted_ggf_jms", all_mc),
-    "JMR": ("CMS_bbbb_boosted_ggf_jmr", all_mc),
+    "JMS": ("CMS_bbWW_boosted_ggf_jms", all_mc),
+    "JMR": ("CMS_bbWW_boosted_ggf_jmr", all_mc),
 }
 
 shape_systs = {**corr_year_shape_systs}
@@ -253,6 +256,7 @@ def main(args):
 
     if args.resonant:
         for i in range(len(mX_pts)):
+            logging.info(f"\n\nFilling templates for mXbin {i}")
             fill_regions(*fill_args, mX_bin=i)
     else:
         fill_regions(*fill_args)
@@ -418,14 +422,24 @@ def fill_regions(
             logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
             logging.debug("error     : {errors}".format(errors=errors_nominal))
 
-            if not bblite:
+            # no systs for signals in fail region because fit issues...
+            if sample_name in sig_keys and not pass_region:
+                ch.addSample(sample)
+                continue
+
+            if not bblite and args.mcstats:
                 # set mc stat uncs
                 logging.info("setting autoMCStats for %s in %s" % (sample_name, region))
 
                 # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
                 stats_sample_name = region if args.resonant else region_noblinded
                 stats_sample_name += f"_{card_name}"
-                sample.autoMCStats(sample_name=stats_sample_name)
+                sample.autoMCStats(
+                    sample_name=stats_sample_name,
+                    # this fn uses a different threshold convention from combine
+                    threshold=np.sqrt(1 / args.mcstats_threshold),
+                    epsilon=args.epsilon,
+                )
 
             # rate systematics
             for skey, (_, ssamples, sval) in nuisance_params.items():
@@ -505,10 +519,12 @@ def fill_regions(
 
             ch.addSample(sample)
 
-        if bblite:
+        if bblite and args.mcstats:
             # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
             channel_name = region if args.resonant else region_noblinded
-            ch.autoMCStats(channel_name=channel_name, threshold=100, epsilon=0.001)
+            ch.autoMCStats(
+                channel_name=channel_name, threshold=args.mcstats_threshold, epsilon=args.epsilon
+            )
 
         # data observed
         ch.setObservation(region_templates[data_key, :])
@@ -717,11 +733,17 @@ def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
     effect_up = np.ones_like(values_nominal)
     effect_down = np.ones_like(values_nominal)
 
-    mask_up = values_up >= 0
-    mask_down = values_down >= 0
+    mask_up = mask & (values_up >= 0)
+    mask_down = mask & (values_down >= 0)
 
-    effect_up[mask & mask_up] = values_up[mask & mask_up] / values_nominal[mask & mask_up]
-    effect_down[mask & mask_down] = values_down[mask & mask_down] / values_nominal[mask & mask_down]
+    effect_up[mask_up] = values_up[mask_up] / values_nominal[mask_up]
+    effect_down[mask_down] = values_down[mask_down] / values_nominal[mask_down]
+
+    zero_up = values_up == 0
+    zero_down = values_down == 0
+
+    effect_up[mask_up & zero_up] = values_nominal[mask_up & zero_up] * args.epsilon
+    effect_down[mask_down & zero_down] = values_nominal[mask_down & zero_down] * args.epsilon
 
     _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger)
 
