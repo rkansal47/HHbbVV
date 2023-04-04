@@ -81,10 +81,10 @@ args = parser.parse_args()
 # (name in templates, name in cards)
 mc_samples = OrderedDict(
     [
-        # ("Diboson", "diboson"),
         ("TT", "ttbar"),
-        # ("ST", "singletop"),
         ("V+Jets", "vjets"),
+        # ("Diboson", "diboson"),
+        # ("ST", "singletop"),
     ]
 )
 
@@ -403,6 +403,11 @@ def fill_regions(
         model.addChannel(ch)
 
         for sample_name, card_name in mc_samples.items():
+            # don't add signals in fail regions
+            if sample_name in sig_keys and not pass_region:
+                logging.info(f"\nSkipping {sample_name} in {region} region\n")
+                continue
+
             logging.info("get templates for: %s" % sample_name)
 
             sample_template = region_templates[sample_name, :]
@@ -421,11 +426,6 @@ def fill_regions(
 
             logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
             logging.debug("error     : {errors}".format(errors=errors_nominal))
-
-            # no systs for signals in fail region because fit issues...
-            if sample_name in sig_keys and not pass_region:
-                ch.addSample(sample)
-                continue
 
             if not bblite and args.mcstats:
                 # set mc stat uncs

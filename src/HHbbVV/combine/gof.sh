@@ -1,7 +1,7 @@
 #!/bin/bash
 
 dataset=data_obs
-cards_dir=$1
+cards_dir="./"
 ws=${cards_dir}/combined
 wsm=${ws}_withmasks
 wsm_snapshot=higgsCombineSnapshot.MultiDimFit.mH125
