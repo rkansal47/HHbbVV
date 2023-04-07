@@ -564,9 +564,6 @@ def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Union[int, ak.Array], 
         ],
         with_name="PtEtaPhiMLorentzVector",
     )
-    breakpoint()
-
-    print(pfcands_vector_ptetaphi)
 
     # cluster first with kT
     kt_clustering = fastjet.ClusterSequence(pfcands_vector_ptetaphi, ktdef)
