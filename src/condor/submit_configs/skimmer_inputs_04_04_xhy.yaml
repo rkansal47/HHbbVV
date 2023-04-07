@@ -5,9 +5,9 @@
                 {
                     "subsamples":
                         [
-                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-1000_MY-100",
+                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-190",
                         ],
-                    "files_per_job": 8,
+                    "files_per_job": 4,
                 },
         },
 }
