@@ -291,19 +291,21 @@ def main(args):
         shape_vars = nonres_shape_vars
         selection_regions = nonres_selection_regions
 
+    all_samples = sig_samples | samples
+
     # make plot, template dirs if needed
     _make_dirs(args)
 
     systs_file = f"{args.template_dir}/systematics.json"
 
     # save cutflow as pandas table
-    cutflow = pd.DataFrame(index=list(samples.keys()))
+    cutflow = pd.DataFrame(index=list(all_samples.keys()))
     # load pre-calculated systematics and those for different years if saved already
     systematics = _check_load_systematics(systs_file)
 
     # utils.remove_empty_parquets(samples_dir, year)
-    events_dict = utils.load_samples(args.data_dir, samples, args.year, filters)
-    events_dict |= utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
+    events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
+    events_dict |= utils.load_samples(args.data_dir, samples, args.year, filters)
     utils.add_to_cutflow(events_dict, "Pre-selection", "weight", cutflow)
 
     print("")
@@ -327,7 +329,7 @@ def main(args):
             events_dict,
             args.year,
             bdt_preds_dir,
-            list(samples.keys()),
+            list(all_samples.keys()),
             jec_jmsr_shifts=True,
         )
         print("Loaded BDT preds\n")
@@ -346,7 +348,7 @@ def main(args):
         )
 
     # LP SF
-    if "lp_sf" not in systematics:
+    if "lp_sf" not in systematics[sig_keys[0]]:
         print("\nGetting LP SFs")
         sf_table = OrderedDict()  # format SFs for each sig key in a table
         for sig_key in sig_keys:
@@ -356,10 +358,11 @@ def main(args):
                 lp_sf, unc, uncs = get_lpsf_all_years(
                     events_dict,
                     sig_key,
-                    args.data_dir,
+                    args.signal_data_dir,
+                    sig_samples,
                     selection_regions,
                     bdt_preds_dir,
-                    list(samples.keys()),
+                    list(all_samples.keys()),
                 )
             else:
                 # calculate only for current year
@@ -390,7 +393,8 @@ def main(args):
 
     # scale signal by LP SF
     for wkey in ["finalWeight", "finalWeight_noTrigEffs"]:
-        events_dict[sig_key][wkey] *= systematics["lp_sf"]
+        for sig_key in sig_keys:
+            events_dict[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
 
     utils.add_to_cutflow(events_dict, "LP SF", "finalWeight", cutflow)
 
@@ -407,18 +411,18 @@ def main(args):
 
             if jshift != "":
                 if args.plot_shifts:
-                    plot_dir = ""
-                else:
                     plot_dir = f"{args.plot_dir}/jshifts/"
+                else:
+                    plot_dir = ""
             else:
                 plot_dir = args.plot_dir
 
             ttemps, tsyst = get_templates(
                 events_dict,
                 bb_masks,
-                year,
+                args.year,
                 sig_keys,
-                res_selection_regions[year],
+                res_selection_regions[args.year],
                 res_shape_vars,
                 # bg_keys=["QCD", "TT", "V+Jets"],
                 plot_dir=plot_dir,
@@ -729,6 +733,7 @@ def get_lpsf_all_years(
     full_events_dict: Dict[str, pd.DataFrame],
     sig_key: str,
     data_dir: str,
+    samples: Dict,
     selection_regions: Dict,
     bdt_preds_dir: str = None,
     bdt_sample_order: List[str] = None,
@@ -746,6 +751,7 @@ def get_lpsf_all_years(
 
         apply_weights(events_dict, year)
         bb_masks = bb_VV_assignment(events_dict)
+        derive_variables(events_dict)
         events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
 
         if bdt_preds_dir is not None:
@@ -949,7 +955,6 @@ def get_templates(
         Dict[str, Hist]: dictionary of templates, saved as hist.Hist objects.
 
     """
-    print(fail_ylim)
     do_jshift = jshift != ""
     jlabel = "" if not do_jshift else "_" + jshift
     templates, systematics = {}, {}
@@ -970,7 +975,9 @@ def get_templates(
         #     print("\nCutflow:\n", cf)
 
         if plot_dir != "":
-            cf.to_csv(f"{plot_dir}/cutflows/{label}_cutflow{jlabel}.csv")
+            cf.to_csv(
+                f"{plot_dir}{'/cutflows/' if jshift == '' else '/'}{label}_cutflow{jlabel}.csv"
+            )
 
         if not do_jshift:
             systematics[label] = {}

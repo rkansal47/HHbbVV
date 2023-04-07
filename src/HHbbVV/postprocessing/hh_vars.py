@@ -21,7 +21,6 @@ LUMI = {  # in pb^-1
 # label: selector
 samples = OrderedDict(
     [
-        ("HHbbVV", "GluGluToHHTobbVV"),
         ("QCD", "QCD"),
         ("TT", "TT"),
         ("ST", "ST"),
@@ -58,9 +57,7 @@ res_mps = [
 ]
 
 for mX, mY in res_mps:
-    res_samples[
-        f"X[{mX}]->H(bb)Y[{mY}](VV)"
-    ] = f"NMSSM_XToYH_MX{mX}_MY{mY}_HTo2bYTo2W_hadronicDecay"
+    res_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
 
 nonres_sig_keys = ["HHbbVV"]
 res_sig_keys = list(res_samples.keys())
