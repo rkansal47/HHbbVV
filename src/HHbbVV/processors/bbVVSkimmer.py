@@ -39,6 +39,7 @@ from .common import LUMI, HLTs, btagWPs
 # mapping samples to the appropriate function for doing gen-level selections
 gen_selection_dict = {
     "HTo2bYTo2W": gen_selection_HYbbVV,
+    "XToYHTo2W2BTo4Q2B": gen_selection_HYbbVV,
     "GluGluToHHTobbVV_node_cHHH": gen_selection_HHbbVV,
     "jhu_HHbbWW": gen_selection_HHbbVV,
     "GluGluToBulkGravitonToHHTo4W_JHUGen": gen_selection_HH4V,
@@ -166,7 +167,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         isData = "JetHT" in dataset
         isQCD = "QCD" in dataset
-        isSignal = "GluGluToHHTobbVV" in dataset or "HTo2bYTo2W" in dataset
+        isSignal = "GluGluToHHTobbVV" in dataset or "XToYHTo2W2BTo4Q2B" in dataset
 
         if isSignal:
             # only signs for HH
@@ -457,7 +458,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                     weight_name = "weight"
 
                 # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)
-                if dataset in self.XSECS or "HTo2bYTo2W" in dataset:
+                if dataset in self.XSECS or "XToYHTo2W2BTo4Q2B" in dataset:
                     # 1 fb xsec for now for resonant signal
                     xsec = self.XSECS[dataset] if dataset in self.XSECS else 1e-3  # in pb
                     skimmed_events[weight_name] = (
@@ -485,6 +486,21 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Lund plane SFs
         ################
 
+        fatjet_idx = 0
+        ak8_pfcands = events.FatJetPFCands
+        ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == fatjet_idx]
+        pfcands0 = events.PFCands[ak8_pfcands.pFCandsIdx]
+
+        fatjet_idx = 1
+        ak8_pfcands = events.FatJetPFCands
+        ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == fatjet_idx]
+        pfcands1 = events.PFCands[ak8_pfcands.pFCandsIdx]
+
+        print(np.sort(ak.count(pfcands0[sel_all].pt, axis=1))[:5])
+        print(np.sort(ak.count(pfcands1[sel_all].pt, axis=1))[:5])
+
+        breakpoint()
+
         if isSignal and len(skimmed_events["weight"]):
             genbb = genbb[sel_all]
             genq = genq[sel_all]
@@ -492,6 +508,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             sf_dicts = []
 
             for i in range(num_jets):
+                print(i)
                 bb_select = skimmed_events["ak8FatJetHbb"][:, i].astype(bool)
                 VV_select = skimmed_events["ak8FatJetHVV"][:, i].astype(bool)
 
@@ -512,6 +529,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 selected_sfs = {}
 
                 for key, (selector, gen_quarks, num_prongs) in selectors.items():
+                    print(key)
                     if np.sum(selector) > 0:
                         sel_events = events[sel_all][selector]
                         selected_sfs[key] = get_lund_SFs(
