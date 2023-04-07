@@ -31,36 +31,30 @@ samples = OrderedDict(
     ]
 )
 
+nonres_samples = OrderedDict(
+    [
+        ("HHbbVV", "GluGluToHHTobbVV"),
+    ]
+)
+
 res_samples = OrderedDict([])
 
-# res_mps = [
-#     (600, 100),
-#     (1000, 100),
-#     # (1000, 450),
-#     (2000, 100),
-#     # (2000, 450),
-#     (2000, 1000),
-#     (3000, 100),
-#     # (3000, 450),
-#     # (3000, 1000),
-# ]
-
 res_mps = [
-    (1000, 125),
-    (1400, 125),
-    (1400, 150),
-    (1800, 125),
-    (1800, 150),
-    (1800, 190),
-    (2200, 125),
-    (2200, 150),
-    (2200, 190),
-    (2200, 250),
-    (3000, 125),
-    (3000, 150),
+    # (1000, 125),
+    # (1400, 125),
+    # (1400, 150),
+    # (1800, 125),
+    # (1800, 150),
+    # (1800, 190),
+    # (2200, 125),
+    # (2200, 150),
+    # (2200, 190),
+    # (2200, 250),
+    # (3000, 125),
+    # (3000, 150),
     (3000, 190),
-    (3000, 250),
-    (3000, 350),
+    # (3000, 250),
+    # (3000, 350),
 ]
 
 for mX, mY in res_mps:
@@ -72,7 +66,7 @@ nonres_sig_keys = ["HHbbVV"]
 res_sig_keys = list(res_samples.keys())
 data_key = "Data"
 qcd_key = "QCD"
-bg_keys = [key for key in samples.keys() if key not in nonres_sig_keys + res_sig_keys + [data_key]]
+bg_keys = [key for key in samples.keys() if key != data_key]
 
 
 # from https://cms.cern.ch/iCMS/jsp/db_notes/noteInfo.jsp?cmsnoteid=CMS%20AN-2021/005
