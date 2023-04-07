@@ -362,6 +362,17 @@ class bbVVSkimmer(processor.ProcessorABC):
 
             add_selection("hem_cleaning", ~hem_cleaning, *selection_args)
 
+        # remove weird jets which are all photons
+        pfcands_sel = []
+
+        for i in range(num_jets):
+            ak8_pfcands = events.FatJetPFCands
+            ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == i]
+            pfcands = events.PFCands[ak8_pfcands.pFCandsIdx]
+            pfcands_sel.append(ak.all(pfcands.pdgId == 22, axis=1))
+
+        add_selection("photon_jets", ~np.sum(pfcands_sel, axis=0).astype(bool), *selection_args)
+
         #########################
         # Veto variables
         #########################
@@ -486,21 +497,6 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Lund plane SFs
         ################
 
-        fatjet_idx = 0
-        ak8_pfcands = events.FatJetPFCands
-        ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == fatjet_idx]
-        pfcands0 = events.PFCands[ak8_pfcands.pFCandsIdx]
-
-        fatjet_idx = 1
-        ak8_pfcands = events.FatJetPFCands
-        ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == fatjet_idx]
-        pfcands1 = events.PFCands[ak8_pfcands.pFCandsIdx]
-
-        print(np.sort(ak.count(pfcands0[sel_all].pt, axis=1))[:5])
-        print(np.sort(ak.count(pfcands1[sel_all].pt, axis=1))[:5])
-
-        breakpoint()
-
         if isSignal and len(skimmed_events["weight"]):
             genbb = genbb[sel_all]
             genq = genq[sel_all]
@@ -508,7 +504,6 @@ class bbVVSkimmer(processor.ProcessorABC):
             sf_dicts = []
 
             for i in range(num_jets):
-                print(i)
                 bb_select = skimmed_events["ak8FatJetHbb"][:, i].astype(bool)
                 VV_select = skimmed_events["ak8FatJetHVV"][:, i].astype(bool)
 
@@ -529,7 +524,6 @@ class bbVVSkimmer(processor.ProcessorABC):
                 selected_sfs = {}
 
                 for key, (selector, gen_quarks, num_prongs) in selectors.items():
-                    print(key)
                     if np.sum(selector) > 0:
                         sel_events = events[sel_all][selector]
                         selected_sfs[key] = get_lund_SFs(
