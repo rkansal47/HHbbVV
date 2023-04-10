@@ -84,7 +84,7 @@ mc_samples = OrderedDict(
         ("TT", "ttbar"),
         ("V+Jets", "vjets"),
         # ("Diboson", "diboson"),
-        # ("ST", "singletop"),
+        ("ST", "singletop"),
     ]
 )
 
@@ -406,6 +406,11 @@ def fill_regions(
             # don't add signals in fail regions
             if sample_name in sig_keys and not pass_region:
                 logging.info(f"\nSkipping {sample_name} in {region} region\n")
+                continue
+
+            # single top only in fail regions
+            if sample_name == "ST" and pass_region:
+                logging.info(f"\nSkipping ST in {region} region\n")
                 continue
 
             logging.info("get templates for: %s" % sample_name)
