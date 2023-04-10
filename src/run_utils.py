@@ -112,6 +112,7 @@ def get_processor(
     njets: int = None,
     save_systematics: bool = None,
     inference: bool = None,
+    save_all: bool = None,
 ):
     # define processor
     if processor == "trigger":
@@ -126,6 +127,7 @@ def get_processor(
             save_ak15=save_ak15,
             save_systematics=save_systematics,
             inference=inference,
+            save_all=save_all,
         )
     elif processor == "input":
         from HHbbVV.processors import TaggerInputSkimmer
@@ -172,6 +174,8 @@ def parse_common_args(parser):
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
     parser.add_argument("--njets", default=2, help="njets", type=int)
 
+    # bbVVSkimmer args
     add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
     add_bool_arg(parser, "save-systematics", default=False, help="save systematic variations")
+    add_bool_arg(parser, "save-all", default=True, help="save all branches")
     add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")

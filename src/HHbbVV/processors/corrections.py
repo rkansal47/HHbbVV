@@ -18,7 +18,7 @@ ak.behavior.update(vector.behavior)
 import pathlib
 
 from . import utils
-from .utils import P4
+from .utils import P4, pad_val
 
 
 package_path = str(pathlib.Path(__file__).parent.parent.resolve())
@@ -524,6 +524,30 @@ def get_jmsr(
         jmsr_shifted_vars[mkey] = tdict
 
     return jmsr_shifted_vars
+
+
+def add_trig_effs(weights: Weights, fatjets: FatJetArray, year: str, num_jets: int = 2):
+    """Add the trigger efficiencies we measured in SingleMuon data"""
+    with open(f"{package_path}/corrections/trigEffs/{year}_combined.pkl", "rb") as filehandler:
+        combined = pickle.load(filehandler)
+
+    # sum over TH4q bins
+    effs_txbb = combined["num"][:, sum, :, :] / combined["den"][:, sum, :, :]
+
+    ak8TrigEffsLookup = dense_lookup(
+        np.nan_to_num(effs_txbb.view(flow=False), 0), np.squeeze(effs_txbb.axes.edges)
+    )
+
+    # TODO: confirm that these should be corrected pt, msd values
+    fj_trigeffs = ak8TrigEffsLookup(
+        pad_val(fatjets.txbb, num_jets, axis=1),
+        pad_val(fatjets.pt, num_jets, axis=1),
+        pad_val(fatjets.msoftdrop, num_jets, axis=1),
+    )
+
+    # combined eff = 1 - (1 - fj1_eff) * (1 - fj2_eff)
+    combined_trigEffs = 1 - np.prod(1 - fj_trigeffs, axis=1, keepdims=True)
+    weights.add("trig_effs", combined_trigEffs)
 
 
 def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Union[int, ak.Array], num_prongs: int):

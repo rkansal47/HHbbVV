@@ -1,5 +1,5 @@
 """
-Skimmer for bbVV analysis.
+Processor for bbVV analysis.
 Author(s): Raghav Kansal, Cristina Suarez
 """
 
@@ -21,14 +21,13 @@ from collections import OrderedDict
 
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV
 from .TaggerInference import runInferenceTriton
-from .utils import pad_val, add_selection, concatenate_dicts, select_dicts, P4
+from .utils import pad_val, add_selection, concatenate_dicts, P4
 from .corrections import (
     add_pileup_weight,
     add_VJets_kFactors,
     add_ps_weight,
     add_pdf_weight,
     add_scalevar_7pt,
-    add_trig_effs,
     get_jec_key,
     get_jec_jets,
     get_jmsr,
@@ -39,13 +38,8 @@ from .common import LUMI, HLTs, btagWPs
 
 # mapping samples to the appropriate function for doing gen-level selections
 gen_selection_dict = {
-    "HTo2bYTo2W": gen_selection_HYbbVV,
     "XToYHTo2W2BTo4Q2B": gen_selection_HYbbVV,
     "GluGluToHHTobbVV_node_cHHH": gen_selection_HHbbVV,
-    "jhu_HHbbWW": gen_selection_HHbbVV,
-    "GluGluToBulkGravitonToHHTo4W_JHUGen": gen_selection_HH4V,
-    "GluGluToHHTo4V_node_cHHH1": gen_selection_HH4V,
-    "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
 }
 
 
@@ -63,50 +57,19 @@ def update(events, collections):
     return out
 
 
-class bbVVSkimmer(processor.ProcessorABC):
+class bbVVProcessor(processor.ProcessorABC):
     """
-    Skims nanoaod files, saving selected branches and events passing preselection cuts
-    (and triggers for data), for preliminary cut-based analysis and BDT studies.
-
-    Args:
-        xsecs (dict, optional): sample cross sections,
-          if sample not included no lumi and xsec will not be applied to weights
-        save_ak15 (bool, optional): save ak15 jets as well, for HVV candidate
+    Processes samples
     """
 
-    # key is name in nano files, value will be the name in the skimmed output
-    skim_vars = {
-        "FatJet": {
-            **P4,
-            "msoftdrop": "Msd",
-            "particleNetMD_QCD": "ParticleNetMD_QCD",
-            "particleNetMD_Xbb": "ParticleNetMD_Xbb",
-            "particleNet_H4qvsQCD": "ParticleNet_Th4q",
-            "particleNet_mass": "ParticleNetMass",
-        },
-        "GenHiggs": P4,
-        "other": {"MET_pt": "MET_pt"},
-    }
-
-    # only the branches necessary for templates and post processing
-    min_branches = [
-        "ak8FatJetParticleNetMass",
-        "ak8FatJetHbb",
-        "ak8FatJetHVV",
-        "ak8FatJetHVVNumProngs",
-        "ak8FatJetParticleNetMD_Txbb",
-        "VVFatJetParTMD_THWWvsT",
-    ]
-
-    preselection = {
+    # pre-selection
+    ak8_jet_selection = {
         "pt": 300.0,
         "eta": 2.4,
-        "VVmsd": 50,
         "VVparticleNet_mass": [50, 250],
         "bbparticleNet_mass": [92.5, 162.5],
         "bbFatJetParticleNetMD_Txbb": 0.8,
         "DijetMass": 800,
-        "nGoodElectrons": 0,
     }
 
     jecs = {
@@ -114,22 +77,10 @@ class bbVVSkimmer(processor.ProcessorABC):
         "JER": "JER",
     }
 
-    def __init__(
-        self, xsecs={}, save_ak15=False, save_systematics=True, inference=True, save_all=True
-    ):
-        super(bbVVSkimmer, self).__init__()
+    def __init__(self, xsecs={}):
+        super(bbVVProcessor, self).__init__()
 
         self.XSECS = xsecs  # in pb
-        self.save_ak15 = save_ak15
-
-        # save systematic variations
-        self._systematics = save_systematics
-
-        # run inference
-        self._inference = inference
-
-        # save all branches or only necessary ones
-        self._save_all = save_all
 
         # for tagger model and preprocessing dict
         self.tagger_resources_path = (
@@ -137,40 +88,6 @@ class bbVVSkimmer(processor.ProcessorABC):
         )
 
         self._accumulator = processor.dict_accumulator({})
-
-        logger.info(
-            f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all}"
-        )
-
-    def to_pandas(self, events: Dict[str, np.array]):
-        """
-        Convert our dictionary of numpy arrays into a pandas data frame
-        Uses multi-index columns for numpy arrays with >1 dimension
-        (e.g. FatJet arrays with two columns)
-        """
-        return pd.concat(
-            # [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in events.items()],
-            [pd.DataFrame(v) for k, v in events.items()],
-            axis=1,
-            keys=list(events.keys()),
-        )
-
-    def dump_table(self, pddf: pd.DataFrame, fname: str, odir_str: str = None) -> None:
-        """
-        Saves pandas dataframe events to './outparquet'
-        """
-        import pyarrow.parquet as pq
-        import pyarrow as pa
-
-        local_dir = os.path.abspath(os.path.join(".", "outparquet"))
-        if odir_str:
-            local_dir += odir_str
-        os.system(f"mkdir -p {local_dir}")
-
-        # need to write with pyarrow as pd.to_parquet doesn't support different types in
-        # multi-index column names
-        table = pa.Table.from_pandas(pddf)
-        pq.write_table(table, f"{local_dir}/{fname}")
 
     @property
     def accumulator(self):
@@ -205,7 +122,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         selection_args = (selection, cutflow, isData, gen_weights)
 
-        num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
+        num_jets = 2
         fatjets, jec_shifted_vars = get_jec_jets(events, year, isData, self.jecs)
 
         # change to year with suffix after updated JMS/R values
@@ -321,8 +238,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         for pts in jec_shifted_vars["pt"].values():
             cut = np.prod(
                 pad_val(
-                    (pts > self.preselection["pt"])
-                    * (np.abs(fatjets.eta) < self.preselection["eta"]),
+                    (pts > self.ak8_jet_selection["pt"])
+                    * (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"]),
                     num_jets,
                     False,
                     axis=1,
@@ -342,37 +259,18 @@ class bbVVSkimmer(processor.ProcessorABC):
 
             # TODO: change to cut on regressed mass only
             cut = (
-                (pnetms[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
-                * (pnetms[~bb_mask] < self.preselection["VVparticleNet_mass"][1])
-                * (pnetms[bb_mask] >= self.preselection["bbparticleNet_mass"][0])
-                * (pnetms[bb_mask] < self.preselection["bbparticleNet_mass"][1])
-            )
+                (msds[~bb_mask] >= self.ak8_jet_selection["VVmsd"])
+                | (pnetms[~bb_mask] >= self.ak8_jet_selection["VVparticleNet_mass"])
+            ) * (pnetms[bb_mask] >= self.ak8_jet_selection["bbparticleNet_mass"])
             cuts.append(cut)
 
         add_selection("ak8_mass", np.any(cuts, axis=0), *selection_args)
-
-        # dijet mass: check if dijet mass cut passes in any of the JEC or JMC variations
-
-        cuts = []
-
-        for shift in jmsr_shifted_vars["msoftdrop"]:
-            msds = jmsr_shifted_vars["msoftdrop"][shift]
-            pnetms = jmsr_shifted_vars["particleNet_mass"][shift]
-
-            # TODO: change to cut on regressed mass only
-            cut = (
-                (pnetms[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
-                * (pnetms[~bb_mask] < self.preselection["VVparticleNet_mass"][1])
-                * (pnetms[bb_mask] >= self.preselection["bbparticleNet_mass"][0])
-                * (pnetms[bb_mask] < self.preselection["bbparticleNet_mass"][1])
-            )
-            cuts.append(cut)
 
         # Txbb pre-selection cut
 
         txbb_cut = (
             ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"][bb_mask]
-            >= self.preselection["bbFatJetParticleNetMD_Txbb"]
+            >= self.ak8_jet_selection["bbFatJetParticleNetMD_Txbb"]
         )
         add_selection("ak8bb_txbb", txbb_cut, *selection_args)
 
@@ -455,23 +353,6 @@ class bbVVSkimmer(processor.ProcessorABC):
         skimmed_events["nGoodElectrons"] = n_good_electrons.to_numpy()
         skimmed_events["nGoodJets"] = n_good_jets.to_numpy()
 
-        if not self.save_all:
-            add_selection(
-                "electron_veto",
-                skimmed_events["nGoodElectrons"] <= self.preselection["nGoodElectrons"],
-                *selection_args,
-            )
-
-        ######################
-        # Remove branches
-        ######################
-
-        # if not saving all, save only necessary branches
-        if not self._save_all:
-            skimmed_events = {
-                key: val for key, val in skimmed_events.items() if key in self.min_branches
-            }
-
         ######################
         # Weights
         ######################
@@ -505,20 +386,9 @@ class bbVVSkimmer(processor.ProcessorABC):
                     events.L1PreFiringWeight.Dn,
                 )
 
-            add_trig_effs(weights, fatjets, year, num_jets)
+            # TODO: trigger SFs here once calculated properly
 
-            # xsec and luminosity and normalization
-            # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)
-            if dataset in self.XSECS or "XToYHTo2W2BTo4Q2B" in dataset:
-                # 1 fb xsec for now for resonant signal
-                xsec = self.XSECS[dataset] if dataset in self.XSECS else 1e-3  # in pb
-
-                weight_norm = xsec * LUMI[year]
-            else:
-                logger.warning("Weight not normalized to cross section")
-                weight_norm = 1
-
-            systematics = ["", "notrigeffs"]
+            systematics = [""]
 
             if self._systematics:
                 systematics += list(weights.variations)
@@ -529,19 +399,24 @@ class bbVVSkimmer(processor.ProcessorABC):
                 if systematic in weights.variations:
                     weight = weights.weight(modifier=systematic)
                     weight_name = f"weight_{systematic}"
-                elif systematics == "":
+                else:
                     weight = weights.weight()
                     weight_name = "weight"
-                elif systematics == "notrigeffs":
-                    weight = weights.partial_weight(exclude="trig_effs")
-                    weight_name = "weight_noTrigEffs"
 
-                # includes genWeight (or signed genWeight)
-                skimmed_events[weight_name] = weight * weight_norm
+                # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)
+                if dataset in self.XSECS or "XToYHTo2W2BTo4Q2B" in dataset:
+                    # 1 fb xsec for now for resonant signal
+                    xsec = self.XSECS[dataset] if dataset in self.XSECS else 1e-3  # in pb
+                    skimmed_events[weight_name] = (
+                        xsec * LUMI[year] * weight  # includes genWeight (or signed genWeight)
+                    )
 
-                if systematic == "":
-                    # to check in postprocessing for xsec & lumi normalisation
-                    skimmed_events["weight_noxsec"] = weight
+                    if systematic == "":
+                        # to check in postprocessing for xsec & lumi normalisation
+                        skimmed_events["weight_noxsec"] = weight
+                else:
+                    logger.warning("Weight not normalized to cross section")
+                    skimmed_events[weight_name] = weight
 
         print(cutflow)
 
@@ -552,8 +427,6 @@ class bbVVSkimmer(processor.ProcessorABC):
             key: value.reshape(len(skimmed_events["weight"]), -1)[sel_all]
             for (key, value) in skimmed_events.items()
         }
-
-        bb_mask = bb_mask[sel_all]
 
         ################
         # Lund plane SFs
@@ -612,13 +485,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
                 sf_dicts.append(sf_dict)
 
-            if self._save_all:
-                sf_dicts = concatenate_dicts(sf_dicts)
-            else:
-                select = skimmed_events["ak8FatJetHVV"].astype(bool)
-                # pick arbitrary jet if both or neither are matched (these will be ignored in post-processing)
-                select[np.all(select, axis=1) + np.all(~select, axis=1)] = [True, False]
-                sf_dicts = select_dicts(sf_dicts, skimmed_events["ak8FatJetHVV"].astype(bool))
+            sf_dicts = concatenate_dicts(sf_dicts)
 
             skimmed_events = {**skimmed_events, **sf_dicts}
 
@@ -630,30 +497,16 @@ class bbVVSkimmer(processor.ProcessorABC):
         if self._inference:
             # apply HWW4q tagger
             pnet_vars = {}
-            if self._save_all:
-                # run on both jets
-                pnet_vars = runInferenceTriton(
-                    self.tagger_resources_path,
-                    events[sel_all],
-                    ak15=False,
-                    all_outputs=False,
-                )
-                skimmed_events = {**skimmed_events, **pnet_vars}
-            else:
-                # run only on VV candidate jet
-                pnet_vars = runInferenceTriton(
-                    self.tagger_resources_path,
-                    events[sel_all],
-                    num_jets=1,
-                    in_jet_idx=bb_mask[:, 0].astype(int),
-                    ak15=False,
-                    all_outputs=False,
-                    jet_label="VV",
-                )
-                skimmed_events = {
-                    **skimmed_events,
-                    **{key: val for (key, val) in pnet_vars.items() if key in self.min_branches},
-                }
+            pnet_vars = runInferenceTriton(
+                self.tagger_resources_path,
+                events[sel_all],
+                ak15=False,
+                all_outputs=False,
+            )
+            skimmed_events = {
+                **skimmed_events,
+                **{key: value for (key, value) in pnet_vars.items()},
+            }
 
         df = self.to_pandas(skimmed_events)
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
