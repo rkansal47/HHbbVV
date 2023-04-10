@@ -550,10 +550,12 @@ def runInferenceTriton(
     jets: FatJetArray = None,
     ak15: bool = False,
     all_outputs: bool = True,
+    jet_label: str = None,
 ) -> dict:
     total_start = time.time()
 
-    jet_label = "ak15" if ak15 else "ak8"
+    if jet_label is None:
+        jet_label = "ak15" if ak15 else "ak8"
 
     with open(f"{tagger_resources_path}/triton_config_{jet_label}.json") as f:
         triton_config = json.load(f)
@@ -635,6 +637,16 @@ def runInferenceTriton(
                 derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
                 + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
                 + derived_vars[f"{jet_label}FatJetParTMD_probQCD"]
+            )
+
+            derived_vars[f"{jet_label}FatJetParTMD_THWWvsT"] = (
+                derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
+                + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
+            ) / (
+                derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
+                + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
+                + derived_vars[f"{jet_label}FatJetParTMD_probQCD"]
+                + derived_vars[f"{jet_label}FatJetParTMD_probT"]
             )
 
             pnet_vars_all = {}

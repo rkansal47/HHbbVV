@@ -30,6 +30,7 @@ vMU_PDGID = 14
 TAU_PDGID = 15
 vTAU_PDGID = 16
 
+G_PDGID = 22
 Z_PDGID = 23
 W_PDGID = 24
 HIGGS_PDGID = 25
@@ -75,6 +76,16 @@ def gen_selection_HYbbVV(
     GenVVVars = {f"GenVV{key}": VV[var][:, :2].to_numpy() for (var, key) in skim_vars.items()}
 
     VV_children = VV.children
+
+    # iterate through the children in photon scattering events to get final daughter quarks
+    for i in range(5):
+        photon_mask = ak.any(ak.flatten(abs(VV_children.pdgId), axis=2) == G_PDGID, axis=1)
+        if not np.any(photon_mask):
+            break
+
+        # use a where condition to get next layer of children for photon scattering events
+        VV_children = ak.where(photon_mask, ak.flatten(VV_children.children, axis=3), VV_children)
+
     quarks = abs(VV_children.pdgId) <= b_PDGID
     all_q = ak.all(ak.all(quarks, axis=2), axis=1)
     add_selection("all_q", all_q, selection, cutflow, False, signGenWeights)
@@ -173,6 +184,15 @@ def gen_selection_HHbbVV(
 
     # checking that each V has 2 q children
     VV_children = VV.children
+
+    # iterate through the children in photon scattering events to get final daughter quarks
+    for i in range(5):
+        photon_mask = ak.any(ak.flatten(abs(VV_children.pdgId), axis=2) == G_PDGID, axis=1)
+        if not np.any(photon_mask):
+            break
+
+        # use a where condition to get next layer of children for photon scattering events
+        VV_children = ak.where(photon_mask, ak.flatten(VV_children.children, axis=3), VV_children)
 
     quarks = abs(VV_children.pdgId) <= b_PDGID
     all_q = ak.all(ak.all(quarks, axis=2), axis=1)

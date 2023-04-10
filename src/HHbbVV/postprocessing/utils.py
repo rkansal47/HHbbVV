@@ -191,7 +191,12 @@ def load_samples(
                             print(f"WARNING: {sample} has not been scaled by its xsec and lumi")
 
                     events["weight_nonorm"] = events["weight"]
-                    events["weight"] /= n_events
+
+                    if "weight_noTrigEffs" in events:
+                        events["finalWeight"] = events["weight"] / n_events
+                        events["finalWeight_noTrigEffs"] = events["weight_noTriggEffs"] / n_events
+                    else:
+                        events["weight"] /= n_events
 
             if not_empty:
                 events_dict[label].append(events)

@@ -314,12 +314,14 @@ def main(args):
         tot_weight = np.sum(events_dict[sample]["weight"].values)
         print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
 
-    apply_weights(events_dict, args.year, cutflow)
     bb_masks = bb_VV_assignment(events_dict)
+
+    if "finalWeight_noTrigEffs" not in events_dict[sample]:
+        apply_weights(events_dict, args.year, cutflow)
+        derive_variables(events_dict)
+
     cutflow.to_csv(f"{args.plot_dir}/cutflows/bdt_cutflow.csv")
     print("\nCutflow\n", cutflow)
-
-    derive_variables(events_dict)
 
     bdt_preds_dir = None
     if not args.resonant:
@@ -348,10 +350,11 @@ def main(args):
         )
 
     # LP SF
-    if "lp_sf" not in systematics[sig_keys[0]]:
-        print("\nGetting LP SFs")
+    for sig_key in sig_keys:
         sf_table = OrderedDict()  # format SFs for each sig key in a table
-        for sig_key in sig_keys:
+        if sig_key not in systematics or "lp_sf" not in systematics[sig_key]:
+            print(f"\nGetting LP SFs for {sig_key}")
+
             systematics[sig_key] = {}
 
             if args.lp_sf_all_years:
@@ -382,14 +385,15 @@ def main(args):
 
             sf_table[sig_key] = {"SF": f"{lp_sf:.2f} ± {unc:.2f}", **uncs}
 
-        sf_df = pd.DataFrame(index=sig_keys)
-        for key in sf_table[sig_key]:
-            sf_df[key] = [sf_table[skey][key] for skey in sig_keys]
+        if len(sf_table):
+            sf_df = pd.DataFrame(index=sig_keys)
+            for key in sf_table[sig_key]:
+                sf_df[key] = [sf_table[skey][key] for skey in sig_keys]
 
-        sf_df.to_csv(f"{args.template_dir}/lpsfs.csv")
+            sf_df.to_csv(f"{args.template_dir}/lpsfs.csv")
 
-        with open(systs_file, "w") as f:
-            json.dump(systematics, f)
+    with open(systs_file, "w") as f:
+        json.dump(systematics, f)
 
     # scale signal by LP SF
     for wkey in ["finalWeight", "finalWeight_noTrigEffs"]:
@@ -611,14 +615,10 @@ def postprocess_lpsfs(
     (3) Cuts of SFs at 10 and normalises.
     """
 
-    for jet in ["bb", "VV"]:
-        # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
-        events.loc[np.sum(events[f"ak8FatJetH{jet}"], axis=1) > 1, f"ak8FatJetH{jet}"] = 0
-        jet_match = events[f"ak8FatJetH{jet}"].astype(bool)
-
+    # for jet in ["bb", "VV"]:
+    for jet in ["VV"]:
         # temp dict
         td = {}
-        # td["tot_matched"] = np.sum(np.sum(jet_match))
 
         # defaults of 1 for jets which aren't matched to anything - i.e. no SF
         for key in ["lp_sf_nom", "lp_sf_sys_down", "lp_sf_sys_up"]:
@@ -630,22 +630,45 @@ def postprocess_lpsfs(
         for key in ["lp_sf_double_matched_event", "lp_sf_unmatched_quarks", "lp_sf_num_sjpt_gt350"]:
             td[key] = np.zeros(len(events))
 
-        # fill values from matched jets
-        for j in range(num_jets):
-            offset = num_lp_sf_toys + 1
-            td["lp_sf_nom"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]][j * offset]
-            td["lp_sf_toys"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]].loc[
-                :, j * offset + 1 : (j + 1) * offset - 1
-            ]
+        if events["lp_sf_lnN"].shape[0] == 2:
+            # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
+            events.loc[np.sum(events[f"ak8FatJetH{jet}"], axis=1) > 1, f"ak8FatJetH{jet}"] = 0
+            jet_match = events[f"ak8FatJetH{jet}"].astype(bool)
 
-            for key in [
-                "lp_sf_sys_down",
-                "lp_sf_sys_up",
-                "lp_sf_double_matched_event",
-                "lp_sf_unmatched_quarks",
-                "lp_sf_num_sjpt_gt350",
-            ]:
-                td[key][jet_match[j]] = events[key][jet_match[j]][j]
+            # fill values from matched jets
+            for j in range(num_jets):
+                offset = num_lp_sf_toys + 1
+                td["lp_sf_nom"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]][j * offset]
+                td["lp_sf_toys"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]].loc[
+                    :, j * offset + 1 : (j + 1) * offset - 1
+                ]
+
+                for key in [
+                    "lp_sf_sys_down",
+                    "lp_sf_sys_up",
+                    "lp_sf_double_matched_event",
+                    "lp_sf_unmatched_quarks",
+                    "lp_sf_num_sjpt_gt350",
+                ]:
+                    td[key][jet_match[j]] = events[key][jet_match[j]][j]
+        else:
+            # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
+            jet_match = np.sum(events[f"ak8FatJetH{jet}"], axis=1) == 1
+
+            # fill values from matched jets
+            for j in range(num_jets):
+                offset = num_lp_sf_toys + 1
+                td["lp_sf_nom"][jet_match] = events["lp_sf_lnN"][jet_match][0]
+                td["lp_sf_toys"][jet_match] = events["lp_sf_lnN"][jet_match].loc[:, 1:]
+
+                for key in [
+                    "lp_sf_sys_down",
+                    "lp_sf_sys_up",
+                    "lp_sf_double_matched_event",
+                    "lp_sf_unmatched_quarks",
+                    "lp_sf_num_sjpt_gt350",
+                ]:
+                    td[key][jet_match] = events[key][jet_match]
 
         for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_sys_down", "lp_sf_sys_up"]:
             # cut off at 10
@@ -672,7 +695,10 @@ def postprocess_lpsfs(
 def get_lpsf(
     events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True, weight_key: str = "finalWeight"
 ):
-    """Calculates LP SF and uncertainties in current phase space. ``postprocess_lpsfs`` must be called first."""
+    """
+    Calculates LP SF and uncertainties in current phase space. ``postprocess_lpsfs`` must be called first.
+    Assumes bb/VV candidates are matched correctly - this is false for <0.1% events for the cuts we use.
+    """
 
     jet = "VV" if VV else "bb"
     if sel is not None:
@@ -1212,6 +1238,8 @@ if __name__ == "__main__":
     utils.add_bool_arg(parser, "plot-shifts", "Plot systematic variations as well", default=False)
 
     utils.add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
+
+    utils.add_bool_arg(parser, "old-processor", "temp arg for old processed samples", default=False)
 
     args = parser.parse_args()
 

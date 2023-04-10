@@ -137,6 +137,7 @@ def main(args):
         args.njets,
         args.save_systematics,
         args.inference,
+        args.save_all,
     )
 
     if len(args.files):
