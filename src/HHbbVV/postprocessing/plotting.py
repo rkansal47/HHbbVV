@@ -288,9 +288,13 @@ def hist2ds(
     for region in regions:
         h = hists[region]
         region_label = region_labels[region] if region_labels is not None else region
-        lim = pass_zlim if region.startswith("pass") else fail_zlim
+        pass_region = region.startswith("pass")
+        lim = pass_zlim if pass_region else fail_zlim
         for sample in samples:
             if sample == "Data" and region == "pass":
+                continue
+
+            if "->H(bb)Y" in sample and not pass_region:
                 continue
 
             if lim is not None:
