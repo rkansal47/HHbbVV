@@ -90,7 +90,7 @@ filters = [
     [
         ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
         ("('ak8FatJetParticleNetMass', '1')", ">=", 50),
-        ("('nGoodElectrons', '0')", "==", 0),
+        # ("('nGoodElectrons', '0')", "==", 0),
     ],
 ]
 
@@ -129,10 +129,14 @@ bdt_cut = 0.99
 # {label: {cutvar: [min, max], ...}, ...}
 nonres_selection_regions_year = {
     "pass": {
+        "bbFatJetPt": [300, CUT_MAX_VAL],
+        "VVFatJetPt": [300, CUT_MAX_VAL],
         "BDTScore": [bdt_cut, CUT_MAX_VAL],
         "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
     },
     "fail": {
+        "bbFatJetPt": [300, CUT_MAX_VAL],
+        "VVFatJetPt": [300, CUT_MAX_VAL],
         "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
     },
     "lpsf": {  # cut for which LP SF is calculated
@@ -143,22 +147,30 @@ nonres_selection_regions_year = {
 res_selection_regions_year = {
     # "unblinded" regions:
     "pass": {
+        "bbFatJetPt": [300, CUT_MAX_VAL],
+        "VVFatJetPt": [300, CUT_MAX_VAL],
         "bbFatJetParticleNetMass": [110, 145],
         "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
         "VVFatJetParTMD_THWWvsT": [0.96, CUT_MAX_VAL],
     },
     "fail": {
+        "bbFatJetPt": [300, CUT_MAX_VAL],
+        "VVFatJetPt": [300, CUT_MAX_VAL],
         "bbFatJetParticleNetMass": [110, 145],
         "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
         "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, 0.96],
     },
     # "blinded" validation regions:
     "passBlinded": {
+        "bbFatJetPt": [300, CUT_MAX_VAL],
+        "VVFatJetPt": [300, CUT_MAX_VAL],
         "bbFatJetParticleNetMass": [[92.5, 110], [145, 162.5]],
         "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
         "VVFatJetParTMD_THWWvsT": [0.96, CUT_MAX_VAL],
     },
     "failBlinded": {
+        "bbFatJetPt": [300, CUT_MAX_VAL],
+        "VVFatJetPt": [300, CUT_MAX_VAL],
         "bbFatJetParticleNetMass": [[92.5, 110], [145, 162.5]],
         "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
         "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, 0.96],
@@ -295,17 +307,21 @@ def main(args):
     if args.read_signal_samples:
         read_year = args.year if args.year != "all" else "2017"
         read_samples = os.listdir(f"{args.signal_data_dir}/{args.year}")
-        sig_keys = [
-            sample for sample in read_samples if sample.startswith("NMSSM_XToYHTo2W2BTo4Q2B")
-        ]
         sig_samples = OrderedDict()
-        for sig_key in sig_keys:
-            mY = int(sample.split("-")[-1])
-            mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
-            sig_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = sig_key
+        for sample in read_samples:
+            if sample.startswith("NMSSM_XToYHTo2W2BTo4Q2B_MX-"):
+                mY = int(sample.split("-")[-1])
+                mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
+                sig_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = sample
 
+        sig_keys = list(sig_samples.keys())
         bg_keys = []
         samples = {}
+
+    print("Sig keys: ", sig_keys)
+    print("Sig samples: ", sig_samples)
+    print("BG keys: ", bg_keys)
+    print("Samples: ", samples)
 
     all_samples = sig_samples | samples
 
@@ -321,7 +337,8 @@ def main(args):
 
     # utils.remove_empty_parquets(samples_dir, year)
     events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
-    events_dict |= utils.load_samples(args.data_dir, samples, args.year, filters)
+    if len(samples):
+        events_dict |= utils.load_samples(args.data_dir, samples, args.year, filters)
     utils.add_to_cutflow(events_dict, "Pre-selection", "weight", cutflow)
 
     print("")
@@ -336,7 +353,9 @@ def main(args):
         apply_weights(events_dict, args.year, cutflow)
         derive_variables(events_dict)
 
-    cutflow.to_csv(f"{args.plot_dir}/cutflows/bdt_cutflow.csv")
+    if args.plot_dir != "":
+        cutflow.to_csv(f"{args.plot_dir}/cutflows/bdt_cutflow.csv")
+
     print("\nCutflow\n", cutflow)
 
     bdt_preds_dir = None
@@ -674,20 +693,20 @@ def postprocess_lpsfs(
         elif events["lp_sf_sys_up"].shape[1] == 1:
             # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
             jet_match = np.sum(events[f"ak8FatJetH{jet}"], axis=1) == 1
+            print(jet_match)
 
             # fill values from matched jets
-            for j in range(num_jets):
-                td["lp_sf_nom"][jet_match] = events["lp_sf_lnN"][jet_match][0]
-                td["lp_sf_toys"][jet_match] = events["lp_sf_lnN"][jet_match].loc[:, 1:]
+            td["lp_sf_nom"][jet_match] = events["lp_sf_lnN"][jet_match][0]
+            td["lp_sf_toys"][jet_match] = events["lp_sf_lnN"][jet_match].loc[:, 1:]
 
-                for key in [
-                    "lp_sf_sys_down",
-                    "lp_sf_sys_up",
-                    "lp_sf_double_matched_event",
-                    "lp_sf_unmatched_quarks",
-                    "lp_sf_num_sjpt_gt350",
-                ]:
-                    td[key][jet_match] = events[key][jet_match]
+            for key in [
+                "lp_sf_sys_down",
+                "lp_sf_sys_up",
+                "lp_sf_double_matched_event",
+                "lp_sf_unmatched_quarks",
+                "lp_sf_num_sjpt_gt350",
+            ]:
+                td[key][jet_match] = events[key][jet_match].squeeze()
 
         else:
             raise ValueError("LP SF shapes are invalid")
@@ -1016,6 +1035,7 @@ def get_templates(
         if not do_jshift:
             print(label)
 
+        # make selection, taking JEC/JMC variations into account
         sel, cf = utils.make_selection(
             region, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
@@ -1035,7 +1055,7 @@ def get_templates(
             systematics[label]["trig_total"] = total
             systematics[label]["trig_total_err"] = total_err
 
-            # print(f"\nTrigger SF Unc.: {total_err / total:.3f}\n")
+            print(f"\nTrigger SF Unc.: {total_err / total:.3f}\n")
 
         # ParticleNetMD Txbb SFs
         sig_events = {}
@@ -1049,6 +1069,7 @@ def get_templates(
         hist_samples = list(events_dict.keys())
 
         if not do_jshift:
+            # set up weight-based variations
             for shift in ["down", "up"]:
                 if pass_region:
                     for sig_key in sig_keys:
@@ -1056,7 +1077,8 @@ def get_templates(
 
                 for wshift, wsamples in weight_shifts.items():
                     for wsample in wsamples:
-                        hist_samples.append(f"{wsample}_{wshift}_{shift}")
+                        if wsample in events_dict:
+                            hist_samples.append(f"{wsample}_{wshift}_{shift}")
 
         h = Hist(
             hist.axis.StrCategory(hist_samples, name="Sample"),

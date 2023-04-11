@@ -207,6 +207,9 @@ def main(args):
 
     templates_dict = {}
 
+    # TODO: combine different signal templates
+    # TODO: including incorporating trigger effs!
+
     for year in years:
         with open(f"{args.templates_dir}/{year}_templates.pkl", "rb") as f:
             templates_dict[year] = _rem_neg(pickle.load(f))
