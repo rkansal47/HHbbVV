@@ -85,12 +85,19 @@ class ShapeVar:
             self.axis = hist.axis.Variable(bins, name=var, label=label)
 
 
-# Both Jet's Regressed Mass above 50, electron veto
-filters = [
+# Both Jet's Regressed Mass above 50, electron veto included in new samples
+new_filters = [
     [
         ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
         ("('ak8FatJetParticleNetMass', '1')", ">=", 50),
-        # ("('nGoodElectrons', '0')", "==", 0),
+    ],
+]
+
+old_filters = [
+    [
+        ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
+        ("('ak8FatJetParticleNetMass', '1')", ">=", 50),
+        ("('nGoodElectrons', '0')", "==", 0),
     ],
 ]
 
@@ -293,30 +300,14 @@ def main(args):
         return
 
     if args.resonant:
-        sig_keys = res_sig_keys
-        sig_samples = res_samples
         shape_vars = res_shape_vars
         selection_regions = res_selection_regions
     else:
-        sig_keys = nonres_sig_keys
-        sig_samples = nonres_samples
         shape_vars = nonres_shape_vars
         selection_regions = nonres_selection_regions
         scan_regions = nonres_scan_regions
 
-    if args.read_signal_samples:
-        read_year = args.year if args.year != "all" else "2017"
-        read_samples = os.listdir(f"{args.signal_data_dir}/{args.year}")
-        sig_samples = OrderedDict()
-        for sample in read_samples:
-            if sample.startswith("NMSSM_XToYHTo2W2BTo4Q2B_MX-"):
-                mY = int(sample.split("-")[-1])
-                mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
-                sig_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = sample
-
-        sig_keys = list(sig_samples.keys())
-        bg_keys = []
-        samples = {}
+    sig_keys, sig_samples, bg_keys, samples = _process_samples(args)
 
     print("Sig keys: ", sig_keys)
     print("Sig samples: ", sig_samples)
@@ -336,6 +327,7 @@ def main(args):
     systematics = _check_load_systematics(systs_file)
 
     # utils.remove_empty_parquets(samples_dir, year)
+    filters = old_filters if args.old_processor else new_filters
     events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
     if len(samples):
         events_dict |= utils.load_samples(args.data_dir, samples, args.year, filters)
@@ -343,8 +335,9 @@ def main(args):
 
     print("")
     # print weighted sample yields
+    wkey = "finalWeight" if "finalWeight" in list(events_dict.values())[0] else "weight"
     for sample in events_dict:
-        tot_weight = np.sum(events_dict[sample]["weight"].values)
+        tot_weight = np.sum(events_dict[sample][wkey].values)
         print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
 
     bb_masks = bb_VV_assignment(events_dict)
@@ -403,6 +396,7 @@ def main(args):
                     list(all_samples.keys()),
                 )
             else:
+                raise RuntimeWarning(f"LP SF only calculated from {args.year} samples")
                 # calculate only for current year
                 events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
                 sel, cf = utils.make_selection(
@@ -506,6 +500,47 @@ def main(args):
             save_templates(
                 templates[cutstr], f"{args.template_dir}/{cutstr}.pkl", args.resonant, shape_vars
             )
+
+
+def _process_samples(args):
+    if args.resonant:
+        sig_keys = res_sig_keys
+        sig_samples = res_samples
+    else:
+        sig_keys = nonres_sig_keys
+        sig_samples = nonres_samples
+
+    if args.read_sig_samples:
+        read_year = args.year if args.year != "all" else "2017"
+        read_samples = os.listdir(f"{args.signal_data_dir}/{args.year}")
+        sig_samples = OrderedDict()
+        for sample in read_samples:
+            if sample.startswith("NMSSM_XToYHTo2W2BTo4Q2B_MX-"):
+                mY = int(sample.split("-")[-1])
+                mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
+
+                sig_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = sample
+
+        sig_keys = list(sig_samples.keys())
+
+    print(sig_samples, sig_keys)
+
+    if len(args.sig_samples):
+        for sig_key, sample in list(sig_samples.items()):
+            if sample not in args.sig_samples:
+                del sig_samples[sig_key]
+                sig_keys.remove(sig_key)
+
+    if len(args.bg_keys):
+        for bg_key, sample in list(samples.items()):
+            if bg_key not in args.bg_keys and bg_key != data_key:
+                del samples[bg_key]
+                bg_keys.remove(bg_key)
+
+    if not args.data:
+        del samples[data_key]
+
+    return sig_keys, sig_samples, bg_keys, samples
 
 
 def _make_dirs(args):
@@ -693,7 +728,6 @@ def postprocess_lpsfs(
         elif events["lp_sf_sys_up"].shape[1] == 1:
             # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
             jet_match = np.sum(events[f"ak8FatJetH{jet}"], axis=1) == 1
-            print(jet_match)
 
             # fill values from matched jets
             td["lp_sf_nom"][jet_match] = events["lp_sf_lnN"][jet_match][0]
@@ -809,16 +843,43 @@ def get_lpsf_all_years(
     events_all = []
     sels_all = []
 
+    # (column name, number of subcolumns)
+    load_columns = [
+        ("weight", 1),
+        ("weight_noTrigEffs", 1),
+        ("ak8FatJetHVV", 2),
+        ("ak8FatJetHVVNumProngs", 1),
+        ("ak8FatJetParticleNetMD_Txbb", 2),
+        ("VVFatJetParTMD_THWWvsT", 1),
+        ("lp_sf_lnN", 101),
+        ("lp_sf_sys_down", 1),
+        ("lp_sf_sys_up", 1),
+        ("lp_sf_double_matched_event", 1),
+        ("lp_sf_unmatched_quarks", 1),
+        ("lp_sf_num_sjpt_gt350", 1),
+    ]
+
+    # reformat into ("column name", "idx") format for reading multiindex columns
+    column_labels = []
+    for key, num_columns in load_columns:
+        for i in range(num_columns):
+            column_labels.append(f"('{key}', '{i}')")
+
     for year in years:
-        events_dict = utils.load_samples(data_dir, {sig_key: samples[sig_key]}, year, filters)
+        events_dict = utils.load_samples(
+            data_dir, {sig_key: samples[sig_key]}, year, new_filters, column_labels
+        )
 
         # print weighted sample yields
-        tot_weight = np.sum(events_dict[sig_key]["weight"].values)
-        # print(f"Pre-selection {year} yield: {tot_weight:.2f}")
+        wkey = "finalWeight" if "finalWeight" in list(events_dict.values())[0] else "weight"
+        tot_weight = np.sum(events_dict[sig_key][wkey].values)
 
-        apply_weights(events_dict, year)
         bb_masks = bb_VV_assignment(events_dict)
-        derive_variables(events_dict)
+
+        if "finalWeight_noTrigEffs" not in events_dict[sig_key]:
+            apply_weights(events_dict, year)
+            derive_variables(events_dict)
+
         events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
 
         if bdt_preds_dir is not None:
@@ -1055,7 +1116,7 @@ def get_templates(
             systematics[label]["trig_total"] = total
             systematics[label]["trig_total_err"] = total_err
 
-            print(f"\nTrigger SF Unc.: {total_err / total:.3f}\n")
+            print(f"Trigger SF Unc.: {total_err / total:.3f}\n")
 
         # ParticleNetMD Txbb SFs
         sig_events = {}
@@ -1283,9 +1344,29 @@ if __name__ == "__main__":
 
     utils.add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
 
-    utils.add_bool_arg(
-        parser, "read-signal-samples", "read signal samples from directory", default=False
+    parser.add_argument(
+        "--sig-samples",
+        help="specify signal samples",
+        nargs="*",
+        default=[],
+        type=str,
     )
+
+    parser.add_argument(
+        "--bg-keys",
+        help="specify background samples",
+        nargs="*",
+        default=[],
+        type=str,
+    )
+
+    utils.add_bool_arg(
+        parser, "read-sig-samples", "read signal samples from directory", default=False
+    )
+
+    utils.add_bool_arg(parser, "data", "include data", default=True)
+
+    utils.add_bool_arg(parser, "old-processor", "temp arg for old processed samples", default=False)
 
     args = parser.parse_args()
 

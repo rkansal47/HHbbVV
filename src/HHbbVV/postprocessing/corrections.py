@@ -124,7 +124,6 @@ def _get_uncorr_trig_eff_unc_per_sample(
     total_errs = []
 
     for jet, h in hists.items():
-        # print(jet)
         h.fill(
             jet1txbb=utils.get_feat(events, f"{jet}FatJetParticleNetMD_Txbb", bb_mask),
             jet1pt=utils.get_feat(events, f"{jet}FatJetPt", bb_mask),
@@ -132,20 +131,10 @@ def _get_uncorr_trig_eff_unc_per_sample(
             weight=utils.get_feat(events, f"{weight_key}_noTrigEffs"),
         )
 
-        # print(h)
-
-        # print(h.values(flow=True) * np.nan_to_num(effs.view(flow=True)))
-
         total = np.sum(h.values(flow=True) * np.nan_to_num(effs.view(flow=True)))
-
-        # print(f"{total = }")
-
         totals.append(total)
 
         total_err = np.linalg.norm((h.values(flow=True) * np.nan_to_num(errs)).reshape(-1))
-
-        # print(f"{total_err = }")
-
         total_errs.append(total_err)
 
     total = np.sum(totals)
@@ -171,8 +160,6 @@ def get_uncorr_trig_eff_unc(
             if not len(events) or (sel is not None and not len(events[sel[sample]])):
                 continue
 
-            # print(sample)
-
             total, total_err = _get_uncorr_trig_eff_unc_per_sample(
                 events[sel[sample]] if sel is not None else events,
                 bb_masks[sample][sel[sample]] if sel is not None else bb_masks[sample],
@@ -180,17 +167,10 @@ def get_uncorr_trig_eff_unc(
                 weight_key,
             )
 
-            # print(f"Sample {total = }")
-            # print(f"Sample {total_err = }")
-
             totals.append(total)
             total_errs.append(total_err)
 
     total = np.sum(totals)
     total_err = np.linalg.norm(total_errs)
-
-    # print("")
-    # print(f"{total = }")
-    # print(f"{total_err = }")
 
     return total, total_err

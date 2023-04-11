@@ -137,7 +137,11 @@ def check_selector(sample: str, selector: Union[str, List[str]]):
 
 
 def load_samples(
-    data_dir: str, samples: Dict[str, str], year: str, filters: List = None
+    data_dir: str,
+    samples: Dict[str, str],
+    year: str,
+    filters: List = None,
+    columns: List = None,
 ) -> Dict[str, pd.DataFrame]:
     """
     Loads events with an optional filter.
@@ -175,7 +179,9 @@ def load_samples(
                 continue
 
             # print(f"Loading {sample}")
-            events = pd.read_parquet(f"{data_dir}/{year}/{sample}/parquet", filters=filters)
+            events = pd.read_parquet(
+                f"{data_dir}/{year}/{sample}/parquet", filters=filters, columns=columns
+            )
             not_empty = len(events) > 0
             pickles_path = f"{data_dir}/{year}/{sample}/pickles"
 
