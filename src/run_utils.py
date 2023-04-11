@@ -175,6 +175,7 @@ def parse_common_args(parser):
     parser.add_argument("--njets", default=2, help="njets", type=int)
 
     # bbVVSkimmer args
+    # REMEMBER TO PROPAGATE THIS TO SUBMIT TEMPLATE!!
     add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
     add_bool_arg(parser, "save-systematics", default=False, help="save systematic variations")
     add_bool_arg(parser, "save-all", default=True, help="save all branches")

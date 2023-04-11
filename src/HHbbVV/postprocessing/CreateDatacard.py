@@ -16,7 +16,7 @@ import pickle, json
 import logging
 from collections import OrderedDict
 
-# import hist
+import hist
 from hist import Hist
 import rhalphalib as rl
 
@@ -54,10 +54,13 @@ parser.add_argument(
     type=str,
     help="input pickle file of dict of hist.Hist templates",
 )
+add_bool_arg(parser, "sig-separate", "separate templates for signals and bgs", default=False)
+
 parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
-parser.add_argument("--cat", default="1", type=str, choices=["1"], help="category")
+
 parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
 parser.add_argument("--epsilon", default=1e-3, type=float, help="epsilon to avoid numerical errs")
+
 parser.add_argument(
     "--nDataTF",
     default=2,
@@ -75,7 +78,7 @@ parser.add_argument(
 )
 add_bool_arg(parser, "mcstats", "add mc stats nuisances", default=True)
 add_bool_arg(parser, "bblite", "use barlow-beeston-lite method", default=True)
-add_bool_arg(parser, "resonant", "for resonant or nonresonat", default=False)
+add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
 args = parser.parse_args()
 
 # (name in templates, name in cards)
@@ -210,16 +213,71 @@ def main(args):
     # TODO: combine different signal templates
     # TODO: including incorporating trigger effs!
 
-    for year in years:
-        with open(f"{args.templates_dir}/{year}_templates.pkl", "rb") as f:
-            templates_dict[year] = _rem_neg(pickle.load(f))
+    if not args.sig_separate:
+        for year in years:
+            with open(f"{args.templates_dir}/{year}_templates.pkl", "rb") as f:
+                templates_dict[year] = _rem_neg(pickle.load(f))
 
-    templates_all = sum_templates(templates_dict)  # sum across years
+        templates_all = sum_templates(templates_dict)  # sum across years
 
-    with open(f"{args.templates_dir}/systematics.json", "r") as f:
-        systematics = json.load(f)
+        with open(f"{args.templates_dir}/systematics.json", "r") as f:
+            systematics = json.load(f)
 
-    process_systematics(systematics)  # LP SF and trig effs.
+        process_systematics(systematics)  # LP SF and trig effs.
+    else:
+        for year in years:
+            with open(f"{args.templates_dir}/backgrounds/{year}_templates.pkl", "rb") as f:
+                bg_templates = _rem_neg(pickle.load(f))
+
+            sig_templates = []
+
+            for sig_key in sig_keys:
+                with open(
+                    f"{args.templates_dir}/{mc_samples[sig_key]}/{year}_templates.pkl", "rb"
+                ) as f:
+                    sig_templates.append(_rem_neg(pickle.load(f)))
+
+            templates_dict[year] = {}
+
+            for region, bg_template in bg_templates.items():
+                csamples = list(bg_template.axes[0]) + [
+                    s for sig_template in sig_templates for s in list(sig_template[region].axes[0])
+                ]
+                ctemplate = Hist(
+                    hist.axis.StrCategory(csamples, name="Sample"),
+                    *bg_template.axes[1:],
+                    storage="weight",
+                )
+
+                for sample in bg_template.axes[0]:
+                    sample_key_index = np.where(np.array(list(ctemplate.axes[0])) == sample)[0][0]
+                    ctemplate.view(flow=True)[sample_key_index, ...] = bg_template[
+                        sample, ...
+                    ].view(flow=True)
+
+                for st in sig_templates:
+                    sig_template = st[region]
+                    for sample in sig_template.axes[0]:
+                        sample_key_index = np.where(np.array(list(ctemplate.axes[0])) == sample)[0][
+                            0
+                        ]
+                        ctemplate.view(flow=True)[sample_key_index, ...] = sig_template[
+                            sample, ...
+                        ].view(flow=True)
+
+                templates_dict[year][region] = ctemplate
+
+        templates_all = sum_templates(templates_dict)  # sum across years
+
+        with open(f"{args.templates_dir}/backgrounds/systematics.json", "r") as f:
+            bg_systematics = json.load(f)
+
+        sig_systs = {}
+        for sig_key in sig_keys:
+            with open(f"{args.templates_dir}/{mc_samples[sig_key]}/systematics.json", "r") as f:
+                sig_systs[sig_key] = json.load(f)
+
+        process_systematics_separate(bg_systematics, sig_systs)  # LP SF and trig effs.
 
     # random template from which to extract common data
     sample_templates = templates_all[regions[0]]
@@ -238,7 +296,7 @@ def main(args):
         mX_scaled = (mX_pts - mX_bins[0]) / (mX_bins[-1] - mX_bins[0])
 
     # build actual fit model now
-    model = rl.Model("HHModel")
+    model = rl.Model("HHModel" if not args.resonant else "XHYModel")
 
     # Fill templates per sample, incl. systematics
     # TODO: blinding for resonant
@@ -344,6 +402,41 @@ def process_systematics(systematics: Dict):
             tdict[region] = 1 + (
                 systematics[year][region]["trig_total_err"]
                 / systematics[year][region]["trig_total"]
+            )
+
+    nuisance_params["triggerEffSF_uncorrelated"][2] = tdict
+
+    print("Nuisance Parameters\n", nuisance_params)
+
+
+def process_systematics_separate(bg_systematics: Dict, sig_systs: Dict[str, Dict]):
+    """Get total uncertainties from per-year systs separated into bg and sig systs"""
+    global nuisance_params
+
+    for sig_key in sig_keys:
+        # already for all years
+        nuisance_params[f"lp_sf_{mc_samples[sig_key]}"][2] = (
+            1 + sig_systs[sig_key][sig_key]["lp_sf_unc"]
+        )
+
+    # use only bg trig uncs.
+    tdict = {}
+    for region in bg_systematics[years[0]]:
+        if len(years) > 1:
+            trig_totals, trig_total_errs = [], []
+            for year in years:
+                trig_totals.append(bg_systematics[year][region]["trig_total"])
+                trig_total_errs.append(bg_systematics[year][region]["trig_total_err"])
+
+            trig_total = np.sum(trig_totals)
+            trig_total_errs = np.linalg.norm(trig_total_errs)
+
+            tdict[region] = 1 + (trig_total_errs / trig_total)
+        else:
+            year = years[0]
+            tdict[region] = 1 + (
+                bg_systematics[year][region]["trig_total_err"]
+                / bg_systematics[year][region]["trig_total"]
             )
 
     nuisance_params["triggerEffSF_uncorrelated"][2] = tdict
