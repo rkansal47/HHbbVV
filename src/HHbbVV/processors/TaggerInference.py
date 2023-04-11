@@ -51,8 +51,8 @@ def get_pfcands_features(
     preselected_events: NanoEventsArray,
     jet_idx: Union[int, ArrayLike],
     jet: FatJetArray = None,
-    fatjet_label: str = "FatJetAK15",
-    pfcands_label: str = "FatJetAK15PFCands",
+    fatjet_label: str = "FatJet",
+    pfcands_label: str = "FatJetPFCands",
     normalize: bool = True,
 ) -> Dict[str, np.ndarray]:
     """
@@ -177,14 +177,6 @@ def get_pfcands_features(
 
         feature_dict[var] = a
 
-    # shouldn't be necessary now that -1 is replaced by 999 above
-    # if normalize:
-    #     var = "pfcand_normchi2"
-    #     info = tagger_vars["pf_features"]["var_infos"][var]
-    #     # finding what -1 transforms to
-    #     chi2_min = -1 - info["median"] * info["norm_factor"]
-    #     feature_dict[var][feature_dict[var] == chi2_min] = info["upper_bound"]
-
     return feature_dict
 
 
@@ -193,8 +185,8 @@ def get_svs_features(
     preselected_events: NanoEventsArray,
     jet_idx: Union[int, ArrayLike],
     jet: FatJetArray = None,
-    fatjet_label: str = "FatJetAK15",
-    svs_label: str = "JetSVsAK15",
+    fatjet_label: str = "FatJet",
+    svs_label: str = "JetSVs",
     normalize: bool = True,
 ) -> Dict[str, np.ndarray]:
     """
@@ -335,7 +327,7 @@ def get_lep_features(
     tagger_vars: dict,
     preselected_events: NanoEventsArray,
     jet_idx: int,
-    fatjet_label: str = "FatJetAK15",
+    fatjet_label: str = "FatJet",
     muon_label: str = "Muon",
     electron_label: str = "Electron",
     normalize: bool = True,
@@ -549,15 +541,41 @@ def runInferenceTriton(
     in_jet_idx: ArrayLike = None,
     jets: FatJetArray = None,
     ak15: bool = False,
-    all_outputs: bool = True,
+    all_outputs: bool = False,
     jet_label: str = None,
 ) -> dict:
+    """Runs inference with the triton server.
+
+    Args:
+        tagger_resources_path (str): Path to server, model configs.
+        events (NanoEventsArray): Nano events.
+        num_jets (int, optional): # jets for which to run inference. Defaults to 2.
+        in_jet_idx (ArrayLike, optional): run inference for a specific jet per event. Only possible
+          if ``num_jets`` is 1. Defaults to None.
+        jets (FatJetArray, optional): give the jets to inference directly. ``in_jet_idx`` should be
+          specified to get the correct pfcands/svs matching. Defaults to None.
+        ak15 (bool, optional): AK15 or AK8 jets Defaults to False.
+        all_outputs (bool, optional): Get all ParT outputs (i.e., incl. fine-tuning neurons).
+          Defaults to False.
+        jet_label (str, optional): custom label for output jets. Defaults to 'ak8' or 'ak15'.
+
+    Returns:
+        dict: output probabilities / discriminants per event
+    """
+    if in_jet_idx is not None and num_jets > 1:
+        raise ValueError("Can't give in_jet_idx for num_jets != 1")
+
+    if jets is not None:
+        raise RuntimeWarning(
+            "Input jets given without in_jet_idx - pfcands and svs matching will likely be incorrect!"
+        )
+
     total_start = time.time()
 
     if jet_label is None:
         jet_label = "ak15" if ak15 else "ak8"
 
-    with open(f"{tagger_resources_path}/triton_config_{jet_label}.json") as f:
+    with open(f"{tagger_resources_path}/triton_config_{'ak8' if not ak15 else 'ak15'}.json") as f:
         triton_config = json.load(f)
 
     with open(f"{tagger_resources_path}/{triton_config['model_name']}.json") as f:
@@ -575,7 +593,13 @@ def runInferenceTriton(
     tagger_inputs = []
     feature_dicts = []
     for j in range(num_jets):
-        jet_idx = in_jet_idx if in_jet_idx is not None else j
+        if in_jet_idx is None:
+            jet_idx = j
+            jets = ak.pad_none(events[fatjet_label], 2, axis=1)[:, jet_idx]
+        else:
+            jet_idx = in_jet_idx
+            if jets is None:
+                jets = ak.pad_none(events[fatjet_label], 2, axis=1)[np.arange(len(events)), jet_idx]
 
         feature_dict = {
             **get_pfcands_features(tagger_vars, events, jet_idx, jets, fatjet_label, pfcands_label),
