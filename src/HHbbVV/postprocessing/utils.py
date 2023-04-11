@@ -194,7 +194,7 @@ def load_samples(
 
                     if "weight_noTrigEffs" in events:
                         events["finalWeight"] = events["weight"] / n_events
-                        events["finalWeight_noTrigEffs"] = events["weight_noTriggEffs"] / n_events
+                        events["finalWeight_noTrigEffs"] = events["weight_noTrigEffs"] / n_events
                     else:
                         events["weight"] /= n_events
 

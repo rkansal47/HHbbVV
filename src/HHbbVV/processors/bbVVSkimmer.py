@@ -34,7 +34,8 @@ from .corrections import (
     get_jmsr,
     get_lund_SFs,
 )
-from .common import LUMI, HLTs, btagWPs
+from .common import LUMI, HLTs, btagWPs, jec_shifts, jmsr_shifts
+from . import common
 
 
 # mapping samples to the appropriate function for doing gen-level selections
@@ -53,14 +54,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-
-
-def update(events, collections):
-    """Return a shallow copy of events array with some collections swapped out"""
-    out = events
-    for name, value in collections.items():
-        out = ak.with_field(out, value, name)
-    return out
 
 
 class bbVVSkimmer(processor.ProcessorABC):
@@ -88,16 +81,6 @@ class bbVVSkimmer(processor.ProcessorABC):
         "other": {"MET_pt": "MET_pt"},
     }
 
-    # only the branches necessary for templates and post processing
-    min_branches = [
-        "ak8FatJetParticleNetMass",
-        "ak8FatJetHbb",
-        "ak8FatJetHVV",
-        "ak8FatJetHVVNumProngs",
-        "ak8FatJetParticleNetMD_Txbb",
-        "VVFatJetParTMD_THWWvsT",
-    ]
-
     preselection = {
         "pt": 300.0,
         "eta": 2.4,
@@ -109,10 +92,28 @@ class bbVVSkimmer(processor.ProcessorABC):
         "nGoodElectrons": 0,
     }
 
-    jecs = {
-        "JES": "JES_jes",
-        "JER": "JER",
-    }
+    jecs = common.jecs
+
+    # only the branches necessary for templates and post processing
+    min_branches = [
+        "ak8FatJetPt",
+        "ak8FatJetMsd",
+        "ak8FatJetParticleNetMass",
+        "DijetMass",
+        "ak8FatJetHbb",
+        "ak8FatJetHVV",
+        "ak8FatJetHVVNumProngs",
+        "ak8FatJetParticleNetMD_Txbb",
+        "VVFatJetParTMD_THWWvsT",
+    ]
+
+    for shift in jec_shifts:
+        min_branches.append(f"ak8FatJetPt_{shift}")
+        min_branches.append(f"DijetMass_{shift}")
+
+    for shift in jmsr_shifts:
+        min_branches.append(f"ak8FatJetParticleNetMass_{shift}")
+        min_branches.append(f"DijetMass_{shift}")
 
     def __init__(
         self, xsecs={}, save_ak15=False, save_systematics=True, inference=True, save_all=True
@@ -170,6 +171,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # need to write with pyarrow as pd.to_parquet doesn't support different types in
         # multi-index column names
         table = pa.Table.from_pandas(pddf)
+        print(table)
         pq.write_table(table, f"{local_dir}/{fname}")
 
     @property
@@ -608,7 +610,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
                 sf_dict = {}
 
-                # collect all the scale factors, fill in 0s for unmatched jets
+                # collect all the scale factors, fill in 1s for unmatched jets
                 for key, val in items:
                     arr = np.ones((np.sum(sel_all), val.shape[1]))
 
@@ -621,6 +623,8 @@ class bbVVSkimmer(processor.ProcessorABC):
                 sf_dicts.append(sf_dict)
 
             sf_dicts = concatenate_dicts(sf_dicts)
+
+            print(sf_dicts)
 
             skimmed_events = {**skimmed_events, **sf_dicts}
 
@@ -658,6 +662,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 }
 
         df = self.to_pandas(skimmed_events)
+        print(df)
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
         self.dump_table(df, fname)
 

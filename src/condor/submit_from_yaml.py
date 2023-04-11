@@ -5,10 +5,16 @@ Author(s): Raghav Kansal, Cristina Mantilla Suarez
 """
 
 import os
+import sys
 import argparse
 
 import submit
 import yaml
+
+# needed to import run_utils from parent directory
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+
+import run_utils
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
@@ -27,7 +33,7 @@ def add_bool_arg(parser, name, help, default=False, no_name=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--year", help="year", type=str, required=True)
+    run_utils.parse_common_args(parser)
     parser.add_argument("--tag", default="Test", help="process tag", type=str)
     parser.add_argument("--jet", default="AK8", help="jet", type=str)
     parser.add_argument(
@@ -40,17 +46,7 @@ if __name__ == "__main__":
         type=str,
         choices=["lpc", "ucsd"],
     )
-    parser.add_argument(
-        "--processor",
-        default="trigger",
-        help="which processor",
-        type=str,
-        choices=["trigger", "skimmer", "input", "ttsfs"],
-    )
     parser.add_argument("--yaml", default="", help="yaml file", type=str)
-    add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
-    add_bool_arg(parser, "save-systematics", default=False, help="save systematic variations")
-    add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
 
     args = parser.parse_args()
 
