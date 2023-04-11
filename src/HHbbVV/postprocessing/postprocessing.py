@@ -290,6 +290,22 @@ def main(args):
         sig_samples = nonres_samples
         shape_vars = nonres_shape_vars
         selection_regions = nonres_selection_regions
+        scan_regions = nonres_scan_regions
+
+    if args.read_signal_samples:
+        read_year = args.year if args.year != "all" else "2017"
+        read_samples = os.listdir(f"{args.signal_data_dir}/{args.year}")
+        sig_keys = [
+            sample for sample in read_samples if sample.startswith("NMSSM_XToYHTo2W2BTo4Q2B")
+        ]
+        sig_samples = OrderedDict()
+        for sig_key in sig_keys:
+            mY = int(sample.split("-")[-1])
+            mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
+            sig_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = sig_key
+
+        bg_keys = []
+        samples = {}
 
     all_samples = sig_samples | samples
 
@@ -426,8 +442,8 @@ def main(args):
                 bb_masks,
                 args.year,
                 sig_keys,
-                res_selection_regions[args.year],
-                res_shape_vars,
+                selection_regions[args.year],
+                shape_vars,
                 # bg_keys=["QCD", "TT", "V+Jets"],
                 plot_dir=plot_dir,
                 prev_cutflow=cutflow,
@@ -461,15 +477,16 @@ def main(args):
             templates[cutstr] = get_templates(
                 events_dict,
                 bb_masks,
+                args.year,
                 region,
-                shape_var,
-                shape_bins,
-                blind_window,
+                shape_vars,
                 plot_dir=args.plot_dir,
                 prev_cutflow=cutflow,
                 cutstr=cutstr,
             )
-            save_templates(templates[cutstr], blind_window, f"{args.template_dir}/{cutstr}.pkl")
+            save_templates(
+                templates[cutstr], f"{args.template_dir}/{cutstr}.pkl", args.resonant, shape_vars
+            )
 
 
 def _make_dirs(args):
@@ -630,7 +647,8 @@ def postprocess_lpsfs(
         for key in ["lp_sf_double_matched_event", "lp_sf_unmatched_quarks", "lp_sf_num_sjpt_gt350"]:
             td[key] = np.zeros(len(events))
 
-        if events["lp_sf_lnN"].shape[0] == 2:
+        # lp sfs saved for both jets
+        if events["lp_sf_sys_up"].shape[1] == 2:
             # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
             events.loc[np.sum(events[f"ak8FatJetH{jet}"], axis=1) > 1, f"ak8FatJetH{jet}"] = 0
             jet_match = events[f"ak8FatJetH{jet}"].astype(bool)
@@ -651,13 +669,14 @@ def postprocess_lpsfs(
                     "lp_sf_num_sjpt_gt350",
                 ]:
                     td[key][jet_match[j]] = events[key][jet_match[j]][j]
-        else:
+
+        # lp sfs saved only for hvv jet
+        elif events["lp_sf_sys_up"].shape[1] == 1:
             # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
             jet_match = np.sum(events[f"ak8FatJetH{jet}"], axis=1) == 1
 
             # fill values from matched jets
             for j in range(num_jets):
-                offset = num_lp_sf_toys + 1
                 td["lp_sf_nom"][jet_match] = events["lp_sf_lnN"][jet_match][0]
                 td["lp_sf_toys"][jet_match] = events["lp_sf_lnN"][jet_match].loc[:, 1:]
 
@@ -669,6 +688,9 @@ def postprocess_lpsfs(
                     "lp_sf_num_sjpt_gt350",
                 ]:
                     td[key][jet_match] = events[key][jet_match]
+
+        else:
+            raise ValueError("LP SF shapes are invalid")
 
         for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_sys_down", "lp_sf_sys_up"]:
             # cut off at 10
@@ -1239,7 +1261,9 @@ if __name__ == "__main__":
 
     utils.add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
 
-    utils.add_bool_arg(parser, "old-processor", "temp arg for old processed samples", default=False)
+    utils.add_bool_arg(
+        parser, "read-signal-samples", "read signal samples from directory", default=False
+    )
 
     args = parser.parse_args()
 
