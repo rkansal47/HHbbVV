@@ -455,7 +455,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         skimmed_events["nGoodElectrons"] = n_good_electrons.to_numpy()
         skimmed_events["nGoodJets"] = n_good_jets.to_numpy()
 
-        if not self.save_all:
+        if not self._save_all:
             add_selection(
                 "electron_veto",
                 skimmed_events["nGoodElectrons"] <= self.preselection["nGoodElectrons"],
@@ -529,10 +529,10 @@ class bbVVSkimmer(processor.ProcessorABC):
                 if systematic in weights.variations:
                     weight = weights.weight(modifier=systematic)
                     weight_name = f"weight_{systematic}"
-                elif systematics == "":
+                elif systematic == "":
                     weight = weights.weight()
                     weight_name = "weight"
-                elif systematics == "notrigeffs":
+                elif systematic == "notrigeffs":
                     weight = weights.partial_weight(exclude="trig_effs")
                     weight_name = "weight_noTrigEffs"
 
@@ -565,9 +565,17 @@ class bbVVSkimmer(processor.ProcessorABC):
 
             sf_dicts = []
 
-            for i in range(num_jets):
-                bb_select = skimmed_events["ak8FatJetHbb"][:, i].astype(bool)
-                VV_select = skimmed_events["ak8FatJetHVV"][:, i].astype(bool)
+            lp_num_jets = num_jets if self._save_all else 1
+
+            for i in range(lp_num_jets):
+                if self._save_all:
+                    bb_select = skimmed_events["ak8FatJetHbb"][:, i].astype(bool)
+                    VV_select = skimmed_events["ak8FatJetHVV"][:, i].astype(bool)
+                else:
+                    # only do VV jets
+                    bb_select = np.zeros(len(skimmed_events["ak8FatJetHbb"])).astype(bool)
+                    # exactly 1 jet is matched (otherwise those SFs are ignored in post-processing anyway)
+                    VV_select = np.sum(skimmed_events["ak8FatJetHVV"], axis=1) == 1
 
                 # selectors for Hbb jets and HVV jets with 2, 3, or 4 prongs separately
                 selectors = {
@@ -590,7 +598,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                         sel_events = events[sel_all][selector]
                         selected_sfs[key] = get_lund_SFs(
                             sel_events,
-                            i,
+                            i if self._save_all else skimmed_events["ak8FatJetHVV"][selector][:, 1],
                             num_prongs,
                             gen_quarks[selector],
                             trunc_gauss=False,
@@ -612,13 +620,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
                 sf_dicts.append(sf_dict)
 
-            if self._save_all:
-                sf_dicts = concatenate_dicts(sf_dicts)
-            else:
-                select = skimmed_events["ak8FatJetHVV"].astype(bool)
-                # pick arbitrary jet if both or neither are matched (these will be ignored in post-processing)
-                select[np.all(select, axis=1) + np.all(~select, axis=1)] = [True, False]
-                sf_dicts = select_dicts(sf_dicts, skimmed_events["ak8FatJetHVV"].astype(bool))
+            sf_dicts = concatenate_dicts(sf_dicts)
 
             skimmed_events = {**skimmed_events, **sf_dicts}
 

@@ -540,13 +540,13 @@ def add_trig_effs(weights: Weights, fatjets: FatJetArray, year: str, num_jets: i
 
     # TODO: confirm that these should be corrected pt, msd values
     fj_trigeffs = ak8TrigEffsLookup(
-        pad_val(fatjets.txbb, num_jets, axis=1),
+        pad_val(fatjets.Txbb, num_jets, axis=1),
         pad_val(fatjets.pt, num_jets, axis=1),
         pad_val(fatjets.msoftdrop, num_jets, axis=1),
     )
 
     # combined eff = 1 - (1 - fj1_eff) * (1 - fj2_eff)
-    combined_trigEffs = 1 - np.prod(1 - fj_trigeffs, axis=1, keepdims=True)
+    combined_trigEffs = 1 - np.prod(1 - fj_trigeffs, axis=1)
     weights.add("trig_effs", combined_trigEffs)
 
 
