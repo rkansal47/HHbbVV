@@ -523,8 +523,6 @@ def _process_samples(args):
 
         sig_keys = list(sig_samples.keys())
 
-    print(sig_samples, sig_keys)
-
     if len(args.sig_samples):
         for sig_key, sample in list(sig_samples.items()):
             if sample not in args.sig_samples:

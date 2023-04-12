@@ -400,16 +400,14 @@ class bbVVSkimmer(processor.ProcessorABC):
 
             add_selection("hem_cleaning", ~hem_cleaning, *selection_args)
 
-        # remove weird jets which have <4 particles and mostly photons
+        # remove weird jets which have <4 particles (due to photon scattering?)
         pfcands_sel = []
 
         for i in range(num_jets):
             ak8_pfcands = events.FatJetPFCands
             ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == i]
             pfcands = events.PFCands[ak8_pfcands.pFCandsIdx]
-            pfcands_sel.append(
-                (ak.count(pfcands.pdgId, axis=1) < 4) * (ak.any(pfcands.pdgId == G_PDGID, axis=1))
-            )
+            pfcands_sel.append(ak.count(pfcands.pdgId, axis=1) < 4)
 
         add_selection("photon_jets", ~np.sum(pfcands_sel, axis=0).astype(bool), *selection_args)
 

@@ -92,12 +92,15 @@ mc_samples = OrderedDict(
 )
 
 nonres_sig_keys = ["HHbbVV"]
+hist_names = {}  # names of hist files for the samples
 
 if args.resonant:
-    # for mX, mY in res_mps:
-    #     mc_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"xhy_mx{mX}_my{mY}"
+    res_mps = [(3000, 190), (1000, 100), (2600, 250)]
+    for mX, mY in res_mps:
+        mc_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"xhy_mx{mX}_my{mY}"
+        hist_names[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
 
-    # sig_keys = res_sig_keys
+    sig_keys = list(mc_samples.keys())
 
     mc_samples["X[3000]->H(bb)Y[190](VV)"] = "xhy_mx3000_my190"
     sig_keys = ["X[3000]->H(bb)Y[190](VV)"]
@@ -233,7 +236,7 @@ def main(args):
 
             for sig_key in sig_keys:
                 with open(
-                    f"{args.templates_dir}/{mc_samples[sig_key]}/{year}_templates.pkl", "rb"
+                    f"{args.templates_dir}/{hist_names[sig_key]}/{year}_templates.pkl", "rb"
                 ) as f:
                     sig_templates.append(_rem_neg(pickle.load(f)))
 
@@ -274,7 +277,7 @@ def main(args):
 
         sig_systs = {}
         for sig_key in sig_keys:
-            with open(f"{args.templates_dir}/{mc_samples[sig_key]}/systematics.json", "r") as f:
+            with open(f"{args.templates_dir}/{hist_names[sig_key]}/systematics.json", "r") as f:
                 sig_systs[sig_key] = json.load(f)
 
         process_systematics_separate(bg_systematics, sig_systs)  # LP SF and trig effs.
@@ -515,6 +518,11 @@ def fill_regions(
 
             stype = rl.Sample.SIGNAL if sample_name in sig_keys else rl.Sample.BACKGROUND
             sample = rl.TemplateSample(ch.name + "_" + card_name, stype, sample_template)
+
+            # rate params per signal to freeze them for individual limits
+            if len(sig_keys) > 1:
+                srate = rl.IndependentParameter(f"{card_name}Rate", 1.0, 0, 1)
+                sample.setParamEffect(srate, 1 * srate)
 
             # nominal values, errors
             values_nominal = np.maximum(sample_template.values(), 0.0)
