@@ -60,6 +60,7 @@ jdl_dict = {
             if jdl.split("_")[0] == args.year and "_".join(jdl.split("_")[1:-1]) == sample
         ]
     )[-1]
+    + 1
     for sample in samples
 }
 
@@ -94,7 +95,10 @@ for sample in samples:
                     continue
 
                 jdl_file = f"condor/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
+                err_file = f"condor/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
+                print(jdl_file)
                 missing_files.append(jdl_file)
+                err_files.append(err_file)
                 if args.submit_missing:
                     os.system(f"condor_submit {jdl_file}")
 

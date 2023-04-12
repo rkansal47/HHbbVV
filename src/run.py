@@ -148,12 +148,15 @@ def main(args):
         )
 
     ignore_files = [
-        "root://cmseos.fnal.gov///store/user/lpcpfnano/rkansal/v2_3/2016APV/XHY/NMSSM_XToYHTo2W2BTo4Q2B_MX-600_MY-80_TuneCP5_13TeV-madgraph-pythia8/NMSSM_XToYHTo2W2BTo4Q2B_MX-600_MY-80/230323_175525/0000/nano_mc2016pre_36.root"
+        "root://cmseos.fnal.gov///store/user/lpcpfnano/rkansal/v2_3/2016APV/XHY/NMSSM_XToYHTo2W2BTo4Q2B_MX-600_MY-80_TuneCP5_13TeV-madgraph-pythia8/NMSSM_XToYHTo2W2BTo4Q2B_MX-600_MY-80/230323_175525/0000/nano_mc2016pre_36.root",
+        "root://cmseos.fnal.gov///store/user/lpcpfnano/rkansal/v2_3/2016/XHY/NMSSM_XToYHTo2W2BTo4Q2B_MX-1600_MY-190_TuneCP5_13TeV-madgraph-pythia8/NMSSM_XToYHTo2W2BTo4Q2B_MX-1600_MY-190/230323_195705/0000/nano_mc2016post_27.root",
+        "'root://cmseos.fnal.gov///store/user/lpcpfnano/rkansal/v2_3/2016APV/XHY/NMSSM_XToYHTo2W2BTo4Q2B_MX-3500_MY-80_TuneCP5_13TeV-madgraph-pythia8/NMSSM_XToYHTo2W2BTo4Q2B_MX-3500_MY-80/230323_175525/0000/nano_mc2016pre_16.root",
     ]
 
     for key in fileset:
         for file in ignore_files:
-            fileset[key].remove(file)
+            if file in fileset[key]:
+                fileset[key].remove(file)
 
     print(f"Running on fileset {fileset}")
 
