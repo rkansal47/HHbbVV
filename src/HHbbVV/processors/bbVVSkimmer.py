@@ -19,7 +19,7 @@ import os
 from typing import Dict
 from collections import OrderedDict
 
-from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV
+from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV, G_PDGID
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection, concatenate_dicts, select_dicts, P4
 from .corrections import (
@@ -171,7 +171,6 @@ class bbVVSkimmer(processor.ProcessorABC):
         # need to write with pyarrow as pd.to_parquet doesn't support different types in
         # multi-index column names
         table = pa.Table.from_pandas(pddf)
-        print(table)
         pq.write_table(table, f"{local_dir}/{fname}")
 
     @property
@@ -401,14 +400,14 @@ class bbVVSkimmer(processor.ProcessorABC):
 
             add_selection("hem_cleaning", ~hem_cleaning, *selection_args)
 
-        # remove weird jets which are all photons
+        # remove weird jets which have <4 particles (due to photon scattering?)
         pfcands_sel = []
 
         for i in range(num_jets):
             ak8_pfcands = events.FatJetPFCands
             ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == i]
             pfcands = events.PFCands[ak8_pfcands.pFCandsIdx]
-            pfcands_sel.append(ak.all(pfcands.pdgId == 22, axis=1))
+            pfcands_sel.append(ak.count(pfcands.pdgId, axis=1) < 4)
 
         add_selection("photon_jets", ~np.sum(pfcands_sel, axis=0).astype(bool), *selection_args)
 
@@ -593,6 +592,15 @@ class bbVVSkimmer(processor.ProcessorABC):
                     },
                 }
 
+                items = [
+                    ("lp_sf_lnN", 101),
+                    ("lp_sf_sys_down", 1),
+                    ("lp_sf_sys_up", 1),
+                    ("lp_sf_double_matched_event", 1),
+                    ("lp_sf_unmatched_quarks", 1),
+                    ("lp_sf_num_sjpt_gt350", 1),
+                ]
+
                 selected_sfs = {}
 
                 for key, (selector, gen_quarks, num_prongs) in selectors.items():
@@ -606,13 +614,12 @@ class bbVVSkimmer(processor.ProcessorABC):
                             trunc_gauss=False,
                             lnN=True,
                         )
-                        items = selected_sfs[key].items()
 
                 sf_dict = {}
 
                 # collect all the scale factors, fill in 1s for unmatched jets
-                for key, val in items:
-                    arr = np.ones((np.sum(sel_all), val.shape[1]))
+                for key, shape in items:
+                    arr = np.ones((np.sum(sel_all), shape))
 
                     for select_key, (selector, _, _) in selectors.items():
                         if np.sum(selector) > 0:

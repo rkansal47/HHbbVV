@@ -35,7 +35,7 @@ run_utils.add_bool_arg(
     parser,
     "check-running",
     default=False,
-    help="check against running jobs as well (running_jobs.txt must be updated)",
+    help="check against running jobs as well (running_jobs.txt will be updated automatically)",
 )
 
 args = parser.parse_args()
@@ -60,6 +60,7 @@ jdl_dict = {
             if jdl.split("_")[0] == args.year and "_".join(jdl.split("_")[1:-1]) == sample
         ]
     )[-1]
+    + 1
     for sample in samples
 }
 
@@ -68,11 +69,13 @@ def print_red(s):
     return print(f"{Fore.RED}{s}{Style.RESET_ALL}")
 
 
+running_jobs = []
 if args.check_running:
+    os.system("condor_q | awk '{print $9}' > running_jobs.txt")
     with open("running_jobs.txt", "r") as f:
-        running_jobs = [s[:-1] for s in f.readlines()]
-else:
-    running_jobs = []
+        lines = f.readlines()
+
+    running_jobs = [s[:-4] for s in lines if s.endswith(".sh\n")]
 
 
 missing_files = []
@@ -87,8 +90,15 @@ for sample in samples:
             print_red(f"No parquet directory for {sample}!")
 
             for i in range(jdl_dict[sample]):
+                if f"{args.year}_{sample}_{i}" in running_jobs:
+                    print(f"Job #{i} for sample {sample} is running.")
+                    continue
+
                 jdl_file = f"condor/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
+                err_file = f"condor/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
+                print(jdl_file)
                 missing_files.append(jdl_file)
+                err_files.append(err_file)
                 if args.submit_missing:
                     os.system(f"condor_submit {jdl_file}")
 
@@ -112,7 +122,7 @@ for sample in samples:
 
     for i in range(jdl_dict[sample]):
         if i not in outs_pickles:
-            if f"{args.year}_{sample}_{i}.sh" in running_jobs:
+            if f"{args.year}_{sample}_{i}" in running_jobs:
                 print(f"Job #{i} for sample {sample} is running.")
                 continue
 
