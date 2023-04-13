@@ -281,6 +281,7 @@ res_shape_vars = [
 # TODO: check which of these applies to resonant as well
 weight_shifts = {
     "pileup": nonres_sig_keys + res_sig_keys + bg_keys,
+    # "pileup": nonres_sig_keys + bg_keys, # TODO: REVERT REVERT REVERT
     "PDFalphaS": nonres_sig_keys,
     "ISRPartonShower": nonres_sig_keys + ["V+Jets"],
     "FSRPartonShower": nonres_sig_keys + ["V+Jets"],
@@ -1180,6 +1181,9 @@ def get_templates(
 
         if pass_region and not do_jshift:
             for sig_key in sig_keys:
+                if not len(sig_events[sig_key]):
+                    continue
+
                 # ParticleNetMD Txbb SFs
                 fill_data = _get_fill_data(
                     sig_events[sig_key], bb_masks[sig_key][sel[sig_key]], shape_vars
