@@ -555,3 +555,10 @@ def getSignalPlotScaleFactor(
             )
 
     return sig_scale_dict
+
+
+def mxmy(sample):
+    mY = int(sample.split("-")[-1])
+    mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
+
+    return (mX, mY)

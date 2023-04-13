@@ -47,6 +47,13 @@ def add_bool_arg(parser, name, help, default=False, no_name=None):
     parser.set_defaults(**{varname: default})
 
 
+def mxmy(sample):
+    mY = int(sample.split("-")[-1])
+    mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
+
+    return (mX, mY)
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--templates-dir",
@@ -60,6 +67,10 @@ parser.add_argument("--cards-dir", default="cards", type=str, help="output card 
 
 parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
 parser.add_argument("--epsilon", default=1e-3, type=float, help="epsilon to avoid numerical errs")
+
+parser.add_argument(
+    "--sig-sample", default=None, type=str, help="can specify a specific signal key"
+)
 
 parser.add_argument(
     "--nDataTF",
@@ -91,19 +102,23 @@ mc_samples = OrderedDict(
     ]
 )
 
+bg_keys = list(mc_samples.keys())
 nonres_sig_keys = ["HHbbVV"]
+sig_keys = []
 hist_names = {}  # names of hist files for the samples
 
 if args.resonant:
-    res_mps = [(3000, 190), (1000, 100), (2600, 250)]
-    for mX, mY in res_mps:
+    if args.sig_sample != "":
+        mX, mY = mxmy(args.sig_sample)
         mc_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"xhy_mx{mX}_my{mY}"
         hist_names[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
-
-    sig_keys = list(mc_samples.keys())
-
-    mc_samples["X[3000]->H(bb)Y[190](VV)"] = "xhy_mx3000_my190"
-    sig_keys = ["X[3000]->H(bb)Y[190](VV)"]
+        sig_keys.append(f"X[{mX}]->H(bb)Y[{mY}](VV)")
+    else:
+        res_mps = [(3000, 190), (1000, 100), (2600, 250)]
+        for mX, mY in res_mps:
+            mc_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"xhy_mx{mX}_my{mY}"
+            hist_names[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
+            sig_keys.append(f"X[{mX}]->H(bb)Y[{mY}](VV)")
 else:
     mc_samples["HHbbVV"] = "ggHH_kl_1_kt_1_hbbhww4q"
     sig_keys = ["HHbbVV"]  # add different couplings
@@ -115,6 +130,11 @@ if args.year != "all":
     full_lumi = LUMI[args.year]
 else:
     full_lumi = np.sum(list(LUMI.values()))
+
+rate_params = {
+    sig_key: rl.IndependentParameter(f"{mc_samples[sig_key]}Rate", 1.0, 0, 1)
+    for sig_key in sig_keys
+}
 
 # https://gitlab.cern.ch/hh/naming-conventions#experimental-uncertainties
 # dictionary of nuisance params -> (modifier, samples affected by it, value)
@@ -183,7 +203,7 @@ corr_year_shape_systs = {
 }
 
 uncorr_year_shape_systs = {
-    "pileup": ("CMS_pileup", all_mc),
+    "pileup": ("CMS_pileup", bg_keys),
     "JER": ("CMS_res_j", all_mc),
     "JMS": ("CMS_bbWW_boosted_ggf_jms", all_mc),
     "JMR": ("CMS_bbWW_boosted_ggf_jmr", all_mc),
@@ -246,6 +266,7 @@ def main(args):
                 csamples = list(bg_template.axes[0]) + [
                     s for sig_template in sig_templates for s in list(sig_template[region].axes[0])
                 ]
+
                 ctemplate = Hist(
                     hist.axis.StrCategory(csamples, name="Sample"),
                     *bg_template.axes[1:],
@@ -503,9 +524,11 @@ def fill_regions(
 
         for sample_name, card_name in mc_samples.items():
             # don't add signals in fail regions
-            if sample_name in sig_keys and not pass_region:
-                logging.info(f"\nSkipping {sample_name} in {region} region\n")
-                continue
+            # also skip resonant signals in pass blinded - they are ignored in the validation fits anyway
+            if sample_name in sig_keys:
+                if not pass_region or (mX_bin is not None and region == "passBlinded"):
+                    logging.info(f"\nSkipping {sample_name} in {region} region\n")
+                    continue
 
             # single top only in fail regions
             if sample_name == "ST" and pass_region:
@@ -520,8 +543,8 @@ def fill_regions(
             sample = rl.TemplateSample(ch.name + "_" + card_name, stype, sample_template)
 
             # rate params per signal to freeze them for individual limits
-            if len(sig_keys) > 1:
-                srate = rl.IndependentParameter(f"{card_name}Rate", 1.0, 0, 1)
+            if stype == rl.Sample.SIGNAL and len(sig_keys) > 1:
+                srate = rate_params[sample_name]
                 sample.setParamEffect(srate, 1 * srate)
 
             # nominal values, errors

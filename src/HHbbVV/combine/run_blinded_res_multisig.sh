@@ -40,7 +40,7 @@ maskblindedargs=${maskblindedargs%,}
 # setparamsunblinded="rgx{passBlinded_.*mcstat.*}=0,rgx{failBlinded_.*mcstat.*}=0,CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15=0"
 # freezeparamsunblinded="rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*},CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15"
 
-setparams="rgx{pass_.*mcstat.*}=0,rgx{fail_.*mcstat.*}=0"
+setparams="rgx{pass_.*mcstat.*}=0,rgx{fail_.*mcstat.*}=0,rgx{xhy_mx.*Rate}=0"
 freezeparams="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx.*}"
 
 setparamsunblinded="rgx{passBlinded_.*mcstat.*}=0,rgx{failBlinded_.*mcstat.*}=0"
@@ -65,21 +65,21 @@ combine -D $dataset -M MultiDimFit --saveWorkspace -m 125 -d ${wsm}.root -v 9 --
 --freezeParameters r,${freezeparams} \
 -n Snapshot 2>&1 | tee $outsdir/MultiDimFit.txt
 
-echo "asymptotic limit"
-combine -M AsymptoticLimits -m 125 -n pass -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v 9 \
---saveWorkspace --saveToys --bypassFrequentistFit \
---setParameters ${maskblindedargs},${setparamsunblinded} \
---freezeParameters ${freezeparamsunblinded} \
---floatParameters r --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
+# echo "asymptotic limit"
+# combine -M AsymptoticLimits -m 125 -n pass -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v 9 \
+# --saveWorkspace --saveToys --bypassFrequentistFit \
+# --setParameters ${maskblindedargs},${setparamsunblinded} \
+# --freezeParameters ${freezeparamsunblinded} \
+# --floatParameters r --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
 
-echo "expected significance"
-combine -M Significance -d ${wsm_snapshot}.root --significance -m 125 -n pass --snapshotName MultiDimFit -v 9 \
--t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit \
---setParameters ${maskblindedargs},${setparamsunblinded},r=1 \
---freezeParameters ${freezeparamsunblinded} \
---floatParameters r --toysFrequentist 2>&1 | tee $outsdir/Significance.txt
+# echo "expected significance"
+# combine -M Significance -d ${wsm_snapshot}.root --significance -m 125 -n pass --snapshotName MultiDimFit -v 9 \
+# -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit \
+# --setParameters ${maskblindedargs},${setparamsunblinded},r=1 \
+# --freezeParameters ${freezeparamsunblinded} \
+# --floatParameters r --toysFrequentist 2>&1 | tee $outsdir/Significance.txt
 
-# freezing r here to try and speed up the s+b fit (don't need s+b fit since fit is only in validation region, but no way to avoid it)
+# # freezing r here to try and speed up the s+b fit (don't need s+b fit since fit is only in validation region, but no way to avoid it)
 # echo "fitdiagnostics"
 # combine -M FitDiagnostics -m 125 -d ${wsm}.root \
 # --setParameters ${maskunblindedargs},${setparams},r=0 \
