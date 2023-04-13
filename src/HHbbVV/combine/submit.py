@@ -50,7 +50,7 @@ res_mps = [
     (1000, 190),
     (1000, 250),
     (1000, 60),
-    # (1000, 80),
+    (1000, 80),
     (1200, 100),
     (1200, 150),
     (1200, 190),
@@ -208,6 +208,9 @@ def main(args):
 
     if args.test:
         samples = samples[:2]
+
+    for sample in samples:
+        os.system(f"mkdir -p {t2_local_prefix}/{outdir}/{sample}")
 
     njobs = ceil(len(samples) / args.files_per_job)
 
