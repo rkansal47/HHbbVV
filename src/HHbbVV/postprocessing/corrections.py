@@ -80,11 +80,17 @@ def apply_txbb_sfs(
     bb_pt = utils.get_feat(events, "bbFatJetPt", bb_mask)
 
     for var in ["up", "down"]:
-        events[f"{weight_key}_txbb_{var}"] = events[weight_key] * txbb_sf_lookups[year][var](
-            bb_txbb, bb_pt
-        )
+        if len(events[weight_key]):
+            events[f"{weight_key}_txbb_{var}"] = events[weight_key] * txbb_sf_lookups[year][var](
+                bb_txbb, bb_pt
+            )
+        else:
+            events[f"{weight_key}_txbb_{var}"] = events[weight_key]
 
-    events[weight_key] = events[weight_key] * txbb_sf_lookups[year]["nom"](bb_txbb, bb_pt)
+    if len(events[weight_key]):
+        events[weight_key] = events[weight_key] * txbb_sf_lookups[year]["nom"](bb_txbb, bb_pt)
+    else:
+        events[weight_key] = events[weight_key]
 
 
 trig_effs = {}

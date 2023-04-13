@@ -36,6 +36,8 @@ src/HHbbVV/postprocessing/*.pkl
 src/HHbbVV/postprocessing/cards
 src/HHbbVV/postprocessing/templates_old
 src/HHbbVV/postprocessing/*.txt
+src/HHbbVV/postprocessing/condor_templates
+src/HHbbVV/postprocessing/outs
 
 !src/HHbbVV/resonant_studies
 !src/HHbbVV/resonant_studies/**
