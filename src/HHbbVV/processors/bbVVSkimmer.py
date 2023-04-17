@@ -93,6 +93,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         "VVparticleNet_mass": 50,
         "bbparticleNet_mass": 50,
         "bbFatJetParticleNetMD_Txbb": 0.8,
+        "jetId": 2,  # tight ID bit
     }
 
     jecs = {
@@ -303,7 +304,12 @@ class bbVVSkimmer(processor.ProcessorABC):
             cut = np.prod(
                 pad_val(
                     (pts > self.ak8_jet_selection["pt"])
-                    * (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"]),
+                    * (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"])
+                    # tight ID
+                    * (
+                        fatjets.jetId & self.ak8_jet_selection["jetId"]
+                        == self.ak8_jet_selection["jetId"]
+                    ),
                     num_jets,
                     False,
                     axis=1,
