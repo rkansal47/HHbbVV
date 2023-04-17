@@ -1,0 +1,39 @@
+{ "Skimmer": {
+            # submit script will append year to this
+            "HH": { "subsamples": [
+                            "GluGluToHHTobbVV_node_cHHH0",
+                            # "GluGluToHHTobbVV_node_cHHH1",
+                            "GluGluToHHTobbVV_node_cHHH2p45",
+                            "GluGluToHHTobbVV_node_cHHH5",
+                            "VBF_HHTobbVV_CV_1_C2V_1_C3_1",
+                            "GluGluToHHTo4B_node_cHHH1_preUL",
+                        ], "files_per_job": 8, "chunksize": 10000 },
+            "HWW":
+                {
+                    "subsamples":
+                        [
+                            "GluGluHToWW_Pt-200ToInf_M-125",
+                            "VBFHToWWToAny_M-125_TuneCP5_withDipoleRecoil",
+                            "HWminusJ_HToWW_M-125",
+                            "HWplusJ_HToWW_M-125",
+                            "HZJ_HToWW_M-125",
+                            "ttHToNonbb_M125",
+                        ],
+                    "files_per_job": 20,
+                },
+            "GluGluHToBB":
+                { "subsamples": ["GluGluHToBB"], "files_per_job": 20 },
+            "HToBB":
+                {
+                    "subsamples":
+                        [
+                            "VBFHToBB",
+                            "WminusH_HToBB_WToQQ",
+                            "WplusH_HToBB_WToQQ",
+                            "ZH_HToBB_ZToQQ",
+                            "ggZH_HToBB_ZToQQ",
+                            "ttHToBB",
+                        ],
+                    "files_per_job": 20,
+                },
+        } }
