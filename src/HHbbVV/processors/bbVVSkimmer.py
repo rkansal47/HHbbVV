@@ -88,7 +88,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         "VVparticleNet_mass": [50, 250],
         "bbparticleNet_mass": [92.5, 162.5],
         "bbFatJetParticleNetMD_Txbb": 0.8,
-        "DijetMass": 800,
+        "DijetMass": 800,  # TODO
         "nGoodElectrons": 0,
     }
 
@@ -341,33 +341,24 @@ class bbVVSkimmer(processor.ProcessorABC):
             msds = jmsr_shifted_vars["msoftdrop"][shift]
             pnetms = jmsr_shifted_vars["particleNet_mass"][shift]
 
-            # TODO: change to cut on regressed mass only
-            cut = (
-                (pnetms[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
-                * (pnetms[~bb_mask] < self.preselection["VVparticleNet_mass"][1])
-                * (pnetms[bb_mask] >= self.preselection["bbparticleNet_mass"][0])
-                * (pnetms[bb_mask] < self.preselection["bbparticleNet_mass"][1])
-            )
+            if self._save_all:
+                cut = (
+                    (pnetms[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
+                    + (msds[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
+                ) * (pnetms[bb_mask] >= 50)
+            else:
+                cut = (
+                    (pnetms[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
+                    * (pnetms[~bb_mask] < self.preselection["VVparticleNet_mass"][1])
+                    * (pnetms[bb_mask] >= self.preselection["bbparticleNet_mass"][0])
+                    * (pnetms[bb_mask] < self.preselection["bbparticleNet_mass"][1])
+                )
+
             cuts.append(cut)
 
         add_selection("ak8_mass", np.any(cuts, axis=0), *selection_args)
 
-        # dijet mass: check if dijet mass cut passes in any of the JEC or JMC variations
-
-        cuts = []
-
-        for shift in jmsr_shifted_vars["msoftdrop"]:
-            msds = jmsr_shifted_vars["msoftdrop"][shift]
-            pnetms = jmsr_shifted_vars["particleNet_mass"][shift]
-
-            # TODO: change to cut on regressed mass only
-            cut = (
-                (pnetms[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
-                * (pnetms[~bb_mask] < self.preselection["VVparticleNet_mass"][1])
-                * (pnetms[bb_mask] >= self.preselection["bbparticleNet_mass"][0])
-                * (pnetms[bb_mask] < self.preselection["bbparticleNet_mass"][1])
-            )
-            cuts.append(cut)
+        # TODO: dijet mass: check if dijet mass cut passes in any of the JEC or JMC variations
 
         # Txbb pre-selection cut
 
@@ -506,7 +497,8 @@ class bbVVSkimmer(processor.ProcessorABC):
                     events.L1PreFiringWeight.Dn,
                 )
 
-            add_trig_effs(weights, fatjets, year, num_jets)
+            if not self._save_all:
+                add_trig_effs(weights, fatjets, year, num_jets)
 
             # xsec and luminosity and normalization
             # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)

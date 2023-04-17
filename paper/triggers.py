@@ -56,6 +56,6 @@ HLTs = {
         #
         "PFHT1050",
         #
-        "HLT_AK8PFJet330_TrimMass30_PFAK8BTagCSV_p17_v",
+        "AK8PFJet330_TrimMass30_PFAK8BTagCSV_p17_v",
     ],
 }
