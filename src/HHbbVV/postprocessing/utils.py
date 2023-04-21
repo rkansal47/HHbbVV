@@ -127,11 +127,19 @@ def get_cutflow(pickles_path, year, sample_name):
 def check_selector(sample: str, selector: Union[str, List[str]]):
     if isinstance(selector, list) or isinstance(selector, tuple):
         for s in selector:
-            if sample.startswith(s):
-                return True
+            if s.startswith("*"):
+                if s[1:] in sample:
+                    return True
+            else:
+                if sample.startswith(s):
+                    return True
     else:
-        if sample.startswith(selector):
-            return True
+        if selector.startswith("*"):
+            if selector[1:] in sample:
+                return True
+        else:
+            if sample.startswith(selector):
+                return True
 
     return False
 
@@ -164,7 +172,6 @@ def load_samples(
     events_dict = {}
 
     for label, selector in samples.items():
-        # print(f"Finding {label} samples")
         events_dict[label] = []
         for sample in full_samples_list:
             if not check_selector(sample, selector):
@@ -198,7 +205,9 @@ def load_samples(
 
                     events["weight_nonorm"] = events["weight"]
 
-                    if "weight_noTrigEffs" in events:
+                    if "weight_noTrigEffs" in events and not np.all(
+                        np.isclose(events["weight"], events["weight_noTrigEffs"], rtol=1e-4)
+                    ):
                         events["finalWeight"] = events["weight"] / n_events
                         events["finalWeight_noTrigEffs"] = events["weight_noTrigEffs"] / n_events
                     else:

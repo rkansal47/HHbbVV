@@ -26,13 +26,17 @@ samples = OrderedDict(
         ("ST", "ST"),
         ("V+Jets", ("WJets", "ZJets")),
         ("Diboson", ("WW", "WZ", "ZZ")),
+        # ("VH(bb)", ("HToBB_WToQQ", "HToBB_ZToQQ")),
+        # ("Hbb", ("GluGluToHToBB", "VBFToHToBB", "ttHToBB")),
+        # ("Hbb", "HToBB"),
+        # ("HWW", ("HToWW", "HToNonbb")),
         ("Data", "JetHT"),
     ]
 )
 
 nonres_samples = OrderedDict(
     [
-        ("HHbbVV", "GluGluToHHTobbVV"),
+        ("HHbbVV", "GluGluToHHTobbVV_node_cHHH1"),
     ]
 )
 
