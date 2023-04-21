@@ -511,7 +511,10 @@ class bbVVSkimmer(processor.ProcessorABC):
                 logger.warning("Weight not normalized to cross section")
                 weight_norm = 1
 
-            systematics = ["", "notrigeffs"]
+            if self._save_all:
+                systematics = [""]
+            else:
+                systematics = ["", "notrigeffs"]
 
             if self._systematics:
                 systematics += list(weights.variations)
