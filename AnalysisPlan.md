@@ -2,18 +2,16 @@
 
 - [Analysis Plan](#analysis-plan)
   - [TODOs](#todos)
-    - [Trigger Efficiencies](#trigger-efficiencies)
     - [Incorporate remaining systematics](#incorporate-remaining-systematics)
       - [Skimmer](#skimmer)
       - [Shapes / Values](#shapes--values)
       - [Datacard](#datacard)
-    - [Full Run 2 and all samples](#full-run-2-and-all-samples)
-      - [Update processor](#update-processor)
-      - [Update post-processing](#update-post-processing)
-    - [Scans](#scans)
-    - [TTbar corrections](#ttbar-corrections)
+    - [Update processor](#update-processor)
+    - [New LP SFs](#new-lp-sfs)
+    - [HH Scans](#hh-scans)
     - [Statistical tests of fits](#statistical-tests-of-fits)
-    - [Resonant X-\>HY sensitivity](#resonant-x-hy-sensitivity)
+    - [Resonant X-\>HY](#resonant-x-hy)
+    - [TTbar corrections](#ttbar-corrections)
   - [Plan](#plan)
     - [Feb 13 - 17](#feb-13---17)
     - [Feb 20 - 24](#feb-20---24)
@@ -21,33 +19,28 @@
   - [In progress:](#in-progress)
   - [~Completed:](#completed)
     - [Preliminary 2017 cut-based signal and background yields estimate](#preliminary-2017-cut-based-signal-and-background-yields-estimate)
-    - [Preliminary 2017 trigger scale factor measurements](#preliminary-2017-trigger-scale-factor-measurements)
+    - [Trigger scale factor measurements](#trigger-scale-factor-measurements)
     - [Processor for skimming nano files](#processor-for-skimming-nano-files)
+      - [Update 2/23](#update-223)
     - [Triton/SONIC inference server](#tritonsonic-inference-server)
     - [BDT Training](#bdt-training)
     - [Tagger](#tagger)
     - [Fits, combine](#fits-combine)
-    - [Samples generation](#samples-generation)
+    - [Full Run 2 and all UL samples](#full-run-2-and-all-ul-samples)
     - [Lund plane scale factors](#lund-plane-scale-factors)
+    - [Post-processing](#post-processing)
+      - [Update post-processing](#update-post-processing)
 
 
 ## TODOs
 
-### Trigger Efficiencies
-
- - [x] Measure for all years
- - [x] **Update selection**
- - [x] Check if binning in VV tagger is necessary (probably not since only btag is in the trigger)
- - [ ] Investigate high unc.
-
 
 ### Incorporate remaining systematics
-
 
 #### Skimmer
  - [x] Pileup
  - [x] JES/R http://cds.cern.ch/record/2792322/files/DP2021_033.pdf
-   - [ ] Need to update to latest
+   - [x] Need to update to latest
  - [x] JMS/R http://cds.cern.ch/record/2256875/files/JME-16-003-pas.pdf
    - [ ] Need UL mSD and regressed mass corrections
  - Theory
@@ -60,6 +53,7 @@
 #### Shapes / Values
  - [x] Pileup
  - [x] ParticleNet Xbb
+   - [ ] Split up uncertainties
  - [x] JES/R
  - [x] JMS/R
  - [x] Trigger SFs
@@ -76,10 +70,11 @@
  - [x] MC Stats
  - [x] Lumi
  - [x] Pileup
- - [ ] Trigger SFs
-   - [ ] Stat.
+ - [x] Trigger SFs
+   - [x] Stat.
    - [ ] Correlated Syst.
  - [x] ParticleNet Xbb
+   - [ ] Separate uncertainties
  - [x] JES/R
  - [x] JMS/R
  - Theory
@@ -88,70 +83,55 @@
    - [ ] scale variation?
    - [ ] W k factor??
 
+### Update processor
 
-### Full Run 2 and all samples
-
-- [x] JetHT
-- [x] QCD
-- [x] TTbar
-- [x] ST
-- [x] W, Z+jets
-- [x] Diboson
-- [x] HHbbWW (all kL)
-- Need xsecs for:
-  https://docs.google.com/spreadsheets/d/1XQQsN4rl3xGDa35W516TwKyadccpfoT7M1mFGxZ4UjQ/edit#gid=1223976475
-  - [x] VBF HHbbWW (kL = 1, k2V = 1)
-  - [x] HH4b (kL = 1) (Pre-UL)
-  - [x] HWW (ggF, VH, VBF, ttH)
-  - [x] Hbb (ggF, VBF, VH, ttH)
-
-#### Update processor
-
-- [x] FatJet selections
-- [x] Modify JECs code to save only variations of pT
-- [x] Add JMS/R
-- [x] Regressed mass cut
-- [x] Add e, mu, b-tag jets
-- [x] Add tagger vars
-- [x] Dijet variables
-  - [ ] Re-run with VV regressed mass for Dijet variables
+- [ ] New e, mu, b-tag jets selections from VHbb
+- [ ] Re-run with VV regressed mass for Dijet variables
+- [ ] FatJet ID
+- [ ] Look at ID scale factors
+- [ ] New LP Method
 
 
-#### Update post-processing
+### New LP SFs
 
- - [x] Check control plots for all years
- - [x] Re-train BDT for all years
- - [x] Templates, systematics for all years
- - [ ] Update datacard with all years
+ - [ ] Update LP method
 
 
-### Scans
+### HH Scans
 
  - kL
  - C2?
 
 
-### TTbar corrections
-
- - Tagger efficiency
- - Recoil
- - JMS
- - Regressed mass
- - BDT
- - Check VBF?
-
-
 ### Statistical tests of fits
 
- - f-test
- - GoF
- - Impacts
+ - [x] GoF
+ - [ ] f-test
+ - [ ] Impacts
 
 
-### Resonant X->HY sensitivity
+### Resonant X->HY
 
- - Run on 1-2 mass points
- - Check selection, fits, sensitivity
+ - [x] Control plots
+ - [x] Preliminary signal region
+ - [x] Validation region
+ - [x] 2D fit, xUL
+   - [x] GoF
+   - [ ] F-test
+ - [x] Run over all signals
+ - [ ] 
+
+
+### TTbar corrections
+
+May not be necessary given low yield
+
+- Tagger efficiency
+- Recoil
+- JMS
+- Regressed mass
+- BDT
+- Check VBF?
 
 
 ## Plan
@@ -204,9 +184,14 @@ Raghav:
  - background estimation from data sidebands
  - with AK8 and AK15 mass-decorrelated ParticleNet Hbb taggers + NOT mass-decorrelated AK8 ParticleNet H4q tagger
 
-### Preliminary 2017 trigger scale factor measurements
+### Trigger scale factor measurements
  - Measured for AK8, AK15, and hybrid jets, single-jet 2D (mass, pT binned) efficiencies (applied assuming prob. of each fat jet passing trigger is independent) and 3D (jet 1 mass, jet 1 pt, jet 2 pt binned)  efficiencies ([processors](https://github.com/rkansal47/HHbbVV/blob/main/processors/JetHTTriggerEfficienciesProcessor.py))
- - Tentatively decided to use hybrid case which gave the highest preselection yield and should increase with a better HWW tagger
+ - Decided on AK8 only - ~same sensitivity, significantly easier practically
+
+- [x] Measure for all years
+- [x] **Update selection**
+- [x] Check if binning in VV tagger is necessary (probably not since only btag is in the trigger)
+- [x] Investigate high unc.
 
 ### Processor for skimming nano files
 https://github.com/rkansal47/HHbbVV/blob/main/processors/bbVVSkimmer.py
@@ -217,10 +202,16 @@ https://github.com/rkansal47/HHbbVV/blob/main/processors/bbVVSkimmer.py
    - Inference via triton server running on SDSC
    - Lund plane scale factors for skimmer
    - Saving flat skimmed data to parquet files, and metadata (total events, cutflow) to pickles
- - TODO:
-   - Add Txbb tagger pre-selection cut
-   - Apply trigger SFs
-   - Add remaining systematics
+
+#### Update 2/23
+
+- [x] FatJet selections
+- [x] Modify JECs code to save only variations of pT
+- [x] Add JMS/R
+- [x] Regressed mass cut
+- [x] Add e, mu, b-tag jets
+- [x] Add tagger vars
+- [x] Dijet variables
 
 ### Triton/SONIC inference server
 https://github.com/rkansal47/sonic-models
@@ -238,25 +229,32 @@ HWW tagger + mass regression development ([Zichun's tagger repo](https://github.
 ### Fits, combine
 
 
-### Samples generation
+### Full Run 2 and all UL samples
 
-Currently have for UL 2017:
-
- - Data: JetHT RunB-F
- - QCD HT 300-inf
- - TT hadronic, TT semileptonic, T Mtt
- - ST s-channel leptonic, ST t-channel, Inclusive, ST tW top + antitop no fully hadronic
- - ggF HWW inclusive
- - VV, V+jets
-
-1) Requesting UL samples
-    - Requesting HH signal samples ggF and VBF for bbWW all-hadronic
-    - TODO: Request UL ggH (and VBF?) signal samples for HtoWW inclusive
-
-2) Need to use `RunIISummer20UL17` in PFNano for next production
-
+- [x] JetHT
+- [x] QCD
+- [x] TTbar
+- [x] ST
+- [x] W, Z+jets
+- [x] Diboson
+- [x] HHbbWW (all kL)
+- Need xsecs for:
+  https://docs.google.com/spreadsheets/d/1XQQsN4rl3xGDa35W516TwKyadccpfoT7M1mFGxZ4UjQ/edit#gid=1223976475
+  - [x] VBF HHbbWW (kL = 1, k2V = 1)
+  - [x] HH4b (kL = 1) (Pre-UL)
+  - [x] HWW (ggF, VH, VBF, ttH)
+  - [x] Hbb (ggF, VBF, VH, ttH)
 
 ### Lund plane scale factors
 
  - Implemented and validated for top jets in control region
  - Implemented and measured for nonresonant signal
+
+### Post-processing
+
+#### Update post-processing
+
+- [x] Check control plots for all years
+- [x] Re-train BDT for all years
+- [x] Templates, systematics for all years
+- [x] Update datacard with all years

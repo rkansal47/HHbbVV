@@ -410,6 +410,8 @@ def get_jec_jets(
     Based on https://github.com/nsmith-/boostedhiggs/blob/master/boostedhiggs/hbbprocessor.py
     Eventually update to V5 JECs once I figure out what's going on with the 2017 UL V5 JER scale factors
 
+    See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/
+
     If ``jecs`` is not None, returns the shifted values of variables are affected by JECs.
     """
 
@@ -431,7 +433,7 @@ def get_jec_jets(
             _add_jec_variables(events.FatJet, events.fixedGridRhoFastjetAll), jec_cache
         )
 
-    # return fatjets only if no jecs given
+    # return only fatjets if no jecs given
     if jecs is None:
         return fatjets
 

@@ -956,6 +956,7 @@ def control_plots(
     hists: Dict = {},
     cutstr: str = "",
     sig_splits: List[List[str]] = None,
+    bg_keys: List[str] = bg_keys,
     show: bool = False,
 ):
     """
@@ -969,16 +970,19 @@ def control_plots(
     """
 
     print(control_plot_vars)
+    print(bg_keys)
 
     from PyPDF2 import PdfMerger
 
     # sig_scale_dict = utils.getSignalPlotScaleFactor(events_dict, sig_keys)
-    sig_scale_dict = {sig_key: 5e3 for sig_key in sig_keys}
+    # sig_scale_dict = {sig_key: 5e3 for sig_key in sig_keys}
+    # sig_scale_dict["HHbbVV"] = 2e5
+
+    sig_scale_dict = {sig_key: 1e4 for sig_key in sig_keys}
     sig_scale_dict["HHbbVV"] = 2e5
     # print(f"{sig_scale_dict = }")
 
     for var, (bins, label) in control_plot_vars.items():
-        # print(var)
         if var not in hists:
             hists[var] = utils.singleVarHist(
                 events_dict, var, bins, label, bb_masks, weight_key=weight_key
@@ -1085,6 +1089,8 @@ def get_templates(
     do_jshift = jshift != ""
     jlabel = "" if not do_jshift else "_" + jshift
     templates, systematics = {}, {}
+
+    print(bg_keys)
 
     for label, region in selection_regions.items():
         pass_region = label.startswith("pass")

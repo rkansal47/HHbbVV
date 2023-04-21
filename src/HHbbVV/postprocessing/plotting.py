@@ -36,6 +36,9 @@ colours = {
     "orange": "#ff7f00",
     "green": "#7CB518",
     "purple": "#9381FF",
+    "slategray": "#63768D",
+    "deeppurple": "#36213E",
+    "ashgrey": "#ACBFA4",
 }
 bg_colours = {
     "QCD": "lightblue",
@@ -43,6 +46,9 @@ bg_colours = {
     "V+Jets": "green",
     "ST": "orange",
     "Diboson": "purple",
+    "Hbb": "lightred",
+    "HWW": "deeppurple",
+    "HH": "ashgrey",
 }
 sig_colour = "red"
 
@@ -57,7 +63,7 @@ sig_colours = [
     "#3C0919",
 ]
 
-bg_order = ["Diboson", "ST", "V+Jets", "TT", "QCD"]
+bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "V+Jets", "TT", "QCD"]
 
 
 def _fill_error(ax, edges, down, up, scale=1):
