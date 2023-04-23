@@ -25,6 +25,7 @@ from .utils import pad_val, add_selection, concatenate_dicts, select_dicts, P4
 from .corrections import (
     add_pileup_weight,
     add_VJets_kFactors,
+    add_top_pt_weight,
     add_ps_weight,
     add_pdf_weight,
     add_scalevar_7pt,
@@ -475,6 +476,9 @@ class bbVVSkimmer(processor.ProcessorABC):
 
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
             add_VJets_kFactors(weights, events.GenPart, dataset)
+
+            if dataset.startswith("TTTo"):
+                add_top_pt_weight(weights, events)
 
             if "GluGluToHHTobbVV" in dataset or "WJets" in dataset or "ZJets" in dataset:
                 add_ps_weight(weights, events.PSWeight)

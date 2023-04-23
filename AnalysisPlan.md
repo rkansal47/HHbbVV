@@ -15,7 +15,10 @@
   - [Plan](#plan)
     - [Feb 13 - 17](#feb-13---17)
     - [Feb 20 - 24](#feb-20---24)
-    - [Feb 27 - 3](#feb-27---3)
+    - [Feb 27 - Mar 3](#feb-27---mar-3)
+    - [Mar](#mar)
+    - [Apr](#apr)
+    - [Apr 24 - 28](#apr-24---28)
   - [In progress:](#in-progress)
   - [~Completed:](#completed)
     - [Preliminary 2017 cut-based signal and background yields estimate](#preliminary-2017-cut-based-signal-and-background-yields-estimate)
@@ -106,7 +109,7 @@
 ### Statistical tests of fits
 
  - [x] GoF
- - [ ] f-test
+ - [ ] F-test
  - [ ] Impacts
 
 
@@ -119,7 +122,8 @@
    - [x] GoF
    - [ ] F-test
  - [x] Run over all signals
- - [ ] 
+   - [ ] TRSM, NMSSM exclusions
+ - [ ] Scan Txbb, THWW working points
 
 
 ### TTbar corrections
@@ -146,7 +150,7 @@ Raghav:
    - [ ] e, mu 4 vectors 
    - [x] ak4 b jets (medium btag) - outside bb jet
    - [x] check control plots on num_x
- - [ ] Check vetoes on these
+ - [x] Check vetoes on these
 
 Cristina
  - [x] Systematics
@@ -163,10 +167,32 @@ Cristina:
  - [ ] Goodness-of-fit, f-test, impacts 
 
 
-### Feb 27 - 3
+### Feb 27 - Mar 3
 
 Raghav:
-- [ ] Full run 2, all samples
+- [x] Full run 2, all samples
+
+
+### Mar
+- [x] Wrap up nonresonant for now with full run 2 limits and GoF
+- [x] Develop resonant analysis strategy
+- [x] Plots, selections for subset of signals
+- [ ] Get 2D fit working
+
+
+### Apr
+- [x] Get 2D fit working
+- [x] Upper limits for subset of signals
+- [x] Upper limits for all signals!
+- [ ] Complete v1 of AN
+- [ ] Higher mass ParT training samples
+
+
+### Apr 24 - 28
+- [ ] Complete v1 of AN
+- [ ] B2G Workshop talk
+- [ ] F-test
+- [ ] Start WP Scan
 
 
 ## In progress:

@@ -10,7 +10,9 @@ Author: Raghav Kansal
 
 
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
+from dataclasses import dataclass
+
 import numpy as np
 import pickle, json
 import logging
@@ -31,6 +33,19 @@ from hh_vars import LUMI, res_sig_keys, qcd_key, data_key, years, jecs, jmsr, re
 
 
 import argparse
+
+
+@dataclass
+class Syst:
+    """For storing info about systematics"""
+
+    name: str = None
+    prior: str = None  # e.g. "lnN", "shape", etc.
+    # float if same value in all regions, dictionary of values per region if not
+    value: Union[float, Dict[float]] = None
+    samples: List[str] = None  # samples affected by it
+    uncorr_years: bool = years  # in case of uncorrelated unc., which years to split into
+    pass_only: bool = False  # is it applied only in the pass regions
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
@@ -139,42 +154,32 @@ rate_params = {
 # https://gitlab.cern.ch/hh/naming-conventions#experimental-uncertainties
 # dictionary of nuisance params -> (modifier, samples affected by it, value)
 nuisance_params = {
-    "lumi_13TeV_2016": [
-        "lnN",
-        all_mc,
-        1.01 ** ((LUMI["2016"] + LUMI["2016APV"]) / full_lumi),
-    ],
-    "lumi_13TeV_2017": [
-        "lnN",
-        all_mc,
-        1.02 ** (LUMI["2017"] / full_lumi),
-    ],
-    "lumi_13TeV_2018": [
-        "lnN",
-        all_mc,
-        1.015 ** (LUMI["2018"] / full_lumi),
-    ],
-    "lumi_13TeV_correlated": [
-        "lnN",
-        all_mc,
-        (
+    "lumi_13TeV_2016": Syst(
+        prior="lnN", samples=all_mc, value=1.01 ** ((LUMI["2016"] + LUMI["2016APV"]) / full_lumi)
+    ),
+    "lumi_13TeV_2017": Syst(prior="lnN", samples=all_mc, value=1.02 ** (LUMI["2017"] / full_lumi)),
+    "lumi_13TeV_2018": Syst(prior="lnN", samples=all_mc, value=1.015 ** (LUMI["2018"] / full_lumi)),
+    "lumi_13TeV_correlated": Syst(
+        prior="lnN",
+        samples=all_mc,
+        value=(
             (1.006 ** ((LUMI["2016"] + LUMI["2016APV"]) / full_lumi))
             * (1.009 ** (LUMI["2017"] / full_lumi))
             * (1.02 ** (LUMI["2018"] / full_lumi))
         ),
-    ],
-    "lumi_13TeV_1718": [
-        "lnN",
-        all_mc,
-        ((1.002 ** (LUMI["2017"] / full_lumi)) * (1.006 ** (LUMI["2018"] / full_lumi))),
-    ],
-    # these values will be added in from the systematics JSON
-    "triggerEffSF_uncorrelated": ["lnN", all_mc, 0],
-    # "lp_sf": ["lnN", sig_keys, 0],
+    ),
+    "lumi_13TeV_1718": Syst(
+        prior="lnN",
+        samples=all_mc,
+        value=((1.002 ** (LUMI["2017"] / full_lumi)) * (1.006 ** (LUMI["2018"] / full_lumi))),
+    ),
+    # value will be added in from the systematics JSON
+    "triggerEffSF_uncorrelated": Syst(prior="lnN", samples=all_mc),
 }
 
 for sig_key in sig_keys:
-    nuisance_params[f"lp_sf_{mc_samples[sig_key]}"] = ["lnN", [sig_key], 0]
+    # values will be added in from the systematics JSON
+    nuisance_params[f"lp_sf_{mc_samples[sig_key]}"] = Syst(prior="lnN", samples=[sig_key])
 
 # remove keys in
 if args.year != "all":
@@ -189,38 +194,45 @@ if args.year != "all":
             del nuisance_params[key]
 
 nuisance_params_dict = {
-    param: rl.NuisanceParameter(param, unc) for param, (unc, _, _) in nuisance_params.items()
+    param: rl.NuisanceParameter(param, syst.prior) for param, syst in nuisance_params.items()
 }
 
-# dictionary of shape systematics -> (name in cards, samples affected by it)
+
+# dictionary of correlated shape systematics: name in templates -> name in cards, etc.
 corr_year_shape_systs = {
-    # TODO: check if these apply to resonant
-    "FSRPartonShower": ("ps_fsr", nonres_sig_keys + ["V+Jets"]),
-    "ISRPartonShower": ("ps_isr", nonres_sig_keys + ["V+Jets"]),
-    "PDFalphaS": ("CMS_bbWW_boosted_ggf_ggHHPDFacc", nonres_sig_keys),
-    "JES": ("CMS_scale_j", all_mc),  # TODO: separate into individual
-    "txbb": ("CMS_bbWW_boosted_ggf_PNetHbbScaleFactors_correlated", sig_keys),
+    "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=nonres_sig_keys + ["V+Jets"]),
+    "ISRPartonShower": Syst(name="ps_isr", prior="shape", samples=nonres_sig_keys + ["V+Jets"]),
+    "PDFalphaS": Syst(
+        name="CMS_bbWW_boosted_ggf_ggHHPDFacc", prior="shape", samples=nonres_sig_keys
+    ),
+    # TODO: separate into individual
+    "JES": Syst(name="CMS_scale_j", prior="shape", samples=all_mc),
+    "txbb": Syst(
+        name="CMS_bbWW_boosted_ggf_PNetHbbScaleFactors_correlated",
+        prior="shape",
+        samples=sig_keys,
+        pass_only=True,
+    ),
 }
 
 uncorr_year_shape_systs = {
-    "pileup": ("CMS_pileup", bg_keys),
-    "JER": ("CMS_res_j", all_mc),
-    "JMS": ("CMS_bbWW_boosted_ggf_jms", all_mc),
-    "JMR": ("CMS_bbWW_boosted_ggf_jmr", all_mc),
+    "pileup": Syst(name="CMS_pileup", prior="shape", samples=all_mc),
+    # TODO: add 2016APV template into this
+    "L1EcalPrefiring": Syst(
+        name="CMS_l1_ecal_prefiring", prior="shape", samples=all_mc, uncorr_years=["2016", "2017"]
+    ),
+    "JER": Syst(name="CMS_res_j", prior="shape", samples=all_mc),
+    "JMS": Syst(name="CMS_bbWW_boosted_ggf_jms", prior="shape", samples=all_mc),
+    "JMR": Syst(name="CMS_bbWW_boosted_ggf_jmr", prior="shape", samples=all_mc),
 }
 
-shape_systs = {**corr_year_shape_systs}
-
-for skey, (sname, ssamples) in uncorr_year_shape_systs.items():
+shape_systs_dict = {}
+for skey, syst in corr_year_shape_systs.items():
+    shape_systs_dict[skey] = rl.NuisanceParameter(syst.name, "shape")
+for skey, syst in uncorr_year_shape_systs.items():
     for year in years:
-        shape_systs[f"{skey}_{year}"] = (f"{sname}_{year}", ssamples)
-
-shape_systs_dict = {
-    skey: rl.NuisanceParameter(sname, "shape") for skey, (sname, _) in shape_systs.items()
-}
-
-# systematics which apply only in the pass region
-pass_only = ["txbb"]
+        if year in syst.uncorr_years:
+            shape_systs_dict[skey] = rl.NuisanceParameter(f"{syst.name}_{year}", "shape")
 
 
 CMS_PARAMS_LABEL = "CMS_bbWW_boosted_ggf" if not args.resonant else "CMS_XHYbbWW_boosted"
@@ -407,7 +419,9 @@ def process_systematics(systematics: Dict):
     global nuisance_params
     for sig_key in sig_keys:
         # already for all years
-        nuisance_params[f"lp_sf_{mc_samples[sig_key]}"][2] = 1 + systematics[sig_key]["lp_sf_unc"]
+        nuisance_params[f"lp_sf_{mc_samples[sig_key]}"].value = (
+            1 + systematics[sig_key]["lp_sf_unc"]
+        )
 
     tdict = {}
     for region in systematics[years[0]]:
@@ -428,7 +442,7 @@ def process_systematics(systematics: Dict):
                 / systematics[year][region]["trig_total"]
             )
 
-    nuisance_params["triggerEffSF_uncorrelated"][2] = tdict
+    nuisance_params["triggerEffSF_uncorrelated"].value = tdict
 
     print("Nuisance Parameters\n", nuisance_params)
 
@@ -439,7 +453,7 @@ def process_systematics_separate(bg_systematics: Dict, sig_systs: Dict[str, Dict
 
     for sig_key in sig_keys:
         # already for all years
-        nuisance_params[f"lp_sf_{mc_samples[sig_key]}"][2] = (
+        nuisance_params[f"lp_sf_{mc_samples[sig_key]}"].value = (
             1 + sig_systs[sig_key][sig_key]["lp_sf_unc"]
         )
 
@@ -463,7 +477,7 @@ def process_systematics_separate(bg_systematics: Dict, sig_systs: Dict[str, Dict
                 / bg_systematics[year][region]["trig_total"]
             )
 
-    nuisance_params["triggerEffSF_uncorrelated"][2] = tdict
+    nuisance_params["triggerEffSF_uncorrelated"].value = tdict
 
     print("Nuisance Parameters\n", nuisance_params)
 
@@ -474,10 +488,10 @@ def fill_regions(
     templates_dict: Dict,
     templates_all: Dict,
     mc_samples: Dict[str, str],
-    nuisance_params: Dict[str, Tuple],
+    nuisance_params: Dict[str, Syst],
     nuisance_params_dict: Dict[str, rl.NuisanceParameter],
-    corr_year_shape_systs: Dict[str, Tuple],
-    uncorr_year_shape_systs: Dict[str, Tuple],
+    corr_year_shape_systs: Dict[str, Syst],
+    uncorr_year_shape_systs: Dict[str, Syst],
     shape_systs_dict: Dict[str, rl.NuisanceParameter],
     pass_only: List[str],
     bblite: bool = True,
@@ -574,19 +588,19 @@ def fill_regions(
                 )
 
             # rate systematics
-            for skey, (_, ssamples, sval) in nuisance_params.items():
-                if sample_name not in ssamples:
+            for skey, syst in nuisance_params.items():
+                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
                     continue
 
                 logging.info(f"Getting {skey} rate")
 
                 param = nuisance_params_dict[skey]
-                val = sval[region_noblinded] if isinstance(sval, dict) else sval
+                val = syst.value[region_noblinded] if isinstance(syst.value, dict) else syst.value
                 sample.setParamEffect(param, val)
 
-            # shape systematics
-            for skey, (sname, ssamples) in corr_year_shape_systs.items():
-                if sample_name not in ssamples or (not pass_region and skey in pass_only):
+            # correlated shape systematics
+            for skey, syst in corr_year_shape_systs.items():
+                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
                     continue
 
                 logging.info(f"Getting {skey} shapes")
@@ -621,13 +635,17 @@ def fill_regions(
                 )
                 sample.setParamEffect(shape_systs_dict[skey], effect_up, effect_down)
 
-            for skey, (sname, ssamples) in uncorr_year_shape_systs.items():
-                if sample_name not in ssamples or (not pass_region and skey in pass_only):
+            # uncorrelated shape systematics
+            for skey, syst in uncorr_year_shape_systs.items():
+                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
                     continue
 
                 logging.info(f"Getting {skey} shapes")
 
                 for year in years:
+                    if year not in syst.uncorr_years:
+                        continue
+
                     values_up, values_down = get_year_updown(
                         templates_dict,
                         sample_name,
