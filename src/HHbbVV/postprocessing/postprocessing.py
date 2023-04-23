@@ -281,10 +281,11 @@ res_shape_vars = [
 # TODO: check which of these applies to resonant as well
 weight_shifts = {
     "pileup": nonres_sig_keys + res_sig_keys + bg_keys,
-    # "pileup": nonres_sig_keys + bg_keys, # TODO: REVERT REVERT REVERT
     "PDFalphaS": nonres_sig_keys,
     "ISRPartonShower": nonres_sig_keys + ["V+Jets"],
     "FSRPartonShower": nonres_sig_keys + ["V+Jets"],
+    "L1EcalPrefiring": nonres_sig_keys + res_sig_keys + bg_keys,
+    # "top_pt": ["TT"],
 }
 
 weight_labels = {
