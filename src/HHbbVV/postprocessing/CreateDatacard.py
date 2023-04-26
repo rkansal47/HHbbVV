@@ -88,12 +88,18 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--nDataTF",
+    "--nTF1",
     default=2,
     type=int,
-    dest="nDataTF",
-    help="order of polynomial for TF from Data",
+    help="order of polynomial for TF in dim 1",
 )
+parser.add_argument(
+    "--nTF2",
+    default=2,
+    type=int,
+    help="order of polynomial for TF in dim 2 (if 2D)",
+)
+
 parser.add_argument("--model-name", default=None, type=str, help="output model name")
 parser.add_argument(
     "--year",
@@ -213,6 +219,7 @@ corr_year_shape_systs = {
         samples=sig_keys,
         pass_only=True,
     ),
+    # "top_pt": Syst(name="CMS_top_pT_reweighting", prior="shape", samples=["TT"])  # TODO
 }
 
 uncorr_year_shape_systs = {
@@ -694,7 +701,7 @@ def nonres_alphabet_fit(
     # transfer factor
     tf_dataResidual = rl.BasisPoly(
         f"{CMS_PARAMS_LABEL}_tf_dataResidual",
-        (args.nDataTF,),
+        (args.nTF1,),
         [shape_var],
         basis="Bernstein",
         limits=(-20, 20),
@@ -776,7 +783,7 @@ def res_alphabet_fit(
     # transfer factor
     tf_dataResidual = rl.BasisPoly(
         f"{CMS_PARAMS_LABEL}_tf_dataResidual",
-        (args.nDataTF, args.nDataTF),
+        (args.nTF1, args.nTF2),
         [shape_var_mX, shape_var_mY],
         basis="Bernstein",
         limits=(-20, 20),
