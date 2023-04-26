@@ -34,12 +34,6 @@ done
 maskunblindedargs=${maskunblindedargs%,}
 maskblindedargs=${maskblindedargs%,}
 
-# setparams="rgx{pass_.*mcstat.*}=0,rgx{fail_.*mcstat.*}=0,CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15=0"
-# freezeparams="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx3000_my190.*},CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15"
-
-# setparamsunblinded="rgx{passBlinded_.*mcstat.*}=0,rgx{failBlinded_.*mcstat.*}=0,CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15=0"
-# freezeparamsunblinded="rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*},CMS_XHYbbWW_boosted_qcdparam_mXbin0_mYbin15"
-
 setparams="rgx{pass_.*mcstat.*}=0,rgx{fail_.*mcstat.*}=0"
 freezeparams="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx.*}"
 

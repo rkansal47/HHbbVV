@@ -477,8 +477,9 @@ class bbVVSkimmer(processor.ProcessorABC):
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
             add_VJets_kFactors(weights, events.GenPart, dataset)
 
-            if dataset.startswith("TTTo"):
-                add_top_pt_weight(weights, events)
+            # if dataset.startswith("TTTo"):
+            #     # TODO: need to add uncertainties and rescale yields (?)
+            #     add_top_pt_weight(weights, events)
 
             if "GluGluToHHTobbVV" in dataset or "WJets" in dataset or "ZJets" in dataset:
                 add_ps_weight(weights, events.PSWeight)

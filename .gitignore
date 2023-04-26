@@ -69,6 +69,7 @@ src/HHbbVV/postprocessing/outs
 
 **/.ipynb_checkpoints
 **/*test*
+!**/*F_test*
 **/__pycache__
 **/.DS_Store
 .DS_Store
