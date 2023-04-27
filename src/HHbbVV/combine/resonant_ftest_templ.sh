@@ -95,9 +95,9 @@ cd -
 
 for (( ord1=$low1; ord1<=$((low1 + 1)); ord1++ ))
 do
-    for (( ord2=$low2; ord2<=$((low2 + 2)); ord2++ ))
+    for (( ord2=$low2; ord2<=$((low2 + 1)); ord2++ ))
     do
-        if [ $ord1 -gt 0 ] && [ $ord2 -gt 0]
+        if [ $ord1 -gt $low1 ] && [ $ord2 -gt $low2 ]
         then
             break
         fi
