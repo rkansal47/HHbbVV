@@ -37,12 +37,14 @@ ulimit -s unlimited
 
 echo "GoF on data"
 combine -M GoodnessOfFit -d ${wsm_snapshot}.root --algo saturated -m 125 \
+--snapshotName MultiDimFit --bypassFrequentistFit \
 --setParameters ${maskunblindedargs},${setparams},r=0 \
 --freezeParameters ${freezeparams},r \
 -n passData -v 9 2>&1 | tee $outsdir/GoF_data.txt
 
 echo "GoF on toys"
 combine -M GoodnessOfFit -d ${wsm_snapshot}.root --algo saturated -m 125 \
+--snapshotName MultiDimFit --bypassFrequentistFit \
 --setParameters ${maskunblindedargs},${setparams},r=0 \
 --freezeParameters ${freezeparams},r \
 -n passToys -v 9 -s 42 -t 100 --toysFrequentist 2>&1 | tee $outsdir/GoF_toys.txt
