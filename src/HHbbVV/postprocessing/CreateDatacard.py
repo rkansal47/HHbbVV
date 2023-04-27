@@ -11,7 +11,7 @@ Author: Raghav Kansal
 
 import os
 from typing import Dict, List, Tuple, Union
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 import pickle, json
@@ -42,9 +42,10 @@ class Syst:
     name: str = None
     prior: str = None  # e.g. "lnN", "shape", etc.
     # float if same value in all regions, dictionary of values per region if not
-    value: Union[float, Dict[float]] = None
+    value: Union[float, Dict[str, float]] = None
     samples: List[str] = None  # samples affected by it
-    uncorr_years: bool = years  # in case of uncorrelated unc., which years to split into
+    # in case of uncorrelated unc., which years to split into
+    uncorr_years: List[str] = field(default_factory=lambda: years)
     pass_only: bool = False  # is it applied only in the pass regions
 
 
@@ -225,9 +226,9 @@ corr_year_shape_systs = {
 uncorr_year_shape_systs = {
     "pileup": Syst(name="CMS_pileup", prior="shape", samples=all_mc),
     # TODO: add 2016APV template into this
-    "L1EcalPrefiring": Syst(
-        name="CMS_l1_ecal_prefiring", prior="shape", samples=all_mc, uncorr_years=["2016", "2017"]
-    ),
+    # "L1EcalPrefiring": Syst(
+    #     name="CMS_l1_ecal_prefiring", prior="shape", samples=all_mc, uncorr_years=["2016", "2017"]
+    # ),
     "JER": Syst(name="CMS_res_j", prior="shape", samples=all_mc),
     "JMS": Syst(name="CMS_bbWW_boosted_ggf_jms", prior="shape", samples=all_mc),
     "JMR": Syst(name="CMS_bbWW_boosted_ggf_jmr", prior="shape", samples=all_mc),
@@ -239,8 +240,9 @@ for skey, syst in corr_year_shape_systs.items():
 for skey, syst in uncorr_year_shape_systs.items():
     for year in years:
         if year in syst.uncorr_years:
-            shape_systs_dict[skey] = rl.NuisanceParameter(f"{syst.name}_{year}", "shape")
-
+            shape_systs_dict[f"{skey}_{year}"] = rl.NuisanceParameter(
+                f"{syst.name}_{year}", "shape"
+            )
 
 CMS_PARAMS_LABEL = "CMS_bbWW_boosted_ggf" if not args.resonant else "CMS_XHYbbWW_boosted"
 PARAMS_LABEL = "bbWW_boosted_ggf" if not args.resonant else "XHYbbWW_boosted"
@@ -354,7 +356,6 @@ def main(args):
         corr_year_shape_systs,
         uncorr_year_shape_systs,
         shape_systs_dict,
-        pass_only,
         args.bblite,
     ]
 
@@ -500,7 +501,6 @@ def fill_regions(
     corr_year_shape_systs: Dict[str, Syst],
     uncorr_year_shape_systs: Dict[str, Syst],
     shape_systs_dict: Dict[str, rl.NuisanceParameter],
-    pass_only: List[str],
     bblite: bool = True,
     mX_bin: int = None,
 ):
