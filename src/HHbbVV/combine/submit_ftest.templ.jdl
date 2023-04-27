@@ -2,7 +2,7 @@
 
 executable              = $dir/${prefix}_$jobid.sh
 should_transfer_files   = YES
-transfer_input_files    = /uscms/home/rkansal/hhcombine/cards/f_test/$tag
+transfer_input_files    = /uscms/home/rkansal/hhcombine/cards/f_tests/$tag
 when_to_transfer_output = ON_EXIT_OR_EVICT
 request_memory          = 3000
 use_x509userproxy       = true

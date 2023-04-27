@@ -124,7 +124,7 @@ for ord1 in {0..1}
 do
     for ord2 in {0..1}
     do
-        if [ $ord1 -gt 0 ] && [ $ord2 -gt 0]
+        if [ $ord1 -gt 0 ] && [ $ord2 -gt 0 ]
         then
             break
         fi
