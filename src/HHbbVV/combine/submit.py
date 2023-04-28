@@ -44,7 +44,7 @@ def write_template(templ_file: str, out_file: str, templ_args: dict):
 
 
 res_mps = [
-    # (1000, 100),
+    (1000, 100),
     (1000, 125),
     (1000, 150),
     (1000, 190),
@@ -115,7 +115,7 @@ res_mps = [
     (3000, 100),
     (3000, 125),
     (3000, 150),
-    # (3000, 190),
+    (3000, 190),
     (3000, 250),
     (3000, 60),
     (3000, 80),
@@ -165,6 +165,23 @@ for mX, mY in res_mps:
     samples.append(f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}")
 
 
+res_mps = [
+    (900, 80),
+    (1200, 190),
+    (2000, 125),
+    (3000, 250),
+    (4000, 150),
+]
+
+scan_samples = []
+
+for mX, mY in res_mps:
+    scan_samples.append(f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}")
+
+scan_txbb_wps = ["LP", "MP", "HP"]
+scan_thww_wps = [0.4, 0.6, 0.8, 0.9, 0.94, 0.96, 0.98]
+
+
 def main(args):
     global samples
 
@@ -184,33 +201,45 @@ def main(args):
 
     username = os.environ["USER"]
     local_dir = f"condor/cards/{args.tag}"
-    homedir = f"/store/user/{username}/bbVV/cards/"
-    outdir = homedir + args.tag + "/"
+
+    templates_dir = f"/store/user/{username}/bbVV/templates/{args.tag}"
+    cards_dir = f"/store/user/{username}/bbVV/cards/{args.tag}/"
 
     # make local directory
     logdir = local_dir + "/logs"
     os.system(f"mkdir -p {logdir}")
 
-    # and condor directory
-    print("CONDOR work dir: " + outdir)
-    os.system(f"mkdir -p {t2_local_prefix}/{outdir}")
-
     # and eos directory
-    eosoutput_dir = f"{t2_prefix}/{outdir}/"
-    os.system(f"mkdir -p {t2_local_prefix}/{outdir}/")
+    os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}")
+    os.system(f"mkdir -p {t2_local_prefix}/{templates_dir}")
 
     jdl_templ = "src/HHbbVV/combine/submit.templ.jdl"
     sh_templ = "src/HHbbVV/combine/resonant_templ.sh"
 
-    # submit jobs
-    nsubmit = 0
-    print("Submitting samples")
-
     if args.test:
         samples = samples[:2]
+        scan_txbb_wps = scan_txbb_wps[:1]
+        scan_thww_wps = scan_thww_wps[:1]
 
     for sample in samples:
-        os.system(f"mkdir -p {t2_local_prefix}/{outdir}/{sample}")
+        if args.scan:
+            for txbb_wp in scan_txbb_wps:
+                for thww_wp in scan_thww_wps:
+                    os.system(
+                        f"mkdir -p {t2_local_prefix}/{templates_dir}/txbb_{txbb_wp}_thww_{thww_wp}/{sample}"
+                    )
+                    os.system(
+                        f"mkdir -p {t2_local_prefix}/{cards_dir}/txbb_{txbb_wp}_thww_{thww_wp}/{sample}"
+                    )
+        else:
+            os.system(f"mkdir -p {t2_local_prefix}/{templates_dir}/{sample}")
+            os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}/{sample}")
+
+    # submit jobs
+    nsubmit = 0
+
+    if args.submit:
+        print("Submitting samples")
 
     njobs = ceil(len(samples) / args.files_per_job)
 
