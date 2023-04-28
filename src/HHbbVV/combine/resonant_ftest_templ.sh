@@ -90,7 +90,7 @@ xrdcp $outsdir/gentoys$seed.txt root://cmseos.fnal.gov//store/user/rkansal/bbVV/
 cd -
 
 ####################################################################
-# Run GoF for each order tested on generated toys
+# Run GoF for each order on generated toys
 ####################################################################
 
 for (( ord1=$low1; ord1<=$((low1 + 1)); ord1++ ))
