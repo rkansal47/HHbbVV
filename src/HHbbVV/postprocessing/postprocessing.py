@@ -10,6 +10,7 @@ Post processing skimmed parquet files (output of bbVVSkimmer processor):
 Author(s): Raghav Kansal, Cristina Mantilla Suarez
 """
 
+from dataclasses import dataclass, field
 from collections import OrderedDict
 import os
 import sys
@@ -87,105 +88,17 @@ class ShapeVar:
             self.axis = hist.axis.Variable(bins, name=var, label=label)
 
 
-parser = argparse.ArgumentParser()
+@dataclass
+class Syst:
+    samples: List[str] = None
+    years: List[str] = field(default_factory=lambda: years)
+    label: str = None
 
-parser.add_argument(
-    "--data-dir",
-    default="../../../../data/skimmer/Feb24/",
-    help="path to skimmed parquet",
-    type=str,
-)
 
-parser.add_argument(
-    "--signal-data-dir",
-    default="",
-    help="path to skimmed signal parquets, if different from other data",
-    type=str,
-)
-
-parser.add_argument(
-    "--year",
-    default="2017",
-    choices=["2016", "2016APV", "2017", "2018"],
-    type=str,
-)
-
-parser.add_argument(
-    "--bdt-preds",
-    help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
-    default="",
-    type=str,
-)
-
-parser.add_argument(
-    "--plot-dir",
-    help="If making control or template plots, path to directory to save them in",
-    default="",
-    type=str,
-)
-
-parser.add_argument(
-    "--template-dir",
-    help="If saving templates, path to file to save them in. If scanning, directory to save in.",
-    default="",
-    type=str,
-)
-
-utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
-utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
-utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
-utils.add_bool_arg(
-    parser, "overwrite-template", "if template file already exists, overwrite it", default=False
-)
-utils.add_bool_arg(parser, "scan", "Scan BDT + Txbb cuts and save templates", default=False)
-utils.add_bool_arg(parser, "plot-shifts", "Plot systematic variations as well", default=False)
-utils.add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
-
-parser.add_argument(
-    "--sig-samples",
-    help="specify signal samples",
-    nargs="*",
-    default=[],
-    type=str,
-)
-
-parser.add_argument(
-    "--bg-keys",
-    help="specify background samples",
-    nargs="*",
-    default=["QCD", "TT", "ST", "V+Jets"],
-    type=str,
-)
-
-utils.add_bool_arg(parser, "read-sig-samples", "read signal samples from directory", default=False)
-
-utils.add_bool_arg(parser, "data", "include data", default=True)
-
-utils.add_bool_arg(parser, "old-processor", "temp arg for old processed samples", default=False)
-
-parser.add_argument(
-    "--txbb-wp",
-    help="txbb WP for signal region",
-    default="HP",
-    choices=["LP", "MP", "HP"],
-    type=str,
-)
-
-parser.add_argument(
-    "--thww-wp",
-    help="thww WP for signal region",
-    default=0.96,
-    type=float,
-)
-
-args = parser.parse_args()
-
-if args.template_dir == "":
-    print("Need to set --template-dir. Exiting.")
-    sys.exit()
-
-if args.signal_data_dir == "":
-    args.signal_data_dir = args.data_dir
+@dataclass
+class Region:
+    cuts: Dict = None
+    label: str = None
 
 
 # Both Jet's Regressed Mass above 50, electron veto included in new samples
@@ -234,107 +147,100 @@ control_plot_vars = {
     "BDTScore": ([50, 0, 1], r"BDT Score"),
 }
 
-bdt_cut = 0.99
 
-# {label: {cutvar: [min, max], ...}, ...}
-nonres_selection_regions_year = {
-    "pass": {
-        "bbFatJetPt": [300, CUT_MAX_VAL],
-        "VVFatJetPt": [300, CUT_MAX_VAL],
-        "BDTScore": [bdt_cut, CUT_MAX_VAL],
-        "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
-    },
-    "fail": {
-        "bbFatJetPt": [300, CUT_MAX_VAL],
-        "VVFatJetPt": [300, CUT_MAX_VAL],
-        "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
-    },
-    "lpsf": {  # cut for which LP SF is calculated
-        "BDTScore": [bdt_cut, CUT_MAX_VAL],
-    },
-}
+def get_nonres_selection_regions(year: str, bdt_cut: float = 0.99, txbb_wp: str = "HP"):
+    pt_cuts = [300, CUT_MAX_VAL]
+    txbb_cut = txbb_wps[year][txbb_cut]
 
-res_selection_regions_year = {
-    # "unblinded" regions:
-    "pass": {
-        "bbFatJetPt": [300, CUT_MAX_VAL],
-        "VVFatJetPt": [300, CUT_MAX_VAL],
-        "bbFatJetParticleNetMass": [110, 145],
-        "bbFatJetParticleNetMD_Txbb": [args.txbb_wp, CUT_MAX_VAL],
-        "VVFatJetParTMD_THWWvsT": [args.thww_wp, CUT_MAX_VAL],
-    },
-    "fail": {
-        "bbFatJetPt": [300, CUT_MAX_VAL],
-        "VVFatJetPt": [300, CUT_MAX_VAL],
-        "bbFatJetParticleNetMass": [110, 145],
-        "bbFatJetParticleNetMD_Txbb": [0.8, args.txbb_wp],
-        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, args.thww_wp],
-    },
-    # "blinded" validation regions:
-    "passBlinded": {
-        "bbFatJetPt": [300, CUT_MAX_VAL],
-        "VVFatJetPt": [300, CUT_MAX_VAL],
-        "bbFatJetParticleNetMass": [[92.5, 110], [145, 162.5]],
-        "bbFatJetParticleNetMD_Txbb": [args.txbb_wp, CUT_MAX_VAL],
-        "VVFatJetParTMD_THWWvsT": [args.thww_wp, CUT_MAX_VAL],
-    },
-    "failBlinded": {
-        "bbFatJetPt": [300, CUT_MAX_VAL],
-        "VVFatJetPt": [300, CUT_MAX_VAL],
-        "bbFatJetParticleNetMass": [[92.5, 110], [145, 162.5]],
-        "bbFatJetParticleNetMD_Txbb": [0.8, args.txbb_wp],
-        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, args.thww_wp],
-    },
-    "lpsf": {  # cut for which LP SF is calculated
-        "VVFatJetParTMD_THWWvsT": [args.thww_wp, CUT_MAX_VAL],
-    },
-}
-
-selection_regions_label = {
-    "pass": "Pass",
-    "fail": "Fail",
-    "BDTOnly": "BDT Cut",
-    "lpsf": "LP SF Cut",
-    "top": "Top",
-    "pass_valid": "Validation Pass",
-    "fail_valid": "Validation Fail",
-    "passBlinded": "Validation Pass",
-    "failBlinded": "Validation Fail",
-    "pass_valid_eveto": "Validation Pass + e Veto",
-    "fail_valid_eveto": "Validation Fail + e Veto",
-    "pass_valid_eveto_hwwvt": "Validation Pass, Cut on THWWvsT + e Veto",
-    "fail_valid_eveto_hwwvt": "Validation Fail, Cut on THWWvsT + e Veto",
-}
-
-nonres_selection_regions = {}
-
-for year in years:
-    sr = deepcopy(nonres_selection_regions_year)
-
-    for region in sr:
-        for cuts in sr[region]:
-            for i in range(2):
-                if sr[region][cuts][i] == "HP":
-                    sr[region][cuts][i] = txbb_wps[year]["HP"]
-
-    nonres_selection_regions[year] = sr
+    return {
+        # {label: {cutvar: [min, max], ...}, ...}
+        "pass": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "BDTScore": [bdt_cut, CUT_MAX_VAL],
+                "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
+            },
+            label="Pass",
+        ),
+        "fail": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
+            },
+            label="Fail",
+        ),
+        "lpsf": Region(
+            cuts={  # cut for which LP SF is calculated
+                "BDTScore": [bdt_cut, CUT_MAX_VAL],
+            },
+            label="LP SF Cut",
+        ),
+    }
 
 
-res_selection_regions = {}
+def get_res_selection_regions(
+    year: str, mass_window: List[float] = [110, 145], txbb_wp: str = "HP", thww_wp: float = 0.96
+):
+    pt_cuts = [300, CUT_MAX_VAL]
+    mwsize = mass_window[1] - mass_window[0]
+    mw_sidebands = [
+        [mass_window[0] - mwsize / 2, mass_window[0]],
+        [mass_window[1], mass_window + mwsize / 2],
+    ]
+    txbb_cut = txbb_wps[year][txbb_cut]
 
-for year in years:
-    sr = deepcopy(res_selection_regions_year)
+    return {
+        # "unblinded" regions:
+        "pass": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "bbFatJetParticleNetMass": mass_window,
+                "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
+                "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+            },
+            label="Pass",
+        ),
+        "fail": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "bbFatJetParticleNetMass": mass_window,
+                "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
+                "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, thww_wp],
+            },
+            label="Fail",
+        ),
+        # "blinded" validation regions:
+        "passBlinded": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "bbFatJetParticleNetMass": mw_sidebands,
+                "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
+                "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+            },
+            label="Validation Pass",
+        ),
+        "failBlinded": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "bbFatJetParticleNetMass": mw_sidebands,
+                "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
+                "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, thww_wp],
+            },
+            label="Validation Fail",
+        ),
+        # cut for which LP SF is calculated
+        "lpsf": Region(
+            cuts={"VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL]},
+            label="LP SF Cut",
+        ),
+    }
 
-    for region in sr:
-        for cuts in sr[region]:
-            for i in range(2):
-                if sr[region][cuts][i] == "HP":
-                    sr[region][cuts][i] = txbb_wps[year]["HP"]
-
-    res_selection_regions[year] = sr
-
-
-del year  # creates bugs later
 
 nonres_scan_regions = {}
 
@@ -383,19 +289,16 @@ res_shape_vars = [
 
 # TODO: check which of these applies to resonant as well
 weight_shifts = {
-    "pileup": nonres_sig_keys + res_sig_keys + bg_keys,
-    "PDFalphaS": nonres_sig_keys,
-    "ISRPartonShower": nonres_sig_keys + ["V+Jets"],
-    "FSRPartonShower": nonres_sig_keys + ["V+Jets"],
-    "L1EcalPrefiring": nonres_sig_keys + res_sig_keys + bg_keys,
+    "pileup": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup"),
+    "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
+    "ISRPartonShower": Syst(samples=nonres_sig_keys + ["V+Jets"], label="ISR Parton Shower"),
+    "FSRPartonShower": Syst(samples=nonres_sig_keys + ["V+Jets"], label="FSR Parton Shower"),
+    "L1EcalPrefiring": Syst(
+        samples=nonres_sig_keys + res_sig_keys + bg_keys,
+        years=["2016APV", "2016", "2017"],
+        label="L1 ECal Prefiring",
+    ),
     # "top_pt": ["TT"],
-}
-
-weight_labels = {
-    "pileup": "Pileup",
-    "PDFalphaS": "PDF",
-    "ISRPartonShower": "ISR Parton Shower",
-    "FSRPartonShower": "FSR Parton Shower",
 }
 
 
@@ -406,10 +309,12 @@ def main(args):
 
     if args.resonant:
         shape_vars = res_shape_vars
-        selection_regions = res_selection_regions
+        selection_regions = get_res_selection_regions(
+            args.year, txbb_wp=args.txbb_wp, thww_wp=args.thww_wp
+        )
     else:
         shape_vars = nonres_shape_vars
-        selection_regions = nonres_selection_regions
+        selection_regions = get_nonres_selection_regions(args.year, txbb_wp=args.txbb_wp)
         scan_regions = nonres_scan_regions
 
     sig_keys, sig_samples, bg_keys, samples = _process_samples(args)
@@ -418,6 +323,7 @@ def main(args):
     print("Sig samples: ", sig_samples)
     print("BG keys: ", bg_keys)
     print("Samples: ", samples)
+    print(f"Txbb WP: {args.txbb_wp}, THWW WP: {args.thww_wp}")
 
     all_samples = sig_samples | samples
 
@@ -496,7 +402,7 @@ def main(args):
                     sig_key,
                     args.signal_data_dir,
                     sig_samples,
-                    selection_regions,
+                    selection_regions["lpsf"],
                     bdt_preds_dir,
                     list(all_samples.keys()),
                 )
@@ -505,7 +411,7 @@ def main(args):
                 # calculate only for current year
                 events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
                 sel, cf = utils.make_selection(
-                    selection_regions[args.year]["lpsf"],
+                    selection_regions["lpsf"].cuts,
                     events_dict,
                     bb_masks,
                     prev_cutflow=cutflow,
@@ -938,7 +844,7 @@ def get_lpsf_all_years(
     sig_key: str,
     data_dir: str,
     samples: Dict,
-    selection_regions: Dict,
+    lp_region: Region,
     bdt_preds_dir: str = None,
     bdt_sample_order: List[str] = None,
 ):
@@ -999,7 +905,7 @@ def get_lpsf_all_years(
                     events["BDTScore"] = bdt_preds[i : i + num_events]
                     break
 
-        sel, _ = utils.make_selection(selection_regions[year]["lpsf"], events_dict, bb_masks)
+        sel, _ = utils.make_selection(lp_region.cuts, events_dict, bb_masks)
 
         events_all.append(events_dict[sig_key])
         sels_all.append(sel[sig_key])
@@ -1155,7 +1061,7 @@ def get_templates(
     bb_masks: Dict[str, pd.DataFrame],
     year: str,
     sig_keys: List[str],
-    selection_regions: Dict[str, Dict],
+    selection_regions: Dict[str, Region],
     shape_vars: List[ShapeVar],
     bg_keys: List[str] = bg_keys,
     plot_dir: str = "",
@@ -1165,7 +1071,6 @@ def get_templates(
     sig_splits: List[List[str]] = None,
     weight_shifts: Dict = {},
     jshift: str = "",
-    selection_regions_label: Dict = selection_regions_label,
     plot_shifts: bool = True,
     pass_ylim: int = None,
     fail_ylim: int = None,
@@ -1181,8 +1086,7 @@ def get_templates(
     (6) Saves a plot of each (if ``plot_dir`` is not "").
 
     Args:
-        selection_region (Dict[str, Dict]): Dictionary of cuts for each region
-          formatted as {region1: {cutvar1: [min, max], ...}, ...}.
+        selection_region (Dict[str, Dict]): Dictionary of ``Region``s including cuts and labels.
         bg_keys (list[str]): background keys to plot.
         cutstr (str): optional string to add to plot file names.
 
@@ -1194,36 +1098,34 @@ def get_templates(
     jlabel = "" if not do_jshift else "_" + jshift
     templates, systematics = {}, {}
 
-    print(bg_keys)
+    for rname, region in selection_regions.items():
+        pass_region = rname.startswith("pass")
 
-    for label, region in selection_regions.items():
-        pass_region = label.startswith("pass")
-
-        if label == "lpsf":
+        if rname == "lpsf":
             continue
 
         if not do_jshift:
-            print(label)
+            print(rname)
 
         # make selection, taking JEC/JMC variations into account
         sel, cf = utils.make_selection(
-            region, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
+            region.cuts, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
-        # if not do_jshift:
-        #     print("\nCutflow:\n", cf)
+        if not do_jshift:
+            print("\nCutflow:\n", cf)
 
         if plot_dir != "":
             cf.to_csv(
-                f"{plot_dir}{'/cutflows/' if jshift == '' else '/'}{label}_cutflow{jlabel}.csv"
+                f"{plot_dir}{'/cutflows/' if jshift == '' else '/'}{rname}_cutflow{jlabel}.csv"
             )
 
         if not do_jshift:
-            systematics[label] = {}
+            systematics[rname] = {}
 
             total, total_err = corrections.get_uncorr_trig_eff_unc(events_dict, bb_masks, year, sel)
 
-            systematics[label]["trig_total"] = total
-            systematics[label]["trig_total_err"] = total_err
+            systematics[rname]["trig_total"] = total
+            systematics[rname]["trig_total_err"] = total_err
 
             print(f"Trigger SF Unc.: {total_err / total:.3f}\n")
 
@@ -1245,10 +1147,11 @@ def get_templates(
                     for sig_key in sig_keys:
                         hist_samples.append(f"{sig_key}_txbb_{shift}")
 
-                for wshift, wsamples in weight_shifts.items():
-                    for wsample in wsamples:
-                        if wsample in events_dict:
-                            hist_samples.append(f"{wsample}_{wshift}_{shift}")
+                for wshift, wsyst in weight_shifts.items():
+                    if year in wsyst.years:
+                        for wsample in wsyst.samples:
+                            if wsample in events_dict:
+                                hist_samples.append(f"{wsample}_{wshift}_{shift}")
 
         h = Hist(
             hist.axis.StrCategory(hist_samples, name="Sample"),
@@ -1270,8 +1173,8 @@ def get_templates(
 
             if not do_jshift:
                 # add weight variations
-                for wshift, wsamples in weight_shifts.items():
-                    if sample in wsamples:
+                for wshift, wsyst in weight_shifts.items():
+                    if sample in wsyst.samples and year in wsyst.years:
                         # print(wshift)
                         for skey, shift in [("Down", "down"), ("Up", "up")]:
                             # reweight based on diff between up/down and nominal weights
@@ -1305,7 +1208,7 @@ def get_templates(
                         weight=sig_events[sig_key][f"{weight_key}_txbb_{shift}"],
                     )
 
-        templates[label + jlabel] = h
+        templates[rname + jlabel] = h
 
         # plot templates incl variations
         if plot_dir != "":
@@ -1313,9 +1216,9 @@ def get_templates(
                 sig_scale_dict = {"HHbbVV": 1, **{skey: 1 for skey in res_sig_keys}}
 
             if not do_jshift:
-                title = f"{selection_regions_label[label]} Region Pre-Fit Shapes"
+                title = f"{region.label} Region Pre-Fit Shapes"
             else:
-                title = f"{selection_regions_label[label]} Region {jshift} Shapes"
+                title = f"{region.label} Region {jshift} Shapes"
 
             if sig_splits is None:
                 sig_splits = [sig_keys]
@@ -1333,10 +1236,10 @@ def get_templates(
                         "show": show,
                         "year": year,
                         "ylim": pass_ylim if pass_region else fail_ylim,
-                        "plot_data": not (label == "pass" and blind_pass),
+                        "plot_data": not (rname == "pass" and blind_pass),
                     }
 
-                    plot_name = f"{plot_dir}/templates/{'jshifts/' if do_jshift else ''}{split_str}{cutstr}{label}_region_{shape_var.var}"
+                    plot_name = f"{plot_dir}/templates/{'jshifts/' if do_jshift else ''}{split_str}{cutstr}{rname}_region_{shape_var.var}"
 
                     plotting.ratioHistPlot(
                         **plot_params,
@@ -1345,24 +1248,22 @@ def get_templates(
                     )
 
                     if not do_jshift and plot_shifts:
-                        plot_name = f"{plot_dir}/templates/wshifts/{split_str}{cutstr}{label}_region_{shape_var.var}"
+                        plot_name = f"{plot_dir}/templates/wshifts/{split_str}{cutstr}{rname}_region_{shape_var.var}"
 
-                        for wshift, wsamples in weight_shifts.items():
-                            wlabel = weight_labels[wshift]
-
-                            if wsamples == [sig_key]:
+                        for wshift, wsyst in weight_shifts.items():
+                            if wsyst.samples == [sig_key]:
                                 plotting.ratioHistPlot(
                                     **plot_params,
                                     sig_err=wshift,
-                                    title=f"{selection_regions_label[label]} Region {wlabel} Unc. Shapes",
+                                    title=f"{region.label} Region {wsyst.label} Unc. Shapes",
                                     name=f"{plot_name}_{wshift}.pdf",
                                 )
                             else:
                                 for skey, shift in [("Down", "down"), ("Up", "up")]:
                                     plotting.ratioHistPlot(
                                         **plot_params,
-                                        variation=(wshift, shift, wsamples),
-                                        title=f"{selection_regions_label[label]} Region {wlabel} Unc. {skey} Shapes",
+                                        variation=(wshift, shift, wsyst.samples),
+                                        title=f"{region.label} Region {wsyst.label} Unc. {skey} Shapes",
                                         name=f"{plot_name}_{wshift}_{shift}.pdf",
                                     )
 
@@ -1370,7 +1271,7 @@ def get_templates(
                             plotting.ratioHistPlot(
                                 **plot_params,
                                 sig_err="txbb",
-                                title=rf"{selection_regions_label[label]} Region $T_{{Xbb}}$ Shapes",
+                                title=rf"{region.label} Region $T_{{Xbb}}$ Shapes",
                                 name=f"{plot_name}_txbb.pdf",
                             )
 
@@ -1398,4 +1299,107 @@ def save_templates(
     print("Saved templates to", template_file)
 
 
-main(args)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--data-dir",
+        default="../../../../data/skimmer/Feb24/",
+        help="path to skimmed parquet",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--signal-data-dir",
+        default="",
+        help="path to skimmed signal parquets, if different from other data",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--year",
+        default="2017",
+        choices=["2016", "2016APV", "2017", "2018"],
+        type=str,
+    )
+
+    parser.add_argument(
+        "--bdt-preds",
+        help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
+        default="",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--plot-dir",
+        help="If making control or template plots, path to directory to save them in",
+        default="",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--template-dir",
+        help="If saving templates, path to file to save them in. If scanning, directory to save in.",
+        default="",
+        type=str,
+    )
+
+    utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
+    utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
+    utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
+    utils.add_bool_arg(
+        parser, "overwrite-template", "if template file already exists, overwrite it", default=False
+    )
+    utils.add_bool_arg(parser, "scan", "Scan BDT + Txbb cuts and save templates", default=False)
+    utils.add_bool_arg(parser, "plot-shifts", "Plot systematic variations as well", default=False)
+    utils.add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
+
+    parser.add_argument(
+        "--sig-samples",
+        help="specify signal samples",
+        nargs="*",
+        default=[],
+        type=str,
+    )
+
+    parser.add_argument(
+        "--bg-keys",
+        help="specify background samples",
+        nargs="*",
+        default=["QCD", "TT", "ST", "V+Jets"],
+        type=str,
+    )
+
+    utils.add_bool_arg(
+        parser, "read-sig-samples", "read signal samples from directory", default=False
+    )
+
+    utils.add_bool_arg(parser, "data", "include data", default=True)
+
+    utils.add_bool_arg(parser, "old-processor", "temp arg for old processed samples", default=False)
+
+    parser.add_argument(
+        "--txbb-wp",
+        help="txbb WP for signal region",
+        default="HP",
+        choices=["LP", "MP", "HP"],
+        type=str,
+    )
+
+    parser.add_argument(
+        "--thww-wp",
+        help="thww WP for signal region",
+        default=0.96,
+        type=float,
+    )
+
+    args = parser.parse_args()
+
+    if args.template_dir == "":
+        print("Need to set --template-dir. Exiting.")
+        sys.exit()
+
+    if args.signal_data_dir == "":
+        args.signal_data_dir = args.data_dir
+
+    main(args)
