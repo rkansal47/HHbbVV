@@ -26,10 +26,9 @@ samples = OrderedDict(
         ("ST", "ST"),
         ("V+Jets", ("WJets", "ZJets")),
         ("Diboson", ("WW", "WZ", "ZZ")),
-        # ("VH(bb)", ("HToBB_WToQQ", "HToBB_ZToQQ")),
-        # ("Hbb", ("GluGluToHToBB", "VBFToHToBB", "ttHToBB")),
-        # ("Hbb", "HToBB"),
-        # ("HWW", ("HToWW", "HToNonbb")),
+        ("Hbb", "*HToBB"),
+        ("HWW", ("*HToWW", "*HToNonbb")),
+        ("HH", ("VBF_HHTobbVV_CV_1_C2V_1_C3_1", "GluGluToHHTo4B_node_cHHH1_preUL")),
         ("Data", "JetHT"),
     ]
 )

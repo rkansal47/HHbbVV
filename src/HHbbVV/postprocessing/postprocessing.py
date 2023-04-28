@@ -50,6 +50,8 @@ from pprint import pprint
 from copy import deepcopy
 import warnings
 
+import argparse
+
 
 # ignore these because they don't seem to apply
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
@@ -83,6 +85,107 @@ class ShapeVar:
             self.axis = hist.axis.Regular(*bins, name=var, label=label)
         else:
             self.axis = hist.axis.Variable(bins, name=var, label=label)
+
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument(
+    "--data-dir",
+    default="../../../../data/skimmer/Feb24/",
+    help="path to skimmed parquet",
+    type=str,
+)
+
+parser.add_argument(
+    "--signal-data-dir",
+    default="",
+    help="path to skimmed signal parquets, if different from other data",
+    type=str,
+)
+
+parser.add_argument(
+    "--year",
+    default="2017",
+    choices=["2016", "2016APV", "2017", "2018"],
+    type=str,
+)
+
+parser.add_argument(
+    "--bdt-preds",
+    help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
+    default="",
+    type=str,
+)
+
+parser.add_argument(
+    "--plot-dir",
+    help="If making control or template plots, path to directory to save them in",
+    default="",
+    type=str,
+)
+
+parser.add_argument(
+    "--template-dir",
+    help="If saving templates, path to file to save them in. If scanning, directory to save in.",
+    default="",
+    type=str,
+)
+
+utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
+utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
+utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
+utils.add_bool_arg(
+    parser, "overwrite-template", "if template file already exists, overwrite it", default=False
+)
+utils.add_bool_arg(parser, "scan", "Scan BDT + Txbb cuts and save templates", default=False)
+utils.add_bool_arg(parser, "plot-shifts", "Plot systematic variations as well", default=False)
+utils.add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
+
+parser.add_argument(
+    "--sig-samples",
+    help="specify signal samples",
+    nargs="*",
+    default=[],
+    type=str,
+)
+
+parser.add_argument(
+    "--bg-keys",
+    help="specify background samples",
+    nargs="*",
+    default=["QCD", "TT", "ST", "V+Jets"],
+    type=str,
+)
+
+utils.add_bool_arg(parser, "read-sig-samples", "read signal samples from directory", default=False)
+
+utils.add_bool_arg(parser, "data", "include data", default=True)
+
+utils.add_bool_arg(parser, "old-processor", "temp arg for old processed samples", default=False)
+
+parser.add_argument(
+    "--txbb-wp",
+    help="txbb WP for signal region",
+    default="HP",
+    choices=["LP", "MP", "HP"],
+    type=str,
+)
+
+parser.add_argument(
+    "--thww-wp",
+    help="thww WP for signal region",
+    default=0.96,
+    type=float,
+)
+
+args = parser.parse_args()
+
+if args.template_dir == "":
+    print("Need to set --template-dir. Exiting.")
+    sys.exit()
+
+if args.signal_data_dir == "":
+    args.signal_data_dir = args.data_dir
 
 
 # Both Jet's Regressed Mass above 50, electron veto included in new samples
@@ -157,33 +260,33 @@ res_selection_regions_year = {
         "bbFatJetPt": [300, CUT_MAX_VAL],
         "VVFatJetPt": [300, CUT_MAX_VAL],
         "bbFatJetParticleNetMass": [110, 145],
-        "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
-        "VVFatJetParTMD_THWWvsT": [0.96, CUT_MAX_VAL],
+        "bbFatJetParticleNetMD_Txbb": [args.txbb_wp, CUT_MAX_VAL],
+        "VVFatJetParTMD_THWWvsT": [args.thww_wp, CUT_MAX_VAL],
     },
     "fail": {
         "bbFatJetPt": [300, CUT_MAX_VAL],
         "VVFatJetPt": [300, CUT_MAX_VAL],
         "bbFatJetParticleNetMass": [110, 145],
-        "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
-        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, 0.96],
+        "bbFatJetParticleNetMD_Txbb": [0.8, args.txbb_wp],
+        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, args.thww_wp],
     },
     # "blinded" validation regions:
     "passBlinded": {
         "bbFatJetPt": [300, CUT_MAX_VAL],
         "VVFatJetPt": [300, CUT_MAX_VAL],
         "bbFatJetParticleNetMass": [[92.5, 110], [145, 162.5]],
-        "bbFatJetParticleNetMD_Txbb": ["HP", CUT_MAX_VAL],
-        "VVFatJetParTMD_THWWvsT": [0.96, CUT_MAX_VAL],
+        "bbFatJetParticleNetMD_Txbb": [args.txbb_wp, CUT_MAX_VAL],
+        "VVFatJetParTMD_THWWvsT": [args.thww_wp, CUT_MAX_VAL],
     },
     "failBlinded": {
         "bbFatJetPt": [300, CUT_MAX_VAL],
         "VVFatJetPt": [300, CUT_MAX_VAL],
         "bbFatJetParticleNetMass": [[92.5, 110], [145, 162.5]],
-        "bbFatJetParticleNetMD_Txbb": [0.8, "HP"],
-        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, 0.96],
+        "bbFatJetParticleNetMD_Txbb": [0.8, args.txbb_wp],
+        "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, args.thww_wp],
     },
     "lpsf": {  # cut for which LP SF is calculated
-        "VVFatJetParTMD_THWWvsT": [0.96, CUT_MAX_VAL],
+        "VVFatJetParTMD_THWWvsT": [args.thww_wp, CUT_MAX_VAL],
     },
 }
 
@@ -1295,95 +1398,4 @@ def save_templates(
     print("Saved templates to", template_file)
 
 
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--data-dir",
-        default="../../../../data/skimmer/Feb24/",
-        help="path to skimmed parquet",
-        type=str,
-    )
-
-    parser.add_argument(
-        "--signal-data-dir",
-        default="",
-        help="path to skimmed signal parquets, if different from other data",
-        type=str,
-    )
-
-    parser.add_argument(
-        "--year",
-        default="2017",
-        choices=["2016", "2016APV", "2017", "2018"],
-        type=str,
-    )
-
-    parser.add_argument(
-        "--bdt-preds",
-        help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
-        default="",
-        type=str,
-    )
-
-    parser.add_argument(
-        "--plot-dir",
-        help="If making control or template plots, path to directory to save them in",
-        default="",
-        type=str,
-    )
-
-    parser.add_argument(
-        "--template-dir",
-        help="If saving templates, path to file to save them in. If scanning, directory to save in.",
-        default="",
-        type=str,
-    )
-
-    utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
-    utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
-    utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
-    utils.add_bool_arg(
-        parser, "overwrite-template", "if template file already exists, overwrite it", default=False
-    )
-    utils.add_bool_arg(parser, "scan", "Scan BDT + Txbb cuts and save templates", default=False)
-    utils.add_bool_arg(parser, "plot-shifts", "Plot systematic variations as well", default=False)
-
-    utils.add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
-
-    parser.add_argument(
-        "--sig-samples",
-        help="specify signal samples",
-        nargs="*",
-        default=[],
-        type=str,
-    )
-
-    parser.add_argument(
-        "--bg-keys",
-        help="specify background samples",
-        nargs="*",
-        default=[],
-        type=str,
-    )
-
-    utils.add_bool_arg(
-        parser, "read-sig-samples", "read signal samples from directory", default=False
-    )
-
-    utils.add_bool_arg(parser, "data", "include data", default=True)
-
-    utils.add_bool_arg(parser, "old-processor", "temp arg for old processed samples", default=False)
-
-    args = parser.parse_args()
-
-    if args.template_dir == "":
-        print("Need to set --template-dir. Exiting.")
-        sys.exit()
-
-    if args.signal_data_dir == "":
-        args.signal_data_dir = args.data_dir
-
-    main(args)
+main(args)
