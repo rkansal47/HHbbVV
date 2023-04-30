@@ -365,7 +365,11 @@ def main(args):
 
         for jshift in [""] + jec_shifts + jmsr_shifts:
             print(jshift)
-            plot_dir = f"{args.plot_dir}/templates/" f"{'jshifts/' if jshift != '' else ''}"
+            plot_dir = (
+                f"{args.plot_dir}/templates/" f"{'jshifts/' if jshift != '' else ''}"
+                if args.plot_dir != ""
+                else ""
+            )
             temps = get_templates(
                 events_dict,
                 bb_masks,
