@@ -310,6 +310,7 @@ def main(args):
     if "finalWeight_noTrigEffs" not in events_dict[list(events_dict.keys())[0]]:
         # trigger effs (if not already from processor)
         apply_weights(events_dict, args.year, cutflow)
+        print("\nCutflow\n", cutflow)
         # THWW score vs Top (if not already from processor)
         derive_variables(events_dict)
 
@@ -376,6 +377,7 @@ def main(args):
                 bdt_preds_dir,
                 systematics,
                 systs_file,
+                template_dir,
             )
 
             # Check for 0 weights - would be an issue for weight shifts
@@ -628,6 +630,9 @@ def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataF
 def derive_variables(events_dict: Dict[str, pd.DataFrame]):
     """Add HWW vs (QCD + Top) discriminant"""
     for sample, events in events_dict.items():
+        if "VVFatJetParTMD_THWWvsT" in events:
+            continue
+
         h4qvst = (events["ak8FatJetParTMD_probHWW3q"] + events["ak8FatJetParTMD_probHWW4q"]) / (
             events["ak8FatJetParTMD_probHWW3q"]
             + events["ak8FatJetParTMD_probHWW4q"]
@@ -696,6 +701,8 @@ def get_lpsf_all_years(
     load_columns = [
         ("weight", 1),
         ("weight_noTrigEffs", 1),
+        ("ak8FatJetPt", 2),
+        ("ak8FatJetMsd", 2),
         ("ak8FatJetHVV", 2),
         ("ak8FatJetHVVNumProngs", 1),
         ("ak8FatJetParticleNetMD_Txbb", 2),
@@ -768,6 +775,7 @@ def _lpsfs(
     bdt_preds_dir,
     systematics,
     systs_file,
+    template_dir,
 ):
     """
     1) Calculates LP SFs for each signal, if not already in ``systematics``
@@ -816,7 +824,7 @@ def _lpsfs(
             for key in sf_table[sig_key]:
                 sf_df[key] = [sf_table[skey][key] for skey in sig_keys]
 
-            sf_df.to_csv(f"{args.template_dir}/lpsfs.csv")
+            sf_df.to_csv(f"{template_dir}/lpsfs.csv")
 
     with open(systs_file, "w") as f:
         json.dump(systematics, f)

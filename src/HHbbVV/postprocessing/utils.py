@@ -206,7 +206,7 @@ def load_samples(
                     events["weight_nonorm"] = events["weight"]
 
                     if "weight_noTrigEffs" in events and not np.all(
-                        np.isclose(events["weight"], events["weight_noTrigEffs"], rtol=1e-4)
+                        np.isclose(events["weight"], events["weight_noTrigEffs"], rtol=1e-5)
                     ):
                         events["finalWeight"] = events["weight"] / n_events
                         events["finalWeight_noTrigEffs"] = events["weight_noTrigEffs"] / n_events

@@ -78,6 +78,7 @@ parser.add_argument(
     help="input pickle file of dict of hist.Hist templates",
 )
 add_bool_arg(parser, "sig-separate", "separate templates for signals and bgs", default=False)
+add_bool_arg(parser, "do-jshifts", "Do JEC/JMC corrections.", default=True)
 
 parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
 
@@ -90,13 +91,13 @@ parser.add_argument(
 
 parser.add_argument(
     "--nTF1",
-    default=2,
+    default=0,
     type=int,
     help="order of polynomial for TF in dim 1",
 )
 parser.add_argument(
     "--nTF2",
-    default=2,
+    default=1,
     type=int,
     help="order of polynomial for TF in dim 2 (if 2D)",
 )
@@ -233,6 +234,13 @@ uncorr_year_shape_systs = {
     "JMS": Syst(name="CMS_bbWW_boosted_ggf_jms", prior="shape", samples=all_mc),
     "JMR": Syst(name="CMS_bbWW_boosted_ggf_jmr", prior="shape", samples=all_mc),
 }
+
+if args.no_do_jshifts:
+    del corr_year_shape_systs["JES"]
+    del uncorr_year_shape_systs["JER"]
+    del uncorr_year_shape_systs["JMS"]
+    del uncorr_year_shape_systs["JMR"]
+
 
 shape_systs_dict = {}
 for skey, syst in corr_year_shape_systs.items():
