@@ -170,13 +170,15 @@ def ratioHistPlot(
         label=bg_labels,
         color=bg_colours,
     )
-    hep.histplot(
-        [hists[sig_key, :] * sig_scale for sig_key, sig_scale in sig_scale_dict.items()],
-        ax=ax,
-        histtype="step",
-        label=list(sig_labels.values()),
-        color=sig_colours[: len(sig_keys)],
-    )
+
+    if len(sig_scale_dict):
+        hep.histplot(
+            [hists[sig_key, :] * sig_scale for sig_key, sig_scale in sig_scale_dict.items()],
+            ax=ax,
+            histtype="step",
+            label=list(sig_labels.values()),
+            color=sig_colours[: len(sig_keys)],
+        )
 
     if type(sig_err) == str:
         scolours = {"down": colours["lightred"], "up": colours["darkred"]}

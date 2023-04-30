@@ -31,6 +31,7 @@ from inspect import cleandoc
 from textwrap import dedent
 
 import corrections
+from corrections import postprocess_lpsfs, get_lpsf
 from hh_vars import (
     years,
     nonres_sig_keys,
@@ -150,7 +151,7 @@ control_plot_vars = {
 
 def get_nonres_selection_regions(year: str, bdt_cut: float = 0.99, txbb_wp: str = "HP"):
     pt_cuts = [300, CUT_MAX_VAL]
-    txbb_cut = txbb_wps[year][txbb_cut]
+    txbb_cut = txbb_wps[year][txbb_wp]
 
     return {
         # {label: {cutvar: [min, max], ...}, ...}
@@ -187,9 +188,9 @@ def get_res_selection_regions(
     mwsize = mass_window[1] - mass_window[0]
     mw_sidebands = [
         [mass_window[0] - mwsize / 2, mass_window[0]],
-        [mass_window[1], mass_window + mwsize / 2],
+        [mass_window[1], mass_window[1] + mwsize / 2],
     ]
-    txbb_cut = txbb_wps[year][txbb_cut]
+    txbb_cut = txbb_wps[year][txbb_wp]
 
     return {
         # "unblinded" regions:
@@ -242,22 +243,6 @@ def get_res_selection_regions(
     }
 
 
-nonres_scan_regions = {}
-
-for bdtcut in np.arange(0.97, 1, 0.002):
-    for bbcut in np.arange(0.97, 1, 0.002):
-        cutstr = f"bdtcut_{bdtcut}_bbcut_{bbcut}"
-        nonres_scan_regions[cutstr] = {
-            "passCat1": {
-                "BDTScore": [bdtcut, CUT_MAX_VAL],
-                "bbFatJetParticleNetMD_Txbb": [bbcut, CUT_MAX_VAL],
-            },
-            "fail": {
-                "bbFatJetParticleNetMD_Txbb": [0.8, bbcut],
-            },
-        }
-
-
 # fitting on bb regressed mass for nonresonant
 nonres_shape_vars = [
     ShapeVar(
@@ -303,65 +288,28 @@ weight_shifts = {
 
 
 def main(args):
-    if not (args.control_plots or args.templates or args.scan):
-        print("You need to pass at least one of --control-plots, --templates, or --scan")
-        return
-
-    if args.resonant:
-        shape_vars = res_shape_vars
-        selection_regions = get_res_selection_regions(
-            args.year, txbb_wp=args.txbb_wp, thww_wp=args.thww_wp
-        )
-    else:
-        shape_vars = nonres_shape_vars
-        selection_regions = get_nonres_selection_regions(args.year, txbb_wp=args.txbb_wp)
-        scan_regions = nonres_scan_regions
-
-    sig_keys, sig_samples, bg_keys, samples = _process_samples(args)
-
-    print("Sig keys: ", sig_keys)
-    print("Sig samples: ", sig_samples)
-    print("BG keys: ", bg_keys)
-    print("Samples: ", samples)
-    print(f"Txbb WP: {args.txbb_wp}, THWW WP: {args.thww_wp}")
-
-    all_samples = sig_samples | samples
-
-    # make plot, template dirs if needed
-    _make_dirs(args)
-
-    systs_file = f"{args.template_dir}/systematics.json"
-
-    # save cutflow as pandas table
-    cutflow = pd.DataFrame(index=list(all_samples.keys()))
-    # load pre-calculated systematics and those for different years if saved already
-    systematics = _check_load_systematics(systs_file)
+    shape_vars, selection_regions = _init(args)
+    sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args)
+    all_samples = sig_samples | bg_samples
+    _make_dirs(args)  # make plot, template dirs if needed
+    cutflow = pd.DataFrame(index=list(all_samples.keys()))  # save cutflow as pandas table
 
     # utils.remove_empty_parquets(samples_dir, year)
-    filters = old_filters if args.old_processor else new_filters
-    events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
-    if len(samples):
-        events_dict |= utils.load_samples(args.data_dir, samples, args.year, filters)
-    utils.add_to_cutflow(events_dict, "Pre-selection", "weight", cutflow)
-
-    print("")
-    # print weighted sample yields
-    wkey = "finalWeight" if "finalWeight" in list(events_dict.values())[0] else "weight"
-    for sample in events_dict:
-        tot_weight = np.sum(events_dict[sample][wkey].values)
-        print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
-
+    events_dict = _load_samples(args, bg_samples, sig_samples, cutflow)
     bb_masks = bb_VV_assignment(events_dict)
 
-    if "finalWeight_noTrigEffs" not in events_dict[sample]:
+    if "finalWeight_noTrigEffs" not in events_dict[list(events_dict.keys())[0]]:
+        # trigger effs (if not already from processor)
         apply_weights(events_dict, args.year, cutflow)
+        # THWW score vs Top (if not already from processor)
         derive_variables(events_dict)
 
     if args.plot_dir != "":
-        cutflow.to_csv(f"{args.plot_dir}/cutflows/bdt_cutflow.csv")
+        cutflow.to_csv(f"{args.plot_dir}/preselection_cutflow.csv")
 
     print("\nCutflow\n", cutflow)
 
+    # Load BDT Scores
     bdt_preds_dir = None
     if not args.resonant:
         print("\nLoading BDT predictions")
@@ -375,6 +323,7 @@ def main(args):
         )
         print("Loaded BDT preds\n")
 
+    # Control plots
     if args.control_plots:
         print("\nMaking control plots\n")
         control_plots(
@@ -388,87 +337,44 @@ def main(args):
             show=False,
         )
 
-    # LP SF
-    for sig_key in sig_keys:
-        sf_table = OrderedDict()  # format SFs for each sig key in a table
-        if sig_key not in systematics or "lp_sf" not in systematics[sig_key]:
-            print(f"\nGetting LP SFs for {sig_key}")
-
-            systematics[sig_key] = {}
-
-            if args.lp_sf_all_years:
-                lp_sf, unc, uncs = get_lpsf_all_years(
-                    events_dict,
-                    sig_key,
-                    args.signal_data_dir,
-                    sig_samples,
-                    selection_regions["lpsf"],
-                    bdt_preds_dir,
-                    list(all_samples.keys()),
-                )
-            else:
-                raise RuntimeWarning(f"LP SF only calculated from {args.year} samples")
-                # calculate only for current year
-                events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
-                sel, cf = utils.make_selection(
-                    selection_regions["lpsf"].cuts,
-                    events_dict,
-                    bb_masks,
-                    prev_cutflow=cutflow,
-                )
-                lp_sf, unc, uncs = get_lpsf(events_dict[sig_key], sel[sig_key])
-
-            print(f"BDT LP Scale Factor for {sig_key}: {lp_sf:.2f} ± {unc:.2f}")
-
-            systematics[sig_key]["lp_sf"] = lp_sf
-            systematics[sig_key]["lp_sf_unc"] = unc / lp_sf
-
-            sf_table[sig_key] = {"SF": f"{lp_sf:.2f} ± {unc:.2f}", **uncs}
-
-        if len(sf_table):
-            sf_df = pd.DataFrame(index=sig_keys)
-            for key in sf_table[sig_key]:
-                sf_df[key] = [sf_table[skey][key] for skey in sig_keys]
-
-            sf_df.to_csv(f"{args.template_dir}/lpsfs.csv")
-
-    with open(systs_file, "w") as f:
-        json.dump(systematics, f)
-
-    # scale signal by LP SF
-    for wkey in ["finalWeight", "finalWeight_noTrigEffs"]:
-        for sig_key in sig_keys:
-            events_dict[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
-
-    utils.add_to_cutflow(events_dict, "LP SF", "finalWeight", cutflow)
-
-    # Check for 0 weights - would be an issue for weight shifts
-    check_weights(events_dict)
-
     if args.templates:
-        print("\nMaking templates")
+        # load pre-calculated systematics and those for different years if saved already
+        systs_file = f"{args.template_dir}/systematics.json"
+        systematics = _check_load_systematics(systs_file, args.year)
 
+        # Lund plane SFs
+        _lpsfs(
+            args,
+            events_dict,
+            bb_masks,
+            sig_keys,
+            sig_samples,
+            cutflow,
+            all_samples,
+            selection_regions,
+            bdt_preds_dir,
+            systematics,
+            systs_file,
+        )
+
+        # Check for 0 weights - would be an issue for weight shifts
+        check_weights(events_dict)
+
+        print("\nMaking templates")
         templates = {}
 
         for jshift in [""] + jec_shifts + jmsr_shifts:
             print(jshift)
-
-            if jshift != "":
-                if args.plot_shifts:
-                    plot_dir = f"{args.plot_dir}/jshifts/"
-                else:
-                    plot_dir = ""
-            else:
-                plot_dir = args.plot_dir
-
-            ttemps, tsyst = get_templates(
+            plot_dir = f"{args.plot_dir}/templates/" f"{'jshifts/' if jshift != '' else ''}"
+            temps = get_templates(
                 events_dict,
                 bb_masks,
                 args.year,
                 sig_keys,
-                selection_regions[args.year],
+                selection_regions,
                 shape_vars,
-                # bg_keys=["QCD", "TT", "V+Jets"],
+                systematics,
+                bg_keys=bg_keys,
                 plot_dir=plot_dir,
                 prev_cutflow=cutflow,
                 # sig_splits=sig_splits,
@@ -478,10 +384,7 @@ def main(args):
                 show=False,
                 plot_shifts=args.plot_shifts,
             )
-
-            templates = {**templates, **ttemps}
-            if jshift == "":
-                systematics[args.year] = tsyst
+            templates = {**templates, **temps}
 
         print("\nSaving templates")
         save_templates(
@@ -491,37 +394,31 @@ def main(args):
         with open(systs_file, "w") as f:
             json.dump(systematics, f)
 
-    if args.scan:
-        os.system(f"mkdir -p {args.template_file}")
 
-        templates = {}
+def _init(args):
+    if not (args.control_plots or args.templates or args.scan):
+        print("You need to pass at least one of --control-plots, --templates, or --scan")
+        return
 
-        for cutstr, region in scan_regions.items():
-            print(cutstr)
-            templates[cutstr] = get_templates(
-                events_dict,
-                bb_masks,
-                args.year,
-                region,
-                shape_vars,
-                plot_dir=args.plot_dir,
-                prev_cutflow=cutflow,
-                cutstr=cutstr,
-            )
-            save_templates(
-                templates[cutstr], f"{args.template_dir}/{cutstr}.pkl", args.resonant, shape_vars
-            )
+    if args.resonant:
+        shape_vars = res_shape_vars
+        selection_regions = get_res_selection_regions(
+            args.year, txbb_wp=args.txbb_wp, thww_wp=args.thww_wp
+        )
+    else:
+        shape_vars = nonres_shape_vars
+        selection_regions = get_nonres_selection_regions(args.year, txbb_wp=args.txbb_wp)
+
+    print(f"Txbb WP: {args.txbb_wp}, THWW WP: {args.thww_wp}")
+
+    return shape_vars, selection_regions
 
 
 def _process_samples(args):
-    if args.resonant:
-        sig_keys = res_sig_keys
-        sig_samples = res_samples
-    else:
-        sig_keys = nonres_sig_keys
-        sig_samples = nonres_samples
+    sig_samples = res_samples if args.resonant else nonres_samples
 
     if args.read_sig_samples:
+        # read all signal samples in directory
         read_year = args.year if args.year != "all" else "2017"
         read_samples = os.listdir(f"{args.signal_data_dir}/{args.year}")
         sig_samples = OrderedDict()
@@ -532,39 +429,41 @@ def _process_samples(args):
 
                 sig_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = sample
 
-        sig_keys = list(sig_samples.keys())
-
-    if len(args.sig_samples):
+    if args.sig_samples is not None:
         for sig_key, sample in list(sig_samples.items()):
             if sample not in args.sig_samples:
                 del sig_samples[sig_key]
-                sig_keys.remove(sig_key)
 
-    if len(args.bg_keys):
-        for bg_key, sample in list(samples.items()):
-            if bg_key not in args.bg_keys and bg_key != data_key:
-                del samples[bg_key]
-                bg_keys.remove(bg_key)
+    bg_samples = deepcopy(samples)
+    for bg_key, sample in list(bg_samples.items()):
+        if bg_key not in args.bg_keys and bg_key != data_key:
+            del bg_samples[bg_key]
 
     if not args.data:
-        del samples[data_key]
+        del bg_samples[data_key]
 
-    return sig_keys, sig_samples, bg_keys, samples
+    sig_keys = list(sig_samples.keys())
+    bg_keys = list(bg_samples.keys())
+
+    print("Sig keys: ", sig_keys)
+    print("Sig samples: ", sig_samples)
+    print("BG keys: ", bg_keys)
+    print("BG Samples: ", bg_samples)
+
+    return sig_keys, sig_samples, bg_keys, bg_samples
 
 
 def _make_dirs(args):
     if args.plot_dir != "":
         args.plot_dir = f"{args.plot_dir}/{args.year}/"
-        os.system(f"mkdir -p {args.plot_dir}/cutflows/")
+        os.system(f"mkdir -p {args.plot_dir}")
 
         if args.control_plots:
             os.system(f"mkdir -p {args.plot_dir}/control_plots/")
 
         os.system(f"mkdir -p {args.plot_dir}/templates/")
-
-        if args.plot_shifts:
-            os.system(f"mkdir -p {args.plot_dir}/templates/wshifts")
-            os.system(f"mkdir -p {args.plot_dir}/templates/jshifts")
+        os.system(f"mkdir -p {args.plot_dir}/templates/wshifts")
+        os.system(f"mkdir -p {args.plot_dir}/templates/jshifts")
 
         if args.resonant:
             os.system(f"mkdir -p {args.plot_dir}/templates/hists2d")
@@ -573,7 +472,7 @@ def _make_dirs(args):
         os.system(f"mkdir -p {args.template_dir}")
 
 
-def _check_load_systematics(systs_file: str):
+def _check_load_systematics(systs_file: str, year: str):
     if os.path.exists(systs_file):
         print("Loading systematics")
         with open(systs_file, "r") as f:
@@ -581,7 +480,26 @@ def _check_load_systematics(systs_file: str):
     else:
         systematics = {}
 
+    if year not in systematics:
+        systematics[year] = {}
+
     return systematics
+
+
+def _load_samples(args, samples, sig_samples, cutflow):
+    filters = old_filters if args.old_processor else new_filters
+    events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
+    events_dict |= utils.load_samples(args.data_dir, samples, args.year, filters)
+    utils.add_to_cutflow(events_dict, "Pre-selection", "weight", cutflow)
+
+    print("")
+    # print weighted sample yields
+    wkey = "finalWeight" if "finalWeight" in list(events_dict.values())[0] else "weight"
+    for sample in events_dict:
+        tot_weight = np.sum(events_dict[sample][wkey].values)
+        print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
+
+    return events_dict
 
 
 def apply_weights(
@@ -682,161 +600,43 @@ def derive_variables(events_dict: Dict[str, pd.DataFrame]):
         )
 
 
-def postprocess_lpsfs(
-    events: pd.DataFrame,
-    num_jets: int = 2,
-    num_lp_sf_toys: int = 100,
-    save_all: bool = True,
-    weight_key: str = "finalWeight",
+def load_bdt_preds(
+    events_dict: Dict[str, pd.DataFrame],
+    year: str,
+    bdt_preds_dir: str,
+    bdt_sample_order: List[str],
+    jec_jmsr_shifts: bool = False,
 ):
     """
-    (1) Splits LP SFs into bb and VV based on gen matching.
-    (2) Sets defaults for unmatched jets.
-    (3) Cuts of SFs at 10 and normalises.
+    Loads the BDT scores for each event and saves in the dataframe in the "BDTScore" column.
+    If ``jec_jmsr_shifts``, also loads BDT preds for every JEC / JMSR shift in MC.
+
+    Args:
+        bdt_preds (str): Path to the bdt_preds .npy file.
+        bdt_sample_order (List[str]): Order of samples in the predictions file.
+
     """
+    bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
 
-    # for jet in ["bb", "VV"]:
-    for jet in ["VV"]:
-        # temp dict
-        td = {}
+    if jec_jmsr_shifts:
+        shift_preds = {
+            jshift: np.load(f"{bdt_preds_dir}/{year}/preds_{jshift}.npy")
+            for jshift in jec_shifts + jmsr_shifts
+        }
 
-        # defaults of 1 for jets which aren't matched to anything - i.e. no SF
-        for key in ["lp_sf_nom", "lp_sf_sys_down", "lp_sf_sys_up"]:
-            td[key] = np.ones(len(events))
+    i = 0
+    for sample in bdt_sample_order:
+        events = events_dict[sample]
+        num_events = len(events)
+        events["BDTScore"] = bdt_preds[i : i + num_events]
 
-        td["lp_sf_toys"] = np.ones((len(events), num_lp_sf_toys))
+        if jec_jmsr_shifts and sample != data_key:
+            for jshift in jec_shifts + jmsr_shifts:
+                events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events]
 
-        # defaults of 0 - i.e. don't contribute to unc.
-        for key in ["lp_sf_double_matched_event", "lp_sf_unmatched_quarks", "lp_sf_num_sjpt_gt350"]:
-            td[key] = np.zeros(len(events))
+        i += num_events
 
-        # lp sfs saved for both jets
-        if events["lp_sf_sys_up"].shape[1] == 2:
-            # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
-            events.loc[np.sum(events[f"ak8FatJetH{jet}"], axis=1) > 1, f"ak8FatJetH{jet}"] = 0
-            jet_match = events[f"ak8FatJetH{jet}"].astype(bool)
-
-            # fill values from matched jets
-            for j in range(num_jets):
-                offset = num_lp_sf_toys + 1
-                td["lp_sf_nom"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]][j * offset]
-                td["lp_sf_toys"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]].loc[
-                    :, j * offset + 1 : (j + 1) * offset - 1
-                ]
-
-                for key in [
-                    "lp_sf_sys_down",
-                    "lp_sf_sys_up",
-                    "lp_sf_double_matched_event",
-                    "lp_sf_unmatched_quarks",
-                    "lp_sf_num_sjpt_gt350",
-                ]:
-                    td[key][jet_match[j]] = events[key][jet_match[j]][j]
-
-        # lp sfs saved only for hvv jet
-        elif events["lp_sf_sys_up"].shape[1] == 1:
-            # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
-            jet_match = np.sum(events[f"ak8FatJetH{jet}"], axis=1) == 1
-
-            # fill values from matched jets
-            td["lp_sf_nom"][jet_match] = events["lp_sf_lnN"][jet_match][0]
-            td["lp_sf_toys"][jet_match] = events["lp_sf_lnN"][jet_match].loc[:, 1:]
-
-            for key in [
-                "lp_sf_sys_down",
-                "lp_sf_sys_up",
-                "lp_sf_double_matched_event",
-                "lp_sf_unmatched_quarks",
-                "lp_sf_num_sjpt_gt350",
-            ]:
-                td[key][jet_match] = events[key][jet_match].squeeze()
-
-        else:
-            raise ValueError("LP SF shapes are invalid")
-
-        for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_sys_down", "lp_sf_sys_up"]:
-            # cut off at 10
-            td[key] = np.minimum(td[key], 10)
-            # normalise
-            td[key] = td[key] / np.mean(td[key], axis=0)
-
-        # add to dataframe
-        if save_all:
-            td = pd.concat(
-                [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in td.items()],
-                axis=1,
-                keys=[f"{jet}_{key}" for key in td.keys()],
-            )
-
-            events = pd.concat((events, td), axis=1)
-        else:
-            key = "lp_sf_nom"
-            events[f"{jet}_{key}"] = td[key]
-
-    return events
-
-
-def get_lpsf(
-    events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True, weight_key: str = "finalWeight"
-):
-    """
-    Calculates LP SF and uncertainties in current phase space. ``postprocess_lpsfs`` must be called first.
-    Assumes bb/VV candidates are matched correctly - this is false for <0.1% events for the cuts we use.
-    """
-
-    jet = "VV" if VV else "bb"
-    if sel is not None:
-        events = events[sel]
-
-    tot_matched = np.sum(np.sum(events[f"ak8FatJetH{jet}"].astype(bool)))
-
-    weight = events[weight_key].values
-    tot_pre = np.sum(weight)
-    tot_post = np.sum(weight * events[f"{jet}_lp_sf_nom"][0])
-    lp_sf = tot_post / tot_pre
-
-    uncs = {}
-
-    # difference in yields between up and down shifts on LP SFs
-    uncs["syst_unc"] = np.abs(
-        (
-            np.sum(events[f"{jet}_lp_sf_sys_up"][0] * weight)
-            - np.sum(events[f"{jet}_lp_sf_sys_down"][0] * weight)
-        )
-        / 2
-        / tot_post
-    )
-
-    # std of yields after all smearings
-    uncs["stat_unc"] = (
-        np.std(np.sum(weight[:, np.newaxis] * events[f"{jet}_lp_sf_toys"].values, axis=0))
-        / tot_post
-    )
-
-    # fraction of subjets > 350 * 0.21 measured by CASE
-    uncs["sj_pt_unc"] = (np.sum(events[f"{jet}_lp_sf_num_sjpt_gt350"][0]) / tot_matched) * 0.21
-
-    if VV:
-        num_prongs = events["ak8FatJetHVVNumProngs"][0]
-
-        sj_matching_unc = np.sum(events[f"{jet}_lp_sf_double_matched_event"][0])
-        for nump in range(2, 5):
-            sj_matching_unc += (
-                np.sum(events[f"{jet}_lp_sf_unmatched_quarks"][0][num_prongs == nump]) / nump
-            )
-
-        uncs["sj_matching_unc"] = sj_matching_unc / tot_matched
-    else:
-        num_prongs = 2
-        uncs["sj_matching_unc"] = (
-            (np.sum(events[f"{jet}_lp_sf_unmatched_quarks"][0]) / num_prongs)
-            + np.sum(events[f"{jet}_lp_sf_double_matched_event"][0])
-        ) / tot_matched
-
-    tot_rel_unc = np.linalg.norm([val for val in uncs.values()])
-    tot_unc = lp_sf * tot_rel_unc
-
-    return lp_sf, tot_unc, uncs
+    assert i == len(bdt_preds), f"# events {i} != # of BDT preds {len(bdt_preds)}"
 
 
 def get_lpsf_all_years(
@@ -916,43 +716,72 @@ def get_lpsf_all_years(
     return get_lpsf(events, sel)
 
 
-def load_bdt_preds(
-    events_dict: Dict[str, pd.DataFrame],
-    year: str,
-    bdt_preds_dir: str,
-    bdt_sample_order: List[str],
-    jec_jmsr_shifts: bool = False,
+def _lpsfs(
+    args,
+    events_dict,
+    bb_masks,
+    sig_keys,
+    sig_samples,
+    cutflow,
+    all_samples,
+    selection_regions,
+    bdt_preds_dir,
+    systematics,
+    systs_file,
 ):
     """
-    Loads the BDT scores for each event and saves in the dataframe in the "BDTScore" column.
-    If ``jec_jmsr_shifts``, also loads BDT preds for every JEC / JMSR shift in MC.
-
-    Args:
-        bdt_preds (str): Path to the bdt_preds .npy file.
-        bdt_sample_order (List[str]): Order of samples in the predictions file.
-
+    1) Calculates LP SFs for each signal, if not already in ``systematics``
+        - Does it for all years once if args.lp_sf_all_years or just for the given year
+    2) Saves them to ``systs_file`` and CSV for posterity
     """
-    bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
+    for sig_key in sig_keys:
+        sf_table = OrderedDict()  # format SFs for each sig key in a table
+        if sig_key not in systematics or "lp_sf" not in systematics[sig_key]:
+            print(f"\nGetting LP SFs for {sig_key}")
 
-    if jec_jmsr_shifts:
-        shift_preds = {
-            jshift: np.load(f"{bdt_preds_dir}/{year}/preds_{jshift}.npy")
-            for jshift in jec_shifts + jmsr_shifts
-        }
+            systematics[sig_key] = {}
 
-    i = 0
-    for sample in bdt_sample_order:
-        events = events_dict[sample]
-        num_events = len(events)
-        events["BDTScore"] = bdt_preds[i : i + num_events]
+            # SFs are correlated across all years so needs to be calculated with full dataset
+            if args.lp_sf_all_years:
+                lp_sf, unc, uncs = get_lpsf_all_years(
+                    events_dict,
+                    sig_key,
+                    args.signal_data_dir,
+                    sig_samples,
+                    selection_regions["lpsf"],
+                    bdt_preds_dir,
+                    list(all_samples.keys()),
+                )
+            # Can do just for a single year (only for testing)
+            else:
+                warnings.warn(f"LP SF only calculated from {args.year} samples", RuntimeWarning)
+                # calculate only for current year
+                events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
+                sel, cf = utils.make_selection(
+                    selection_regions["lpsf"].cuts,
+                    events_dict,
+                    bb_masks,
+                    prev_cutflow=cutflow,
+                )
+                lp_sf, unc, uncs = get_lpsf(events_dict[sig_key], sel[sig_key])
 
-        if jec_jmsr_shifts and sample != data_key:
-            for jshift in jec_shifts + jmsr_shifts:
-                events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events]
+            print(f"LP Scale Factor for {sig_key}: {lp_sf:.2f} ± {unc:.2f}")
 
-        i += num_events
+            systematics[sig_key]["lp_sf"] = lp_sf
+            systematics[sig_key]["lp_sf_unc"] = unc / lp_sf
+            sf_table[sig_key] = {"SF": f"{lp_sf:.2f} ± {unc:.2f}", **uncs}
 
-    assert i == len(bdt_preds), f"# events {i} != # of BDT preds {len(bdt_preds)}"
+        if len(sf_table):
+            sf_df = pd.DataFrame(index=sig_keys)
+            for key in sf_table[sig_key]:
+                sf_df[key] = [sf_table[skey][key] for skey in sig_keys]
+
+            sf_df.to_csv(f"{args.template_dir}/lpsfs.csv")
+
+    with open(systs_file, "w") as f:
+        json.dump(systematics, f)
+
+    utils.add_to_cutflow(events_dict, "LP SF", "finalWeight", cutflow)
 
 
 def control_plots(
@@ -1011,7 +840,7 @@ def control_plots(
         merger_control_plots = PdfMerger()
 
         for var, var_hist in hists.items():
-            name = f"{tplot_dir}/{cutstr}{var}.pdf"
+            name = f"{tplot_dir}/{var}.pdf"
             plotting.ratioHistPlot(
                 var_hist,
                 year,
@@ -1023,7 +852,7 @@ def control_plots(
             )
             merger_control_plots.append(name)
 
-        merger_control_plots.write(f"{tplot_dir}/{year}_{cutstr}ControlPlots.pdf")
+        merger_control_plots.write(f"{tplot_dir}/{year}_ControlPlots.pdf")
         merger_control_plots.close()
 
     return hists
@@ -1063,15 +892,15 @@ def get_templates(
     sig_keys: List[str],
     selection_regions: Dict[str, Region],
     shape_vars: List[ShapeVar],
+    systematics: Dict,
     bg_keys: List[str] = bg_keys,
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
-    cutstr: str = "",
     sig_splits: List[List[str]] = None,
     weight_shifts: Dict = {},
     jshift: str = "",
-    plot_shifts: bool = True,
+    plot_shifts: bool = False,
     pass_ylim: int = None,
     fail_ylim: int = None,
     blind_pass: bool = False,
@@ -1088,7 +917,6 @@ def get_templates(
     Args:
         selection_region (Dict[str, Dict]): Dictionary of ``Region``s including cuts and labels.
         bg_keys (list[str]): background keys to plot.
-        cutstr (str): optional string to add to plot file names.
 
     Returns:
         Dict[str, Hist]: dictionary of templates, saved as hist.Hist objects.
@@ -1096,7 +924,7 @@ def get_templates(
     """
     do_jshift = jshift != ""
     jlabel = "" if not do_jshift else "_" + jshift
-    templates, systematics = {}, {}
+    templates = {}
 
     for rname, region in selection_regions.items():
         pass_region = rname.startswith("pass")
@@ -1111,31 +939,32 @@ def get_templates(
         sel, cf = utils.make_selection(
             region.cuts, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
-        if not do_jshift:
-            print("\nCutflow:\n", cf)
 
         if plot_dir != "":
-            cf.to_csv(
-                f"{plot_dir}{'/cutflows/' if jshift == '' else '/'}{rname}_cutflow{jlabel}.csv"
-            )
+            cf.to_csv(f"{plot_dir}/{rname}_cutflow{jlabel}.csv")
 
+        # trigger uncertainties
         if not do_jshift:
-            systematics[rname] = {}
-
             total, total_err = corrections.get_uncorr_trig_eff_unc(events_dict, bb_masks, year, sel)
-
-            systematics[rname]["trig_total"] = total
-            systematics[rname]["trig_total_err"] = total_err
-
+            systematics[year][rname]["trig_total"] = total
+            systematics[year][rname]["trig_total_err"] = total_err
             print(f"Trigger SF Unc.: {total_err / total:.3f}\n")
 
-        # ParticleNetMD Txbb SFs
+        # ParticleNetMD Txbb and ParT LP SFs
         sig_events = {}
         for sig_key in sig_keys:
             sig_events[sig_key] = deepcopy(events_dict[sig_key][sel[sig_key]])
             sig_bb_mask = bb_masks[sig_key][sel[sig_key]]
+
             if pass_region:
+                # scale signal by LP SF
+                for wkey in [weight_key, f"{weight_key}_noTrigEffs"]:
+                    sig_events[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
+
                 corrections.apply_txbb_sfs(sig_events[sig_key], sig_bb_mask, year, weight_key)
+
+        if not do_jshift:
+            print("\nCutflow:\n", cf)
 
         # set up samples
         hist_samples = list(events_dict.keys())
@@ -1153,12 +982,14 @@ def get_templates(
                             if wsample in events_dict:
                                 hist_samples.append(f"{wsample}_{wshift}_{shift}")
 
+        # histograms
         h = Hist(
             hist.axis.StrCategory(hist_samples, name="Sample"),
             *[shape_var.axis for shape_var in shape_vars],
             storage="weight",
         )
 
+        # fill histograms
         for sample in events_dict:
             events = sig_events[sample] if sample in sig_keys else events_dict[sample][sel[sample]]
             if not len(events):
@@ -1211,14 +1042,15 @@ def get_templates(
         templates[rname + jlabel] = h
 
         # plot templates incl variations
-        if plot_dir != "":
+        if plot_dir != "" and (not do_jshift or plot_shifts):
             if pass_region:
                 sig_scale_dict = {"HHbbVV": 1, **{skey: 1 for skey in res_sig_keys}}
 
-            if not do_jshift:
-                title = f"{region.label} Region Pre-Fit Shapes"
-            else:
-                title = f"{region.label} Region {jshift} Shapes"
+            title = (
+                f"{region.label} Region Pre-Fit Shapes"
+                if not do_jshift
+                else f"{region.label} Region {jshift} Shapes"
+            )
 
             if sig_splits is None:
                 sig_splits = [sig_keys]
@@ -1239,7 +1071,11 @@ def get_templates(
                         "plot_data": not (rname == "pass" and blind_pass),
                     }
 
-                    plot_name = f"{plot_dir}/templates/{'jshifts/' if do_jshift else ''}{split_str}{cutstr}{rname}_region_{shape_var.var}"
+                    plot_name = (
+                        f"{plot_dir}"
+                        f"{'jshifts/' if do_jshift else ''}"
+                        f"{split_str}{rname}_region_{shape_var.var}"
+                    )
 
                     plotting.ratioHistPlot(
                         **plot_params,
@@ -1248,7 +1084,9 @@ def get_templates(
                     )
 
                     if not do_jshift and plot_shifts:
-                        plot_name = f"{plot_dir}/templates/wshifts/{split_str}{cutstr}{rname}_region_{shape_var.var}"
+                        plot_name = (
+                            f"{plot_dir}/wshifts/" f"{split_str}{rname}_region_{shape_var.var}"
+                        )
 
                         for wshift, wsyst in weight_shifts.items():
                             if wsyst.samples == [sig_key]:
@@ -1275,7 +1113,7 @@ def get_templates(
                                 name=f"{plot_name}_txbb.pdf",
                             )
 
-    return templates, systematics
+    return templates
 
 
 def save_templates(
@@ -1356,9 +1194,9 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--sig-samples",
-        help="specify signal samples",
+        help="specify signal samples. By default, will use the samples defined in `hh_vars`.",
         nargs="*",
-        default=[],
+        default=None,
         type=str,
     )
 
