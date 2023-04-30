@@ -160,7 +160,7 @@ res_mps = [
 for mX, mY in res_mps:
     res_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
 
-nonres_sig_keys = ["HHbbVV"]
+nonres_sig_keys = list(nonres_samples.keys())
 res_sig_keys = list(res_samples.keys())
 data_key = "Data"
 qcd_key = "QCD"
