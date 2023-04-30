@@ -12,9 +12,11 @@ Author(s): Raghav Kansal, Cristina Mantilla Suarez
 
 from dataclasses import dataclass, field
 from collections import OrderedDict
+
 import os
 import sys
 import pickle, json
+import itertools
 
 import numpy as np
 import pandas as pd
@@ -149,7 +151,11 @@ control_plot_vars = {
 }
 
 
-def get_nonres_selection_regions(year: str, bdt_cut: float = 0.99, txbb_wp: str = "HP"):
+def get_nonres_selection_regions(
+    year: str,
+    txbb_wp: str = "HP",
+    bdt_wp: float = 0.99,
+):
     pt_cuts = [300, CUT_MAX_VAL]
     txbb_cut = txbb_wps[year][txbb_wp]
 
@@ -159,7 +165,7 @@ def get_nonres_selection_regions(year: str, bdt_cut: float = 0.99, txbb_wp: str 
             cuts={
                 "bbFatJetPt": pt_cuts,
                 "VVFatJetPt": pt_cuts,
-                "BDTScore": [bdt_cut, CUT_MAX_VAL],
+                "BDTScore": [bdt_wp, CUT_MAX_VAL],
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
             },
             label="Pass",
@@ -174,7 +180,7 @@ def get_nonres_selection_regions(year: str, bdt_cut: float = 0.99, txbb_wp: str 
         ),
         "lpsf": Region(
             cuts={  # cut for which LP SF is calculated
-                "BDTScore": [bdt_cut, CUT_MAX_VAL],
+                "BDTScore": [bdt_wp, CUT_MAX_VAL],
             },
             label="LP SF Cut",
         ),
@@ -271,6 +277,9 @@ res_shape_vars = [
     ),
 ]
 
+nonres_scan_cuts = ["txbb", "bdt"]
+res_scan_cuts = ["txbb", "thww"]
+
 
 # TODO: check which of these applies to resonant as well
 weight_shifts = {
@@ -288,10 +297,10 @@ weight_shifts = {
 
 
 def main(args):
-    shape_vars, selection_regions = _init(args)
+    shape_vars, scan, scan_cuts, scan_wps = _init(args)
     sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args)
     all_samples = sig_samples | bg_samples
-    _make_dirs(args)  # make plot, template dirs if needed
+    _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
     cutflow = pd.DataFrame(index=list(all_samples.keys()))  # save cutflow as pandas table
 
     # utils.remove_empty_parquets(samples_dir, year)
@@ -338,65 +347,78 @@ def main(args):
         )
 
     if args.templates:
-        # load pre-calculated systematics and those for different years if saved already
-        systs_file = f"{args.template_dir}/systematics.json"
-        systematics = _check_load_systematics(systs_file, args.year)
+        for wps in scan_wps:
+            cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)]) if scan else ""
+            template_dir = f"{args.template_dir}/{cutstr}/{args.templates_name}"
 
-        # Lund plane SFs
-        _lpsfs(
-            args,
-            events_dict,
-            bb_masks,
-            sig_keys,
-            sig_samples,
-            cutflow,
-            all_samples,
-            selection_regions,
-            bdt_preds_dir,
-            systematics,
-            systs_file,
-        )
-
-        # Check for 0 weights - would be an issue for weight shifts
-        check_weights(events_dict)
-
-        print("\nMaking templates")
-        templates = {}
-
-        for jshift in [""] + jec_shifts + jmsr_shifts:
-            print(jshift)
-            plot_dir = (
-                f"{args.plot_dir}/templates/" f"{'jshifts/' if jshift != '' else ''}"
-                if args.plot_dir != ""
-                else ""
+            cutargs = {f"{cut}_wp": wp for cut, wp in zip(scan_cuts, wps)}
+            selection_regions = (
+                get_nonres_selection_regions(args.year, **cutargs)
+                if not args.resonant
+                else get_res_selection_regions(args.year, **cutargs)
             )
-            temps = get_templates(
+
+            print(cutstr)
+            # load pre-calculated systematics and those for different years if saved already
+            systs_file = f"{template_dir}/systematics.json"
+            systematics = _check_load_systematics(systs_file, args.year)
+
+            # Lund plane SFs
+            _lpsfs(
+                args,
                 events_dict,
                 bb_masks,
-                args.year,
                 sig_keys,
+                sig_samples,
+                cutflow,
+                all_samples,
                 selection_regions,
-                shape_vars,
+                bdt_preds_dir,
                 systematics,
-                bg_keys=bg_keys,
-                plot_dir=plot_dir,
-                prev_cutflow=cutflow,
-                # sig_splits=sig_splits,
-                weight_shifts=weight_shifts,
-                jshift=jshift,
-                blind_pass=True if args.resonant else False,
-                show=False,
-                plot_shifts=args.plot_shifts,
+                systs_file,
             )
-            templates = {**templates, **temps}
 
-        print("\nSaving templates")
-        save_templates(
-            templates, f"{args.template_dir}/{args.year}_templates.pkl", args.resonant, shape_vars
-        )
+            # Check for 0 weights - would be an issue for weight shifts
+            check_weights(events_dict)
 
-        with open(systs_file, "w") as f:
-            json.dump(systematics, f)
+            print("\nMaking templates")
+            templates = {}
+
+            jshifts = [""] + jec_shifts + jmsr_shifts if args.do_jshifts else [""]
+            for jshift in jshifts:
+                print(jshift)
+                plot_dir = (
+                    f"{args.plot_dir}/templates/{cutstr}/" f"{'jshifts/' if jshift != '' else ''}"
+                    if args.plot_dir != ""
+                    else ""
+                )
+                temps = get_templates(
+                    events_dict,
+                    bb_masks,
+                    args.year,
+                    sig_keys,
+                    selection_regions,
+                    shape_vars,
+                    systematics,
+                    bg_keys=bg_keys,
+                    plot_dir=plot_dir,
+                    prev_cutflow=cutflow,
+                    # sig_splits=sig_splits,
+                    weight_shifts=weight_shifts,
+                    jshift=jshift,
+                    blind_pass=True if args.resonant else False,
+                    show=False,
+                    plot_shifts=args.plot_shifts,
+                )
+                templates = {**templates, **temps}
+
+            print("\nSaving templates")
+            save_templates(
+                templates, f"{template_dir}/{args.year}_templates.pkl", args.resonant, shape_vars
+            )
+
+            with open(systs_file, "w") as f:
+                json.dump(systematics, f)
 
 
 def _init(args):
@@ -404,18 +426,18 @@ def _init(args):
         print("You need to pass at least one of --control-plots, --templates, or --scan")
         return
 
-    if args.resonant:
-        shape_vars = res_shape_vars
-        selection_regions = get_res_selection_regions(
-            args.year, txbb_wp=args.txbb_wp, thww_wp=args.thww_wp
-        )
-    else:
+    if not args.resonant:
+        scan = len(args.nonres_txbb_wp) > 1 or len(args.nonres_bdt_wp) > 1
+        scan_wps = list(itertools.product(args.nonres_txbb_wp, args.nonres_bdt_wp))
+        scan_cuts = nonres_scan_cuts
         shape_vars = nonres_shape_vars
-        selection_regions = get_nonres_selection_regions(args.year, txbb_wp=args.txbb_wp)
+    else:
+        scan = len(args.res_txbb_wp) > 1 or len(args.res_thww_wp) > 1
+        scan_wps = list(itertools.product(args.res_txbb_wp, args.res_thww_wp))
+        scan_cuts = res_scan_cuts
+        shape_vars = res_shape_vars
 
-    print(f"Txbb WP: {args.txbb_wp}, THWW WP: {args.thww_wp}")
-
-    return shape_vars, selection_regions
+    return shape_vars, scan, scan_cuts, scan_wps
 
 
 def _process_samples(args):
@@ -457,7 +479,7 @@ def _process_samples(args):
     return sig_keys, sig_samples, bg_keys, bg_samples
 
 
-def _make_dirs(args):
+def _make_dirs(args, scan, scan_cuts, scan_wps):
     if args.plot_dir != "":
         args.plot_dir = f"{args.plot_dir}/{args.year}/"
         os.system(f"mkdir -p {args.plot_dir}")
@@ -466,14 +488,28 @@ def _make_dirs(args):
             os.system(f"mkdir -p {args.plot_dir}/control_plots/")
 
         os.system(f"mkdir -p {args.plot_dir}/templates/")
-        os.system(f"mkdir -p {args.plot_dir}/templates/wshifts")
-        os.system(f"mkdir -p {args.plot_dir}/templates/jshifts")
 
-        if args.resonant:
-            os.system(f"mkdir -p {args.plot_dir}/templates/hists2d")
+        if scan:
+            for wps in scan_wps:
+                cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
+                os.system(f"mkdir -p {args.template_dir}/{cutstr}/{args.templates_name}/")
+                os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/")
+                os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/wshifts")
+                os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/jshifts")
+        else:
+            os.system(f"mkdir -p {args.plot_dir}/templates/wshifts")
+            os.system(f"mkdir -p {args.plot_dir}/templates/jshifts")
+
+            if args.resonant:
+                os.system(f"mkdir -p {args.plot_dir}/templates/hists2d")
 
     if args.template_dir != "":
         os.system(f"mkdir -p {args.template_dir}")
+
+        if scan:
+            for wps in scan_wps:
+                cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
+                os.system(f"mkdir -p {args.template_dir}/{cutstr}/{args.templates_name}/")
 
 
 def _check_load_systematics(systs_file: str, year: str):
@@ -949,6 +985,7 @@ def get_templates(
 
         # trigger uncertainties
         if not do_jshift:
+            systematics[year][rname] = {}
             total, total_err = corrections.get_uncorr_trig_eff_unc(events_dict, bb_masks, year, sel)
             systematics[year][rname]["trig_total"] = total
             systematics[year][rname]["trig_total_err"] = total_err
@@ -1186,13 +1223,20 @@ if __name__ == "__main__":
         type=str,
     )
 
+    parser.add_argument(
+        "--templates-name",
+        help="If saving templates, optional name for folder (comes under cuts directory if scanning).",
+        default="",
+        type=str,
+    )
+
     utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
     utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
     utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
     utils.add_bool_arg(
         parser, "overwrite-template", "if template file already exists, overwrite it", default=False
     )
-    utils.add_bool_arg(parser, "scan", "Scan BDT + Txbb cuts and save templates", default=False)
+    utils.add_bool_arg(parser, "do-jshifts", "Do JEC/JMC variations", default=True)
     utils.add_bool_arg(parser, "plot-shifts", "Plot systematic variations as well", default=False)
     utils.add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
 
@@ -1221,17 +1265,36 @@ if __name__ == "__main__":
     utils.add_bool_arg(parser, "old-processor", "temp arg for old processed samples", default=False)
 
     parser.add_argument(
-        "--txbb-wp",
-        help="txbb WP for signal region",
-        default="HP",
+        "--nonres-txbb-wp",
+        help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
+        default=["HP"],
         choices=["LP", "MP", "HP"],
+        nargs="*",
         type=str,
     )
 
     parser.add_argument(
-        "--thww-wp",
-        help="thww WP for signal region",
-        default=0.96,
+        "--nonres-bdt-wp",
+        help="BDT WP for signal region. If multiple arguments, will make templates for each.",
+        default=[0.99],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--res-txbb-wp",
+        help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
+        default=["HP"],
+        choices=["LP", "MP", "HP"],
+        nargs="*",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--res-thww-wp",
+        help="Thww WP for signal region. If multiple arguments, will make templates for each.",
+        default=[0.96],
+        nargs="*",
         type=float,
     )
 
