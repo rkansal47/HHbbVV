@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
 """
-Splits the total fileset and creates condor job submission files for the specified run script.
+Submits jobs for making the datacards and running fits per sample.
 
-Author(s): Cristina Mantilla Suarez, Raghav Kansal
+Author(s): Raghav Kansal
 """
 
 import argparse
@@ -11,7 +11,7 @@ import os
 from math import ceil
 from string import Template
 import json
-
+import itertools
 import sys
 
 
@@ -181,6 +181,9 @@ for mX, mY in res_mps:
 scan_txbb_wps = ["LP", "MP", "HP"]
 scan_thww_wps = [0.4, 0.6, 0.8, 0.9, 0.94, 0.96, 0.98]
 
+nonres_scan_cuts = ["txbb", "bdt"]
+res_scan_cuts = ["txbb", "thww"]
+
 
 def main(args):
     global samples
@@ -202,7 +205,7 @@ def main(args):
     username = os.environ["USER"]
     local_dir = f"condor/cards/{args.tag}"
 
-    templates_dir = f"/store/user/{username}/bbVV/templates/{args.tag}"
+    templates_dir = f"/store/user/{username}/bbVV/templates/{args.templates_dir}/"
     cards_dir = f"/store/user/{username}/bbVV/cards/{args.tag}/"
 
     # make local directory
@@ -218,22 +221,27 @@ def main(args):
 
     if args.test:
         samples = samples[:2]
-        scan_txbb_wps = scan_txbb_wps[:1]
-        scan_thww_wps = scan_thww_wps[:1]
+        scan_txbb_wps = scan_txbb_wps[-1:]
+        scan_thww_wps = scan_thww_wps[-2:]
 
     for sample in samples:
         if args.scan:
             for txbb_wp in scan_txbb_wps:
                 for thww_wp in scan_thww_wps:
                     os.system(
-                        f"mkdir -p {t2_local_prefix}/{templates_dir}/txbb_{txbb_wp}_thww_{thww_wp}/{sample}"
-                    )
-                    os.system(
-                        f"mkdir -p {t2_local_prefix}/{cards_dir}/txbb_{txbb_wp}_thww_{thww_wp}/{sample}"
+                        f"mkdir -p {t2_local_prefix}/{cards_dir}/"
+                        f"txbb_{txbb_wp}_thww_{thww_wp}/{sample}"
                     )
         else:
-            os.system(f"mkdir -p {t2_local_prefix}/{templates_dir}/{sample}")
             os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}/{sample}")
+
+    scan_wps = list(itertools.product(scan_txbb_wps, scan_thww_wps))
+    scan_cuts = res_scan_cuts if args.resonant else nonres_scan_cuts
+
+    # split along WPs for scan or along # of samples for regular jobs
+    njobs = len(scan_wps) if args.scan else ceil(len(samples) / args.files_per_job)
+
+    datacards_args = "--no-do-jshifts" if args.scan else ""
 
     # submit jobs
     nsubmit = 0
@@ -241,20 +249,29 @@ def main(args):
     if args.submit:
         print("Submitting samples")
 
-    njobs = ceil(len(samples) / args.files_per_job)
-
     for j in range(njobs):
-        run_samples = " ".join(samples[j * args.files_per_job : (j + 1) * args.files_per_job])
+        if args.scan:
+            run_samples = scan_samples
 
-        prefix = "cards"
+            cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, scan_wps[j])])
+            run_templates_dir = templates_dir + cutstr
+            run_cards_dir = cards_dir + cutstr
+        else:
+            run_samples = samples[j * args.files_per_job : (j + 1) * args.files_per_job]
+            run_templates_dir = templates_dir
+            run_cards_dir = cards_dir
+
+        prefix = "cards" f"{'Scan' if args.scan else ''}"
         localcondor = f"{local_dir}/{prefix}_{j}.jdl"
         jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": j, "proxy": proxy}
         write_template(jdl_templ, localcondor, jdl_args)
 
         localsh = f"{local_dir}/{prefix}_{j}.sh"
         sh_args = {
-            "samples": run_samples,
-            "tag": args.tag,
+            "samples": " ".join(run_samples),
+            "in_templates_dir": run_templates_dir,
+            "in_cards_dir": run_cards_dir,
+            "datacards_args": datacards_args,
         }
         write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
@@ -274,6 +291,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--tag", default="Test", help="process tag", type=str)
+    parser.add_argument("--templates-dir", help="EOS templates dir", type=str)
     parser.add_argument(
         "--site",
         default="lpc",
@@ -284,7 +302,8 @@ if __name__ == "__main__":
     parser.add_argument("--files-per-job", default=5, help="# files per condor job", type=int)
 
     add_bool_arg(parser, "submit", default=False, help="submit files as well as create them")
-
+    add_bool_arg(parser, "resonant", default=True, help="Resonant or nonresonant")
+    add_bool_arg(parser, "scan", default=False, help="Scan working points")
     add_bool_arg(parser, "test", default=False, help="run on only 2 samples")
 
     args = parser.parse_args()
