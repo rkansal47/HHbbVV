@@ -246,6 +246,13 @@ Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rh
 python3 postprocessing/CreateDatacard.py --templates-dir templates/$TAG --model-name $TAG (--resonant)
 ```
 
+Or with separate templates for background and signal:
+
+```bash
+python3 -u postprocessing/CreateDatacard.py --templates-dir "/eos/uscms/store/user/rkansal/bbVV/templates/23Apr30Scan/txbb_HP_thww_0.96" \
+--sig-separate --resonant --model-name $sample --sig-sample $sample
+```
+
 
 ### PlotFits
 
@@ -265,18 +272,21 @@ git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git Combine
 scramv1 b clean; scramv1 b
 ```
 
-### Run basic fits and diagnostics
+### Run fits and diagnostics locally
+
+All via the below script, with a bunch of options (see script):
 
 ```bash
-/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh "./"
+/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh --workspace --bfit --limits
 ```
 
-### Get data and toy test statistics for simple GoF
+### Run fits on condor
+
+Can run over all the resonant signals (default) or scan working points for a subset of signals (`--scan`)
 
 ```bash
-/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/gof.sh "./"
+python src/HHbbVV/combine/submit.py --test --scan --resonant --templates-dir 23Apr30Scan
 ```
-
 
 ## Misc
 
@@ -292,7 +302,7 @@ for i in *; do echo $i && sleep 3 && (nohup sh -c "krsync -av --progress --stats
 ```
 
 
-### Get all running job names:
+### Get all running condor job names:
 
 ```bash
 condor_q | awk '{ print $9}' | grep -o '[^ ]*\.sh'

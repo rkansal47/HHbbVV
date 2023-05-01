@@ -159,10 +159,10 @@ res_mps = [
     (900, 80),
 ]
 
-samples = []
+full_samples = []
 
 for mX, mY in res_mps:
-    samples.append(f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}")
+    full_samples.append(f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}")
 
 
 res_mps = [
@@ -186,7 +186,7 @@ res_scan_cuts = ["txbb", "thww"]
 
 
 def main(args):
-    global samples
+    global scan_txbb_wps, scan_thww_wps
 
     if args.site == "lpc":
         t2_local_prefix = "/eos/uscms/"
@@ -219,6 +219,8 @@ def main(args):
     jdl_templ = "src/HHbbVV/combine/submit.templ.jdl"
     sh_templ = "src/HHbbVV/combine/resonant_templ.sh"
 
+    samples = scan_samples if args.scan else full_samples
+
     if args.test:
         samples = samples[:2]
         scan_txbb_wps = scan_txbb_wps[-1:]
@@ -241,7 +243,7 @@ def main(args):
     # split along WPs for scan or along # of samples for regular jobs
     njobs = len(scan_wps) if args.scan else ceil(len(samples) / args.files_per_job)
 
-    datacards_args = "--no-do-jshifts" if args.scan else ""
+    datacard_args = "--no-do-jshifts" if args.scan else ""
 
     # submit jobs
     nsubmit = 0
@@ -251,7 +253,7 @@ def main(args):
 
     for j in range(njobs):
         if args.scan:
-            run_samples = scan_samples
+            run_samples = samples
 
             cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, scan_wps[j])])
             run_templates_dir = templates_dir + cutstr
@@ -271,7 +273,7 @@ def main(args):
             "samples": " ".join(run_samples),
             "in_templates_dir": run_templates_dir,
             "in_cards_dir": run_cards_dir,
-            "datacards_args": datacards_args,
+            "datacard_args": datacard_args,
         }
         write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
@@ -299,7 +301,7 @@ if __name__ == "__main__":
         type=str,
         choices=["lpc", "ucsd"],
     )
-    parser.add_argument("--files-per-job", default=5, help="# files per condor job", type=int)
+    parser.add_argument("--files-per-job", default=5, help="# samples per condor job", type=int)
 
     add_bool_arg(parser, "submit", default=False, help="submit files as well as create them")
     add_bool_arg(parser, "resonant", default=True, help="Resonant or nonresonant")
