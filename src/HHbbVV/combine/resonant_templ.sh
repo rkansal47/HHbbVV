@@ -1,9 +1,21 @@
 #!/bin/bash                                                                                                                   
-echo "Starting job on " `date` #Date/time of start of job                                                                       
-echo "Running on: `uname -a`" #Condor job is running on this node                                                               
-echo "System software: `cat /etc/redhat-release`" #Operating System on that node                                             
 
-# CMSSW
+####################################################################################################
+# Template for condor job script to 
+# 1) Make datacards for specified samples
+# 2) Do background-only fit in validation region and get asymptotic limits
+# 
+# Author: Raghav Kansal
+####################################################################################################
+
+echo "Starting job on " `date` # Date/time of start of job                                                                       
+echo "Running on: `uname -a`" # Condor job is running on this node                                                               
+echo "System software: `cat /etc/redhat-release`" # Operating System on that node                                             
+
+####################################################################################################
+# Get my tarred CMSSW with combine already compiled
+####################################################################################################
+
 source /cvmfs/cms.cern.ch/cmsset_default.sh 
 xrdcp -s root://cmseos.fnal.gov//store/user/rkansal/CMSSW_11_2_0.tgz .
 
@@ -16,28 +28,18 @@ eval `scramv1 runtime -sh` # cmsenv is an alias not on the workers
 echo $CMSSW_BASE "is the CMSSW we have on the local worker node"
 cd ../..
 
-# Combine                                                                                                                   
-# git clone -b py3 https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
-# # git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
-# echo "Building combine"
-# scramv1 b clean; scramv1 b
-
 echo "testing combine"
 combine
 
+####################################################################################################
+# Install Python Packages
+# Need to install with --user, after changing the user directory using the PYTHONUSERBASE arg
+# (Can't install with normal --user since condor job doesn't have write access to my user dir)
+# See https://stackoverflow.com/a/29103053/3759946
+####################################################################################################
 
-echo "working dir"
-pwd
-
-# echo "installing user"
-# pip3 install --user hist
-
-# python packages
 mkdir local_python
 export PYTHONUSERBASE=$(pwd)/local_python
-
-echo "python user base"
-echo $PYTHONUSERBASE
 
 echo "Installing hist"
 pip3 install --user hist
@@ -47,55 +49,43 @@ echo "Installing rhalphalib"
 pip3 install --user .
 cd ..
 
-echo "working dir"
-pwd
-ls -lh .
-
-echo "local python"
-ls -lh local_python
-ls -lh local_python/lib
-ls -lh local_python/lib/python3.8/site-packages/
-
-echo "full python path"
-ls -lh $pwd/local_python/lib/python3.8/site-packages/
-
 export PYTHONPATH=$(pwd)/local_python/lib/python3.8/site-packages/:$PYTHONPATH
 
-echo "testing hist"
-echo "import hist" > hist_test.py
-cat hist_test.py
-python3 hist_test.py
-echo "hist test over"
+echo "testing installed libraries"
+echo "import hist; import rhalphalib" > lib_test.py
+python3 lib_test.py
 
-echo "testing rh"
-echo "import rhalphalib" > rh_test.py
-cat rh_test.py
-python3 rh_test.py
-echo "rh test over"
+ls -lh .
 
-echo "python path"
-echo $PYTHONPATH
+####################################################################################################
+# Get templates from EOS directory and run fit script
+####################################################################################################
 
 mkdir templates
 mkdir cards
 
-tag=Apr11
+templates_dir=${in_templates_dir}
+cards_dir=${in_cards_dir}
 
-xrdcp -r root://cmseos.fnal.gov//store/user/rkansal/bbVV/templates/Apr11/backgrounds templates/
+# get backgrounds templates
+xrdcp -r root://cmseos.fnal.gov//store/user/rkansal/bbVV/templates/${templates_dir}/backgrounds templates/
 
 for sample in $samples
 do
     echo -e "\n\n$sample"
-    xrdcp -r root://cmseos.fnal.gov//store/user/rkansal/bbVV/templates/Apr11/$sample templates/
+
+    # get sample templates
+    xrdcp -r root://cmseos.fnal.gov//store/user/rkansal/bbVV/templates/${templates_dir}/$sample templates/
 
     python3 postprocessing/CreateDatacard.py --templates-dir templates --sig-separate --resonant \
-    --model-name $sample --sig-sample $sample
+    --model-name $sample --sig-sample $sample ${datacard_args}
 
     cd cards/$sample
-    ../../combine/run_blinded_res.sh
+    ../../combine/run_blinded.sh --workspace --bfit --limits --resonant
     cd ../..
 
-    xrdcp -r cards/$sample root://cmseos.fnal.gov//store/user/rkansal/bbVV/cards/$tag/$sample/
+    # transfer output cards
+    xrdcp -r cards/$sample root://cmseos.fnal.gov//store/user/rkansal/bbVV/cards/${cards_dir}/$sample/
     rm -rf templates/$sample
 done
 
