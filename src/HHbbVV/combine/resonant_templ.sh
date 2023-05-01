@@ -52,7 +52,7 @@ cd ..
 export PYTHONPATH=$(pwd)/local_python/lib/python3.8/site-packages/:$PYTHONPATH
 
 echo "testing installed libraries"
-echo "import hist; import rhalphalib" > lib_test.py
+echo "import hist; import rhalphalib; print('Import successfully!')" > lib_test.py
 python3 lib_test.py
 
 ls -lh .
@@ -68,14 +68,14 @@ templates_dir=${in_templates_dir}
 cards_dir=${in_cards_dir}
 
 # get backgrounds templates
-xrdcp -r root://cmseos.fnal.gov//store/user/rkansal/bbVV/templates/${templates_dir}/backgrounds templates/
+xrdcp -r root://cmseos.fnal.gov/${templates_dir}/backgrounds templates/
 
 for sample in $samples
 do
     echo -e "\n\n$sample"
 
     # get sample templates
-    xrdcp -r root://cmseos.fnal.gov//store/user/rkansal/bbVV/templates/${templates_dir}/$sample templates/
+    xrdcp -r root://cmseos.fnal.gov/${templates_dir}/$sample templates/
 
     python3 postprocessing/CreateDatacard.py --templates-dir templates --sig-separate --resonant \
     --model-name $sample --sig-sample $sample ${datacard_args}
@@ -85,7 +85,7 @@ do
     cd ../..
 
     # transfer output cards
-    xrdcp -r cards/$sample root://cmseos.fnal.gov//store/user/rkansal/bbVV/cards/${cards_dir}/$sample/
+    xrdcp -r cards/$sample root://cmseos.fnal.gov/${cards_dir}/$sample/
     rm -rf templates/$sample
 done
 

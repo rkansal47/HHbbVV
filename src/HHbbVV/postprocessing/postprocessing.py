@@ -350,7 +350,7 @@ def main(args):
     if args.templates:
         for wps in scan_wps:
             cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)]) if scan else ""
-            template_dir = f"{args.template_dir}/{cutstr}/{args.templates_name}"
+            template_dir = f"{args.template_dir}/{cutstr}/{args.templates_name}/"
 
             cutargs = {f"{cut}_wp": wp for cut, wp in zip(scan_cuts, wps)}
             selection_regions = (
@@ -402,6 +402,7 @@ def main(args):
                     selection_regions,
                     shape_vars,
                     systematics,
+                    template_dir,
                     bg_keys=bg_keys,
                     plot_dir=plot_dir,
                     prev_cutflow=cutflow,
@@ -941,6 +942,7 @@ def get_templates(
     selection_regions: Dict[str, Region],
     shape_vars: List[ShapeVar],
     systematics: Dict,
+    template_dir: str,
     bg_keys: List[str] = bg_keys,
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
@@ -988,8 +990,7 @@ def get_templates(
             region.cuts, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
 
-        if plot_dir != "":
-            cf.to_csv(f"{plot_dir}/{rname}_cutflow{jlabel}.csv")
+        cf.to_csv(f"{template_dir}/{rname}_cutflow{jlabel}.csv")
 
         # trigger uncertainties
         if not do_jshift:
@@ -1026,10 +1027,11 @@ def get_templates(
                         hist_samples.append(f"{sig_key}_txbb_{shift}")
 
                 for wshift, wsyst in weight_shifts.items():
-                    if year in wsyst.years:
-                        for wsample in wsyst.samples:
-                            if wsample in events_dict:
-                                hist_samples.append(f"{wsample}_{wshift}_{shift}")
+                    # if year in wsyst.years:
+                    # add to the axis even if not applied to this year to make it easier to sum later
+                    for wsample in wsyst.samples:
+                        if wsample in events_dict:
+                            hist_samples.append(f"{wsample}_{wshift}_{shift}")
 
         # histograms
         h = Hist(

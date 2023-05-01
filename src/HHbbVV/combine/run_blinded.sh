@@ -106,6 +106,9 @@ outsdir=${cards_dir}/outs
 mkdir -p $outsdir
 
 if [ $resonant = 0 ]; then
+    if [ -f "mXbin0pass.txt" ]; then
+        echo -e "\nWARNING: This is doing nonresonant fits - did you mean to pass -r|--resonant?\n"
+    fi
     # nonresonant args
     ccargs="fail=${cards_dir}/fail.txt failBlinded=${cards_dir}/failBlinded.txt pass=${cards_dir}/pass.txt passBlinded=${cards_dir}/passBlinded.txt"
     maskunblindedargs="mask_pass=1,mask_fail=1,mask_passBlinded=0,mask_failBlinded=0"
@@ -191,7 +194,7 @@ if [ $bfit = 1 ]; then
     --freezeParameters r,${freezeparamsblinded} \
     -n Snapshot 2>&1 | tee $outsdir/MultiDimFit.txt
 else
-    if [ ! -f "higgsCombineSnapshot.MultiDimFit.mH25.root" ]; then
+    if [ ! -f "higgsCombineSnapshot.MultiDimFit.mH125.root" ]; then
         echo "Background-only fit snapshot doesn't exist! Use the -b|--bfit option to run fit first"
         exit 1
     fi
@@ -199,7 +202,7 @@ fi
 
 
 if [ $limits = 1 ]; then
-    echo "asymptotic limit"
+    echo "Expected limits"
     combine -M AsymptoticLimits -m 125 -n pass -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v 9 \
     --saveWorkspace --saveToys --bypassFrequentistFit \
     --setParameters ${maskblindedargs},${setparamsunblinded} \
@@ -209,7 +212,7 @@ fi
 
 
 if [ $significance = 1 ]; then
-    echo "expected significance"
+    echo "Expected significance"
     combine -M Significance -d ${wsm_snapshot}.root --significance -m 125 -n pass --snapshotName MultiDimFit -v 9 \
     -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit \
     --setParameters ${maskblindedargs},${setparamsunblinded},r=1 \
@@ -219,13 +222,16 @@ fi
 
 
 if [ $dfit = 1 ]; then
-    # freezing r here to try and speed up the s+b fit (don't need s+b fit since fit is only in validation region, but no way to avoid it)
-    echo "fitdiagnostics"
+    echo "Fit Diagnostics"
     combine -M FitDiagnostics -m 125 -d ${wsm}.root \
-    --setParameters ${maskunblindedargs},${setparamsblinded},r=0 \
-    --freezeParameters ${freezeparamsblinded},r \
-    --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
+    --setParameters ${maskunblindedargs},${setparamsblinded} \
+    --freezeParameters ${freezeparamsblinded} \
     -n Blinded --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnostics.txt
+    # --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
+
+    echo "Fit Shapes"
+    PostFitShapesFromWorkspace --dataset $dataset -w ${wsm}.root --output FitShapes.root \
+    -m 125 -f fitDiagnosticsBlinded.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
 fi
 
 
