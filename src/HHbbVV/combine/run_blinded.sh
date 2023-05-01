@@ -35,39 +35,46 @@ goftoys=0
 seed=42
 numtoys=100
 
-while getopts -l "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,seed:,numtoys:" -o "wblsdrgt" opt; do
-    echo $opt
-    case $opt in
-        w|--workspace)
+options=$(getopt -o "wblsdrgt" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,seed:,numtoys:" -- "$@")
+eval set -- "$options"
+
+while true; do
+    case "$1" in
+        -w|--workspace)
             workspace=1
             ;;
-        b|--bfit)
+        -b|--bfit)
             bfit=1
             ;;
-        l|--limits)
+        -l|--limits)
             limits=1
             ;;
-        s|--significance)
+        -s|--significance)
             significance=1
             ;;
-        d|--dfit)
+        -d|--dfit)
             dfit=1
             ;;
-        r|--resonant)
+        -r|--resonant)
             resonant=1
             ;;
-        g|--gofdata)
+        -g|--gofdata)
             gofdata=1
             ;;
-        t|--goftoys)
+        -t|--goftoys)
             goftoys=1
             ;;
         --seed)
-            seed=$OPTARG
+            shift
+            seed=$1
             ;;
         --numtoys)
-            numtoys=$OPTARG
+            shift
+            numtoys=$1
             ;;
+        --)
+            shift
+            break;;
         \?)
             echo "Invalid option: -$OPTARG" >&2
             exit 1
@@ -77,10 +84,12 @@ while getopts -l "workspace,bfit,limits,significance,dfit,resonant,gofdata,gofto
             exit 1
             ;;
     esac
+    shift
 done
 
-echo "workspace=$workspace bfit=$bfit limits=$limits significance=$significance dfit=$dfit resonant=$resonant" 
-echo "gofdata=$gofdata goftoys=$goftoys seed=$seed numtoys=$numtoys"
+echo "Arguments: resonant=$resonant workspace=$workspace bfit=$bfit limits=$limits \
+significance=$significance dfit=$dfit gofdata=$gofdata goftoys=$goftoys \
+seed=$seed numtoys=$numtoys"
 
 
 ####################################################################################################
