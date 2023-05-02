@@ -348,7 +348,7 @@ def main(args):
         )
 
     if args.templates:
-        for wps in scan_wps:
+        for wps in scan_wps:  # if not scanning, this will just be a single WP
             cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)]) if scan else ""
             template_dir = f"{args.template_dir}/{cutstr}/{args.templates_name}/"
 
@@ -495,7 +495,6 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
         if scan:
             for wps in scan_wps:
                 cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
-                os.system(f"mkdir -p {args.template_dir}/{cutstr}/{args.templates_name}/")
                 os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/")
                 os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/wshifts")
                 os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/jshifts")
@@ -507,12 +506,12 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
                 os.system(f"mkdir -p {args.plot_dir}/templates/hists2d")
 
     if args.template_dir != "":
-        os.system(f"mkdir -p {args.template_dir}")
-
         if scan:
             for wps in scan_wps:
                 cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
                 os.system(f"mkdir -p {args.template_dir}/{cutstr}/{args.templates_name}/")
+        else:
+            os.system(f"mkdir -p {args.template_dir}/{args.templates_name}/")
 
 
 def _check_load_systematics(systs_file: str, year: str):
