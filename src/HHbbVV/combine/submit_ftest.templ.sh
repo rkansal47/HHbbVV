@@ -1,11 +1,23 @@
-#!/bin/bash                                                                                                                   
+#!/bin/bash 
+
+####################################################################################################
+# Script for generating toys and doing GoFs for F-tests
+# Needs workspaces for all orders + b-only fit snapshot of lowest order model transferred as inputs.
+# 
+# 1) Generates toys using b-only fit
+# 2) GoF on toys for lowest and lowest + 1 orders
+# 3) Transfers toys and GoF test files to EOS directory
+# 
+# Author: Raghav Kansal
+####################################################################################################
+
 echo "Starting job on " `date` #Date/time of start of job                                                                       
 echo "Running on: `uname -a`" #Condor job is running on this node                                                               
 echo "System software: `cat /etc/redhat-release`" #Operating System on that node                                             
 
-####################################################################
+####################################################################################################
 # Get my tarred CMSSW with combine already compiled
-####################################################################
+####################################################################################################
 
 source /cvmfs/cms.cern.ch/cmsset_default.sh 
 xrdcp -s root://cmseos.fnal.gov//store/user/rkansal/CMSSW_11_2_0.tgz .
@@ -29,9 +41,9 @@ num_toys=${in_num_toys}
 
 cards_dir=$tag
 
-####################################################################
+####################################################################################################
 # Fit args
-####################################################################
+####################################################################################################
 
 dataset=data_obs
 ws="./combined"
@@ -66,9 +78,9 @@ maskblindedargs=${maskblindedargs%,}
 setparams="rgx{pass_.*mcstat.*}=0,rgx{fail_.*mcstat.*}=0"
 freezeparams="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx.*}"
 
-####################################################################
+####################################################################################################
 # Generate toys for lowest order polynomial
-####################################################################
+####################################################################################################
 
 model_name="nTF1_${low1}_nTF2_${low2}"
 toys_name="${low1}${low2}"
@@ -89,9 +101,9 @@ xrdcp $outsdir/gentoys$seed.txt root://cmseos.fnal.gov//store/user/rkansal/bbVV/
 
 cd -
 
-####################################################################
+####################################################################################################
 # Run GoF for each order on generated toys
-####################################################################
+####################################################################################################
 
 for (( ord1=$low1; ord1<=$((low1 + 1)); ord1++ ))
 do

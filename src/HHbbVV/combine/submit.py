@@ -217,7 +217,7 @@ def main(args):
     os.system(f"mkdir -p {t2_local_prefix}/{templates_dir}")
 
     jdl_templ = "src/HHbbVV/combine/submit.templ.jdl"
-    sh_templ = "src/HHbbVV/combine/resonant_templ.sh"
+    sh_templ = "src/HHbbVV/combine/submit.templ.sh"
 
     samples = scan_samples if args.scan else full_samples
 

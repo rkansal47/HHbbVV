@@ -238,6 +238,20 @@ All years:
 for year in 2016APV 2016 2017 2018; do python postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/"; done 
 ```
 
+#### Making separate background and signal templates for a scan
+
+Background and data:
+
+```bash
+nohup bash -c 'for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/$TAG/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --resonant --sig-samples "" --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name backgrounds --old-processor; done' &> outs/bgout.txt & 
+```
+
+Signal:
+
+```bash
+nohup bash -c 'for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250; do for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/$TAG/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --signal-data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Apr11" --resonant --sig-samples $sample --bg-keys "" --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name $sample --no-data; done; done' &> outs/sigout.txt & 
+```
+
 ### Create Datacard
 
 Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rhalphalib installed (`pip install -e . --user` after checking out the branch). `CMSSW_11_2_0` recommended.
@@ -252,6 +266,10 @@ Or with separate templates for background and signal:
 python3 -u postprocessing/CreateDatacard.py --templates-dir "/eos/uscms/store/user/rkansal/bbVV/templates/23Apr30Scan/txbb_HP_thww_0.96" \
 --sig-separate --resonant --model-name $sample --sig-sample $sample
 ```
+
+Datacards with different orders of TFs for F-tests:
+
+Use the `src/HHbbVV/combine/F_test_res.sh` script.
 
 
 ### PlotFits
@@ -286,6 +304,12 @@ Can run over all the resonant signals (default) or scan working points for a sub
 
 ```bash
 python src/HHbbVV/combine/submit.py --test --scan --resonant --templates-dir 23Apr30Scan
+```
+
+Generate toys and fits for F-tests (after making cards and b-only fits)
+
+```bash
+python src/HHbbVV/combine/submit_ftest.py --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
 ```
 
 ## Misc
