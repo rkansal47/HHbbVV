@@ -27,6 +27,7 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [BDT Pre-Processing](#bdt-pre-processing)
     - [BDT Trainings](#bdt-trainings)
     - [Post-Processing](#post-processing-1)
+      - [WP Scan](#wp-scan)
     - [Create Datacard](#create-datacard)
     - [PlotFits](#plotfits)
   - [Combine](#combine)
@@ -236,6 +237,20 @@ python postprocessing.py --templates --year "2017" --template-dir "templates/$TA
 All years:
 ```bash
 for year in 2016APV 2016 2017 2018; do python postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/"; done 
+```
+
+#### WP Scan
+
+Backgrounds:
+
+```bash
+for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/23Apr30Scan/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --signal-data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Apr11" --resonant --sig-samples "" --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name backgrounds; done 
+```
+
+Signals:
+
+```bash
+for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80 NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190 NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250 NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150; do for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/23Apr30Scan/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --signal-data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Apr11" --resonant --bg-keys "" --sig-samples $sample --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name $sample --no-data; done; done 
 ```
 
 ### Create Datacard
