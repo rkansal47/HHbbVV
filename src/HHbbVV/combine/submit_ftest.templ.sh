@@ -88,7 +88,7 @@ cd ${cards_dir}/${model_name}/
 
 ulimit -s unlimited
 
-echo "Toys for (0, 0) order fit"
+echo "Toys for ($low1, $low2) order fit"
 combine -M GenerateOnly -m 125 -d ${wsm_snapshot}.root \
 --snapshotName MultiDimFit --bypassFrequentistFit \
 --setParameters ${maskunblindedargs},${setparams},r=0 \

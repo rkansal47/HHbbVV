@@ -3,19 +3,20 @@
 ####################################################################################################
 # 1) Makes datacards and workspaces for different orders of polynomials
 # 2) Runs background-only fit in validation region for lowest order polynomial and GoF test (saturated model) on data
-# 3) Generates toys and gets test statistics for each (-t|--goftoys)
-# 4) Fits +1 order models to all 100 toys and gets test statistics (-f|--ffits)
-
+# 3) Runs fit diagnostics and saves shapes (-d|--dfit)
+# 4) Generates toys and gets test statistics for each (-t|--goftoys)
+# 5) Fits +1 order models to all 100 toys and gets test statistics (-f|--ffits)
+#
 # Author: Raghav Kansal
 ####################################################################################################
 
 goftoys=0
 ffits=0
+dfit=0
 seed=42
 numtoys=100
-templates_tag=Apr11
 
-options=$(getopt -o "tf" --long "cardstag:,templatestag:,goftoys,ffits,numtoys:,seed:" -- "$@")
+options=$(getopt -o "tfd" --long "cardstag:,templatestag:,sigsample:,goftoys,ffits,dfit,numtoys:,seed:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -26,6 +27,9 @@ while true; do
         -f|--ffits)
             ffitss=1
             ;;
+        -d|--dfit)
+            dfit=1
+            ;;
         --cardstag)
             shift
             cards_tag=$1
@@ -33,6 +37,10 @@ while true; do
         --templatestag)
             shift
             templates_tag=$1
+            ;;
+        --sigsample)
+            shift
+            sig_sample=$1
             ;;
         --seed)
             shift
@@ -57,7 +65,8 @@ while true; do
     shift
 done
 
-echo "Arguments: goftoys=$goftoys ffits=$ffits seed=$seed numtoys=$numtoys"
+echo "Arguments: cardstag=$cards_tag templatestag=$templates_tag sigsample=$sig_sample dfit=$dfit \
+goftoys=$goftoys ffits=$ffits seed=$seed numtoys=$numtoys"
 
 
 ####################################################################################################
@@ -65,7 +74,6 @@ echo "Arguments: goftoys=$goftoys ffits=$ffits seed=$seed numtoys=$numtoys"
 ####################################################################################################
 
 templates_dir="/eos/uscms/store/user/rkansal/bbVV/templates/${templates_tag}"
-sig_sample="NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-190"
 cards_dir="cards/f_tests/${cards_tag}/"
 mkdir -p ${cards_dir}
 echo "Saving datacards to ${cards_dir}"
@@ -102,19 +110,27 @@ freezeparams="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx.*}"
 # Making cards and workspaces for each order polynomial
 ####################################################################################################
 
-for ord1 in {0..2}
+for ord1 in {0..3}
 do
-    for ord2 in {0..2}
+    for ord2 in {0..3}
     do
         model_name="nTF1_${ord1}_nTF2_${ord2}"
-        echo "Making Datacard for $model_name"
-        python3 -u postprocessing/CreateDatacard.py --templates-dir ${templates_dir} --sig-separate \
-        --resonant --model-name ${model_name} --sig-sample ${sig_sample} \
-        --nTF ${ord2} ${ord1} --cards-dir ${cards_dir}
+        if [ ! -f "${cards_dir}/${model_name}/higgsCombineData.GoodnessOfFit.mH125.root" ]; then
+            echo "Making Datacard for $model_name"
+            python3 -u postprocessing/CreateDatacard.py --templates-dir ${templates_dir} --sig-separate \
+            --resonant --model-name ${model_name} --sig-sample ${sig_sample} \
+            --nTF ${ord2} ${ord1} --cards-dir ${cards_dir}
 
-        cd ${cards_dir}/${model_name}/
-        /uscms/home/rkansal/hhcombine/combine_scripts/run_blinded.sh -wbgr
-        cd -
+            cd ${cards_dir}/${model_name}/
+
+            /uscms/home/rkansal/hhcombine/combine_scripts/run_blinded.sh -wbgr
+
+            if [ $dfit = 1 ]; then
+                /uscms/home/rkansal/hhcombine/combine_scripts/run_blinded.sh -dr
+            fi
+
+            cd -
+        fi
     done
 done
 
@@ -166,7 +182,7 @@ if [ $ffit = 1 ]; then
             combine -M GoodnessOfFit -d ${wsm_snapshot}.root --algo saturated -m 125 \
             --setParameters ${maskunblindedargs},${setparams},r=0 \
             --freezeParameters ${freezeparams},r \
-            -n Toys${toys_name} -v 9 -s 42 -t 100 --toysFile ${toys_file} 2>&1 | tee $outsdir/GoF_toys${toys_name}.txt
+            -n Toys${toys_name} -v 9 -s $seed -t $numtoys --toysFile ${toys_file} 2>&1 | tee $outsdir/GoF_toys${toys_name}.txt
 
             cd -
         done
