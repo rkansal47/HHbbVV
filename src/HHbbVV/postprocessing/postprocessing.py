@@ -44,6 +44,7 @@ from hh_vars import (
     samples,
     nonres_samples,
     res_samples,
+    BDT_sample_order,
     txbb_wps,
     jec_shifts,
     jmsr_shifts,
@@ -364,18 +365,20 @@ def main(args):
             systematics = _check_load_systematics(systs_file, args.year)
 
             # Lund plane SFs
-            _lpsfs(
-                args,
+            lpsfs(
                 events_dict,
                 bb_masks,
                 sig_keys,
                 sig_samples,
                 cutflow,
-                all_samples,
-                selection_regions,
-                bdt_preds_dir,
+                selection_regions["lpsf"],
                 systematics,
+                args.lp_sf_all_years,
+                BDT_sample_order,
+                bdt_preds_dir,
+                template_dir,
                 systs_file,
+                args.signal_data_dir,
             )
 
             # Check for 0 weights - would be an issue for weight shifts
@@ -756,18 +759,20 @@ def get_lpsf_all_years(
     return get_lpsf(events, sel)
 
 
-def _lpsfs(
-    args,
-    events_dict,
-    bb_masks,
-    sig_keys,
-    sig_samples,
-    cutflow,
-    all_samples,
-    selection_regions,
-    bdt_preds_dir,
-    systematics,
-    systs_file,
+def lpsfs(
+    events_dict: Dict[str, pd.DataFrame],
+    bb_masks: Dict[str, pd.DataFrame],
+    sig_keys: List[str],
+    sig_samples: Dict[str, str],
+    cutflow: pd.DataFrame,
+    lp_selection_region: Region,
+    systematics: Dict,
+    all_years: bool = False,
+    bdt_sample_order: List[str] = None,
+    bdt_preds_dir: str = None,
+    template_dir: str = None,
+    systs_file: str = None,
+    data_dir: str = None,
 ):
     """
     1) Calculates LP SFs for each signal, if not already in ``systematics``
@@ -782,23 +787,23 @@ def _lpsfs(
             systematics[sig_key] = {}
 
             # SFs are correlated across all years so needs to be calculated with full dataset
-            if args.lp_sf_all_years:
+            if all_years:
                 lp_sf, unc, uncs = get_lpsf_all_years(
                     events_dict,
                     sig_key,
-                    args.signal_data_dir,
+                    data_dir,
                     sig_samples,
-                    selection_regions["lpsf"],
+                    lp_selection_region,
                     bdt_preds_dir,
-                    list(all_samples.keys()),
+                    bdt_sample_order,
                 )
-            # Can do just for a single year (only for testing)
+            # Only for testing, can do just for a single year
             else:
-                warnings.warn(f"LP SF only calculated from {args.year} samples", RuntimeWarning)
+                warnings.warn(f"LP SF only calculated from single year's samples", RuntimeWarning)
                 # calculate only for current year
                 events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
                 sel, cf = utils.make_selection(
-                    selection_regions["lpsf"].cuts,
+                    lp_selection_region.cuts,
                     events_dict,
                     bb_masks,
                     prev_cutflow=cutflow,
@@ -811,15 +816,17 @@ def _lpsfs(
             systematics[sig_key]["lp_sf_unc"] = unc / lp_sf
             sf_table[sig_key] = {"SF": f"{lp_sf:.2f} ± {unc:.2f}", **uncs}
 
-        if len(sf_table):
-            sf_df = pd.DataFrame(index=sig_keys)
-            for key in sf_table[sig_key]:
-                sf_df[key] = [sf_table[skey][key] for skey in sig_keys]
+        if template_dir is not None:
+            if len(sf_table):
+                sf_df = pd.DataFrame(index=sig_keys)
+                for key in sf_table[sig_key]:
+                    sf_df[key] = [sf_table[skey][key] for skey in sig_keys]
 
-            sf_df.to_csv(f"{args.template_dir}/lpsfs.csv")
+                sf_df.to_csv(f"{template_dir}/lpsfs.csv")
 
-    with open(systs_file, "w") as f:
-        json.dump(systematics, f)
+    if systs_file is not None:
+        with open(systs_file, "w") as f:
+            json.dump(systematics, f)
 
     utils.add_to_cutflow(events_dict, "LP SF", "finalWeight", cutflow)
 
@@ -980,8 +987,8 @@ def get_templates(
             region.cuts, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
 
-        if plot_dir != "":
-            cf.to_csv(f"{plot_dir}/{rname}_cutflow{jlabel}.csv")
+        # if plot_dir != "":
+        #     cf.to_csv(f"{plot_dir}/{rname}_cutflow{jlabel}.csv")
 
         # trigger uncertainties
         if not do_jshift:

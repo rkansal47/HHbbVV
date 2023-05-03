@@ -28,16 +28,22 @@ samples = OrderedDict(
         ("Diboson", ("WW", "WZ", "ZZ")),
         ("Hbb", "*HToBB"),
         ("HWW", ("*HToWW", "*HToNonbb")),
-        ("HH", ("VBF_HHTobbVV_CV_1_C2V_1_C3_1", "GluGluToHHTo4B_node_cHHH1_preUL")),
+        ("HH", ("GluGluToHHTo4B_node_cHHH1_preUL")),
         ("Data", "JetHT"),
     ]
 )
 
+data_key = "Data"
+qcd_key = "QCD"
+bg_keys = [key for key in samples.keys() if key != data_key]
+
 nonres_samples = OrderedDict(
     [
         ("HHbbVV", "GluGluToHHTobbVV_node_cHHH1"),
+        ("VBFHHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_1"),
     ]
 )
+nonres_sig_keys = list(nonres_samples.keys())
 
 res_samples = OrderedDict([])
 
@@ -160,11 +166,10 @@ res_mps = [
 for mX, mY in res_mps:
     res_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
 
-nonres_sig_keys = list(nonres_samples.keys())
 res_sig_keys = list(res_samples.keys())
-data_key = "Data"
-qcd_key = "QCD"
-bg_keys = [key for key in samples.keys() if key != data_key]
+
+
+BDT_sample_order = ["HHbbVV", "QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
 
 
 # from https://cms.cern.ch/iCMS/jsp/db_notes/noteInfo.jsp?cmsnoteid=CMS%20AN-2021/005
