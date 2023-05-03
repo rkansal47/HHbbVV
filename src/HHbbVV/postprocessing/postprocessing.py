@@ -311,6 +311,7 @@ def main(args):
     if "finalWeight_noTrigEffs" not in events_dict[list(events_dict.keys())[0]]:
         # trigger effs (if not already from processor)
         apply_weights(events_dict, args.year, cutflow)
+        print("\nCutflow\n", cutflow)
         # THWW score vs Top (if not already from processor)
         derive_variables(events_dict)
 
@@ -348,9 +349,9 @@ def main(args):
         )
 
     if args.templates:
-        for wps in scan_wps:
+        for wps in scan_wps:  # if not scanning, this will just be a single WP
             cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)]) if scan else ""
-            template_dir = f"{args.template_dir}/{cutstr}/{args.templates_name}"
+            template_dir = f"{args.template_dir}/{cutstr}/{args.templates_name}/"
 
             cutargs = {f"{cut}_wp": wp for cut, wp in zip(scan_cuts, wps)}
             selection_regions = (
@@ -403,6 +404,7 @@ def main(args):
                     selection_regions,
                     shape_vars,
                     systematics,
+                    template_dir,
                     bg_keys=bg_keys,
                     plot_dir=plot_dir,
                     prev_cutflow=cutflow,
@@ -495,7 +497,6 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
         if scan:
             for wps in scan_wps:
                 cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
-                os.system(f"mkdir -p {args.template_dir}/{cutstr}/{args.templates_name}/")
                 os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/")
                 os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/wshifts")
                 os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/jshifts")
@@ -507,12 +508,12 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
                 os.system(f"mkdir -p {args.plot_dir}/templates/hists2d")
 
     if args.template_dir != "":
-        os.system(f"mkdir -p {args.template_dir}")
-
         if scan:
             for wps in scan_wps:
                 cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
                 os.system(f"mkdir -p {args.template_dir}/{cutstr}/{args.templates_name}/")
+        else:
+            os.system(f"mkdir -p {args.template_dir}/{args.templates_name}/")
 
 
 def _check_load_systematics(systs_file: str, year: str):
@@ -631,6 +632,9 @@ def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataF
 def derive_variables(events_dict: Dict[str, pd.DataFrame]):
     """Add HWW vs (QCD + Top) discriminant"""
     for sample, events in events_dict.items():
+        if "VVFatJetParTMD_THWWvsT" in events:
+            continue
+
         h4qvst = (events["ak8FatJetParTMD_probHWW3q"] + events["ak8FatJetParTMD_probHWW4q"]) / (
             events["ak8FatJetParTMD_probHWW3q"]
             + events["ak8FatJetParTMD_probHWW4q"]
@@ -699,6 +703,8 @@ def get_lpsf_all_years(
     load_columns = [
         ("weight", 1),
         ("weight_noTrigEffs", 1),
+        ("ak8FatJetPt", 2),
+        ("ak8FatJetMsd", 2),
         ("ak8FatJetHVV", 2),
         ("ak8FatJetHVVNumProngs", 1),
         ("ak8FatJetParticleNetMD_Txbb", 2),
@@ -940,6 +946,7 @@ def get_templates(
     selection_regions: Dict[str, Region],
     shape_vars: List[ShapeVar],
     systematics: Dict,
+    template_dir: str,
     bg_keys: List[str] = bg_keys,
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
@@ -1025,10 +1032,11 @@ def get_templates(
                         hist_samples.append(f"{sig_key}_txbb_{shift}")
 
                 for wshift, wsyst in weight_shifts.items():
-                    if year in wsyst.years:
-                        for wsample in wsyst.samples:
-                            if wsample in events_dict:
-                                hist_samples.append(f"{wsample}_{wshift}_{shift}")
+                    # if year in wsyst.years:
+                    # add to the axis even if not applied to this year to make it easier to sum later
+                    for wsample in wsyst.samples:
+                        if wsample in events_dict:
+                            hist_samples.append(f"{wsample}_{wshift}_{shift}")
 
         # histograms
         h = Hist(

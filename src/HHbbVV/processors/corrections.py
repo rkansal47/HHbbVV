@@ -549,6 +549,7 @@ def add_trig_effs(weights: Weights, fatjets: FatJetArray, year: str, num_jets: i
 
     # combined eff = 1 - (1 - fj1_eff) * (1 - fj2_eff)
     combined_trigEffs = 1 - np.prod(1 - fj_trigeffs, axis=1)
+
     weights.add("trig_effs", combined_trigEffs)
 
 

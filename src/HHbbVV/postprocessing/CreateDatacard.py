@@ -49,6 +49,21 @@ class Syst:
     pass_only: bool = False  # is it applied only in the pass regions
 
 
+@dataclass
+class ShapeVar:
+    """For storing and calculating info about variables used in fit"""
+
+    name: str = None
+    bins: np.ndarray = None  # bin edges
+    order: int = None  # TF order
+
+    def __post_init__(self):
+        # use bin centers for polynomial fit
+        self.pts = self.bins[:-1] + 0.5 * np.diff(self.bins)
+        # scale to be between [0, 1]
+        self.scaled = (self.pts - self.bins[0]) / (self.bins[-1] - self.bins[0])
+
+
 def add_bool_arg(parser, name, help, default=False, no_name=None):
     """Add a boolean command line argument for argparse"""
     varname = "_".join(name.split("-"))  # change hyphens to underscores
@@ -78,6 +93,7 @@ parser.add_argument(
     help="input pickle file of dict of hist.Hist templates",
 )
 add_bool_arg(parser, "sig-separate", "separate templates for signals and bgs", default=False)
+add_bool_arg(parser, "do-jshifts", "Do JEC/JMC corrections.", default=True)
 
 parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
 
@@ -89,16 +105,11 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "--nTF1",
-    default=2,
+    "--nTF",
+    default=[1, 0],
+    nargs="*",
     type=int,
-    help="order of polynomial for TF in dim 1",
-)
-parser.add_argument(
-    "--nTF2",
-    default=2,
-    type=int,
-    help="order of polynomial for TF in dim 2 (if 2D)",
+    help="order of polynomial for TF in [dim 1, dim 2] = [mH(bb), -] for nonresonant or [mY, mX] for resonant",
 )
 
 parser.add_argument("--model-name", default=None, type=str, help="output model name")
@@ -234,6 +245,13 @@ uncorr_year_shape_systs = {
     "JMR": Syst(name="CMS_bbWW_boosted_ggf_jmr", prior="shape", samples=all_mc),
 }
 
+if not args.do_jshifts:
+    del corr_year_shape_systs["JES"]
+    del uncorr_year_shape_systs["JER"]
+    del uncorr_year_shape_systs["JMS"]
+    del uncorr_year_shape_systs["JMR"]
+
+
 shape_systs_dict = {}
 for skey, syst in corr_year_shape_systs.items():
     shape_systs_dict[skey] = rl.NuisanceParameter(syst.name, "shape")
@@ -250,95 +268,23 @@ PARAMS_LABEL = "bbWW_boosted_ggf" if not args.resonant else "XHYbbWW_boosted"
 
 def main(args):
     # (pass, fail) x (unblinded, blinded)
-    regions = [f"{pf}{blind_str}" for pf in [f"pass", "fail"] for blind_str in ["", "Blinded"]]
+    regions: List[str] = [
+        f"{pf}{blind_str}" for pf in [f"pass", "fail"] for blind_str in ["", "Blinded"]
+    ]
 
-    templates_dict = {}
+    # templates per region per year, templates per region summed across years
+    templates_dict, templates_summed = get_templates(args.templates_dir, years, args.sig_separate)
 
-    # TODO: combine different signal templates
-    # TODO: including incorporating trigger effs!
+    # TODO: check if / how to include signal trig eff uncs. (rn only using bg uncs.)
+    process_systematics(args.templates_dir, args.sig_separate)
 
-    if not args.sig_separate:
-        for year in years:
-            with open(f"{args.templates_dir}/{year}_templates.pkl", "rb") as f:
-                templates_dict[year] = _rem_neg(pickle.load(f))
-
-        templates_all = sum_templates(templates_dict)  # sum across years
-
-        with open(f"{args.templates_dir}/systematics.json", "r") as f:
-            systematics = json.load(f)
-
-        process_systematics(systematics)  # LP SF and trig effs.
-    else:
-        for year in years:
-            with open(f"{args.templates_dir}/backgrounds/{year}_templates.pkl", "rb") as f:
-                bg_templates = _rem_neg(pickle.load(f))
-
-            sig_templates = []
-
-            for sig_key in sig_keys:
-                with open(
-                    f"{args.templates_dir}/{hist_names[sig_key]}/{year}_templates.pkl", "rb"
-                ) as f:
-                    sig_templates.append(_rem_neg(pickle.load(f)))
-
-            templates_dict[year] = {}
-
-            for region, bg_template in bg_templates.items():
-                csamples = list(bg_template.axes[0]) + [
-                    s for sig_template in sig_templates for s in list(sig_template[region].axes[0])
-                ]
-
-                ctemplate = Hist(
-                    hist.axis.StrCategory(csamples, name="Sample"),
-                    *bg_template.axes[1:],
-                    storage="weight",
-                )
-
-                for sample in bg_template.axes[0]:
-                    sample_key_index = np.where(np.array(list(ctemplate.axes[0])) == sample)[0][0]
-                    ctemplate.view(flow=True)[sample_key_index, ...] = bg_template[
-                        sample, ...
-                    ].view(flow=True)
-
-                for st in sig_templates:
-                    sig_template = st[region]
-                    for sample in sig_template.axes[0]:
-                        sample_key_index = np.where(np.array(list(ctemplate.axes[0])) == sample)[0][
-                            0
-                        ]
-                        ctemplate.view(flow=True)[sample_key_index, ...] = sig_template[
-                            sample, ...
-                        ].view(flow=True)
-
-                templates_dict[year][region] = ctemplate
-
-        templates_all = sum_templates(templates_dict)  # sum across years
-
-        with open(f"{args.templates_dir}/backgrounds/systematics.json", "r") as f:
-            bg_systematics = json.load(f)
-
-        sig_systs = {}
-        for sig_key in sig_keys:
-            with open(f"{args.templates_dir}/{hist_names[sig_key]}/systematics.json", "r") as f:
-                sig_systs[sig_key] = json.load(f)
-
-        process_systematics_separate(bg_systematics, sig_systs)  # LP SF and trig effs.
-
-    # random template from which to extract common data
-    sample_templates = templates_all[regions[0]]
-    shape_var = sample_templates.axes[1].name
-
-    # get bins, centers, and scale centers for polynomial evaluation
-    shape_bins = sample_templates.axes[1].edges
-    shape_pts = shape_bins[:-1] + 0.5 * np.diff(shape_bins)
-    shape_scaled = (shape_pts - shape_bins[0]) / (shape_bins[-1] - shape_bins[0])
-
-    if args.resonant:
-        shape_var2 = sample_templates.axes[2].name
-        # get bins, centers, and scale centers for polynomial evaluation
-        mX_bins = sample_templates.axes[2].edges
-        mX_pts = mX_bins[:-1] + 0.5 * np.diff(mX_bins)
-        mX_scaled = (mX_pts - mX_bins[0]) / (mX_bins[-1] - mX_bins[0])
+    # random template from which to extract shape vars
+    sample_templates: Hist = templates_summed[regions[0]]
+    # [mH(bb)] for nonresonant, [mY, mX] for resonant
+    shape_vars = [
+        ShapeVar(name=axis.name, bins=axis.edges, order=args.nTF[i])
+        for i, axis in enumerate(sample_templates.axes[1:])
+    ]
 
     # build actual fit model now
     model = rl.Model("HHModel" if not args.resonant else "XHYModel")
@@ -349,7 +295,7 @@ def main(args):
         model,
         regions,
         templates_dict,
-        templates_all,
+        templates_summed,
         mc_samples,
         nuisance_params,
         nuisance_params_dict,
@@ -359,26 +305,18 @@ def main(args):
         args.bblite,
     ]
 
-    if args.resonant:
-        for i in range(len(mX_pts)):
-            logging.info(f"\n\nFilling templates for mXbin {i}")
-            fill_regions(*fill_args, mX_bin=i)
-    else:
-        fill_regions(*fill_args)
+    fit_args = [model, shape_vars, templates_summed]
 
     if args.resonant:
-        res_alphabet_fit(
-            model,
-            shape_var,
-            shape_bins,
-            shape_scaled,
-            shape_var2,
-            mX_bins,
-            mX_scaled,
-            templates_all,
-        )
+        # fill 1 channel per mX bin
+        for i in range(len(shape_vars[1].pts)):
+            logging.info(f"\n\nFilling templates for mXbin {i}")
+            fill_regions(*fill_args, mX_bin=i)
+
+        res_alphabet_fit(*fit_args)
     else:
-        nonres_alphabet_fit(model, shape_var, shape_bins, shape_scaled, templates_all)
+        fill_regions(*fill_args)
+        nonres_alphabet_fit(*fit_args)
 
     ##############################################
     # Save model
@@ -406,8 +344,32 @@ def _rem_neg(template_dict: Dict):
     return template_dict
 
 
+def _match_samples(template: Hist, match_template: Hist) -> Hist:
+    """Temporary solution for case where 2018 templates don't have L1 prefiring in their axis
+
+    Args:
+        template (Hist): template to which samples may need to be added
+        match_template (Hist): template from which to extract extra samples
+    """
+    samples = list(match_template.axes[0])
+
+    # if template already has all the samples, don't do anything
+    if list(template.axes[0]) == samples:
+        return template
+
+    # otherwise remake template with samples from ``match_template``
+    h = hist.Hist(*match_template.axes, storage="weight")
+
+    for sample in template.axes[0]:
+        sample_index = np.where(np.array(list(h.axes[0])) == sample)[0][0]
+        h.view()[sample_index] = template[sample, ...].view()
+
+    return h
+
+
 def sum_templates(template_dict: Dict):
     """Sum templates across years"""
+
     ttemplate = list(template_dict.values())[0]  # sample templates to extract values from
     combined = {}
 
@@ -415,14 +377,91 @@ def sum_templates(template_dict: Dict):
         thists = []
 
         for year in years:
-            thists.append(template_dict[year][region])
+            # temporary solution for case where 2018 templates don't have L1 prefiring in their axis
+            thists.append(
+                _match_samples(template_dict[year][region], template_dict["2016"][region])
+            )
 
         combined[region] = sum(thists)
 
     return combined
 
 
-def process_systematics(systematics: Dict):
+def combine_templates(
+    bg_templates: Dict[str, Hist], sig_templates: List[Dict[str, Hist]]
+) -> Dict[str, Hist]:
+    """
+    Combines BG and signal templates into a single Hist (per region).
+
+    Args:
+        bg_templates (Dict[str, Hist]): dictionary of region -> Hist
+        sig_templates (List[Dict[str, Hist]]): list of dictionaries of region -> Hist for each
+          signal samples
+    """
+    ctemplates = {}
+
+    for region, bg_template in bg_templates.items():
+        # combined sig + bg samples
+        csamples = list(bg_template.axes[0]) + [
+            s for sig_template in sig_templates for s in list(sig_template[region].axes[0])
+        ]
+
+        # new hist with all samples
+        ctemplate = Hist(
+            hist.axis.StrCategory(csamples, name="Sample"),
+            *bg_template.axes[1:],
+            storage="weight",
+        )
+
+        # add background hists
+        for sample in bg_template.axes[0]:
+            sample_key_index = np.where(np.array(list(ctemplate.axes[0])) == sample)[0][0]
+            ctemplate.view(flow=True)[sample_key_index, ...] = bg_template[sample, ...].view(
+                flow=True
+            )
+
+        # add signal hists
+        for st in sig_templates:
+            sig_template = st[region]
+            for sample in sig_template.axes[0]:
+                sample_key_index = np.where(np.array(list(ctemplate.axes[0])) == sample)[0][0]
+                ctemplate.view(flow=True)[sample_key_index, ...] = sig_template[sample, ...].view(
+                    flow=True
+                )
+
+        ctemplates[region] = ctemplate
+
+    return ctemplates
+
+
+def get_templates(templates_dir: str, years: List[str], sig_separate: bool):
+    """Loads templates, combines bg and sig templates if separate, sums across all years"""
+    templates_dict: Dict[str, Dict[str, Hist]] = {}
+
+    if not sig_separate:
+        # signal and background templates in same hist, just need to load and sum across years
+        for year in years:
+            with open(f"{templates_dir}/{year}_templates.pkl", "rb") as f:
+                templates_dict[year] = _rem_neg(pickle.load(f))
+    else:
+        # signal and background in different hists - need to combine them into one hist
+        for year in years:
+            with open(f"{templates_dir}/backgrounds/{year}_templates.pkl", "rb") as f:
+                bg_templates = _rem_neg(pickle.load(f))
+
+            sig_templates = []
+
+            for sig_key in sig_keys:
+                with open(f"{templates_dir}/{hist_names[sig_key]}/{year}_templates.pkl", "rb") as f:
+                    sig_templates.append(_rem_neg(pickle.load(f)))
+
+            templates_dict[year] = combine_templates(bg_templates, sig_templates)
+
+    templates_summed: Dict[str, Hist] = sum_templates(templates_dict)  # sum across years
+    return templates_dict, templates_summed
+
+
+def process_systematics_combined(systematics: Dict):
     """Get total uncertainties from per-year systs in ``systematics``"""
     global nuisance_params
     for sig_key in sig_keys:
@@ -490,11 +529,30 @@ def process_systematics_separate(bg_systematics: Dict, sig_systs: Dict[str, Dict
     print("Nuisance Parameters\n", nuisance_params)
 
 
+def process_systematics(templates_dir: str, sig_separate: bool):
+    """Processses systematics based on whether signal and background JSONs are combined or not"""
+    if not sig_separate:
+        with open(f"{templates_dir}/systematics.json", "r") as f:
+            systematics = json.load(f)
+
+        process_systematics_combined(systematics)  # LP SF and trig effs.
+    else:
+        with open(f"{templates_dir}/backgrounds/systematics.json", "r") as f:
+            bg_systematics = json.load(f)
+
+        sig_systs = {}
+        for sig_key in sig_keys:
+            with open(f"{templates_dir}/{hist_names[sig_key]}/systematics.json", "r") as f:
+                sig_systs[sig_key] = json.load(f)
+
+        process_systematics_separate(bg_systematics, sig_systs)  # LP SF and trig effs.
+
+
 def fill_regions(
     model: rl.Model,
     regions: List[str],
     templates_dict: Dict,
-    templates_all: Dict,
+    templates_summed: Dict,
     mc_samples: Dict[str, str],
     nuisance_params: Dict[str, Syst],
     nuisance_params_dict: Dict[str, rl.NuisanceParameter],
@@ -511,7 +569,7 @@ def fill_regions(
         model (rl.Model): rhalphalib model
         regions (List[str]): list of regions to fill
         templates_dict (Dict): dictionary of all templates
-        templates_all (Dict): dictionary of templates summed across years
+        templates_summed (Dict): dictionary of templates summed across years
         mc_samples (Dict[str, str]): dict of mc samples and their names in the given templates -> card names
         nuisance_params (Dict[str, Tuple]): dict of nuisance parameter names and tuple of their
           (modifier, samples affected by it, value)
@@ -530,9 +588,9 @@ def fill_regions(
 
     for region in regions:
         if mX_bin is None:
-            region_templates = templates_all[region]
+            region_templates = templates_summed[region]
         else:
-            region_templates = templates_all[region][:, :, mX_bin]
+            region_templates = templates_summed[region][:, :, mX_bin]
 
         pass_region = region.startswith("pass")
         region_noblinded = region.split("Blinded")[0]
@@ -615,16 +673,18 @@ def fill_regions(
                 if skey in jecs or skey in jmsr:
                     # JEC/JMCs saved as different "region" in dict
                     if mX_bin is None:
-                        up_hist = templates_all[f"{region_noblinded}_{skey}_up{blind_str}"][
+                        up_hist = templates_summed[f"{region_noblinded}_{skey}_up{blind_str}"][
                             sample_name, :
                         ]
-                        down_hist = templates_all[f"{region_noblinded}_{skey}_down{blind_str}"][
+                        down_hist = templates_summed[f"{region_noblinded}_{skey}_down{blind_str}"][
                             sample_name, :
                         ]
                     else:
                         # regions names are different from different blinding strats
-                        up_hist = templates_all[f"{region}_{skey}_up"][sample_name, :, mX_bin]
-                        down_hist = templates_all[f"{region}_{skey}_down"][sample_name, :, mX_bin]
+                        up_hist = templates_summed[f"{region}_{skey}_up"][sample_name, :, mX_bin]
+                        down_hist = templates_summed[f"{region}_{skey}_down"][
+                            sample_name, :, mX_bin
+                        ]
 
                     values_up = up_hist.values()
                     values_down = down_hist.values()
@@ -687,26 +747,25 @@ def fill_regions(
         ch.setObservation(region_templates[data_key, :])
 
 
-def nonres_alphabet_fit(
-    model: rl.Model, shape_var: str, bins: List[int], bins_scaled: List[int], templates_all: Dict
-):
-    m_obs = rl.Observable(shape_var, bins)
+def nonres_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_summed: Dict):
+    shape_var = shape_vars[0]
+    m_obs = rl.Observable(shape_var.name, shape_var.bins)
 
     # QCD overall pass / fail efficiency
     qcd_eff = (
-        templates_all[f"pass"][qcd_key, :].sum().value
-        / templates_all[f"fail"][qcd_key, :].sum().value
+        templates_summed[f"pass"][qcd_key, :].sum().value
+        / templates_summed[f"fail"][qcd_key, :].sum().value
     )
 
     # transfer factor
     tf_dataResidual = rl.BasisPoly(
         f"{CMS_PARAMS_LABEL}_tf_dataResidual",
-        (args.nTF1,),
-        [shape_var],
+        (shape_var.order,),
+        [shape_var.name],
         basis="Bernstein",
         limits=(-20, 20),
     )
-    tf_dataResidual_params = tf_dataResidual(bins_scaled)
+    tf_dataResidual_params = tf_dataResidual(shape_var.scaled)
     tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
 
     # qcd params
@@ -762,39 +821,33 @@ def nonres_alphabet_fit(
         passCh.addSample(pass_qcd)
 
 
-def res_alphabet_fit(
-    model: rl.Model,
-    shape_var_mY: str,
-    mY_bins: List[int],
-    mY_bins_scaled: List[int],
-    shape_var_mX: str,
-    mX_bins: List[int],
-    mX_bins_scaled: List[int],
-    templates_all: Dict,
-):
-    m_obs = rl.Observable(shape_var_mY, mY_bins)
+def res_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_summed: Dict):
+    shape_var_mY, shape_var_mX = shape_vars
+    m_obs = rl.Observable(shape_var_mY.name, shape_var_mY.bins)
 
     # QCD overall pass / fail efficiency
     qcd_eff = (
-        templates_all[f"pass"][qcd_key, ...].sum().value
-        / templates_all[f"fail"][qcd_key, ...].sum().value
+        templates_summed[f"pass"][qcd_key, ...].sum().value
+        / templates_summed[f"fail"][qcd_key, ...].sum().value
     )
 
     # transfer factor
     tf_dataResidual = rl.BasisPoly(
         f"{CMS_PARAMS_LABEL}_tf_dataResidual",
-        (args.nTF1, args.nTF2),
-        [shape_var_mX, shape_var_mY],
+        (shape_var_mX.order, shape_var_mY.order),
+        [shape_var_mX.name, shape_var_mY.name],
         basis="Bernstein",
         limits=(-20, 20),
     )
 
     # based on https://github.com/nsmith-/rhalphalib/blob/9472913ef0bab3eb47bc942c1da4e00d59fb5202/tests/test_rhalphalib.py#L38
-    mX_scaled_grid, mY_scaled_grid = np.meshgrid(mX_bins_scaled, mY_bins_scaled, indexing="ij")
+    mX_scaled_grid, mY_scaled_grid = np.meshgrid(
+        shape_var_mX.scaled, shape_var_mY.scaled, indexing="ij"
+    )
     tf_dataResidual_params = tf_dataResidual(mX_scaled_grid, mY_scaled_grid)
     tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
 
-    for mX_bin in range(len(mX_bins) - 1):
+    for mX_bin in range(len(shape_var_mX.pts)):
         # qcd params
         qcd_params = np.array(
             [

@@ -27,16 +27,16 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [BDT Pre-Processing](#bdt-pre-processing)
     - [BDT Trainings](#bdt-trainings)
     - [Post-Processing](#post-processing-1)
-      - [WP Scan](#wp-scan)
+      - [Making separate background and signal templates for a scan](#making-separate-background-and-signal-templates-for-a-scan)
     - [Create Datacard](#create-datacard)
     - [PlotFits](#plotfits)
   - [Combine](#combine)
     - [CMSSW + Combine Quickstart](#cmssw--combine-quickstart)
-    - [Run basic fits and diagnostics](#run-basic-fits-and-diagnostics)
-    - [Get data and toy test statistics for simple GoF](#get-data-and-toy-test-statistics-for-simple-gof)
+    - [Run fits and diagnostics locally](#run-fits-and-diagnostics-locally)
+    - [Run fits on condor](#run-fits-on-condor)
   - [Misc](#misc)
     - [Command for copying directories to PRP in background](#command-for-copying-directories-to-prp-in-background)
-    - [Get all running job names:](#get-all-running-job-names)
+    - [Get all running condor job names:](#get-all-running-condor-job-names)
 
 
 ## Instructions for running coffea processors
@@ -239,18 +239,18 @@ All years:
 for year in 2016APV 2016 2017 2018; do python postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/"; done 
 ```
 
-#### WP Scan
+#### Making separate background and signal templates for a scan
 
-Backgrounds:
+Background and data:
 
 ```bash
-for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/23Apr30Scan/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --signal-data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Apr11" --resonant --sig-samples "" --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name backgrounds; done 
+nohup bash -c 'for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/$TAG/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --resonant --sig-samples "" --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name backgrounds --old-processor; done' &> outs/bgout.txt & 
 ```
 
-Signals:
+Signal:
 
 ```bash
-for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80 NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190 NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250 NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150; do for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/23Apr30Scan/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --signal-data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Apr11" --resonant --bg-keys "" --sig-samples $sample --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name $sample --no-data; done; done 
+nohup bash -c 'for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250; do for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/$TAG/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --signal-data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Apr11" --resonant --sig-samples $sample --bg-keys "" --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name $sample --no-data; done; done' &> outs/sigout.txt & 
 ```
 
 ### Create Datacard
@@ -260,6 +260,17 @@ Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rh
 ```bash
 python3 postprocessing/CreateDatacard.py --templates-dir templates/$TAG --model-name $TAG (--resonant)
 ```
+
+Or with separate templates for background and signal:
+
+```bash
+python3 -u postprocessing/CreateDatacard.py --templates-dir "/eos/uscms/store/user/rkansal/bbVV/templates/23Apr30Scan/txbb_HP_thww_0.96" \
+--sig-separate --resonant --model-name $sample --sig-sample $sample
+```
+
+Datacards with different orders of TFs for F-tests:
+
+Use the `src/HHbbVV/combine/F_test_res.sh` script.
 
 
 ### PlotFits
@@ -280,18 +291,27 @@ git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git Combine
 scramv1 b clean; scramv1 b
 ```
 
-### Run basic fits and diagnostics
+### Run fits and diagnostics locally
+
+All via the below script, with a bunch of options (see script):
 
 ```bash
-/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh "./"
+/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh --workspace --bfit --limits
 ```
 
-### Get data and toy test statistics for simple GoF
+### Run fits on condor
+
+Can run over all the resonant signals (default) or scan working points for a subset of signals (`--scan`)
 
 ```bash
-/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/gof.sh "./"
+python src/HHbbVV/combine/submit.py --test --scan --resonant --templates-dir 23Apr30Scan
 ```
 
+Generate toys and fits for F-tests (after making cards and b-only fits)
+
+```bash
+python src/HHbbVV/combine/submit_ftest.py --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
+```
 
 ## Misc
 
@@ -307,7 +327,7 @@ for i in *; do echo $i && sleep 3 && (nohup sh -c "krsync -av --progress --stats
 ```
 
 
-### Get all running job names:
+### Get all running condor job names:
 
 ```bash
 condor_q | awk '{ print $9}' | grep -o '[^ ]*\.sh'
