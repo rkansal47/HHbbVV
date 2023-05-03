@@ -534,7 +534,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                     weight = weights.weight()
                     weight_name = "weight"
                 elif systematic == "notrigeffs":
-                    weight = weights.partial_weight(exclude="trig_effs")
+                    weight = weights.partial_weight(exclude=["trig_effs"])
                     weight_name = "weight_noTrigEffs"
 
                 # includes genWeight (or signed genWeight)
@@ -543,8 +543,6 @@ class bbVVSkimmer(processor.ProcessorABC):
                 if systematic == "":
                     # to check in postprocessing for xsec & lumi normalisation
                     skimmed_events["weight_noxsec"] = weight
-
-        print(cutflow)
 
         # reshape and apply selections
         sel_all = selection.all(*selection.names)
@@ -630,8 +628,6 @@ class bbVVSkimmer(processor.ProcessorABC):
                 sf_dicts.append(sf_dict)
 
             sf_dicts = concatenate_dicts(sf_dicts)
-
-            print(sf_dicts)
 
             skimmed_events = {**skimmed_events, **sf_dicts}
 

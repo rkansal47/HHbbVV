@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
 """
-Splits the total fileset and creates condor job submission files for the specified run script.
+Splits toy generation into separate condor jobs and fits lowest order + 1 models for F-tests.
 
-Author(s): Cristina Mantilla Suarez, Raghav Kansal
+Author(s): Raghav Kansal
 """
 
 import argparse
@@ -59,21 +59,28 @@ def main(args):
         proxy = "/home/users/rkansal/x509up_u31735"
 
     username = os.environ["USER"]
-    local_dir = f"condor/f_tests/{args.tag}"
+    local_dir = f"condor/f_tests/{args.tag}_{args.low1}{args.low2}"
 
     # make local directory
     logdir = local_dir + "/logs"
     os.system(f"mkdir -p {logdir}")
 
+    # and eos directories
+    for i, j in [(0, 0), (0, 1), (1, 0)]:
+        os.system(
+            f"mkdir -p {t2_local_prefix}//store/user/rkansal/bbVV/cards/f_tests/{args.cards_tag}/"
+            f"nTF1_{args.low1 + i}_nTF2_{args.low2 + j}/"
+        )
+
     jdl_templ = "src/HHbbVV/combine/submit_ftest.templ.jdl"
-    sh_templ = "src/HHbbVV/combine/resonant_ftest_templ.sh"
+    sh_templ = "src/HHbbVV/combine/submit_ftest.templ.sh"
 
     # submit jobs
     if args.submit:
         print("Submitting jobs")
 
     for j in range(args.num_jobs):
-        prefix = "ftests"
+        prefix = f"ftests_{args.low1}{args.low2}"
         localcondor = f"{local_dir}/{prefix}_{j}.jdl"
         jdl_args = {
             "dir": local_dir,
