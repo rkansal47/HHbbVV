@@ -44,6 +44,7 @@ gen_selection_dict = {
     "HTo2bYTo2W": gen_selection_HYbbVV,
     "XToYHTo2W2BTo4Q2B": gen_selection_HYbbVV,
     "GluGluToHHTobbVV_node_cHHH": gen_selection_HHbbVV,
+    "VBF_HHTobbVV": gen_selection_HHbbVV,
     "jhu_HHbbWW": gen_selection_HHbbVV,
     "GluGluToBulkGravitonToHHTo4W_JHUGen": gen_selection_HH4V,
     "GluGluToHHTo4V_node_cHHH1": gen_selection_HH4V,
