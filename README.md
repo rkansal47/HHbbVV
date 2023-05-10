@@ -224,7 +224,7 @@ python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --plot-d
 ### BDT Trainings
 
 ```bash
-python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb24/" (--year 2017 or --all-years) (--test)
+python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb24/" --year "all" (--test)
 ```
 
 

@@ -400,7 +400,7 @@ def make_selection(
     bb_masks: Dict[str, pd.DataFrame],
     weight_key: str = "finalWeight",
     prev_cutflow: dict = None,
-    selection: dict = None,
+    selection: Dict[str, np.ndarray] = None,
     jshift: str = "",
     MAX_VAL: float = CUT_MAX_VAL,
 ):
@@ -412,7 +412,7 @@ def make_selection(
         events (dict): a dict of events of format {sample1: {var1: np.array, var2: np.array, ...}, sample2: ...}
         weight_key (str): key to use for weights. Defaults to 'finalWeight'.
         prev_cutflow (dict): cutflow from previous cuts, if any. Defaults to None.
-        selection (dict): cutflow from previous selection, if any. Defaults to None.
+        selection (dict): previous selection, if any. Defaults to None.
         MAX_VAL (float): if abs of one of the cuts equals or exceeds this value it will be ignored. Defaults to 9999.
 
     Returns:

@@ -470,6 +470,15 @@ def _process_samples(args):
         if bg_key not in args.bg_keys and bg_key != data_key:
             del bg_samples[bg_key]
 
+    if not args.resonant:
+        for key in sig_samples.copy():
+            if key not in BDT_sample_order:
+                del sig_samples[key]
+
+        for key in bg_samples.copy():
+            if key not in BDT_sample_order:
+                del bg_samples[key]
+
     if not args.data:
         del bg_samples[data_key]
 
@@ -849,6 +858,7 @@ def control_plots(
     cutstr: str = "",
     sig_splits: List[List[str]] = None,
     bg_keys: List[str] = bg_keys,
+    selection: Dict[str, np.ndarray] = None,
     show: bool = False,
 ):
     """
@@ -861,23 +871,23 @@ def control_plots(
 
     """
 
-    print(control_plot_vars)
-    print(bg_keys)
-
     from PyPDF2 import PdfMerger
 
     # sig_scale_dict = utils.getSignalPlotScaleFactor(events_dict, sig_keys)
     # sig_scale_dict = {sig_key: 5e3 for sig_key in sig_keys}
     # sig_scale_dict["HHbbVV"] = 2e5
 
-    sig_scale_dict = {sig_key: 1e4 for sig_key in sig_keys}
+    sig_scale_dict = {sig_key: 1 for sig_key in sig_keys}
     sig_scale_dict["HHbbVV"] = 2e5
+
     # print(f"{sig_scale_dict = }")
+
+    print(control_plot_vars)
 
     for var, (bins, label) in control_plot_vars.items():
         if var not in hists:
             hists[var] = utils.singleVarHist(
-                events_dict, var, bins, label, bb_masks, weight_key=weight_key
+                events_dict, var, bins, label, bb_masks, weight_key=weight_key, selection=selection
             )
 
     with open(f"{plot_dir}/hists.pkl", "wb") as f:
@@ -893,7 +903,7 @@ def control_plots(
         merger_control_plots = PdfMerger()
 
         for var, var_hist in hists.items():
-            name = f"{tplot_dir}/{var}.pdf"
+            name = f"{tplot_dir}/{cutstr}{var}.pdf"
             plotting.ratioHistPlot(
                 var_hist,
                 year,
@@ -905,7 +915,7 @@ def control_plots(
             )
             merger_control_plots.append(name)
 
-        merger_control_plots.write(f"{tplot_dir}/{year}_ControlPlots.pdf")
+        merger_control_plots.write(f"{tplot_dir}/{cutstr}{year}_ControlPlots.pdf")
         merger_control_plots.close()
 
     return hists
@@ -946,7 +956,7 @@ def get_templates(
     selection_regions: Dict[str, Region],
     shape_vars: List[ShapeVar],
     systematics: Dict,
-    template_dir: str,
+    template_dir: str = "",
     bg_keys: List[str] = bg_keys,
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
@@ -994,8 +1004,8 @@ def get_templates(
             region.cuts, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
 
-        # if plot_dir != "":
-        #     cf.to_csv(f"{plot_dir}/{rname}_cutflow{jlabel}.csv")
+        if template_dir != "":
+            cf.to_csv(f"{template_dir}/{rname}_cutflow{jlabel}.csv")
 
         # trigger uncertainties
         if not do_jshift:
@@ -1018,8 +1028,8 @@ def get_templates(
 
                 corrections.apply_txbb_sfs(sig_events[sig_key], sig_bb_mask, year, weight_key)
 
-        if not do_jshift:
-            print("\nCutflow:\n", cf)
+        # if not do_jshift:
+        #     print("\nCutflow:\n", cf)
 
         # set up samples
         hist_samples = list(events_dict.keys())
@@ -1128,7 +1138,7 @@ def get_templates(
                     }
 
                     plot_name = (
-                        f"{plot_dir}"
+                        f"{plot_dir}/"
                         f"{'jshifts/' if do_jshift else ''}"
                         f"{split_str}{rname}_region_{shape_var.var}"
                     )
