@@ -324,12 +324,12 @@ def hist2ds(
 def rocCurve(
     fpr,
     tpr,
-    auc,
+    auc=None,
     sig_eff_lines=[],
     # bg_eff_lines=[],
     title=None,
-    xlim=[0, 0.4],
-    ylim=[1e-6, 1e-2],
+    xlim=[0, 0.8],
+    ylim=[1e-6, 1],
     plotdir="",
     name="",
 ):
@@ -337,7 +337,8 @@ def rocCurve(
     line_style = {"colors": "lightgrey", "linestyles": "dashed"}
 
     plt.figure(figsize=(12, 12))
-    plt.plot(tpr, fpr, label=f"AUC: {auc:.2f}")
+
+    plt.plot(tpr, fpr, label=f"AUC: {auc:.2f}" if auc is not None else None)
 
     for sig_eff in sig_eff_lines:
         y = fpr[np.searchsorted(tpr, sig_eff)]
@@ -345,10 +346,14 @@ def rocCurve(
         plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
 
     plt.yscale("log")
-    plt.xlabel("Signal Eff.")
-    plt.ylabel("BG Eff.")
+    plt.xlabel("Signal efficiency")
+    plt.ylabel("Background efficiency")
     plt.title(title)
-    plt.legend()
+
+    if auc is not None:
+        plt.legend()
+
     plt.xlim(*xlim)
     plt.ylim(*ylim)
+    hep.cms.label(data=False, rlabel="")
     plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")

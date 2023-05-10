@@ -8,7 +8,7 @@
       - [Datacard](#datacard)
     - [Update processor](#update-processor)
     - [New LP SFs](#new-lp-sfs)
-    - [HH Scans](#hh-scans)
+    - [Nonresonant](#nonresonant)
     - [Statistical tests of fits](#statistical-tests-of-fits)
     - [Resonant X-\>HY](#resonant-x-hy)
     - [TTbar corrections](#ttbar-corrections)
@@ -46,6 +46,7 @@
    - [x] Need to update to latest
  - [x] JMS/R http://cds.cern.ch/record/2256875/files/JME-16-003-pas.pdf
    - [ ] Need UL mSD and regressed mass corrections
+ - [ ] Top pt
  - Theory
    - [x] pdf uncertainties
    - [x] scale variation
@@ -62,6 +63,7 @@
  - [x] Trigger SFs
    - [x] Stat. Unc.
    - [ ] Correlated Syst.
+ - [ ] Top pt
  - Theory
    - [x] pdf uncertainties
    - [x] parton shower weights
@@ -80,11 +82,13 @@
    - [ ] Separate uncertainties
  - [x] JES/R
  - [x] JMS/R
+ - [ ] Top pT
  - Theory
    - [x] pdf uncertainties
    - [x] parton shower weights
    - [ ] scale variation?
    - [ ] W k factor??
+
 
 ### Update processor
 
@@ -100,16 +104,22 @@
  - [ ] Update LP method
 
 
-### HH Scans
+### Nonresonant
 
- - kL
- - C2?
+- [ ] BDT ROC
+  - [ ] Try multi-class BDT
+  - [ ] Try equalizing background weights
+  - [ ] Compare to cut-based WP
+  - [ ] Check sculpting
+- [ ] Scan Txbb, BDT WPs
+- [ ] Run over all kL and k_2V
+  - [ ] Re-run VBF with gen selection
 
 
 ### Statistical tests of fits
 
  - [x] GoF
- - [ ] F-test
+ - [x] F-test
  - [ ] Impacts
 
 
@@ -120,10 +130,10 @@
  - [x] Validation region
  - [x] 2D fit, xUL
    - [x] GoF
-   - [ ] F-test
+   - [x] F-test
  - [x] Run over all signals
    - [ ] TRSM, NMSSM exclusions
- - [ ] Scan Txbb, THWW working points
+ - [x] Scan Txbb, THWW working points
 
 
 ### TTbar corrections
