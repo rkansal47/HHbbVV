@@ -43,24 +43,24 @@ label_encoder = LabelEncoder()
 label_encoder.fit(training_keys)
 
 
-# only vars used for training
+# only vars used for training, ordered by importance
 bdtVars = [
-    "MET_pt",
-    "DijetEta",
-    "DijetPt",
-    "DijetMass",
-    "bbFatJetPt",
-    "VVFatJetEta",
-    "VVFatJetPt",
-    "VVFatJetParticleNetMass",
     # "VVFatJetParTMD_THWW4q",
-    "VVFatJetParTMD_probQCD",
-    "VVFatJetParTMD_probT",
     "VVFatJetParTMD_probHWW3q",
+    "VVFatJetParTMD_probQCD",
     "VVFatJetParTMD_probHWW4q",
-    "bbFatJetPtOverDijetPt",
+    "VVFatJetParticleNetMass",
+    "DijetMass",
+    "VVFatJetParTMD_probT",
     "VVFatJetPtOverDijetPt",
+    "DijetPt",
+    "bbFatJetPt",
+    "VVFatJetPt",
     "VVFatJetPtOverbbFatJetPt",
+    "MET_pt",
+    "bbFatJetPtOverDijetPt",
+    "VVFatJetEta",
+    "DijetEta",
 ]
 
 
@@ -176,6 +176,8 @@ def load_data(data_path: str, year: str, all_years: bool):
 
 
 def main(args):
+    global bdtVars
+
     classifier_params = {
         "max_depth": args.max_depth,
         "min_child_weight": args.min_child_weight,
@@ -185,6 +187,11 @@ def main(args):
         "n_jobs": 4,
         "reg_lambda": 1.0,
     }
+
+    if args.rem_feats:
+        bdtVars = bdtVars[: -args.rem_feats]
+
+    print(bdtVars)
 
     data_dict = load_data(args.data_path, args.year, args.all_years)
 
@@ -478,9 +485,11 @@ if __name__ == "__main__":
         type=int,
     )
 
-    parser.add_argument("--max-depth", default=3, help="xgboost param", type=int)
+    parser.add_argument("--max-depth", default=6, help="xgboost param", type=int)
     parser.add_argument("--min-child-weight", default=1, help="xgboost param", type=int)
-    parser.add_argument("--n-estimators", default=400, help="xgboost param", type=int)
+    parser.add_argument("--n-estimators", default=1000, help="xgboost param", type=int)
+
+    parser.add_argument("--rem-feats", default=0, help="remove N lowest importance feats", type=int)
 
     utils.add_bool_arg(parser, "multiclass", "Classify each background separtely", default=False)
 
