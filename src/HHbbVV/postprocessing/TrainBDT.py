@@ -177,9 +177,10 @@ def load_data(data_path: str, year: str, all_years: bool):
 
 def main(args):
     classifier_params = {
-        "max_depth": 3,
+        "max_depth": args.max_depth,
+        "min_child_weight": args.min_child_weight,
         "learning_rate": 0.1,
-        "n_estimators": 400,
+        "n_estimators": args.n_estimators,
         "verbosity": 2,
         "n_jobs": 4,
         "reg_lambda": 1.0,
@@ -226,10 +227,6 @@ def main(args):
             )
             for year, data in training_data_dict.items()
         }
-
-        print("Test data")
-        print(data_dict)
-        print(training_data_dict)
 
     if args.equalize_weights or args.equalize_weights_per_process:
         for year, data in training_data_dict.items():
@@ -480,6 +477,10 @@ if __name__ == "__main__":
         help="Num events per sample to train on - if 0 train on all",
         type=int,
     )
+
+    parser.add_argument("--max-depth", default=3, help="xgboost param", type=int)
+    parser.add_argument("--min-child-weight", default=1, help="xgboost param", type=int)
+    parser.add_argument("--n-estimators", default=400, help="xgboost param", type=int)
 
     utils.add_bool_arg(parser, "multiclass", "Classify each background separtely", default=False)
 
