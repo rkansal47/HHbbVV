@@ -109,6 +109,7 @@ if [ $resonant = 0 ]; then
     if [ -f "mXbin0pass.txt" ]; then
         echo -e "\nWARNING: This is doing nonresonant fits - did you mean to pass -r|--resonant?\n"
     fi
+
     # nonresonant args
     ccargs="fail=${cards_dir}/fail.txt failBlinded=${cards_dir}/failBlinded.txt pass=${cards_dir}/pass.txt passBlinded=${cards_dir}/passBlinded.txt"
     maskunblindedargs="mask_pass=1,mask_fail=1,mask_passBlinded=0,mask_failBlinded=0"
@@ -127,8 +128,7 @@ if [ $resonant = 0 ]; then
     setparamsblinded=${setparamsblinded%,}
     freezeparamsblinded=${freezeparamsblinded%,}
 
-    setparamsunblinded=""
-    freezeparamsunblinded=""
+    unblindedparams="--setParameters $maskblindedargs"
 else
     # resonant args
     ccargs=""
@@ -158,11 +158,18 @@ else
 
     setparamsunblinded="rgx{passBlinded_.*mcstat.*}=0,rgx{failBlinded_.*mcstat.*}=0"
     freezeparamsunblinded="rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*}"
+
+    unblindedparams="--freezeParameters ${freezeparamsunblinded} --setParameters ${maskblindedargs},${setparamsunblinded}"
 fi
 
 echo "mask args:"
 echo $maskblindedargs
 
+echo "set params:"
+echo $setparamsblinded
+
+echo "freeze params:"
+echo $freezeparamsblinded
 
 ####################################################################################################
 # Combine cards, text2workspace, fit, limits, significances, fitdiagnositcs, GoFs
@@ -203,10 +210,10 @@ fi
 
 if [ $limits = 1 ]; then
     echo "Expected limits"
+
     combine -M AsymptoticLimits -m 125 -n pass -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v 9 \
     --saveWorkspace --saveToys --bypassFrequentistFit \
-    --setParameters ${maskblindedargs},${setparamsunblinded} \
-    --freezeParameters ${freezeparamsunblinded} \
+    ${unblindedparams} \
     --floatParameters r --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
 fi
 
@@ -215,8 +222,7 @@ if [ $significance = 1 ]; then
     echo "Expected significance"
     combine -M Significance -d ${wsm_snapshot}.root --significance -m 125 -n pass --snapshotName MultiDimFit -v 9 \
     -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit \
-    --setParameters ${maskblindedargs},${setparamsunblinded},r=1 \
-    --freezeParameters ${freezeparamsunblinded} \
+    ${unblindedparams},r=1 \
     --floatParameters r --toysFrequentist 2>&1 | tee $outsdir/Significance.txt
 fi
 
