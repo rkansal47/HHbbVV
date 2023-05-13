@@ -27,7 +27,7 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [BDT Pre-Processing](#bdt-pre-processing)
     - [BDT Trainings](#bdt-trainings)
     - [Post-Processing](#post-processing-1)
-      - [Making separate background and signal templates for a scan](#making-separate-background-and-signal-templates-for-a-scan)
+      - [Making separate background and signal templates for scan (resonant)](#making-separate-background-and-signal-templates-for-scan-resonant)
     - [Create Datacard](#create-datacard)
     - [PlotFits](#plotfits)
   - [Combine](#combine)
@@ -244,7 +244,7 @@ Scan (non-resonant):
 for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" --old-processor --nonres-txbb-wp "LP" "MP" "HP" --nonres-bdt-wp 0.994 0.99 0.96 0.9 0.8 0.6 0.4 --no-do-jshifts; done
 ```
 
-#### Making separate background and signal templates for a scan
+#### Making separate background and signal templates for scan (resonant)
 
 Background and data:
 
@@ -271,6 +271,11 @@ Or with separate templates for background and signal:
 ```bash
 python3 -u postprocessing/CreateDatacard.py --templates-dir "/eos/uscms/store/user/rkansal/bbVV/templates/23Apr30Scan/txbb_HP_thww_0.96" \
 --sig-separate --resonant --model-name $sample --sig-sample $sample
+```
+
+Scan (non-resonant):
+```bash
+for txbb_wp in "LP" "MP" "HP"; do for bdt_wp in 0.994 0.99 0.96 0.9 0.8 0.6 0.4; do python3 -u postprocessing/CreateDatacard.py --templates-dir templates/23May13NonresScan/txbb_${txbb_wp}_bdt_${bdt_wp} --model-name 23May13NonresScan/txbb_${txbb_wp}_bdt_${bdt_wp} --no-do-jshifts; done; done
 ```
 
 Datacards with different orders of TFs for F-tests:
