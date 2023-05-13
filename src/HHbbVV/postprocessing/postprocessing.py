@@ -673,6 +673,7 @@ def load_bdt_preds(
 
     """
     bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
+    multiclass = len(bdt_preds.shape) > 1
 
     if jec_jmsr_shifts:
         shift_preds = {
@@ -684,11 +685,26 @@ def load_bdt_preds(
     for sample in bdt_sample_order:
         events = events_dict[sample]
         num_events = len(events)
-        events["BDTScore"] = bdt_preds[i : i + num_events]
+
+        if not multiclass:
+            events["BDTScore"] = bdt_preds[i : i + num_events]
+        else:
+            events["BDTScore"] = bdt_preds[i : i + num_events, 0]
+            events["BDTScoreQCD"] = bdt_preds[i : i + num_events, 1]
+            events["BDTScoreTT"] = bdt_preds[i : i + num_events, 2]
+            events["BDTScoreVJets"] = 1 - np.sum(bdt_preds[i : i + num_events], axis=1)
 
         if jec_jmsr_shifts and sample != data_key:
             for jshift in jec_shifts + jmsr_shifts:
-                events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events]
+                if not multiclass:
+                    events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events]
+                else:
+                    events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events, 0]
+                    events["BDTScoreQCD_" + jshift] = shift_preds[jshift][i : i + num_events, 1]
+                    events["BDTScoreTT_" + jshift] = shift_preds[jshift][i : i + num_events, 2]
+                    events["BDTScoreVJets_" + jshift] = 1 - np.sum(
+                        shift_preds[jshift][i : i + num_events], axis=1
+                    )
 
         i += num_events
 
@@ -726,6 +742,18 @@ def get_lpsf_all_years(
         ("lp_sf_num_sjpt_gt350", 1),
     ]
 
+    # nonresonant samples use old skimmer #TODO: update!!!
+    if bdt_preds_dir is not None:
+        load_columns.remove(("weight_noTrigEffs", 1))
+        load_columns.remove(("VVFatJetParTMD_THWWvsT", 1))
+
+        load_columns += [
+            ("ak8FatJetParTMD_probHWW3q", 2),
+            ("ak8FatJetParTMD_probHWW4q", 2),
+            ("ak8FatJetParTMD_probQCD", 2),
+            ("ak8FatJetParTMD_probT", 2),
+        ]
+
     # reformat into ("column name", "idx") format for reading multiindex columns
     column_labels = []
     for key, num_columns in load_columns:
@@ -752,6 +780,7 @@ def get_lpsf_all_years(
         if bdt_preds_dir is not None:
             # load bdt preds for sig only
             bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
+            multiclass = len(bdt_preds.shape) > 1
             i = 0
             for sample in bdt_sample_order:
                 if sample != sig_key:
@@ -760,7 +789,10 @@ def get_lpsf_all_years(
                 else:
                     events = events_dict[sample]
                     num_events = len(events)
-                    events["BDTScore"] = bdt_preds[i : i + num_events]
+                    if not multiclass:
+                        events["BDTScore"] = bdt_preds[i : i + num_events]
+                    else:
+                        events["BDTScore"] = bdt_preds[i : i + num_events, 0]
                     break
 
         sel, _ = utils.make_selection(lp_region.cuts, events_dict, bb_masks)
@@ -859,6 +891,8 @@ def control_plots(
     sig_splits: List[List[str]] = None,
     bg_keys: List[str] = bg_keys,
     selection: Dict[str, np.ndarray] = None,
+    sig_scale_dict: Dict[str, float] = None,
+    combine_pdf: bool = True,
     show: bool = False,
 ):
     """
@@ -877,12 +911,14 @@ def control_plots(
     # sig_scale_dict = {sig_key: 5e3 for sig_key in sig_keys}
     # sig_scale_dict["HHbbVV"] = 2e5
 
-    sig_scale_dict = {sig_key: 1 for sig_key in sig_keys}
-    sig_scale_dict["HHbbVV"] = 2e5
+    if sig_scale_dict is None:
+        sig_scale_dict = {sig_key: 1 for sig_key in sig_keys}
+        sig_scale_dict["HHbbVV"] = 2e5
 
     # print(f"{sig_scale_dict = }")
 
     print(control_plot_vars)
+    print(selection)
 
     for var, (bins, label) in control_plot_vars.items():
         if var not in hists:
@@ -915,7 +951,8 @@ def control_plots(
             )
             merger_control_plots.append(name)
 
-        merger_control_plots.write(f"{tplot_dir}/{cutstr}{year}_ControlPlots.pdf")
+        if combine_pdf:
+            merger_control_plots.write(f"{tplot_dir}/{cutstr}{year}_ControlPlots.pdf")
         merger_control_plots.close()
 
     return hists
@@ -1277,7 +1314,7 @@ if __name__ == "__main__":
         "--bg-keys",
         help="specify background samples",
         nargs="*",
-        default=["QCD", "TT", "ST", "V+Jets"],
+        default=["QCD", "TT", "ST", "V+Jets", "Diboson"],
         type=str,
     )
 
