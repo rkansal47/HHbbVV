@@ -191,7 +191,7 @@ def main(args):
     if args.rem_feats:
         bdtVars = bdtVars[: -args.rem_feats]
 
-    print(bdtVars)
+    print("BDT features:\n", bdtVars)
 
     data_dict = load_data(args.data_path, args.year, args.all_years)
 

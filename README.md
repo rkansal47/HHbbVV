@@ -236,7 +236,12 @@ python postprocessing.py --templates --year "2017" --template-dir "templates/$TA
 
 All years:
 ```bash
-for year in 2016APV 2016 2017 2018; do python postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/"; done 
+for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/"; done 
+```
+
+Scan (non-resonant):
+```bash
+for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" --old-processor --nonres-txbb-wp "LP" "MP" "HP" --nonres-bdt-wp 0.994 0.99 0.96 0.9 0.8 0.6 0.4 --no-do-jshifts; done
 ```
 
 #### Making separate background and signal templates for a scan

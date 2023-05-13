@@ -108,7 +108,9 @@
 
 - [ ] BDT ROC
   - [ ] Try multi-class BDT
-  - [ ] Try equalizing background weights
+  - [x] Try equalizing background weights
+  - [x] Optimize hyperparams
+  - [ ] Trim features
   - [ ] Compare to cut-based WP
   - [ ] Check sculpting
 - [ ] Scan Txbb, BDT WPs
