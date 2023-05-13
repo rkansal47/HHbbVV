@@ -171,6 +171,9 @@ echo $setparamsblinded
 echo "freeze params:"
 echo $freezeparamsblinded
 
+echo "unblinded params:"
+echo $unblindedparams
+
 ####################################################################################################
 # Combine cards, text2workspace, fit, limits, significances, fitdiagnositcs, GoFs
 ####################################################################################################
