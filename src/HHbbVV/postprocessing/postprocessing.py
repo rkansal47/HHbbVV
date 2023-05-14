@@ -20,7 +20,8 @@ import itertools
 
 import numpy as np
 import pandas as pd
-from pandas.errors import SettingWithCopyWarning
+
+# from pandas.errors import SettingWithCopyWarning
 import hist
 from hist import Hist
 
@@ -59,7 +60,7 @@ import argparse
 
 
 # ignore these because they don't seem to apply
-warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
+# warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
 
 class ShapeVar:
