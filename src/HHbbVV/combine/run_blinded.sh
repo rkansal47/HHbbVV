@@ -94,6 +94,9 @@ seed=$seed numtoys=$numtoys"
 
 ####################################################################################################
 # Set up fit arguments
+# 
+# We use channel masking to "mask" the blinded and "unblinded" regions in the same workspace. 
+# (mask = 1 means the channel is masked off) 
 ####################################################################################################
 
 dataset=data_obs
