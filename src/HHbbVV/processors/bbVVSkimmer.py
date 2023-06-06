@@ -91,7 +91,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         "bbparticleNet_mass": [92.5, 162.5],
         "bbFatJetParticleNetMD_Txbb": 0.8,
         "DijetMass": 800,  # TODO
-        "nGoodElectrons": 0,
+        # "nGoodElectrons": 0,
     }
 
     jecs = common.jecs
@@ -448,13 +448,6 @@ class bbVVSkimmer(processor.ProcessorABC):
         skimmed_events["nGoodMuons"] = n_good_muons.to_numpy()
         skimmed_events["nGoodElectrons"] = n_good_electrons.to_numpy()
         skimmed_events["nGoodJets"] = n_good_jets.to_numpy()
-
-        if not self._save_all:
-            add_selection(
-                "electron_veto",
-                skimmed_events["nGoodElectrons"] <= self.preselection["nGoodElectrons"],
-                *selection_args,
-            )
 
         ######################
         # Remove branches
