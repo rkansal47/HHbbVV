@@ -11,6 +11,7 @@
     - [Nonresonant](#nonresonant)
     - [Statistical tests of fits](#statistical-tests-of-fits)
     - [Resonant X-\>HY](#resonant-x-hy)
+    - [Semi-leptonic ttbar selection skimmer](#semi-leptonic-ttbar-selection-skimmer)
     - [TTbar corrections](#ttbar-corrections)
   - [Plan](#plan)
     - [Feb 13 - 17](#feb-13---17)
@@ -19,6 +20,7 @@
     - [Mar](#mar)
     - [Apr](#apr)
     - [Apr 24 - 28](#apr-24---28)
+    - [Jun 5 - 9](#jun-5---9)
   - [In progress:](#in-progress)
   - [~Completed:](#completed)
     - [Preliminary 2017 cut-based signal and background yields estimate](#preliminary-2017-cut-based-signal-and-background-yields-estimate)
@@ -107,13 +109,13 @@
 ### Nonresonant
 
 - [ ] BDT ROC
-  - [ ] Try multi-class BDT
+  - [x] Try multi-class BDT
   - [x] Try equalizing background weights
   - [x] Optimize hyperparams
   - [ ] Trim features
   - [ ] Compare to cut-based WP
   - [ ] Check sculpting
-- [ ] Scan Txbb, BDT WPs
+- [x] Scan Txbb, BDT WPs
 - [ ] Run over all kL and k_2V
   - [ ] Re-run VBF with gen selection
 
@@ -136,6 +138,17 @@
  - [x] Run over all signals
    - [ ] TRSM, NMSSM exclusions
  - [x] Scan Txbb, THWW working points
+
+
+### Semi-leptonic ttbar selection skimmer
+
+ - [ ] Update LP
+ - [ ] JECs for AK4 Jets
+ - [ ] DeepJet Btag
+ - [ ] B-tag scale factors
+ - [ ] muon ID SFs
+ - [x] Save regressed mass
+ - [ ] Jet ID SFs
 
 
 ### TTbar corrections
@@ -201,10 +214,14 @@ Raghav:
 
 
 ### Apr 24 - 28
-- [ ] Complete v1 of AN
-- [ ] B2G Workshop talk
-- [ ] F-test
-- [ ] Start WP Scan
+- [x] Complete v1 of AN
+- [x] B2G Workshop talk
+- [x] F-test
+- [x] Start WP Scan
+
+
+### Jun 5 - 9
+- [ ] Update semi-leptonic ttbar processor
 
 
 ## In progress:

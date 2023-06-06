@@ -52,8 +52,9 @@ gen_selection_dict = {
     "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
 }
 
-# deepcsv medium WP's https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation
-btagWPs = {"2016APV": 0.6001, "2016": 0.5847, "2017": 0.4506, "2018": 0.4168}
+# btag medium WP's https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation
+# btagWPs = {"2016APV": 0.6001, "2016": 0.5847, "2017": 0.4506, "2018": 0.4168}  # for deepCSV
+btagWPs = {"2016APV": 0.2598, "2016": 0.2489, "2017": 0.3040, "2018": 0.2783}  # deepJet
 
 
 num_prongs = 3
@@ -83,6 +84,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         "FatJet": {
             **P4,
             "msoftdrop": "Msd",
+            "particleNet_mass": "ParticleNetMass",
             "particleNetMD_QCD": "ParticleNetMD_QCD",
             "particleNetMD_Xbb": "ParticleNetMD_Xbb",
             "particleNet_H4qvsQCD": "ParticleNet_Th4q",
@@ -105,7 +107,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
     ak8_jet_selection = {
         "pt": 400.0,
-        "msd": [125, 250],
+        # "msd": [125, 250],
         "eta": 2.5,
         "delta_phi_muon": 2,
         "jetId": 2,  # tight ID bit
@@ -304,9 +306,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # )
 
         ak4_jet_selector = (
-            (
-                ak4_jets.jetId & self.ak4_jet_selection["jetId"] == self.ak4_jet_selection["jetId"]
-            )  # tight ID
+            # tight ID
+            (ak4_jets.jetId & self.ak4_jet_selection["jetId"] == self.ak4_jet_selection["jetId"])
             # * (ak4_jets.puId >= self.ak4_jet_selection["puId"])
             * (ak4_jets.puId % 2 == 1)
             * (ak4_jets.pt > self.ak4_jet_selection["pt"])

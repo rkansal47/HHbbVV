@@ -241,7 +241,7 @@ for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates -
 
 Scan (non-resonant):
 ```bash
-for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" --old-processor --nonres-txbb-wp "LP" "MP" "HP" --nonres-bdt-wp 0.994 0.99 0.96 0.9 0.8 0.6 0.4 --no-do-jshifts; done
+for year in 2016 2016APV 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" --old-processor --nonres-txbb-wp "LP" "MP" "HP" --nonres-bdt-wp 0.995 0.998 0.999 --no-do-jshifts; done
 ```
 
 #### Making separate background and signal templates for scan (resonant)
@@ -275,7 +275,7 @@ python3 -u postprocessing/CreateDatacard.py --templates-dir "/eos/uscms/store/us
 
 Scan (non-resonant):
 ```bash
-for txbb_wp in "LP" "MP" "HP"; do for bdt_wp in 0.994 0.99 0.96 0.9 0.8 0.6 0.4; do python3 -u postprocessing/CreateDatacard.py --templates-dir templates/23May13NonresScan/txbb_${txbb_wp}_bdt_${bdt_wp} --model-name 23May13NonresScan/txbb_${txbb_wp}_bdt_${bdt_wp} --no-do-jshifts; done; done
+for txbb_wp in "LP" "MP" "HP"; do for bdt_wp in 0.994 0.99 0.96 0.9 0.8 0.6 0.4; do python3 -u postprocessing/CreateDatacard.py --templates-dir templates/23May13NonresScan/txbb_${txbb_wp}_bdt_${bdt_wp} --model-name 23May13NonresScan/txbb_${txbb_wp}_bdt_${bdt_wp} --no-do-jshifts --nTF 0; done; done
 ```
 
 Datacards with different orders of TFs for F-tests:

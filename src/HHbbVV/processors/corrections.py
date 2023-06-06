@@ -33,6 +33,7 @@ pog_jsons = {
     "electron": ["EGM", "electron.json.gz"],
     "pileup": ["LUM", "puWeights.json.gz"],
     "jec": ["JME", "fatJet_jerc.json.gz"],
+    "btagging": ["BTV", "btagging.json.gz"],
 }
 
 
@@ -299,6 +300,13 @@ def add_scalevar_3pt(weights, var_weights):
             print("Scale variation vector has length ", len(var_weights[0]))
 
     weights.add("QCDscale3pt", nom, up, down)
+
+
+def add_btag_weights(
+    weights: Weights, year: str, jets: JetArray, wp: str = "M", algo: str = "deepJet"
+):
+    ul_year = get_UL_year(year)
+    cset = correctionlib.CorrectionSet.from_file(get_pog_json("btagging", year))
 
 
 # for scale factor validation region selection
