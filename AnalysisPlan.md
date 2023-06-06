@@ -13,6 +13,7 @@
     - [Resonant X-\>HY](#resonant-x-hy)
     - [Semi-leptonic ttbar selection skimmer](#semi-leptonic-ttbar-selection-skimmer)
     - [TTbar corrections](#ttbar-corrections)
+    - [Samplers](#samplers)
   - [Plan](#plan)
     - [Feb 13 - 17](#feb-13---17)
     - [Feb 20 - 24](#feb-20---24)
@@ -112,12 +113,13 @@
   - [x] Try multi-class BDT
   - [x] Try equalizing background weights
   - [x] Optimize hyperparams
-  - [ ] Trim features
+  - [x] Trim features
   - [ ] Compare to cut-based WP
   - [ ] Check sculpting
 - [x] Scan Txbb, BDT WPs
 - [ ] Run over all kL and k_2V
   - [ ] Re-run VBF with gen selection
+- [ ] Theory uncertainties
 
 
 ### Statistical tests of fits
@@ -161,6 +163,11 @@ May not be necessary given low yield
 - Regressed mass
 - BDT
 - Check VBF?
+
+
+### Samplers
+
+ - [ ] Verify sample distributions
 
 
 ## Plan
@@ -222,6 +229,12 @@ Raghav:
 
 ### Jun 5 - 9
 - [ ] Update semi-leptonic ttbar processor
+- [ ] Twiki
+- [ ] Respond to comments
+- [ ] Samples
+  - [ ] Nanogen
+- [ ] Skimming VBF
+- [ ] Runnning over kL, k2V
 
 
 ## In progress:
