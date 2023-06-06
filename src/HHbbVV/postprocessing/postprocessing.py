@@ -935,7 +935,7 @@ def control_plots(
 
     for i, plot_sig_keys in enumerate(sig_splits):
         tplot_dir = plot_dir if len(sig_splits) == 1 else f"{plot_dir}/sigs{i}/"
-        tsig_scale_dict = {key: sig_scale_dict[key] for key in plot_sig_keys}
+        tsig_scale_dict = {key: sig_scale_dict.get(key, 1) for key in plot_sig_keys}
 
         merger_control_plots = PdfMerger()
 
@@ -1330,7 +1330,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--nonres-txbb-wp",
         help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
-        default=["HP"],
+        default=["MP"],
         choices=["LP", "MP", "HP"],
         nargs="*",
         type=str,
@@ -1339,7 +1339,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--nonres-bdt-wp",
         help="BDT WP for signal region. If multiple arguments, will make templates for each.",
-        default=[0.99],
+        default=[0.998],
         nargs="*",
         type=float,
     )
