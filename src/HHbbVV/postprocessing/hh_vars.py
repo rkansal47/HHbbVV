@@ -37,10 +37,20 @@ data_key = "Data"
 qcd_key = "QCD"
 bg_keys = [key for key in samples.keys() if key != data_key]
 
+# change HHbbVV to hbbhVV
 nonres_samples = OrderedDict(
     [
-        ("HHbbVV", "GluGluToHHTobbVV_node_cHHH1"),
-        ("VBFHHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_1"),
+        #("ggHH_kl_1_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH1"),
+        #("ggHH_kl_2p45_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH2p45"),
+        #("ggHH_kl_5_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH5"),
+        #("ggHH_kl_0_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH0"),
+        ("qqHH_CV_1_C2V_1_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_1"),
+        ("qqHH_CV_1_C2V_0_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_0_C3_1"),
+        ("qqHH_CV_1p5_C2V_1_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_5_C2V_1_C3_1"),
+        ("qqHH_CV_1_C2V_1_kl_2_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_2"),
+        ("qqHH_CV_1_C2V_2_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_2_C3_1"),
+        ("qqHH_CV_1_C2V_1_kl_0_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_0"),
+        ("qqHH_CV_0p5_C2V_1_kl_1_HHbbVV", "VBF_HHTobbVV_CV_0_5_C2V_1_C3_1"),
     ]
 )
 nonres_sig_keys = list(nonres_samples.keys())

@@ -7,7 +7,7 @@ import numpy as np
 import warnings
 import pandas as pd
 from pandas.errors import SettingWithCopyWarning
-from hh_vars import samples, sig_key, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
+from hh_vars import samples, res_samples, nonres_samples, nonres_sig_keys, res_sig_keys, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
 import os, sys
 
 # ignore these because they don't seem to apply
@@ -45,15 +45,27 @@ def main(args):
     # make plot, template dirs if needed
     _make_dirs(args)
 
+    sig_keys, sig_samples, bg_keys, bg_samples = postprocessing._process_samples(args)
+    filters = postprocessing.filters if args.filters else None
+
     # save cutflow as pandas table
-    cutflow = pd.DataFrame(index=list(samples.keys()))
+    all_samples = sig_keys + bg_keys
+    cutflow =  pd.DataFrame(index=all_samples)
+
     systematics = {}
+    
+    events_dict = None
+    if args.signal_data_dir:
+        events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
+    if args.data_dir:
+        events_dict_data = utils.load_samples(args.data_dir, bg_samples, args.year, filters)
+        if events_dict:
+            events_dict |= events_dict_data
+        else:
+            events_dict = events_dict_data
 
-    events_dict = utils.load_samples(
-        args.data_dir, samples, args.year, postprocessing.filters if args.filters else None
-    )
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", cutflow)
-
+    
     # print weighted sample yields
     print("")
     for sample in events_dict:
@@ -62,8 +74,8 @@ def main(args):
 
     postprocessing.apply_weights(events_dict, args.year, cutflow)
     bb_masks = postprocessing.bb_VV_assignment(events_dict)
-    _ = postprocessing.postprocess_lpsfs(events_dict[sig_key], save_all=False)
-    cutflow.to_csv(f"{args.plot_dir}/{args.year}/cutflow.csv")
+    if args.control_plots:
+        cutflow.to_csv(f"{args.plot_dir}/{args.year}/cutflow.csv")
     print("\nCutflow:\n", cutflow)
 
     control_plot_vars = postprocessing.control_plot_vars
@@ -82,8 +94,9 @@ def main(args):
 
     if args.bdt_data:
         print("\nSaving BDT Data")
+        data_dir = args.data_dir if args.data_dir else args.signal_data_dir
         save_bdt_data(
-            events_dict, bb_masks, f"{args.data_dir}/bdt_data/{args.year}_bdt_data.parquet"
+            events_dict, bb_masks, f"{data_dir}/bdt_data/{args.year}_bdt_data.parquet"
         )
         print("Saved BDT Data")
 
@@ -93,8 +106,11 @@ def _make_dirs(args):
         os.system(f"mkdir -p {args.plot_dir}/{args.year}/")
 
     if args.bdt_data:
-        os.system(f"mkdir -p {args.data_dir}/bdt_data/")
-
+        if args.data_dir:
+            os.system(f"mkdir -p {args.data_dir}/bdt_data/")
+        else:
+            if args.signal_data_dir:
+                os.system(f"mkdir -p {args.signal_data_dir}/bdt_data/")
 
 def save_bdt_data(
     events_dict: Dict[str, pd.DataFrame],
@@ -139,18 +155,36 @@ if __name__ == "__main__":
     parser.add_argument(
         "--data-dir",
         dest="data_dir",
-        default="../../../../data/skimmer/Feb24/",
+        default=None,
         help="path to skimmed parquet",
         type=str,
     )
-
+    parser.add_argument(
+        "--signal-data-dir",
+        default=None,
+        help="path to skimmed signal parquets, if different from other data",
+        type=str,
+    )
     parser.add_argument(
         "--year",
         default="2017",
         choices=["2016", "2016APV", "2017", "2018"],
         type=str,
     )
-
+    parser.add_argument(
+        "--sig-samples",
+        help="specify signal samples. By default, will use the samples defined in `hh_vars`.",
+        nargs="*",
+        default=None,
+        type=str,
+    )
+    parser.add_argument(
+        "--bg-keys",
+        help="specify background samples",
+        nargs="*",
+        default=["QCD", "TT", "ST", "V+Jets", "Diboson"],
+        type=str,
+    )
     parser.add_argument(
         "--plot-dir",
         help="If making control or template plots, path to directory to save them in",
@@ -158,7 +192,12 @@ if __name__ == "__main__":
         type=str,
     )
 
+    utils.add_bool_arg(parser, "data", "include data", default=True)
+    utils.add_bool_arg(
+        parser, "read-sig-samples", "read signal samples from directory", default=False
+    )
     utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
+    utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
     utils.add_bool_arg(parser, "bdt-data", "save bdt training data", default=False)
     utils.add_bool_arg(
         parser, "filters", "use pre-selection filters when loading samples", default=True
