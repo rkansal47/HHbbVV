@@ -465,6 +465,7 @@ def _process_samples(args):
         for sig_key, sample in list(sig_samples.items()):
             if sample not in args.sig_samples:
                 del sig_samples[sig_key]
+                
 
     bg_samples = deepcopy(samples)
     for bg_key, sample in list(bg_samples.items()):
@@ -473,7 +474,11 @@ def _process_samples(args):
 
     if not args.resonant:
         for key in sig_samples.copy():
-            if key not in BDT_sample_order:
+            keep = False
+            for bkeys in BDT_sample_order:
+                if bkeys in key: 
+                    keep = True
+            if not keep:
                 del sig_samples[key]
 
         for key in bg_samples.copy():
