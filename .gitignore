@@ -51,6 +51,9 @@ src/HHbbVV/postprocessing/outs
 !src/HHbbVV/combine
 !src/HHbbVV/combine/**
 
+!src/HHbbVV/tagger
+!src/HHbbVV/tagger/**
+
 !data
 !data/*
 !data/*/**
