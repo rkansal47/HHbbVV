@@ -295,21 +295,21 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         add_selection("ak8_jet", fatjet_selector, *selection_args)
 
         # ak4 jet
-        # leading_btag_jet = ak.flatten(
-        #     ak.pad_none(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]], 1, axis=1)
-        # )
 
-        ak4_jet_selector = (
+        # save the selection without btag for applying btag SFs
+        ak4_jet_selector_no_btag = (
             ak4_jets.isTight
             * (ak4_jets.puId % 2 == 1)
             * (ak4_jets.pt > self.ak4_jet_selection["pt"])
             * (np.abs(ak4_jets.eta) < self.ak4_jet_selection["eta"])
             * (np.abs(ak4_jets.delta_phi(muon)) < self.ak4_jet_selection["delta_phi_muon"])
-            * (ak4_jets.btagDeepFlavB > self.ak4_jet_selection["btagWP"][year])
         )
 
-        ak4_jet_selector = ak.any(ak4_jet_selector, axis=1)
-        add_selection("ak4_jet", ak4_jet_selector, *selection_args)
+        ak4_jet_selector = ak4_jet_selector_no_btag * (
+            ak4_jets.btagDeepFlavB > self.ak4_jet_selection["btagWP"][year]
+        )
+
+        add_selection("ak4_jet", ak.any(ak4_jet_selector, axis=1), *selection_args)
 
         # select vars
 
@@ -347,8 +347,9 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         else:
             skimmed_events["genWeight"] = events.genWeight.to_numpy()
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
+            # includes both ID and trigger SFs
             add_lepton_weights(weights, year, muon)
-            add_btag_weights(weights, year, ak4_jets, ak4_jet_selector)
+            add_btag_weights(weights, year, ak4_jets, ak4_jet_selector_no_btag)
 
             if year in ("2016APV", "2016", "2017"):
                 weights.add(
@@ -369,8 +370,15 @@ class TTScaleFactorsSkimmer(ProcessorABC):
                     * self.LUMI[year]
                     * weights.weight()
                 )
+
+                skimmed_events["weight_nobtagSFs"] = (
+                    np.sign(skimmed_events["genWeight"])
+                    * self.XSECS[dataset]
+                    * self.LUMI[year]
+                    * weights.partial_weight(exclude=["btagSF"])
+                )
             else:
-                skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
+                skimmed_events["weight"] = np.sign(skimmed_events["genWeight"]) * weights.weight()
 
         if dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"]:
             match_dict, gen_quarks = ttbar_scale_factor_matching(
@@ -406,23 +414,23 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         }
 
         # apply HWW4q tagger
-        # print("pre-inference")
+        print("pre-inference")
 
-        # pnet_vars = runInferenceTriton(
-        #     self.tagger_resources_path,
-        #     events[selection.all(*selection.names)],
-        #     num_jets=1,
-        #     in_jet_idx=fatjet_idx[selection.all(*selection.names)],
-        #     jets=ak.flatten(leading_fatjets[selection.all(*selection.names)]),
-        #     all_outputs=False,
-        # )
+        pnet_vars = runInferenceTriton(
+            self.tagger_resources_path,
+            events[selection.all(*selection.names)],
+            num_jets=1,
+            in_jet_idx=fatjet_idx[selection.all(*selection.names)],
+            jets=ak.flatten(leading_fatjets[selection.all(*selection.names)]),
+            all_outputs=False,
+        )
 
-        # print("post-inference")
+        print("post-inference")
 
-        # skimmed_events = {
-        #     **skimmed_events,
-        #     **{key: value for (key, value) in pnet_vars.items()},
-        # }
+        skimmed_events = {
+            **skimmed_events,
+            **{key: value for (key, value) in pnet_vars.items()},
+        }
 
         if len(skimmed_events["weight"]):
             df = self.to_pandas(skimmed_events)
