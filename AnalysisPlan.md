@@ -145,12 +145,12 @@
 ### Semi-leptonic ttbar selection skimmer
 
  - [ ] Update LP
- - [ ] JECs for AK4 Jets
- - [ ] DeepJet Btag
- - [ ] B-tag scale factors
- - [ ] muon ID SFs
+ - [x] JECs for AK4 Jets
+ - [x] DeepJet Btag
+ - [x] B-tag scale factors
+ - [x] muon ID SFs
  - [x] Save regressed mass
- - [ ] Jet ID SFs
+ - [x] Jet ID SFs (not required) https://twiki.cern.ch/twiki/bin/view/CMS/JetID13TeVUL
 
 
 ### TTbar corrections
@@ -229,11 +229,11 @@ Raghav:
 
 ### Jun 5 - 9
 - [ ] Update semi-leptonic ttbar processor
-- [ ] Twiki
-- [ ] Respond to comments
+- [x] Twiki
+- [x] Respond to comments
 - [ ] Samples
-  - [ ] Nanogen
-- [ ] Skimming VBF
+  - [x] Nanogen
+- [x] Skimming VBF
 - [ ] Runnning over kL, k2V
 
 

@@ -114,6 +114,7 @@ new_filters = [
     ],
 ]
 
+# TODO: remove electron veto!!
 old_filters = [
     [
         ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
