@@ -140,7 +140,7 @@ nonres_sig_keys_ggf = [
     "ggHH_kl_1_kt_1_HHbbVV",
     "ggHH_kl_2p45_kt_1_HHbbVV",
     "ggHH_kl_5_kt_1_HHbbVV",
-    "ggHH_kl_0_kt_1_HHbbVV"
+    "ggHH_kl_0_kt_1_HHbbVV",
 ]
 nonres_sig_keys_vbf = [
     "qqHH_CV_1_C2V_1_kl_1_HHbbVV",
@@ -170,7 +170,7 @@ if args.resonant:
             sig_keys.append(f"X[{mX}]->H(bb)Y[{mY}](VV)")
 else:
     for key in nonres_sig_keys:
-        mc_samples[key] = key.replace("HHbbVV","hbbhww4q")
+        mc_samples[key] = key.replace("HHbbVV", "hbbhww4q")
     sig_keys = nonres_sig_keys
 
 all_mc = list(mc_samples.keys())
