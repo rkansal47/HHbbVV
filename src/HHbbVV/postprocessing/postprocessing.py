@@ -287,6 +287,7 @@ res_scan_cuts = ["txbb", "thww"]
 weight_shifts = {
     "pileup": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup"),
     "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
+    "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale")
     "ISRPartonShower": Syst(samples=nonres_sig_keys + ["V+Jets"], label="ISR Parton Shower"),
     "FSRPartonShower": Syst(samples=nonres_sig_keys + ["V+Jets"], label="FSR Parton Shower"),
     "L1EcalPrefiring": Syst(
@@ -301,12 +302,17 @@ weight_shifts = {
 def main(args):
     shape_vars, scan, scan_cuts, scan_wps = _init(args)
     sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args)
-    all_samples = sig_samples | bg_samples
+    all_samples = sig_keys + bg_keys
     _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
-    cutflow = pd.DataFrame(index=list(all_samples.keys()))  # save cutflow as pandas table
+    cutflow = pd.DataFrame(index=all_samples)  # save cutflow as pandas table
 
     # utils.remove_empty_parquets(samples_dir, year)
     events_dict = _load_samples(args, bg_samples, sig_samples, cutflow)
+
+    for sample in events_dict:
+        tot_weight = np.sum(events_dict[sample]["weight"].values)
+        print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
+
     bb_masks = bb_VV_assignment(events_dict)
 
     if "finalWeight_noTrigEffs" not in events_dict[list(events_dict.keys())[0]]:
@@ -330,7 +336,7 @@ def main(args):
             events_dict,
             args.year,
             bdt_preds_dir,
-            list(all_samples.keys()),
+            all_samples,
             jec_jmsr_shifts=True,
         )
         print("Loaded BDT preds\n")
@@ -547,8 +553,18 @@ def _check_load_systematics(systs_file: str, year: str):
 
 def _load_samples(args, samples, sig_samples, cutflow):
     filters = old_filters if args.old_processor else new_filters
-    events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
-    events_dict |= utils.load_samples(args.data_dir, samples, args.year, filters)
+    events_dict = None
+    if args.signal_data_dir:
+        events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
+    if args.data_dir:
+        events_dict_data = utils.load_samples(args.data_dir, samples, args.year, filters)
+        if events_dict:
+            events_dict = utils.merge_dictionaries(events_dict, events_dict_data)
+        else:
+            events_dict = events_dict_data
+
+    print(events_dict.keys())
+
     utils.add_to_cutflow(events_dict, "Pre-selection", "weight", cutflow)
 
     print("")
@@ -601,7 +617,7 @@ def apply_weights(
             combined_trigEffs = 1 - np.prod(1 - fj_trigeffs, axis=1, keepdims=True)
             events[f"{weight_key}_noTrigEffs"] = events["weight"]
             events[weight_key] = events["weight"] * combined_trigEffs
-
+            
     if cutflow is not None:
         utils.add_to_cutflow(events_dict, "TriggerEffs", weight_key, cutflow)
 
@@ -1117,13 +1133,23 @@ def get_templates(
                     if sample in wsyst.samples and year in wsyst.years:
                         # print(wshift)
                         for skey, shift in [("Down", "down"), ("Up", "up")]:
-                            # reweight based on diff between up/down and nominal weights
-                            sweight = (
-                                weight
-                                * (
-                                    events[f"weight_{wshift}{skey}"][0] / events["weight_nonorm"]
-                                ).values.squeeze()
-                            )
+                            if "QCDscale" in wshift:
+                                # QCDscale7pt/QCDscale4
+                                # https://github.com/LPC-HH/HHLooper/blob/master/python/prepare_card_SR_final.py#L263-L288
+                                sweight = (
+                                    weight
+                                    * (
+                                         events[f"weight_QCDscale7pt{skey}"][0] /  events["weight_QCDscale4pt"]
+                                    ).values.squeeze()
+                                )
+                            else:
+                                # reweight based on diff between up/down and nominal weights
+                                sweight = (
+                                    weight
+                                    * (
+                                        events[f"weight_{wshift}{skey}"][0] / events["weight_nonorm"]
+                                    ).values.squeeze()
+                                )
                             h.fill(Sample=f"{sample}_{wshift}_{shift}", **fill_data, weight=sweight)
 
         if pass_region:
@@ -1251,7 +1277,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--data-dir",
-        default="../../../../data/skimmer/Feb24/",
+        default=None,
         help="path to skimmed parquet",
         type=str,
     )

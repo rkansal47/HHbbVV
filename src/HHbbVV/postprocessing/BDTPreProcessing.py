@@ -46,7 +46,7 @@ def main(args):
     _make_dirs(args)
 
     sig_keys, sig_samples, bg_keys, bg_samples = postprocessing._process_samples(args)
-    filters = postprocessing.filters if args.filters else None
+    filters = postprocessing.new_filters if args.filters else None
 
     # save cutflow as pandas table
     all_samples = sig_keys + bg_keys
@@ -60,7 +60,7 @@ def main(args):
     if args.data_dir:
         events_dict_data = utils.load_samples(args.data_dir, bg_samples, args.year, filters)
         if events_dict:
-            events_dict |= events_dict_data
+            events_dict = utils.merge_dictionaries(events_dict, events_dict_data)
         else:
             events_dict = events_dict_data
 
@@ -133,12 +133,13 @@ def save_bdt_data(
 
     bdt_events_dict = []
 
-    for sample in BDT_samples:
-        save_vars = BDT_data_vars + jec_jmsr_vars if sample != "Data" else BDT_data_vars
+    for key in events_dict.keys():
+        # if key in BDT_samples:
+        save_vars = BDT_data_vars + jec_jmsr_vars if key != "Data" else BDT_data_vars
         events = pd.DataFrame(
-            {var: utils.get_feat(events_dict[sample], var, bb_masks[sample]) for var in save_vars}
+            {var: utils.get_feat(events_dict[key], var, bb_masks[key]) for var in save_vars}
         )
-        events["Dataset"] = sample
+        events["Dataset"] = key
         bdt_events_dict.append(events)
 
     bdt_events = pd.concat(bdt_events_dict, axis=0)

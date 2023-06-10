@@ -58,9 +58,9 @@ bdtVars = [
     "VVFatJetPt",
     "VVFatJetPtOverbbFatJetPt",
     "MET_pt",
-    "bbFatJetPtOverDijetPt",
-    "VVFatJetEta",
-    "DijetEta",
+    #"bbFatJetPtOverDijetPt",
+    #"VVFatJetEta",
+    #"DijetEta",
 ]
 
 
@@ -195,6 +195,8 @@ def main(args):
 
     data_dict = load_data(args.data_path, args.year, args.all_years)
 
+    print("Datasets in data path ", [data_dict[year]["Dataset"].unique() for year in data_dict.keys()])
+
     training_data_dict = {
         year: data[
             # select only signal and `bg_keys` backgrounds for training - rest are only inferenced
@@ -206,7 +208,8 @@ def main(args):
         for year, data in data_dict.items()
     }
 
-    print("Training samples:", np.unique(list(training_data_dict.values())[0]["Dataset"]))
+    training_samples = np.unique(list(training_data_dict.values())[0]["Dataset"])
+    print("Training samples:", training_samples)
 
     if args.test:
         # get a sample of different processes
@@ -257,34 +260,35 @@ def main(args):
 
             print("")
 
-    train, test = {}, {}
-
-    for year, data in training_data_dict.items():
-        train[year], test[year] = train_test_split(
-            remove_neg_weights(data) if not args.absolute_weights else data,
-            test_size=args.test_size,
-            random_state=args.seed,
-        )
+    if len(training_samples)>0:
+        train, test = {}, {}
+        for year, data in training_data_dict.items():
+            train[year], test[year] = train_test_split(
+                remove_neg_weights(data) if not args.absolute_weights else data,
+                test_size=args.test_size,
+                random_state=args.seed,
+            )
 
     if args.evaluate_only or args.inference_only:
         model = xgb.XGBClassifier()
         model.load_model(f"{args.model_dir}/trained_bdt.model")
     else:
-        os.system(f"mkdir -p {args.model_dir}")
-        model = train_model(
-            get_X(train),
-            get_X(test),
-            get_Y(train, args.multiclass),
-            get_Y(test, args.multiclass),
-            get_weights(train, args.absolute_weights),
-            get_weights(test, args.absolute_weights),
-            args.model_dir,
-            use_sample_weights=args.use_sample_weights,
-            early_stopping_rounds=args.early_stopping_rounds,
-            **classifier_params,
-        )
+        if train:
+            os.system(f"mkdir -p {args.model_dir}")
+            model = train_model(
+                get_X(train),
+                get_X(test),
+                get_Y(train, args.multiclass),
+                get_Y(test, args.multiclass),
+                get_weights(train, args.absolute_weights),
+                get_weights(test, args.absolute_weights),
+                args.model_dir,
+                use_sample_weights=args.use_sample_weights,
+                early_stopping_rounds=args.early_stopping_rounds,
+                **classifier_params,
+            )
 
-    if not args.inference_only:
+    if not args.inference_only and test:
         evaluate_model(model, args.model_dir, test, multiclass=args.multiclass)
 
     if not args.evaluate_only:
