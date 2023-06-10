@@ -58,9 +58,9 @@ bdtVars = [
     "VVFatJetPt",
     "VVFatJetPtOverbbFatJetPt",
     "MET_pt",
-    #"bbFatJetPtOverDijetPt",
-    #"VVFatJetEta",
-    #"DijetEta",
+    # "bbFatJetPtOverDijetPt",
+    # "VVFatJetEta",
+    # "DijetEta",
 ]
 
 
@@ -195,7 +195,9 @@ def main(args):
 
     data_dict = load_data(args.data_path, args.year, args.all_years)
 
-    print("Datasets in data path ", [data_dict[year]["Dataset"].unique() for year in data_dict.keys()])
+    print(
+        "Datasets in data path ", [data_dict[year]["Dataset"].unique() for year in data_dict.keys()]
+    )
 
     training_data_dict = {
         year: data[
@@ -260,7 +262,7 @@ def main(args):
 
             print("")
 
-    if len(training_samples)>0:
+    if len(training_samples) > 0:
         train, test = {}, {}
         for year, data in training_data_dict.items():
             train[year], test[year] = train_test_split(
