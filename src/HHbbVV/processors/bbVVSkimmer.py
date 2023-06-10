@@ -188,7 +188,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         isData = "JetHT" in dataset
         isQCD = "QCD" in dataset
-        isSignal = "GluGluToHHTobbVV" in dataset or "XToYHTo2W2BTo4Q2B" in dataset
+        isSignal = "GluGluToHHTobbVV" in dataset or "XToYHTo2W2BTo4Q2B" in dataset or "VBF_HHTobbVV" in dataset
 
         if isSignal:
             # only signs for HH
