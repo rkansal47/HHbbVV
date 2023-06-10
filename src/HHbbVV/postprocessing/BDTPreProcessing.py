@@ -7,7 +7,18 @@ import numpy as np
 import warnings
 import pandas as pd
 from pandas.errors import SettingWithCopyWarning
-from hh_vars import samples, res_samples, nonres_samples, nonres_sig_keys, res_sig_keys, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
+from hh_vars import (
+    samples,
+    res_samples,
+    nonres_samples,
+    nonres_sig_keys,
+    res_sig_keys,
+    data_key,
+    jec_shifts,
+    jmsr_shifts,
+    jec_vars,
+    jmsr_vars,
+)
 import os, sys
 
 # ignore these because they don't seem to apply
@@ -50,10 +61,10 @@ def main(args):
 
     # save cutflow as pandas table
     all_samples = sig_keys + bg_keys
-    cutflow =  pd.DataFrame(index=all_samples)
+    cutflow = pd.DataFrame(index=all_samples)
 
     systematics = {}
-    
+
     events_dict = None
     if args.signal_data_dir:
         events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
@@ -65,7 +76,7 @@ def main(args):
             events_dict = events_dict_data
 
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", cutflow)
-    
+
     # print weighted sample yields
     print("")
     for sample in events_dict:
@@ -95,9 +106,7 @@ def main(args):
     if args.bdt_data:
         print("\nSaving BDT Data")
         data_dir = args.data_dir if args.data_dir else args.signal_data_dir
-        save_bdt_data(
-            events_dict, bb_masks, f"{data_dir}/bdt_data/{args.year}_bdt_data.parquet"
-        )
+        save_bdt_data(events_dict, bb_masks, f"{data_dir}/bdt_data/{args.year}_bdt_data.parquet")
         print("Saved BDT Data")
 
 
@@ -111,6 +120,7 @@ def _make_dirs(args):
         else:
             if args.signal_data_dir:
                 os.system(f"mkdir -p {args.signal_data_dir}/bdt_data/")
+
 
 def save_bdt_data(
     events_dict: Dict[str, pd.DataFrame],
