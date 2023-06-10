@@ -329,8 +329,6 @@ def _btagSF(cset, jets, flavour, wp="M", algo="deepJet", syst="central"):
 def _btag_prod(eff, sf):
     num = ak.fill_none(ak.prod(1 - sf * eff, axis=-1), 1)
     den = ak.fill_none(ak.prod(1 - eff, axis=-1), 1)
-    print(num)
-    print(den)
     return num, den
 
 
@@ -344,8 +342,7 @@ def add_btag_weights(
 ):
     ul_year = get_UL_year(year)
     cset = correctionlib.CorrectionSet.from_file(get_pog_json("btagging", year))
-    eff = cutil.load(package_path + f"/corrections/btag_deepJet_M_{year}.coffea")
-    efflookup = dense_lookup(eff.values(), [ax.edges for ax in eff.axes])
+    efflookup = cutil.load(package_path + f"/corrections/btag_effs/btageff_deepJet_M_{year}.coffea")
 
     lightJets = jets[jet_selector & (jets.hadronFlavour == 0)]
     bcJets = jets[jet_selector & (jets.hadronFlavour > 0)]
@@ -359,11 +356,7 @@ def add_btag_weights(
     lightnum, lightden = _btag_prod(lightEff, lightSF)
     bcnum, bcden = _btag_prod(bcEff, bcSF)
 
-    weight = (1 - lightnum * bcnum) / (1 - lightden * bcden)
-    print(weight)
-    print(np.max(weight))
-    print(np.min(weight))
-
+    weight = np.nan_to_num((1 - lightnum * bcnum) / (1 - lightden * bcden), nan=1)
     weights.add("btagSF", weight)
 
 
