@@ -66,10 +66,10 @@ folders_to_index = [
     "/store/user/lpcpfnano/cmantill/v2_3/2017/SingleTop",
     "/store/user/lpcpfnano/cmantill/v2_3/2018/SingleTop",
     #
-    # "/store/user/lpcpfnano/drankin/v2_2/2016/WJetsToLNu",
-    # "/store/user/lpcpfnano/drankin/v2_2/2016APV/WJetsToLNu",
-    # "/store/user/lpcpfnano/drankin/v2_2/2017/WJetsToLNu",
-    # "/store/user/lpcpfnano/drankin/v2_2/2018/WJetsToLNu",
+    "/store/user/lpcpfnano/drankin/v2_2/2016/WJetsToLNu",
+    "/store/user/lpcpfnano/drankin/v2_2/2016APV/WJetsToLNu",
+    "/store/user/lpcpfnano/drankin/v2_2/2017/WJetsToLNu",
+    "/store/user/lpcpfnano/drankin/v2_2/2018/WJetsToLNu",
     #
     "/store/user/lpcpfnano/cmantill/v2_2/2017/HWWPrivate",
     #
