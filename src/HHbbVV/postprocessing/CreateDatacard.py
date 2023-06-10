@@ -136,7 +136,23 @@ mc_samples = OrderedDict(
 )
 
 bg_keys = list(mc_samples.keys())
-nonres_sig_keys = ["HHbbVV"]
+nonres_sig_keys_ggf = [
+    "ggHH_kl_1_kt_1_HHbbVV",
+    "ggHH_kl_2p45_kt_1_HHbbVV",
+    "ggHH_kl_5_kt_1_HHbbVV",
+    "ggHH_kl_0_kt_1_HHbbVV"
+]
+nonres_sig_keys_vbf = [
+    "qqHH_CV_1_C2V_1_kl_1_HHbbVV",
+    "qqHH_CV_1_C2V_0_kl_1_HHbbVV",
+    "qqHH_CV_1p5_C2V_1_kl_1_HHbbVV",
+    "qqHH_CV_1_C2V_1_kl_2_HHbbVV",
+    "qqHH_CV_1_C2V_2_kl_1_HHbbVV",
+    "qqHH_CV_1_C2V_2_kl_1_HHbbVV",
+    "qqHH_CV_1_C2V_1_kl_0_HHbbVV",
+    "qqHH_CV_0p5_C2V_1_kl_1_HHbbVV",
+]
+nonres_sig_keys = nonres_sig_keys_ggf + nonres_sig_keys_vbf
 sig_keys = []
 hist_names = {}  # names of hist files for the samples
 
@@ -153,8 +169,9 @@ if args.resonant:
             hist_names[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
             sig_keys.append(f"X[{mX}]->H(bb)Y[{mY}](VV)")
 else:
-    mc_samples["HHbbVV"] = "ggHH_kl_1_kt_1_hbbhww4q"
-    sig_keys = ["HHbbVV"]  # add different couplings
+    for key in nonres_sig_keys:
+        mc_samples[key] = key.replace("HHbbVV","hbbhww4q")
+    sig_keys = nonres_sig_keys
 
 all_mc = list(mc_samples.keys())
 
@@ -220,8 +237,13 @@ nuisance_params_dict = {
 corr_year_shape_systs = {
     "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=nonres_sig_keys + ["V+Jets"]),
     "ISRPartonShower": Syst(name="ps_isr", prior="shape", samples=nonres_sig_keys + ["V+Jets"]),
+    # TODO: should we be applying QCDscale for "others" process?
+    # https://github.com/LPC-HH/HHLooper/blob/master/python/prepare_card_SR_final.py#L290
+    "QCDscale": Syst(
+        name="CMS_bbWW_boosted_ggf_ggHHQCDacc", prior="shape", samples=nonres_sig_keys_ggf
+    ),
     "PDFalphaS": Syst(
-        name="CMS_bbWW_boosted_ggf_ggHHPDFacc", prior="shape", samples=nonres_sig_keys
+        name="CMS_bbWW_boosted_ggf_ggHHPDFacc", prior="shape", samples=nonres_sig_keys_ggf
     ),
     # TODO: separate into individual
     "JES": Syst(name="CMS_scale_j", prior="shape", samples=all_mc),
