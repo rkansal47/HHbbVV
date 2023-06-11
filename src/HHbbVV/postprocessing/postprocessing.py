@@ -287,7 +287,7 @@ res_scan_cuts = ["txbb", "thww"]
 weight_shifts = {
     "pileup": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup"),
     "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
-    "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale")
+    "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"),
     "ISRPartonShower": Syst(samples=nonres_sig_keys + ["V+Jets"], label="ISR Parton Shower"),
     "FSRPartonShower": Syst(samples=nonres_sig_keys + ["V+Jets"], label="FSR Parton Shower"),
     "L1EcalPrefiring": Syst(
