@@ -109,13 +109,12 @@
 
 ### Nonresonant
 
-- [ ] BDT ROC
+- [x] BDT ROC
   - [x] Try multi-class BDT
   - [x] Try equalizing background weights
   - [x] Optimize hyperparams
   - [x] Trim features
-  - [ ] Compare to cut-based WP
-  - [ ] Check sculpting
+  - [x] Check sculpting
 - [x] Scan Txbb, BDT WPs
 - [ ] Run over all kL and k_2V
   - [ ] Re-run VBF with gen selection
@@ -151,6 +150,7 @@
  - [x] muon ID SFs
  - [x] Save regressed mass
  - [x] Jet ID SFs (not required) https://twiki.cern.ch/twiki/bin/view/CMS/JetID13TeVUL
+ - [ ] PFNano on SingleMuon to get regressed mass
 
 
 ### TTbar corrections
