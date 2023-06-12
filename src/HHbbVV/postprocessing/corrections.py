@@ -316,8 +316,12 @@ def get_lpsf(
     # fraction of subjets > 350 * 0.21 measured by CASE
     uncs["sj_pt_unc"] = (np.sum(events[f"{jet}_lp_sf_num_sjpt_gt350"][0]) / tot_matched) * 0.21
 
+    # TODO: check double counting
+
     if VV:
         num_prongs = events["ak8FatJetHVVNumProngs"][0]
+
+        # TODO: re-write as an OR over double matched, unmatched, and near jet boundary
 
         sj_matching_unc = np.sum(events[f"{jet}_lp_sf_double_matched_event"][0])
         for nump in range(2, 5):

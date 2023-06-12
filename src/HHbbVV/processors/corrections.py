@@ -624,7 +624,7 @@ def add_trig_effs(weights: Weights, fatjets: FatJetArray, year: str, num_jets: i
 # ------------------- Lund plane reweighting ------------------- #
 
 
-MAX_PT_FPARAMS = 4  # max order (+1) of pt extrapolation functions
+MAX_PT_FPARAMS = 3  # max order (+1) of pt extrapolation functions
 MAX_PT_BIN = 350  # have to use subjet pt extrapolation for subjet pT > this
 
 (
@@ -647,7 +647,7 @@ def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = Fals
     import uproot
 
     # initialize lund plane scale factors lookups
-    f = uproot.open(package_path + "/corrections/lp_ratio_jan20.root")
+    f = uproot.open(package_path + "/corrections/ratio_june9.root")
 
     # 3D histogram: [subjet_pt, ln(0.8/Delta), ln(kT/GeV)]
     ratio_nom = f["ratio_nom"].to_numpy()
@@ -743,7 +743,12 @@ def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = Fals
     )
 
 
-def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Union[int, ak.Array], num_prongs: int):
+def _get_lund_arrays(
+    events: NanoEventsArray,
+    jec_fatjets: FatJetArray,
+    fatjet_idx: Union[int, ak.Array],
+    num_prongs: int,
+):
     """
     Gets the ``num_prongs`` subjet pTs and Delta and kT per primary LP splitting of fatjets at
     ``fatjet_idx`` in each event.
@@ -753,6 +758,7 @@ def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Union[int, ak.Array], 
 
     Args:
         events (NanoEventsArray): nano events
+        jec_fatjets (FatJetArray): post-JEC fatjets, used to update subjet pTs.
         fatjet_idx (int | ak.Array): fatjet index
         num_prongs (int): number of prongs / subjets per jet to reweight
 
@@ -850,7 +856,7 @@ def _calc_lund_SFs(
     high_pt_sel = flat_subjet_pt > max_pt_bin
     hpt_logD = flat_logD[high_pt_sel]
     hpt_logkt = flat_logkt[high_pt_sel]
-    hpt_sjpt = flat_subjet_pt[high_pt_sel]  # change this to 1/sjpt for next iteration
+    hpt_sjpt = 1 / flat_subjet_pt[high_pt_sel]
     # store polynomial orders for pT extrapolation
     sj_pt_orders = np.array([np.power(hpt_sjpt, i) for i in range(max_fparams)]).T
 
@@ -885,13 +891,13 @@ def _calc_lund_SFs(
                 )
             )
 
-    return np.array(
-        sf_vals
-    ).T  # output shape: ``[n_jets, len(ratio_lookups) x len(pt_extrap_lookups)]``
+    # output shape: ``[n_jets, len(ratio_lookups) x len(pt_extrap_lookups)]``
+    return np.array(sf_vals).T
 
 
 def get_lund_SFs(
     events: NanoEventsArray,
+    jec_fatjets: FatJetArray,
     fatjet_idx: Union[int, ak.Array],
     num_prongs: int,
     gen_quarks: GenParticleArray,
@@ -906,6 +912,7 @@ def get_lund_SFs(
 
     Args:
         events (NanoEventsArray): nano events
+        jec_fatjets (FatJetArray): post-JEC fatjets, used to update subjet pTs.
         fatjet_idx (int | ak.Array): fatjet index
         num_prongs (int): number of prongs / subjets per jet to r
         seed (int, optional): seed for random smearings. Defaults to 42.
@@ -930,8 +937,10 @@ def get_lund_SFs(
             pt_extrap_lookups_dict,
         ) = _get_lund_lookups(seed, lnN, trunc_gauss)
 
+    jec_fatjet = jec_fatjets[np.arange(len(jec_fatjet)), fatjet_idx]
+
     flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, kt_subjets_vec = _get_lund_arrays(
-        events, fatjet_idx, num_prongs
+        events, jec_fatjet, fatjet_idx, num_prongs
     )
 
     sfs = {}
@@ -1011,15 +1020,20 @@ def get_lund_SFs(
     sj_matched_idx_mask = np.copy(sj_matched_idx)
     sj_matched_idx_mask[~sj_matched] = -1
 
+    j_q_dr = gen_quarks.delta_r(jec_fatjet)
+    q_boundary = (j_q_dr > 0.7) * (j_q_dr < 0.9)
+    # events with quarks at the boundary of the jet
+    sfs["lp_sf_boundary_quarks"] = np.any(q_boundary, axis=1, keepdims=True)
+
     # events which have more than one quark matched to the same subjet
     sfs["lp_sf_double_matched_event"] = np.any(
-        [np.sum(sj_matched_idx_mask == i, axis=1) > 1 for i in range(3)], axis=0
+        [np.sum(sj_matched_idx_mask == i, axis=1) > 1 for i in range(num_prongs)], axis=0
     ).astype(int)[:, np.newaxis]
 
     # number of quarks per event which aren't matched
     sfs["lp_sf_unmatched_quarks"] = np.sum(~sj_matched, axis=1, keepdims=True)
 
-    # old pT extrapolation uncertainty
+    # OLD pT extrapolation uncertainty
     sfs["lp_sf_num_sjpt_gt350"] = np.sum(kt_subjets_vec.pt > 350, axis=1, keepdims=True).to_numpy()
 
     return sfs
