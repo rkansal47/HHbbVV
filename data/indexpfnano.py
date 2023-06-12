@@ -165,8 +165,8 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                 if "ext1" in subsample_short:
                     print("   Ext1")
 
-                if year == "2016" and subsample_short.endswith("HIPM"):
-                    continue
+                # if year == "2016" and subsample_short.endswith("HIPM"):
+                #     continue
 
                 # skip non-PSWeights files, and rename PSWeights ones
                 if year == "2018" and subsample_short.startswith("QCD"):
