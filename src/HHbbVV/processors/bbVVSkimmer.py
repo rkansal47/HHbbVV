@@ -559,76 +559,84 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Lund plane SFs
         ################
 
-        if isSignal and len(skimmed_events["weight"]):
-            genbb = genbb[sel_all]
-            genq = genq[sel_all]
+        if isSignal:
+            items = [
+                ("lp_sf_lnN", 101),
+                ("lp_sf_sys_down", 1),
+                ("lp_sf_sys_up", 1),
+                ("lp_sf_double_matched_event", 1),
+                ("lp_sf_unmatched_quarks", 1),
+                ("lp_sf_num_sjpt_gt350", 1),
+            ]
+            
 
-            sf_dicts = []
+            if len(skimmed_events["weight"]):
+                genbb = genbb[sel_all]
+                genq = genq[sel_all]
+                
+                sf_dicts = []
+                lp_num_jets = num_jets if self._save_all else 1
 
-            lp_num_jets = num_jets if self._save_all else 1
+                for i in range(lp_num_jets):
+                    if self._save_all:
+                        bb_select = skimmed_events["ak8FatJetHbb"][:, i].astype(bool)
+                        VV_select = skimmed_events["ak8FatJetHVV"][:, i].astype(bool)
+                    else:
+                        # only do VV jets
+                        bb_select = np.zeros(len(skimmed_events["ak8FatJetHbb"])).astype(bool)
+                        # exactly 1 jet is matched (otherwise those SFs are ignored in post-processing anyway)
+                        VV_select = np.sum(skimmed_events["ak8FatJetHVV"], axis=1) == 1
 
-            for i in range(lp_num_jets):
-                if self._save_all:
-                    bb_select = skimmed_events["ak8FatJetHbb"][:, i].astype(bool)
-                    VV_select = skimmed_events["ak8FatJetHVV"][:, i].astype(bool)
-                else:
-                    # only do VV jets
-                    bb_select = np.zeros(len(skimmed_events["ak8FatJetHbb"])).astype(bool)
-                    # exactly 1 jet is matched (otherwise those SFs are ignored in post-processing anyway)
-                    VV_select = np.sum(skimmed_events["ak8FatJetHVV"], axis=1) == 1
+                    # selectors for Hbb jets and HVV jets with 2, 3, or 4 prongs separately
+                    selectors = {
+                        # name: (selector, gen quarks, num prongs)
+                        "bb": (bb_select, genbb, 2),
+                        **{
+                            f"VV{k}q": (
+                                VV_select * (skimmed_events["ak8FatJetHVVNumProngs"].squeeze() == k),
+                                genq,
+                                k,
+                            )
+                            for k in range(2, 4 + 1)
+                        },
+                    }
 
-                # selectors for Hbb jets and HVV jets with 2, 3, or 4 prongs separately
-                selectors = {
-                    # name: (selector, gen quarks, num prongs)
-                    "bb": (bb_select, genbb, 2),
-                    **{
-                        f"VV{k}q": (
-                            VV_select * (skimmed_events["ak8FatJetHVVNumProngs"].squeeze() == k),
-                            genq,
-                            k,
-                        )
-                        for k in range(2, 4 + 1)
-                    },
-                }
+                    selected_sfs = {}
+                    
+                    for key, (selector, gen_quarks, num_prongs) in selectors.items():
+                        if np.sum(selector) > 0:
+                            sel_events = events[sel_all][selector]
+                            selected_sfs[key] = get_lund_SFs(
+                                sel_events,
+                                i if self._save_all else skimmed_events["ak8FatJetHVV"][selector][:, 1],
+                                num_prongs,
+                                gen_quarks[selector],
+                                trunc_gauss=False,
+                                lnN=True,
+                            )
 
-                items = [
-                    ("lp_sf_lnN", 101),
-                    ("lp_sf_sys_down", 1),
-                    ("lp_sf_sys_up", 1),
-                    ("lp_sf_double_matched_event", 1),
-                    ("lp_sf_unmatched_quarks", 1),
-                    ("lp_sf_num_sjpt_gt350", 1),
-                ]
+                    sf_dict = {}
 
-                selected_sfs = {}
+                    # collect all the scale factors, fill in 1s for unmatched jets
+                    for key, shape in items:
+                        arr = np.ones((np.sum(sel_all), shape))
+                        
+                        for select_key, (selector, _, _) in selectors.items():
+                            if np.sum(selector) > 0:
+                                arr[selector] = selected_sfs[select_key][key]
+                                
+                        sf_dict[key] = arr
+                                
+                    sf_dicts.append(sf_dict)
 
-                for key, (selector, gen_quarks, num_prongs) in selectors.items():
-                    if np.sum(selector) > 0:
-                        sel_events = events[sel_all][selector]
-                        selected_sfs[key] = get_lund_SFs(
-                            sel_events,
-                            i if self._save_all else skimmed_events["ak8FatJetHVV"][selector][:, 1],
-                            num_prongs,
-                            gen_quarks[selector],
-                            trunc_gauss=False,
-                            lnN=True,
-                        )
-
-                sf_dict = {}
-
-                # collect all the scale factors, fill in 1s for unmatched jets
+                sf_dicts = concatenate_dicts(sf_dicts)
+                
+            else:
+                print("no weight")
+                sf_dicts = {}
                 for key, shape in items:
                     arr = np.ones((np.sum(sel_all), shape))
-
-                    for select_key, (selector, _, _) in selectors.items():
-                        if np.sum(selector) > 0:
-                            arr[selector] = selected_sfs[select_key][key]
-
-                    sf_dict[key] = arr
-
-                sf_dicts.append(sf_dict)
-
-            sf_dicts = concatenate_dicts(sf_dicts)
+                    sf_dicts[key] = arr
 
             skimmed_events = {**skimmed_events, **sf_dicts}
 
@@ -666,7 +674,6 @@ class bbVVSkimmer(processor.ProcessorABC):
                 }
 
         df = self.to_pandas(skimmed_events)
-        print(df)
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
         self.dump_table(df, fname)
 
