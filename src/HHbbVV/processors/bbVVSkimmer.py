@@ -572,12 +572,11 @@ class bbVVSkimmer(processor.ProcessorABC):
                 ("lp_sf_unmatched_quarks", 1),
                 ("lp_sf_num_sjpt_gt350", 1),
             ]
-            
 
             if len(skimmed_events["weight"]):
                 genbb = genbb[sel_all]
                 genq = genq[sel_all]
-                
+
                 sf_dicts = []
                 lp_num_jets = num_jets if self._save_all else 1
 
@@ -597,7 +596,8 @@ class bbVVSkimmer(processor.ProcessorABC):
                         "bb": (bb_select, genbb, 2),
                         **{
                             f"VV{k}q": (
-                                VV_select * (skimmed_events["ak8FatJetHVVNumProngs"].squeeze() == k),
+                                VV_select
+                                * (skimmed_events["ak8FatJetHVVNumProngs"].squeeze() == k),
                                 genq,
                                 k,
                             )
@@ -606,13 +606,15 @@ class bbVVSkimmer(processor.ProcessorABC):
                     }
 
                     selected_sfs = {}
-                    
+
                     for key, (selector, gen_quarks, num_prongs) in selectors.items():
                         if np.sum(selector) > 0:
                             sel_events = events[sel_all][selector]
                             selected_sfs[key] = get_lund_SFs(
                                 sel_events,
-                                i if self._save_all else skimmed_events["ak8FatJetHVV"][selector][:, 1],
+                                i
+                                if self._save_all
+                                else skimmed_events["ak8FatJetHVV"][selector][:, 1],
                                 num_prongs,
                                 gen_quarks[selector],
                                 trunc_gauss=False,
@@ -624,17 +626,17 @@ class bbVVSkimmer(processor.ProcessorABC):
                     # collect all the scale factors, fill in 1s for unmatched jets
                     for key, shape in items:
                         arr = np.ones((np.sum(sel_all), shape))
-                        
+
                         for select_key, (selector, _, _) in selectors.items():
                             if np.sum(selector) > 0:
                                 arr[selector] = selected_sfs[select_key][key]
-                                
+
                         sf_dict[key] = arr
-                                
+
                     sf_dicts.append(sf_dict)
 
                 sf_dicts = concatenate_dicts(sf_dicts)
-                
+
             else:
                 print("no weight")
                 sf_dicts = {}
