@@ -300,15 +300,17 @@ weight_shifts = {
 
 def main(args):
     shape_vars, scan, scan_cuts, scan_wps = _init(args)
-    
+
     try:
-        BDT_sample_order = list(np.load(f"{args.bdt_order_dir}/bdt_data/{args.year}_bdt_data_order.npy"))
+        BDT_sample_order = list(
+            np.load(f"{args.bdt_order_dir}/bdt_data/{args.year}_bdt_data_order.npy")
+        )
         print(f"using BDT_sample_order {BDT_sample_order}")
     except:
         BDT_sample_order = nonres_sig_keys
         BDT_sample_order += ["QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
         print(f"No bdt_order_dir argument, using BDT_sample_order {BDT_sample_order}")
-        
+
     sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args, BDT_sample_order)
     all_samples = sig_keys + bg_keys
     _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
@@ -348,7 +350,7 @@ def main(args):
             jec_jmsr_shifts=True,
         )
         print("Loaded BDT preds\n")
-        
+
     # Control plots
     if args.control_plots:
         print("\nMaking control plots\n")
@@ -503,7 +505,7 @@ def _process_samples(args, BDT_sample_order):
             del bg_samples[data_key]
         except:
             print(f"no key {data_key}")
-            
+
     sig_keys = list(sig_samples.keys())
     bg_keys = list(bg_samples.keys())
 
@@ -627,7 +629,7 @@ def apply_weights(
             combined_trigEffs = 1 - np.prod(1 - fj_trigeffs, axis=1, keepdims=True)
             events[f"{weight_key}_noTrigEffs"] = events["weight"]
             events[weight_key] = events["weight"] * combined_trigEffs
-            
+
     if cutflow is not None:
         utils.add_to_cutflow(events_dict, "TriggerEffs", weight_key, cutflow)
 
@@ -860,7 +862,7 @@ def lpsfs(
     2) Saves them to ``systs_file`` and CSV for posterity
     """
     for sig_key in sig_keys:
-        print("sig key ",sig_key)
+        print("sig key ", sig_key)
         sf_table = OrderedDict()  # format SFs for each sig key in a table
         if sig_key not in systematics or "lp_sf" not in systematics[sig_key]:
             print(f"\nGetting LP SFs for {sig_key}")
@@ -902,7 +904,7 @@ def lpsfs(
             sf_df = pd.DataFrame(index=sig_keys)
             for key in sf_table[sig_key]:
                 sf_df[key] = [sf_table[skey][key] for skey in sig_keys]
-                
+
             sf_df.to_csv(f"{template_dir}/lpsfs.csv")
 
     if systs_file is not None:
@@ -1151,7 +1153,8 @@ def get_templates(
                                 sweight = (
                                     weight
                                     * (
-                                         events[f"weight_QCDscale7pt{skey}"][0] /  events["weight_QCDscale4pt"]
+                                        events[f"weight_QCDscale7pt{skey}"][0]
+                                        / events["weight_QCDscale4pt"]
                                     ).values.squeeze()
                                 )
                             else:
@@ -1159,7 +1162,8 @@ def get_templates(
                                 sweight = (
                                     weight
                                     * (
-                                        events[f"weight_{wshift}{skey}"][0] / events["weight_nonorm"]
+                                        events[f"weight_{wshift}{skey}"][0]
+                                        / events["weight_nonorm"]
                                     ).values.squeeze()
                                 )
                             h.fill(Sample=f"{sample}_{wshift}_{shift}", **fill_data, weight=sweight)
