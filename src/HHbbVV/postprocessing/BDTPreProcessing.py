@@ -55,8 +55,10 @@ def main(args):
 
     BDT_sample_order = nonres_sig_keys
     BDT_sample_order += ["QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
-    
-    sig_keys, sig_samples, bg_keys, bg_samples = postprocessing._process_samples(args, BDT_sample_order)
+
+    sig_keys, sig_samples, bg_keys, bg_samples = postprocessing._process_samples(
+        args, BDT_sample_order
+    )
     filters = postprocessing.new_filters if args.filters else None
 
     # save cutflow as pandas table
@@ -155,9 +157,10 @@ def save_bdt_data(
     table = pa.Table.from_pandas(bdt_events)
     pq.write_table(table, out_file)
     bdt_sample_order = np.array(bdt_sample_order)
-    np.save(out_file.replace(".parquet","_order.npy"), bdt_sample_order)
+    np.save(out_file.replace(".parquet", "_order.npy"), bdt_sample_order)
     # print("BDT sample order ",bdt_sample_order)
-    
+
+
 if __name__ == "__main__":
     import argparse
 
