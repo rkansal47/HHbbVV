@@ -27,9 +27,6 @@ warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 from copy import deepcopy
 
 
-BDT_samples = list(samples.keys())
-
-
 BDT_data_vars = [
     "MET_pt",
     "DijetEta",
@@ -56,7 +53,10 @@ def main(args):
     # make plot, template dirs if needed
     _make_dirs(args)
 
-    sig_keys, sig_samples, bg_keys, bg_samples = postprocessing._process_samples(args)
+    BDT_sample_order = nonres_sig_keys
+    BDT_sample_order += ["QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
+    
+    sig_keys, sig_samples, bg_keys, bg_samples = postprocessing._process_samples(args, BDT_sample_order)
     filters = postprocessing.new_filters if args.filters else None
 
     # save cutflow as pandas table
@@ -78,22 +78,21 @@ def main(args):
     utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", cutflow)
 
     # print weighted sample yields
-    print("")
     for sample in events_dict:
         tot_weight = np.sum(events_dict[sample]["weight"].values)
-        print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
+        # print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
 
     postprocessing.apply_weights(events_dict, args.year, cutflow)
     bb_masks = postprocessing.bb_VV_assignment(events_dict)
     if args.control_plots:
         cutflow.to_csv(f"{args.plot_dir}/{args.year}/cutflow.csv")
-    print("\nCutflow:\n", cutflow)
+    # print("\nCutflow:\n", cutflow)
 
     control_plot_vars = postprocessing.control_plot_vars
     del control_plot_vars["BDTScore"]
 
     if args.control_plots:
-        print("\nMaking control plots")
+        # print("\nMaking control plots")
         postprocessing.control_plots(
             events_dict,
             bb_masks,
@@ -101,13 +100,13 @@ def main(args):
             f"{args.plot_dir}/{args.year}",
             args.year,
         )
-        print("Made and saved control plots")
+        # print("Made and saved control plots")
 
     if args.bdt_data:
-        print("\nSaving BDT Data")
+        # print("\nSaving BDT Data")
         data_dir = args.data_dir if args.data_dir else args.signal_data_dir
         save_bdt_data(events_dict, bb_masks, f"{data_dir}/bdt_data/{args.year}_bdt_data.parquet")
-        print("Saved BDT Data")
+        # print("Saved BDT Data")
 
 
 def _make_dirs(args):
@@ -142,22 +141,23 @@ def save_bdt_data(
                 jec_jmsr_vars.append(f"{var}_{jshift}")
 
     bdt_events_dict = []
-
+    bdt_sample_order = []
     for key in events_dict.keys():
-        # if key in BDT_samples:
         save_vars = BDT_data_vars + jec_jmsr_vars if key != "Data" else BDT_data_vars
         events = pd.DataFrame(
             {var: utils.get_feat(events_dict[key], var, bb_masks[key]) for var in save_vars}
         )
         events["Dataset"] = key
         bdt_events_dict.append(events)
+        bdt_sample_order.append(key)
 
     bdt_events = pd.concat(bdt_events_dict, axis=0)
-
     table = pa.Table.from_pandas(bdt_events)
     pq.write_table(table, out_file)
-
-
+    bdt_sample_order = np.array(bdt_sample_order)
+    np.save(out_file.replace(".parquet","_order.npy"), bdt_sample_order)
+    # print("BDT sample order ",bdt_sample_order)
+    
 if __name__ == "__main__":
     import argparse
 

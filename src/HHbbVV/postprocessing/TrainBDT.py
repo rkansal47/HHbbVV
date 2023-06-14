@@ -191,13 +191,13 @@ def main(args):
     if args.rem_feats:
         bdtVars = bdtVars[: -args.rem_feats]
 
-    print("BDT features:\n", bdtVars)
+    # print("BDT features:\n", bdtVars)
 
     data_dict = load_data(args.data_path, args.year, args.all_years)
 
-    print(
-        "Datasets in data path ", [data_dict[year]["Dataset"].unique() for year in data_dict.keys()]
-    )
+    # print(
+    #    "Datasets in data path ", [data_dict[year]["Dataset"].unique() for year in data_dict.keys()]
+    # ) 
 
     training_data_dict = {
         year: data[
@@ -211,7 +211,7 @@ def main(args):
     }
 
     training_samples = np.unique(list(training_data_dict.values())[0]["Dataset"])
-    print("Training samples:", training_samples)
+    # print("Training samples:", training_samples)
 
     if args.test:
         # get a sample of different processes
@@ -428,19 +428,19 @@ def do_inference(
         year_data_dict = {year: data}
         os.system(f"mkdir -p {model_dir}/inferences/{year}")
 
-        print("Running inference")
+        # print("Running inference")
         X = get_X(year_data_dict)
         model.get_booster().feature_names = bdtVars
 
         start = time.time()
         preds = model.predict_proba(X)
-        print(f"Finished in {time.time() - start:.2f}s")
+        # print(f"Finished in {time.time() - start:.2f}s")
         preds = preds[:, :-1] if multiclass else preds[:, 1]  # save n-1 probs to save space
         np.save(f"{model_dir}/inferences/{year}/preds.npy", preds)
 
         if jec_jmsr_shifts:
             for jshift in jec_shifts:
-                print("Running inference for", jshift)
+                # print("Running inference for", jshift)
                 X, mcvars = get_X(year_data_dict, jec_shift=jshift)
                 # have to change model's feature names since we're passing in a dataframe
                 model.get_booster().feature_names = mcvars
@@ -449,7 +449,7 @@ def do_inference(
                 np.save(f"{model_dir}/inferences/{year}/preds_{jshift}.npy", preds)
 
             for jshift in jmsr_shifts:
-                print("Running inference for", jshift)
+                # print("Running inference for", jshift)
                 X, mcvars = get_X(year_data_dict, jmsr_shift=jshift)
                 # have to change model's feature names since we're passing in a dataframe
                 model.get_booster().feature_names = mcvars

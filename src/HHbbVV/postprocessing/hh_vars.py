@@ -178,10 +178,6 @@ for mX, mY in res_mps:
 
 res_sig_keys = list(res_samples.keys())
 
-
-BDT_sample_order = ["HHbbVV", "QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
-
-
 # from https://cms.cern.ch/iCMS/jsp/db_notes/noteInfo.jsp?cmsnoteid=CMS%20AN-2021/005
 txbb_wps = {
     "2016APV": {"HP": 0.9883, "MP": 0.9737, "LP": 0.9088},
