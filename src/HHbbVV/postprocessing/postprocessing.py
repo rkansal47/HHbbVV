@@ -45,7 +45,6 @@ from hh_vars import (
     samples,
     nonres_samples,
     res_samples,
-    BDT_sample_order,
     txbb_wps,
     jec_shifts,
     jmsr_shifts,
@@ -301,7 +300,16 @@ weight_shifts = {
 
 def main(args):
     shape_vars, scan, scan_cuts, scan_wps = _init(args)
-    sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args)
+    
+    try:
+        BDT_sample_order = list(np.load(f"{args.bdt_order_dir}/bdt_data/{args.year}_bdt_data_order.npy"))
+        print(f"using BDT_sample_order {BDT_sample_order}")
+    except:
+        BDT_sample_order = nonres_sig_keys
+        BDT_sample_order += ["QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
+        print(f"No bdt_order_dir argument, using BDT_sample_order {BDT_sample_order}")
+        
+    sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args, BDT_sample_order)
     all_samples = sig_keys + bg_keys
     _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
     cutflow = pd.DataFrame(index=all_samples)  # save cutflow as pandas table
@@ -340,7 +348,7 @@ def main(args):
             jec_jmsr_shifts=True,
         )
         print("Loaded BDT preds\n")
-
+        
     # Control plots
     if args.control_plots:
         print("\nMaking control plots\n")
@@ -367,7 +375,7 @@ def main(args):
                 else get_res_selection_regions(args.year, **cutargs)
             )
 
-            print(cutstr)
+            print(sig_keys)
             # load pre-calculated systematics and those for different years if saved already
             systs_file = f"{template_dir}/systematics.json"
             systematics = _check_load_systematics(systs_file, args.year)
@@ -452,7 +460,7 @@ def _init(args):
     return shape_vars, scan, scan_cuts, scan_wps
 
 
-def _process_samples(args):
+def _process_samples(args, BDT_sample_order):
     sig_samples = res_samples if args.resonant else nonres_samples
 
     if args.read_sig_samples:
@@ -491,8 +499,11 @@ def _process_samples(args):
                 del bg_samples[key]
 
     if not args.data:
-        del bg_samples[data_key]
-
+        try:
+            del bg_samples[data_key]
+        except:
+            print(f"no key {data_key}")
+            
     sig_keys = list(sig_samples.keys())
     bg_keys = list(bg_samples.keys())
 
@@ -782,6 +793,7 @@ def get_lpsf_all_years(
             column_labels.append(f"('{key}', '{i}')")
 
     for year in years:
+        print(year, sig_key)
         events_dict = utils.load_samples(
             data_dir, {sig_key: samples[sig_key]}, year, new_filters, column_labels
         )
@@ -848,6 +860,7 @@ def lpsfs(
     2) Saves them to ``systs_file`` and CSV for posterity
     """
     for sig_key in sig_keys:
+        print("sig key ",sig_key)
         sf_table = OrderedDict()  # format SFs for each sig key in a table
         if sig_key not in systematics or "lp_sf" not in systematics[sig_key]:
             print(f"\nGetting LP SFs for {sig_key}")
@@ -884,13 +897,13 @@ def lpsfs(
             systematics[sig_key]["lp_sf_unc"] = unc / lp_sf
             sf_table[sig_key] = {"SF": f"{lp_sf:.2f} ± {unc:.2f}", **uncs}
 
-        if template_dir is not None:
-            if len(sf_table):
-                sf_df = pd.DataFrame(index=sig_keys)
-                for key in sf_table[sig_key]:
-                    sf_df[key] = [sf_table[skey][key] for skey in sig_keys]
-
-                sf_df.to_csv(f"{template_dir}/lpsfs.csv")
+    if template_dir is not None:
+        if len(sf_table):
+            sf_df = pd.DataFrame(index=sig_keys)
+            for key in sf_table[sig_key]:
+                sf_df[key] = [sf_table[skey][key] for skey in sig_keys]
+                
+            sf_df.to_csv(f"{template_dir}/lpsfs.csv")
 
     if systs_file is not None:
         with open(systs_file, "w") as f:
@@ -1298,6 +1311,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--bdt-preds",
         help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
+        default="",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--bdt-order-dir",
+        help="directory where list with order of samples for BDT prediction is saved",
         default="",
         type=str,
     )

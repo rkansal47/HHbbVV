@@ -16,7 +16,7 @@ def print_parquet(filename, branches):
         ],
     ]
     events = pd.read_parquet(filename, filters=filters)
-    print(events.columns.to_numpy())
+    #print(events.columns.to_numpy())
     if len(branches) > 0:
         for b in branches:
             if b in events.columns:
