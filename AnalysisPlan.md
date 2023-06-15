@@ -12,8 +12,8 @@
     - [Statistical tests of fits](#statistical-tests-of-fits)
     - [Resonant X-\>HY](#resonant-x-hy)
     - [Semi-leptonic ttbar selection skimmer](#semi-leptonic-ttbar-selection-skimmer)
+    - [Resolved WW veto](#resolved-ww-veto)
     - [TTbar corrections](#ttbar-corrections)
-    - [Samplers](#samplers)
   - [Plan](#plan)
     - [Feb 13 - 17](#feb-13---17)
     - [Feb 20 - 24](#feb-20---24)
@@ -153,6 +153,11 @@
  - [ ] PFNano on SingleMuon to get regressed mass
 
 
+### Resolved WW veto
+
+ - [ ] Test veto on 2 AK8 W-tagged jets
+
+
 ### TTbar corrections
 
 May not be necessary given low yield
@@ -163,11 +168,6 @@ May not be necessary given low yield
 - Regressed mass
 - BDT
 - Check VBF?
-
-
-### Samplers
-
- - [ ] Verify sample distributions
 
 
 ## Plan
