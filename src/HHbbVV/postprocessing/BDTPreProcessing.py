@@ -53,19 +53,18 @@ def main(args):
     # make plot, template dirs if needed
     _make_dirs(args)
 
-    BDT_sample_order = nonres_sig_keys
-    BDT_sample_order += ["QCD", "TT", "ST", "V+Jets", "Diboson", "Hbb", "Data"]
+    BDT_sample_order = nonres_sig_keys + ["QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
 
-    sig_keys, sig_samples, bg_keys, bg_samples = postprocessing._process_samples(
+    sig_keys, sig_samples, bg_keys, bg_samples, _ = postprocessing._process_samples(
         args, BDT_sample_order
     )
-    filters = postprocessing.new_filters
 
     # save cutflow as pandas table
     all_samples = sig_keys + bg_keys
     cutflow = pd.DataFrame(index=all_samples)
 
-    events_dict = postprocessing._load_samples(args, bg_samples, sig_samples, cutflow)
+    filters = postprocessing.new_filters
+    events_dict = postprocessing._load_samples(args, bg_samples, sig_samples, cutflow, filters)
     postprocessing.apply_weights(events_dict, args.year, cutflow)
     bb_masks = postprocessing.bb_VV_assignment(events_dict)
     if args.control_plots:
@@ -137,9 +136,9 @@ def save_bdt_data(
     bdt_events = pd.concat(bdt_events_dict, axis=0)
     table = pa.Table.from_pandas(bdt_events)
     pq.write_table(table, out_file)
-    bdt_sample_order = np.array(bdt_sample_order)
-    np.savetxt(out_file.replace(".parquet", "_order.csv"), bdt_sample_order)
-    # print("BDT sample order ",bdt_sample_order)
+
+    with open(out_file.replace("bdt_data.parquet", "sample_order.txt"), "w") as f:
+        f.write(str(bdt_sample_order))
 
 
 if __name__ == "__main__":

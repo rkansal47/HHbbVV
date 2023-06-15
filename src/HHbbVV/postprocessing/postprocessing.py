@@ -300,7 +300,7 @@ weight_shifts = {
 
 def main(args):
     shape_vars, scan, scan_cuts, scan_wps = _init(args)
-    sig_keys, sig_samples, bg_keys, bg_samples, BDT_sample_order = _process_samples(args)
+    sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args)
     all_samples = sig_keys + bg_keys
     _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
     cutflow = pd.DataFrame(index=all_samples)  # save cutflow as pandas table
@@ -327,15 +327,12 @@ def main(args):
     print("\nCutflow\n", cutflow)
 
     # Load BDT Scores
-    bdt_preds_dir = None
     if not args.resonant:
         print("\nLoading BDT predictions")
-        bdt_preds_dir = f"{args.data_dir}/inferences/" if args.bdt_preds == "" else args.bdt_preds
         load_bdt_preds(
             events_dict,
             args.year,
-            bdt_preds_dir,
-            all_samples,
+            args.bdt_preds_dir,
             jec_jmsr_shifts=True,
         )
         print("Loaded BDT preds\n")
@@ -381,8 +378,7 @@ def main(args):
                 selection_regions["lpsf"],
                 systematics,
                 args.lp_sf_all_years,
-                BDT_sample_order,
-                bdt_preds_dir,
+                args.bdt_preds_dir,
                 template_dir,
                 systs_file,
                 args.signal_data_dir,
@@ -454,14 +450,9 @@ def _init(args):
 def _process_samples(args, BDT_sample_order: List[str] = None):
     sig_samples = res_samples if args.resonant else nonres_samples
 
-    if BDT_sample_order is None:
-        if args.bdt_data_dir:
-            BDT_sample_order = list(np.load(f"{args.bdt_data_dir}/{args.year}_bdt_data_order.npy"))
-            print(f"using BDT_sample_order {BDT_sample_order}")
-        else:
-            BDT_sample_order = nonres_sig_keys
-            BDT_sample_order += ["QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
-            print(f"No bdt_data_dir argument, using BDT_sample_order {BDT_sample_order}")
+    if not args.resonant and BDT_sample_order is None:
+        with open(f"{args.bdt_preds_dir}/{args.year}/sample_order.txt", "r") as f:
+            BDT_sample_order = eval(f.read())
 
     if args.read_sig_samples:
         # read all signal samples in directory
@@ -503,6 +494,7 @@ def _process_samples(args, BDT_sample_order: List[str] = None):
     sig_keys = list(sig_samples.keys())
     bg_keys = list(bg_samples.keys())
 
+    print("BDT Sample Order: ", BDT_sample_order)
     print("Sig keys: ", sig_keys)
     print("Sig samples: ", sig_samples)
     print("BG keys: ", bg_keys)
@@ -557,17 +549,18 @@ def _check_load_systematics(systs_file: str, year: str):
     return systematics
 
 
-def _load_samples(args, samples, sig_samples, cutflow):
-    filters = old_filters if args.old_processor else new_filters
+def _load_samples(args, samples, sig_samples, cutflow, filters=None):
+    if filters is None:
+        filters = old_filters if args.old_processor else new_filters
 
-    utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
+    events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
     if args.data_dir:
         events_dict = {
             **events_dict,
             **utils.load_samples(args.data_dir, samples, args.year, filters),
         }
 
-    print(events_dict.keys())
+    print("Samples: ", list(events_dict.keys()))
 
     utils.add_to_cutflow(events_dict, "Pre-selection", "weight", cutflow)
 
@@ -686,7 +679,6 @@ def load_bdt_preds(
     events_dict: Dict[str, pd.DataFrame],
     year: str,
     bdt_preds_dir: str,
-    bdt_sample_order: List[str],
     jec_jmsr_shifts: bool = False,
 ):
     """
@@ -698,7 +690,11 @@ def load_bdt_preds(
         bdt_sample_order (List[str]): Order of samples in the predictions file.
 
     """
+    with open(f"{bdt_preds_dir}/{year}/sample_order.txt", "r") as f:
+        bdt_sample_order = eval(f.read())
+
     bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
+
     multiclass = len(bdt_preds.shape) > 1
 
     if jec_jmsr_shifts:
@@ -744,7 +740,6 @@ def get_lpsf_all_years(
     samples: Dict,
     lp_region: Region,
     bdt_preds_dir: str = None,
-    bdt_sample_order: List[str] = None,
 ):
     print("Getting LP SF for all years combined")
     events_all = []
@@ -805,6 +800,9 @@ def get_lpsf_all_years(
         events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
 
         if bdt_preds_dir is not None:
+            with open(f"{bdt_preds_dir}/{year}/sample_order.txt", "r") as f:
+                bdt_sample_order = eval(f.read())
+
             # load bdt preds for sig only
             bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
             multiclass = len(bdt_preds.shape) > 1
@@ -842,7 +840,6 @@ def lpsfs(
     lp_selection_region: Region,
     systematics: Dict,
     all_years: bool = False,
-    bdt_sample_order: List[str] = None,
     bdt_preds_dir: str = None,
     template_dir: str = None,
     systs_file: str = None,
@@ -870,7 +867,6 @@ def lpsfs(
                     sig_samples,
                     lp_selection_region,
                     bdt_preds_dir,
-                    bdt_sample_order,
                 )
             # Only for testing, can do just for a single year
             else:
@@ -1186,8 +1182,10 @@ def get_templates(
 
         # plot templates incl variations
         if plot_dir != "" and (not do_jshift or plot_shifts):
-            if pass_region:
-                sig_scale_dict = {"HHbbVV": 1, **{skey: 1 for skey in res_sig_keys}}
+            sig_scale_dict = {
+                **{skey: 1 for skey in nonres_sig_keys},
+                **{skey: 1 for skey in res_sig_keys},
+            }
 
             title = (
                 f"{region.label} Region Pre-Fit Shapes"
@@ -1305,15 +1303,8 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--bdt-preds",
+        "--bdt-preds-dir",
         help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
-        default="",
-        type=str,
-    )
-
-    parser.add_argument(
-        "--bdt-data-dir",
-        help="directory where BDT data and list with order of samples for BDT prediction is saved",
         default="",
         type=str,
     )
@@ -1415,5 +1406,8 @@ if __name__ == "__main__":
 
     if args.signal_data_dir == "":
         args.signal_data_dir = args.data_dir
+
+    if args.bdt_preds_dir == "":
+        args.bdt_preds_dir = f"{args.data_dir}/inferences/"
 
     main(args)
