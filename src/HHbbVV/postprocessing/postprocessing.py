@@ -300,18 +300,7 @@ weight_shifts = {
 
 def main(args):
     shape_vars, scan, scan_cuts, scan_wps = _init(args)
-
-    try:
-        BDT_sample_order = list(
-            np.load(f"{args.bdt_order_dir}/bdt_data/{args.year}_bdt_data_order.npy")
-        )
-        print(f"using BDT_sample_order {BDT_sample_order}")
-    except:
-        BDT_sample_order = nonres_sig_keys
-        BDT_sample_order += ["QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
-        print(f"No bdt_order_dir argument, using BDT_sample_order {BDT_sample_order}")
-
-    sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args, BDT_sample_order)
+    sig_keys, sig_samples, bg_keys, bg_samples, BDT_sample_order = _process_samples(args)
     all_samples = sig_keys + bg_keys
     _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
     cutflow = pd.DataFrame(index=all_samples)  # save cutflow as pandas table
@@ -462,8 +451,17 @@ def _init(args):
     return shape_vars, scan, scan_cuts, scan_wps
 
 
-def _process_samples(args, BDT_sample_order):
+def _process_samples(args, BDT_sample_order: List[str] = None):
     sig_samples = res_samples if args.resonant else nonres_samples
+
+    if BDT_sample_order is None:
+        if args.bdt_data_dir:
+            BDT_sample_order = list(np.load(f"{args.bdt_data_dir}/{args.year}_bdt_data_order.npy"))
+            print(f"using BDT_sample_order {BDT_sample_order}")
+        else:
+            BDT_sample_order = nonres_sig_keys
+            BDT_sample_order += ["QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
+            print(f"No bdt_data_dir argument, using BDT_sample_order {BDT_sample_order}")
 
     if args.read_sig_samples:
         # read all signal samples in directory
@@ -489,11 +487,7 @@ def _process_samples(args, BDT_sample_order):
 
     if not args.resonant:
         for key in sig_samples.copy():
-            keep = False
-            for bkeys in BDT_sample_order:
-                if bkeys in key:
-                    keep = True
-            if not keep:
+            if key not in BDT_sample_order:
                 del sig_samples[key]
 
         for key in bg_samples.copy():
@@ -514,7 +508,7 @@ def _process_samples(args, BDT_sample_order):
     print("BG keys: ", bg_keys)
     print("BG Samples: ", bg_samples)
 
-    return sig_keys, sig_samples, bg_keys, bg_samples
+    return sig_keys, sig_samples, bg_keys, bg_samples, BDT_sample_order
 
 
 def _make_dirs(args, scan, scan_cuts, scan_wps):
@@ -565,15 +559,13 @@ def _check_load_systematics(systs_file: str, year: str):
 
 def _load_samples(args, samples, sig_samples, cutflow):
     filters = old_filters if args.old_processor else new_filters
-    events_dict = None
-    if args.signal_data_dir:
-        events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
+
+    utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
     if args.data_dir:
-        events_dict_data = utils.load_samples(args.data_dir, samples, args.year, filters)
-        if events_dict:
-            events_dict = utils.merge_dictionaries(events_dict, events_dict_data)
-        else:
-            events_dict = events_dict_data
+        events_dict = {
+            **events_dict,
+            **utils.load_samples(args.data_dir, samples, args.year, filters),
+        }
 
     print(events_dict.keys())
 
@@ -1320,8 +1312,8 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--bdt-order-dir",
-        help="directory where list with order of samples for BDT prediction is saved",
+        "--bdt-data-dir",
+        help="directory where BDT data and list with order of samples for BDT prediction is saved",
         default="",
         type=str,
     )

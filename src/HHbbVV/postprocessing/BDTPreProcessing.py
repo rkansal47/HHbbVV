@@ -54,41 +54,22 @@ def main(args):
     _make_dirs(args)
 
     BDT_sample_order = nonres_sig_keys
-    BDT_sample_order += ["QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
+    BDT_sample_order += ["QCD", "TT", "ST", "V+Jets", "Diboson", "Hbb", "Data"]
 
     sig_keys, sig_samples, bg_keys, bg_samples = postprocessing._process_samples(
         args, BDT_sample_order
     )
-    filters = postprocessing.new_filters if args.filters else None
+    filters = postprocessing.new_filters
 
     # save cutflow as pandas table
     all_samples = sig_keys + bg_keys
     cutflow = pd.DataFrame(index=all_samples)
 
-    systematics = {}
-
-    events_dict = None
-    if args.signal_data_dir:
-        events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
-    if args.data_dir:
-        events_dict_data = utils.load_samples(args.data_dir, bg_samples, args.year, filters)
-        if events_dict:
-            events_dict = utils.merge_dictionaries(events_dict, events_dict_data)
-        else:
-            events_dict = events_dict_data
-
-    utils.add_to_cutflow(events_dict, "BDTPreselection", "weight", cutflow)
-
-    # print weighted sample yields
-    for sample in events_dict:
-        tot_weight = np.sum(events_dict[sample]["weight"].values)
-        # print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
-
+    events_dict = postprocessing._load_samples(args, bg_samples, sig_samples, cutflow)
     postprocessing.apply_weights(events_dict, args.year, cutflow)
     bb_masks = postprocessing.bb_VV_assignment(events_dict)
     if args.control_plots:
         cutflow.to_csv(f"{args.plot_dir}/{args.year}/cutflow.csv")
-    # print("\nCutflow:\n", cutflow)
 
     control_plot_vars = postprocessing.control_plot_vars
     del control_plot_vars["BDTScore"]
@@ -157,7 +138,7 @@ def save_bdt_data(
     table = pa.Table.from_pandas(bdt_events)
     pq.write_table(table, out_file)
     bdt_sample_order = np.array(bdt_sample_order)
-    np.save(out_file.replace(".parquet", "_order.npy"), bdt_sample_order)
+    np.savetxt(out_file.replace(".parquet", "_order.csv"), bdt_sample_order)
     # print("BDT sample order ",bdt_sample_order)
 
 
@@ -213,9 +194,6 @@ if __name__ == "__main__":
     utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
     utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
     utils.add_bool_arg(parser, "bdt-data", "save bdt training data", default=False)
-    utils.add_bool_arg(
-        parser, "filters", "use pre-selection filters when loading samples", default=True
-    )
 
     args = parser.parse_args()
     main(args)

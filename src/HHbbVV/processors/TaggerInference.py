@@ -626,8 +626,6 @@ def runInferenceTriton(
             }
         )
 
-    # return feature_dicts
-
     # run inference for both fat jets
     tagger_outputs = []
     for jet_idx in range(num_jets):
