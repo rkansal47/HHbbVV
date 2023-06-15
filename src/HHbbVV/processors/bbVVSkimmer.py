@@ -564,6 +564,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         ################
 
         if isSignal:
+            # TODO: remember to add new LP variables
             items = [
                 ("lp_sf_lnN", 101),
                 ("lp_sf_sys_down", 1),
@@ -638,7 +639,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 sf_dicts = concatenate_dicts(sf_dicts)
 
             else:
-                print("no weight")
+                print("No signal events selected")
                 sf_dicts = {}
                 for key, shape in items:
                     arr = np.ones((np.sum(sel_all), shape))

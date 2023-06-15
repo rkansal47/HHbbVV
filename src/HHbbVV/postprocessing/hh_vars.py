@@ -40,7 +40,7 @@ bg_keys = [key for key in samples.keys() if key != data_key]
 # change HHbbVV to hbbhVV
 nonres_samples = OrderedDict(
     [
-        ("ggHH_kl_1_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH1"),
+        ("HHbbVV", "GluGluToHHTobbVV_node_cHHH1"),
         ("ggHH_kl_2p45_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH2p45"),
         ("ggHH_kl_5_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH5"),
         ("ggHH_kl_0_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH0"),
