@@ -425,8 +425,12 @@ def do_inference(
         year_data_dict = {year: data}
         os.system(f"mkdir -p {model_dir}/inferences/{year}")
 
+        sample_order = list(pd.unique(data["Dataset"]))
+        value_counts = data["Dataset"].value_counts()
+        sample_order_dict = OrderedDict([(sample, value_counts[sample]) for sample in sample_order])
+
         with open(f"{model_dir}/inferences/{year}/sample_order.txt", "w") as f:
-            f.write(str(list(pd.unique(data["Dataset"]))))
+            f.write(str(sample_order_dict))
 
         print("Running inference")
         X = get_X(year_data_dict)

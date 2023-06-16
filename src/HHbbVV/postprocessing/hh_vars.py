@@ -26,12 +26,15 @@ samples = OrderedDict(
         ("ST", "ST"),
         ("V+Jets", ("WJets", "ZJets")),
         ("Diboson", ("WW", "WZ", "ZZ")),
+        # TODO: break this down into production modes for combination!!!!
+        # https://gitlab.cern.ch/hh/naming-conventions#single-h-backgrounds
         ("Hbb", "*HToBB"),
         ("HWW", ("*HToWW", "*HToNonbb")),
         ("HH", ("GluGluToHHTo4B_node_cHHH1_preUL")),
         ("Data", "JetHT"),
     ]
 )
+
 
 data_key = "Data"
 qcd_key = "QCD"

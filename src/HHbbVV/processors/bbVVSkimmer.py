@@ -486,6 +486,8 @@ class bbVVSkimmer(processor.ProcessorABC):
             #     # TODO: need to add uncertainties and rescale yields (?)
             #     add_top_pt_weight(weights, events)
 
+            # TODO: figure out which of these apply to VBF, single Higgs, ttbar etc.
+
             if "GluGluToHHTobbVV" in dataset or "WJets" in dataset or "ZJets" in dataset:
                 add_ps_weight(weights, events.PSWeight)
 
