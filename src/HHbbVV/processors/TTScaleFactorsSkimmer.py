@@ -34,6 +34,7 @@ from .utils import pad_val, add_selection, P4
 from .corrections import (
     add_pileup_weight,
     add_lepton_weights,
+    add_btag_weights,
     add_top_pt_weight,
     get_jec_jets,
     get_lund_SFs,
@@ -110,14 +111,14 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # "msd": [125, 250],
         "eta": 2.5,
         "delta_phi_muon": 2,
-        "jetId": 2,  # tight ID bit
+        "jetId": "tight",
     }
 
     ak4_jet_selection = {
         "pt": 25,
         "eta": 2.4,
         "delta_phi_muon": 2,
-        "jetId": 2,
+        "jetId": "tight",
         "puId": 4,  # loose pileup ID
         "btagWP": btagWPs,
     }
@@ -216,24 +217,19 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         # triggers
         # OR-ing HLT triggers
-        if isData or not isData:  # CASE uses triggers for MC too
-            HLT_triggered = np.any(
-                np.array(
-                    [
-                        events.HLT[trigger]
-                        for trigger in self.HLTs[year]
-                        if trigger in events.HLT.fields
-                    ]
-                ),
-                axis=0,
-            )
-            add_selection("trigger", HLT_triggered, *selection_args)
+        HLT_triggered = np.any(
+            np.array(
+                [events.HLT[trigger] for trigger in self.HLTs[year] if trigger in events.HLT.fields]
+            ),
+            axis=0,
+        )
+        add_selection("trigger", HLT_triggered, *selection_args)
 
         # objects
         num_jets = 1
         muon = events.Muon
         fatjets = get_jec_jets(events, year) if not isData else events.FatJet
-        ak4_jets = events.Jet
+        ak4_jets = get_jec_jets(events, year, fatjets=False) if not isData else events.Jet
         met = events.MET
 
         # at least one good reconstructed primary vertex
@@ -289,9 +285,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             # * (fatjets.msoftdrop < self.ak8_jet_selection["msd"][1])
             * (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"])
             * (np.abs(fatjets.delta_phi(muon)) > self.ak8_jet_selection["delta_phi_muon"])
-            * (
-                fatjets.jetId & self.ak8_jet_selection["jetId"] == self.ak8_jet_selection["jetId"]
-            )  # tight ID
+            * fatjets.isTight
         )
 
         leading_fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
@@ -301,23 +295,21 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         add_selection("ak8_jet", fatjet_selector, *selection_args)
 
         # ak4 jet
-        # leading_btag_jet = ak.flatten(
-        #     ak.pad_none(events.Jet[ak.argsort(events.Jet.btagDeepB, axis=1)[:, -1:]], 1, axis=1)
-        # )
 
-        ak4_jet_selector = (
-            # tight ID
-            (ak4_jets.jetId & self.ak4_jet_selection["jetId"] == self.ak4_jet_selection["jetId"])
-            # * (ak4_jets.puId >= self.ak4_jet_selection["puId"])
+        # save the selection without btag for applying btag SFs
+        ak4_jet_selector_no_btag = (
+            ak4_jets.isTight
             * (ak4_jets.puId % 2 == 1)
             * (ak4_jets.pt > self.ak4_jet_selection["pt"])
             * (np.abs(ak4_jets.eta) < self.ak4_jet_selection["eta"])
             * (np.abs(ak4_jets.delta_phi(muon)) < self.ak4_jet_selection["delta_phi_muon"])
-            * (ak4_jets.btagDeepB > self.ak4_jet_selection["btagWP"]["2018"])
         )
 
-        ak4_jet_selector = ak.any(ak4_jet_selector, axis=1)
-        add_selection("ak4_jet", ak4_jet_selector, *selection_args)
+        ak4_jet_selector = ak4_jet_selector_no_btag * (
+            ak4_jets.btagDeepFlavB > self.ak4_jet_selection["btagWP"][year]
+        )
+
+        add_selection("ak4_jet", ak.any(ak4_jet_selector, axis=1), *selection_args)
 
         # select vars
 
@@ -355,7 +347,17 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         else:
             skimmed_events["genWeight"] = events.genWeight.to_numpy()
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
+            # includes both ID and trigger SFs
             add_lepton_weights(weights, year, muon)
+            add_btag_weights(weights, year, ak4_jets, ak4_jet_selector_no_btag)
+
+            if year in ("2016APV", "2016", "2017"):
+                weights.add(
+                    "L1EcalPrefiring",
+                    events.L1PreFiringWeight.Nom,
+                    events.L1PreFiringWeight.Up,
+                    events.L1PreFiringWeight.Dn,
+                )
 
             if dataset.startswith("TTTo"):
                 add_top_pt_weight(weights, events)
@@ -368,8 +370,15 @@ class TTScaleFactorsSkimmer(ProcessorABC):
                     * self.LUMI[year]
                     * weights.weight()
                 )
+
+                skimmed_events["weight_nobtagSFs"] = (
+                    np.sign(skimmed_events["genWeight"])
+                    * self.XSECS[dataset]
+                    * self.LUMI[year]
+                    * weights.partial_weight(exclude=["btagSF"])
+                )
             else:
-                skimmed_events["weight"] = np.sign(skimmed_events["genWeight"])
+                skimmed_events["weight"] = np.sign(skimmed_events["genWeight"]) * weights.weight()
 
         if dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"]:
             match_dict, gen_quarks = ttbar_scale_factor_matching(

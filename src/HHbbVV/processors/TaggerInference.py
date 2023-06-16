@@ -6,6 +6,8 @@ Author(s): Raghav Kansal, Cristina Mantilla Suarez, Melissa Quinnan
 
 from typing import Dict, Union
 
+import warnings
+
 import numpy as np
 import numpy.ma as ma
 from numpy.typing import ArrayLike
@@ -565,8 +567,8 @@ def runInferenceTriton(
     if in_jet_idx is not None and num_jets > 1:
         raise ValueError("Can't give in_jet_idx for num_jets != 1")
 
-    if jets is not None:
-        raise RuntimeWarning(
+    if jets is not None and in_jet_idx is None:
+        warnings.warn(
             "Input jets given without in_jet_idx - pfcands and svs matching will likely be incorrect!"
         )
 
