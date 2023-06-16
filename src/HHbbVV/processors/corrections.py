@@ -1,3 +1,14 @@
+"""
+Collection of utilities for corrections and systematics in processors.
+
+Loosely based on https://github.com/jennetd/hbb-coffea/blob/master/boostedhiggs/corrections.py
+
+Most corrections retrieved from the cms-nanoAOD repo:
+See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/
+
+Authors: Raghav Kansal, Cristina Suarez
+"""
+
 import os
 from typing import Dict, List, Tuple, Union
 import numpy as np
@@ -6,11 +17,11 @@ import pickle
 import correctionlib
 import awkward as ak
 
+from coffea import util as cutil
 from coffea.analysis_tools import Weights
 from coffea.lookup_tools.dense_lookup import dense_lookup
 from coffea.nanoevents.methods.nanoaod import MuonArray, JetArray, FatJetArray, GenParticleArray
 from coffea.nanoevents.methods.base import NanoEventsArray
-
 from coffea.nanoevents.methods import vector
 
 ak.behavior.update(vector.behavior)
@@ -302,11 +313,51 @@ def add_scalevar_3pt(weights, var_weights):
     weights.add("QCDscale3pt", nom, up, down)
 
 
+def _btagSF(cset, jets, flavour, wp="M", algo="deepJet", syst="central"):
+    j, nj = ak.flatten(jets), ak.num(jets)
+    corrs = cset[f"{algo}_comb"] if flavour == "bc" else cset[f"{algo}_incl"]
+    sf = corrs.evaluate(
+        syst,
+        wp,
+        np.array(j.hadronFlavour),
+        np.array(abs(j.eta)),
+        np.array(j.pt),
+    )
+    return ak.unflatten(sf, nj)
+
+
+def _btag_prod(eff, sf):
+    num = ak.fill_none(ak.prod(1 - sf * eff, axis=-1), 1)
+    den = ak.fill_none(ak.prod(1 - eff, axis=-1), 1)
+    return num, den
+
+
 def add_btag_weights(
-    weights: Weights, year: str, jets: JetArray, wp: str = "M", algo: str = "deepJet"
+    weights: Weights,
+    year: str,
+    jets: JetArray,
+    jet_selector: ak.Array,
+    wp: str = "M",
+    algo: str = "deepJet",
 ):
     ul_year = get_UL_year(year)
     cset = correctionlib.CorrectionSet.from_file(get_pog_json("btagging", year))
+    efflookup = cutil.load(package_path + f"/corrections/btag_effs/btageff_deepJet_M_{year}.coffea")
+
+    lightJets = jets[jet_selector & (jets.hadronFlavour == 0)]
+    bcJets = jets[jet_selector & (jets.hadronFlavour > 0)]
+
+    lightEff = efflookup(lightJets.pt, abs(lightJets.eta), lightJets.hadronFlavour)
+    bcEff = efflookup(bcJets.pt, abs(bcJets.eta), bcJets.hadronFlavour)
+
+    lightSF = _btagSF(cset, lightJets, "light", wp, algo)
+    bcSF = _btagSF(cset, bcJets, "bc", wp, algo)
+
+    lightnum, lightden = _btag_prod(lightEff, lightSF)
+    bcnum, bcden = _btag_prod(bcEff, bcSF)
+
+    weight = np.nan_to_num((1 - lightnum * bcnum) / (1 - lightden * bcden), nan=1)
+    weights.add("btagSF", weight)
 
 
 # for scale factor validation region selection
@@ -396,6 +447,7 @@ try:
     with open(package_path + "/corrections/jec_compiled.pkl", "rb") as filehandler:
         jmestuff = pickle.load(filehandler)
 
+    ak4jet_factory = jmestuff["jet_factory"]
     fatjet_factory = jmestuff["fatjet_factory"]
 except:
     print("Failed loading compiled JECs")
@@ -412,7 +464,11 @@ def _add_jec_variables(jets: JetArray, event_rho: ak.Array) -> JetArray:
 
 
 def get_jec_jets(
-    events: NanoEventsArray, year: str, isData: bool = False, jecs: Dict[str, str] = None
+    events: NanoEventsArray,
+    year: str,
+    isData: bool = False,
+    jecs: Dict[str, str] = None,
+    fatjets: bool = True,
 ) -> FatJetArray:
     """
     Based on https://github.com/nsmith-/boostedhiggs/blob/master/boostedhiggs/hbbprocessor.py
@@ -424,8 +480,14 @@ def get_jec_jets(
     """
 
     jec_vars = ["pt"]  # vars we're saving that are affected by JECs
+    if fatjets:
+        jets = events.FatJet
+        jet_factory = fatjet_factory
+    else:
+        jets = events.Jet
+        jet_factory = ak4jet_factory
 
-    apply_jecs = not (not ak.any(events.FatJet.pt) or isData)
+    apply_jecs = not (not ak.any(jets.pt) or isData)
 
     import cachetools
 
@@ -434,29 +496,27 @@ def get_jec_jets(
     corr_key = f"{get_vfp_year(year)}mc"
 
     # fatjet_factory.build gives an error if there are no fatjets in event
-    if not apply_jecs:
-        fatjets = events.FatJet
-    else:
-        fatjets = fatjet_factory[corr_key].build(
-            _add_jec_variables(events.FatJet, events.fixedGridRhoFastjetAll), jec_cache
+    if apply_jecs:
+        jets = jet_factory[corr_key].build(
+            _add_jec_variables(jets, events.fixedGridRhoFastjetAll), jec_cache
         )
 
     # return only fatjets if no jecs given
     if jecs is None:
-        return fatjets
+        return jets
 
     jec_shifted_vars = {}
 
     for jec_var in jec_vars:
-        tdict = {"": fatjets[jec_var]}
+        tdict = {"": jets[jec_var]}
         if apply_jecs:
             for key, shift in jecs.items():
                 for var in ["up", "down"]:
-                    tdict[f"{key}_{var}"] = fatjets[shift][var][jec_var]
+                    tdict[f"{key}_{var}"] = jets[shift][var][jec_var]
 
         jec_shifted_vars[jec_var] = tdict
 
-    return fatjets, jec_shifted_vars
+    return jets, jec_shifted_vars
 
 
 jmsr_vars = ["msoftdrop", "particleNet_mass"]
