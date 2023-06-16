@@ -628,8 +628,6 @@ def runInferenceTriton(
             }
         )
 
-    # return feature_dicts
-
     # run inference for both fat jets
     tagger_outputs = []
     for jet_idx in range(num_jets):
@@ -691,7 +689,9 @@ def runInferenceTriton(
                 f"{jet_label}FatJetParTMD_probQCD": np.array([]),
                 f"{jet_label}FatJetParTMD_probHWW3q": np.array([]),
                 f"{jet_label}FatJetParTMD_probHWW4q": np.array([]),
+                f"{jet_label}FatJetParTMD_probT": np.array([]),
                 f"{jet_label}FatJetParTMD_THWW4q": np.array([]),
+                f"{jet_label}FatJetParTMD_THWWvsT": np.array([]),
             }
             pnet_vars_all = {}
 
