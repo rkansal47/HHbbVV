@@ -55,7 +55,7 @@ def main(args):
 
     BDT_sample_order = nonres_sig_keys + ["QCD", "TT", "ST", "V+Jets", "Diboson", "Data"]
 
-    sig_keys, sig_samples, bg_keys, bg_samples, _ = postprocessing._process_samples(
+    sig_keys, sig_samples, bg_keys, bg_samples = postprocessing._process_samples(
         args, BDT_sample_order
     )
 
@@ -137,8 +137,12 @@ def save_bdt_data(
     table = pa.Table.from_pandas(bdt_events)
     pq.write_table(table, out_file)
 
+    sample_order_dict = OrderedDict(
+        [(sample, len(bdt_events_dict[sample])) for sample in bdt_sample_order]
+    )
+
     with open(out_file.replace("bdt_data.parquet", "sample_order.txt"), "w") as f:
-        f.write(str(bdt_sample_order))
+        f.write(str(sample_order_dict))
 
 
 if __name__ == "__main__":
