@@ -195,76 +195,79 @@ def main(args):
 
     data_dict = load_data(args.data_path, args.year, args.all_years)
 
-    training_data_dict = {
-        year: data[
-            # select only signal and `bg_keys` backgrounds for training - rest are only inferenced
-            np.sum(
-                [data["Dataset"] == key for key in training_keys],
-                axis=0,
-            ).astype(bool)
-        ]
-        for year, data in data_dict.items()
-    }
-
-    print("Training samples:", np.unique(list(training_data_dict.values())[0]["Dataset"]))
-
-    if args.test:
-        # get a sample of different processes
-        data_dict = {
-            year: pd.concat(
-                (data[:50], data[1000000:1000050], data[2000000:2000050], data[-50:]), axis=0
-            )
+    if not args.inference_only:
+        training_data_dict = {
+            year: data[
+                # select only signal and `bg_keys` backgrounds for training - rest are only inferenced
+                np.sum(
+                    [data["Dataset"] == key for key in training_keys],
+                    axis=0,
+                ).astype(bool)
+            ]
             for year, data in data_dict.items()
         }
-        # 100 signal, 100 bg events
-        training_data_dict = {
-            year: pd.concat(
-                (
-                    data[:150],
-                    data[
-                        np.sum(data["Dataset"] == sig_key) : np.sum(data["Dataset"] == sig_key) + 50
-                    ],
-                    data[
-                        np.sum(data["Dataset"] == "V+Jets")
-                        - 50 : np.sum(data["Dataset"] == "V+Jets")
-                    ],
-                    data[-50:],
-                ),
-                axis=0,
-            )
-            for year, data in training_data_dict.items()
-        }
 
-    if args.equalize_weights or args.equalize_weights_per_process:
-        for year, data in training_data_dict.items():
-            for key in training_keys:
-                print(
-                    (
-                        f"Pre-equalization {year} {key} total: "
-                        f'{np.sum(data[data["Dataset"] == key][weight_key])}'
-                    )
+        training_samples = np.unique(list(training_data_dict.values())[0]["Dataset"])
+        print("Training samples:", training_samples)
+
+        if args.test:
+            # get a sample of different processes
+            data_dict = {
+                year: pd.concat(
+                    (data[:50], data[1000000:1000050], data[2000000:2000050], data[-50:]), axis=0
                 )
-
-            equalize_weights(data, args.equalize_weights, args.equalize_weights_per_process)
-
-            for key in training_keys:
-                print(
+                for year, data in data_dict.items()
+            }
+            # 100 signal, 100 bg events
+            training_data_dict = {
+                year: pd.concat(
                     (
-                        f"Post-equalization {year} {key} total: "
-                        f'{np.sum(data[data["Dataset"] == key][weight_key])}'
-                    )
+                        data[:150],
+                        data[
+                            np.sum(data["Dataset"] == sig_key) : np.sum(data["Dataset"] == sig_key)
+                            + 50
+                        ],
+                        data[
+                            np.sum(data["Dataset"] == "V+Jets")
+                            - 50 : np.sum(data["Dataset"] == "V+Jets")
+                        ],
+                        data[-50:],
+                    ),
+                    axis=0,
                 )
+                for year, data in training_data_dict.items()
+            }
 
-            print("")
+        if args.equalize_weights or args.equalize_weights_per_process:
+            for year, data in training_data_dict.items():
+                for key in training_keys:
+                    print(
+                        (
+                            f"Pre-equalization {year} {key} total: "
+                            f'{np.sum(data[data["Dataset"] == key][weight_key])}'
+                        )
+                    )
 
-    train, test = {}, {}
+                equalize_weights(data, args.equalize_weights, args.equalize_weights_per_process)
 
-    for year, data in training_data_dict.items():
-        train[year], test[year] = train_test_split(
-            remove_neg_weights(data) if not args.absolute_weights else data,
-            test_size=args.test_size,
-            random_state=args.seed,
-        )
+                for key in training_keys:
+                    print(
+                        (
+                            f"Post-equalization {year} {key} total: "
+                            f'{np.sum(data[data["Dataset"] == key][weight_key])}'
+                        )
+                    )
+
+                print("")
+
+        if len(training_samples) > 0:
+            train, test = {}, {}
+            for year, data in training_data_dict.items():
+                train[year], test[year] = train_test_split(
+                    remove_neg_weights(data) if not args.absolute_weights else data,
+                    test_size=args.test_size,
+                    random_state=args.seed,
+                )
 
     if args.evaluate_only or args.inference_only:
         model = xgb.XGBClassifier()
@@ -422,6 +425,13 @@ def do_inference(
         year_data_dict = {year: data}
         os.system(f"mkdir -p {model_dir}/inferences/{year}")
 
+        sample_order = list(pd.unique(data["Dataset"]))
+        value_counts = data["Dataset"].value_counts()
+        sample_order_dict = OrderedDict([(sample, value_counts[sample]) for sample in sample_order])
+
+        with open(f"{model_dir}/inferences/{year}/sample_order.txt", "w") as f:
+            f.write(str(sample_order_dict))
+
         print("Running inference")
         X = get_X(year_data_dict)
         model.get_booster().feature_names = bdtVars
@@ -489,9 +499,9 @@ if __name__ == "__main__":
     parser.add_argument("--min-child-weight", default=1, help="xgboost param", type=int)
     parser.add_argument("--n-estimators", default=1000, help="xgboost param", type=int)
 
-    parser.add_argument("--rem-feats", default=0, help="remove N lowest importance feats", type=int)
+    parser.add_argument("--rem-feats", default=3, help="remove N lowest importance feats", type=int)
 
-    utils.add_bool_arg(parser, "multiclass", "Classify each background separtely", default=False)
+    utils.add_bool_arg(parser, "multiclass", "Classify each background separtely", default=True)
 
     utils.add_bool_arg(
         parser, "use-sample-weights", "Use properly scaled event weights", default=True

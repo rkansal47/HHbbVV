@@ -217,7 +217,7 @@ In `src/HHbbVV/postprocessing':
 ### BDT Pre-Processing
 
 ```bash
-python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --plot-dir "../../../plots/BDTPreProcessing/$TAG/" --year "2017" --bdt-data (--control-plots)
+python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --signal-data-dir "../../../../data/skimmer/Jun10/" --plot-dir "../../../plots/BDTPreProcessing/$TAG/" --year "2017" --bdt-data (--control-plots)
 ```
 
 
@@ -227,6 +227,10 @@ python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --plot-d
 python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb24/" --year "all" (--test)
 ```
 
+Inference-only:
+```bash
+python TrainBDT.py  --data-path "../../../../data/skimmer/Feb24/bdt_data" --year "all" --inference-only --model-dir "../../../../data/skimmer/Feb24/23_05_12_multiclass_rem_feats_3"
+```
 
 ### Post-Processing
 
@@ -234,9 +238,9 @@ python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb
 python postprocessing.py --templates --year "2017" --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" (--resonant --signal-data-dir "" --control-plots)
 ```
 
-All years:
+All years (non-resonant):
 ```bash
-for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/"; done 
+for year in 2016 2016APV 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/Jun14" --data-dir "../../../../data/skimmer/Feb24" --signal-data-dir "../../../../data/skimmer/Jun10" --bdt-preds-dir "../../../../data/skimmer/Feb24/23_05_12_multiclass_rem_feats_3/inferences"; done
 ```
 
 Scan (non-resonant):
