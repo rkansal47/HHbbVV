@@ -536,9 +536,11 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
         if scan:
             for wps in scan_wps:
                 cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
-                os.system(f"mkdir -p {args.template_dir}/{cutstr}/{args.templates_name}/cutflows")
+                os.system(
+                    f"mkdir -p {args.template_dir}/{cutstr}/{args.templates_name}/cutflows/{args.year}/"
+                )
         else:
-            os.system(f"mkdir -p {args.template_dir}/{args.templates_name}/cutflows")
+            os.system(f"mkdir -p {args.template_dir}/{args.templates_name}/cutflows/{args.year}/")
 
 
 def _check_load_systematics(systs_file: str, year: str):
@@ -1078,7 +1080,7 @@ def get_templates(
         )
 
         if template_dir != "":
-            cf.to_csv(f"{template_dir}/cutflows/{rname}_cutflow{jlabel}.csv")
+            cf.to_csv(f"{template_dir}/cutflows/{year}/{rname}_cutflow{jlabel}.csv")
 
         # trigger uncertainties
         if not do_jshift:
