@@ -664,11 +664,11 @@ def fill_regions(
                 logging.info("setting autoMCStats for %s in %s" % (sample_name, region))
 
                 # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
-                stats_sample_name = region if args.resonant else region_noblinded
-                stats_sample_name += f"_{card_name}"
+                region_name = region if args.resonant else region_noblinded
+                stats_sample_name = f"{CMS_PARAMS_LABEL}_{region_name}_{card_name}"
                 sample.autoMCStats(
                     sample_name=stats_sample_name,
-                    # this fn uses a different threshold convention from combine
+                    # this function uses a different threshold convention from combine
                     threshold=np.sqrt(1 / args.mcstats_threshold),
                     epsilon=args.epsilon,
                 )
@@ -792,7 +792,7 @@ def nonres_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_s
     # qcd params
     qcd_params = np.array(
         [
-            rl.IndependentParameter(f"{CMS_PARAMS_LABEL}_qcdparam_msdbin{i}", 0)
+            rl.IndependentParameter(f"{CMS_PARAMS_LABEL}_tf_dataResidual_Bin{i}", 0)
             for i in range(m_obs.nbins)
         ]
     )
