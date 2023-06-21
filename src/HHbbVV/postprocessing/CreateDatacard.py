@@ -9,7 +9,7 @@ Author: Raghav Kansal
 """
 
 
-import os
+import os, sys
 from typing import Dict, List, Tuple, Union
 from dataclasses import dataclass, field
 
@@ -137,7 +137,7 @@ mc_samples = OrderedDict(
 
 bg_keys = list(mc_samples.keys())
 nonres_sig_keys_ggf = [
-    "ggHH_kl_1_kt_1_HHbbVV",
+    "HHbbVV",
     "ggHH_kl_2p45_kt_1_HHbbVV",
     "ggHH_kl_5_kt_1_HHbbVV",
     "ggHH_kl_0_kt_1_HHbbVV",
@@ -163,14 +163,13 @@ if args.resonant:
         hist_names[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
         sig_keys.append(f"X[{mX}]->H(bb)Y[{mY}](VV)")
     else:
-        res_mps = [(3000, 190), (1000, 100), (2600, 250)]
-        for mX, mY in res_mps:
-            mc_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"xhy_mx{mX}_my{mY}"
-            hist_names[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
-            sig_keys.append(f"X[{mX}]->H(bb)Y[{mY}](VV)")
+        print("--sig-sample needs to be specified for resonant cards")
+        sys.exit()
 else:
     for key in nonres_sig_keys:
         mc_samples[key] = key.replace("HHbbVV", "hbbhww4q")
+
+    mc_samples["HHbbVV"] = "ggHH_kl_1_kt_1_HHbbVV"
     sig_keys = nonres_sig_keys
 
 all_mc = list(mc_samples.keys())
@@ -235,16 +234,16 @@ nuisance_params_dict = {
 
 # dictionary of correlated shape systematics: name in templates -> name in cards, etc.
 corr_year_shape_systs = {
-    "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=nonres_sig_keys + ["V+Jets"]),
-    "ISRPartonShower": Syst(name="ps_isr", prior="shape", samples=nonres_sig_keys + ["V+Jets"]),
+    "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=nonres_sig_keys_ggf + ["V+Jets"]),
+    "ISRPartonShower": Syst(name="ps_isr", prior="shape", samples=nonres_sig_keys_ggf + ["V+Jets"]),
     # TODO: should we be applying QCDscale for "others" process?
     # https://github.com/LPC-HH/HHLooper/blob/master/python/prepare_card_SR_final.py#L290
-    "QCDscale": Syst(
-        name="CMS_bbWW_boosted_ggf_ggHHQCDacc", prior="shape", samples=nonres_sig_keys_ggf
-    ),
-    "PDFalphaS": Syst(
-        name="CMS_bbWW_boosted_ggf_ggHHPDFacc", prior="shape", samples=nonres_sig_keys_ggf
-    ),
+    # "QCDscale": Syst(
+    #     name="CMS_bbWW_boosted_ggf_ggHHQCDacc", prior="shape", samples=nonres_sig_keys_ggf
+    # ),
+    # "PDFalphaS": Syst(
+    #     name="CMS_bbWW_boosted_ggf_ggHHPDFacc", prior="shape", samples=nonres_sig_keys_ggf
+    # ),
     # TODO: separate into individual
     "JES": Syst(name="CMS_scale_j", prior="shape", samples=all_mc),
     "txbb": Syst(
