@@ -41,12 +41,25 @@ class Syst:
 
     name: str = None
     prior: str = None  # e.g. "lnN", "shape", etc.
-    # float if same value in all regions, dictionary of values per region if not
+
+    # float if same value in all regions/samples, dictionary of values per region/sample if not
+    # if both, region should be the higher level of the dictionary
     value: Union[float, Dict[str, float]] = None
+    value_down: Union[float, Dict[str, float]] = None  # if None assumes symmetric effect
+    # if the value is different for different regions or samples
+    diff_regions: bool = False
+    diff_samples: bool = False
+
     samples: List[str] = None  # samples affected by it
     # in case of uncorrelated unc., which years to split into
     uncorr_years: List[str] = field(default_factory=lambda: years)
     pass_only: bool = False  # is it applied only in the pass regions
+
+    def __post_init__(self):
+        if isinstance(self.value, dict) and not (self.diff_regions or self.diff_samples):
+            raise RuntimeError(
+                f"Value for systematic is a dictionary but neither ``diff_regions`` nor ``diff_samples`` is set."
+            )
 
 
 @dataclass
@@ -125,6 +138,9 @@ add_bool_arg(parser, "bblite", "use barlow-beeston-lite method", default=True)
 add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
 args = parser.parse_args()
 
+
+CMS_PARAMS_LABEL = "CMS_bbWW_hadronic" if not args.resonant else "CMS_XHYbbWW_boosted"
+
 # (name in templates, name in cards)
 mc_samples = OrderedDict(
     [
@@ -185,9 +201,9 @@ rate_params = {
     for sig_key in sig_keys
 }
 
-# https://gitlab.cern.ch/hh/naming-conventions#experimental-uncertainties
 # dictionary of nuisance params -> (modifier, samples affected by it, value)
 nuisance_params = {
+    # https://gitlab.cern.ch/hh/naming-conventions#experimental-uncertainties
     "lumi_13TeV_2016": Syst(
         prior="lnN", samples=all_mc, value=1.01 ** ((LUMI["2016"] + LUMI["2016APV"]) / full_lumi)
     ),
@@ -207,8 +223,35 @@ nuisance_params = {
         samples=all_mc,
         value=((1.002 ** (LUMI["2017"] / full_lumi)) * (1.006 ** (LUMI["2018"] / full_lumi))),
     ),
+    # https://gitlab.cern.ch/hh/naming-conventions#theory-uncertainties
+    "BR_hbb": Syst(prior="lnN", samples=nonres_sig_keys, value=1.0124, value_down=0.9874),
+    "BR_hww": Syst(prior="lnN", samples=nonres_sig_keys, value=1.0153, value_down=0.9848),
+    "pdf_gg": Syst(prior="lnN", samples=["TT"], value=1.042),
+    "pdf_qqbar": Syst(prior="lnN", samples=["ST"], value=1.027),
+    "pdf_Higgs_ggHH": Syst(prior="lnN", samples=nonres_sig_keys_ggf, value=1.030),
+    "pdf_Higgs_qqHH": Syst(prior="lnN", samples=nonres_sig_keys_vbf, value=1.021),
+    # TODO: add these for single Higgs backgrounds
+    # "pdf_Higgs_gg": Syst(prior="lnN", samples=ggfh_keys, value=1.019),
+    "QCDscale_ttbar": Syst(
+        prior="lnN",
+        samples=["ST", "TT"],
+        value={"ST": 1.03, "TT": 1.024},
+        value_down={"ST": 0.978, "TT": 0.965},
+        diff_samples=True,
+    ),
+    "QCDscale_qqHH": Syst(
+        prior="lnN", samples=nonres_sig_keys_vbf, value=1.0003, value_down=0.9996
+    ),
+    # "QCDscale_ggH": Syst(
+    #     prior="lnN",
+    #     samples=ggfh_keys,
+    #     value=1.039,
+    # ),
+    # "alpha_s": for single Higgs backgrounds
     # value will be added in from the systematics JSON
-    "triggerEffSF_uncorrelated": Syst(prior="lnN", samples=all_mc),
+    f"{CMS_PARAMS_LABEL}_triggerEffSF_uncorrelated": Syst(
+        prior="lnN", samples=all_mc, diff_regions=True
+    ),
 }
 
 for sig_key in sig_keys:
@@ -239,15 +282,15 @@ corr_year_shape_systs = {
     # TODO: should we be applying QCDscale for "others" process?
     # https://github.com/LPC-HH/HHLooper/blob/master/python/prepare_card_SR_final.py#L290
     # "QCDscale": Syst(
-    #     name="CMS_bbWW_boosted_ggf_ggHHQCDacc", prior="shape", samples=nonres_sig_keys_ggf
+    #     name=f"{CMS_PARAMS_LABEL}_ggHHQCDacc", prior="shape", samples=nonres_sig_keys_ggf
     # ),
     # "PDFalphaS": Syst(
-    #     name="CMS_bbWW_boosted_ggf_ggHHPDFacc", prior="shape", samples=nonres_sig_keys_ggf
+    #     name=f"{CMS_PARAMS_LABEL}_ggHHPDFacc", prior="shape", samples=nonres_sig_keys_ggf
     # ),
     # TODO: separate into individual
     "JES": Syst(name="CMS_scale_j", prior="shape", samples=all_mc),
     "txbb": Syst(
-        name="CMS_bbWW_boosted_ggf_PNetHbbScaleFactors_correlated",
+        name=f"{CMS_PARAMS_LABEL}_PNetHbbScaleFactors_correlated",
         prior="shape",
         samples=sig_keys,
         pass_only=True,
@@ -262,8 +305,8 @@ uncorr_year_shape_systs = {
     #     name="CMS_l1_ecal_prefiring", prior="shape", samples=all_mc, uncorr_years=["2016", "2017"]
     # ),
     "JER": Syst(name="CMS_res_j", prior="shape", samples=all_mc),
-    "JMS": Syst(name="CMS_bbWW_boosted_ggf_jms", prior="shape", samples=all_mc),
-    "JMR": Syst(name="CMS_bbWW_boosted_ggf_jmr", prior="shape", samples=all_mc),
+    "JMS": Syst(name=f"{CMS_PARAMS_LABEL}_jms", prior="shape", samples=all_mc),
+    "JMR": Syst(name=f"{CMS_PARAMS_LABEL}_jmr", prior="shape", samples=all_mc),
 }
 
 if not args.do_jshifts:
@@ -282,9 +325,6 @@ for skey, syst in uncorr_year_shape_systs.items():
             shape_systs_dict[f"{skey}_{year}"] = rl.NuisanceParameter(
                 f"{syst.name}_{year}", "shape"
             )
-
-CMS_PARAMS_LABEL = "CMS_bbWW_boosted_ggf" if not args.resonant else "CMS_XHYbbWW_boosted"
-PARAMS_LABEL = "bbWW_boosted_ggf" if not args.resonant else "XHYbbWW_boosted"
 
 
 def main(args):
@@ -510,7 +550,7 @@ def process_systematics_combined(systematics: Dict):
                 / systematics[year][region]["trig_total"]
             )
 
-    nuisance_params["triggerEffSF_uncorrelated"].value = tdict
+    nuisance_params[f"{CMS_PARAMS_LABEL}_triggerEffSF_uncorrelated"].value = tdict
 
     print("Nuisance Parameters\n", nuisance_params)
 
@@ -545,7 +585,7 @@ def process_systematics_separate(bg_systematics: Dict, sig_systs: Dict[str, Dict
                 / bg_systematics[year][region]["trig_total"]
             )
 
-    nuisance_params["triggerEffSF_uncorrelated"].value = tdict
+    nuisance_params[f"{CMS_PARAMS_LABEL}_triggerEffSF_uncorrelated"].value = tdict
 
     print("Nuisance Parameters\n", nuisance_params)
 
@@ -642,10 +682,10 @@ def fill_regions(
             stype = rl.Sample.SIGNAL if sample_name in sig_keys else rl.Sample.BACKGROUND
             sample = rl.TemplateSample(ch.name + "_" + card_name, stype, sample_template)
 
-            # rate params per signal to freeze them for individual limits
-            if stype == rl.Sample.SIGNAL and len(sig_keys) > 1:
-                srate = rate_params[sample_name]
-                sample.setParamEffect(srate, 1 * srate)
+            # # rate params per signal to freeze them for individual limits
+            # if stype == rl.Sample.SIGNAL and len(sig_keys) > 1:
+            #     srate = rate_params[sample_name]
+            #     sample.setParamEffect(srate, 1 * srate)
 
             # nominal values, errors
             values_nominal = np.maximum(sample_template.values(), 0.0)
@@ -681,8 +721,17 @@ def fill_regions(
                 logging.info(f"Getting {skey} rate")
 
                 param = nuisance_params_dict[skey]
-                val = syst.value[region_noblinded] if isinstance(syst.value, dict) else syst.value
-                sample.setParamEffect(param, val)
+
+                val, val_down = syst.value, syst.value_down
+                if syst.diff_regions:
+                    region_name = region if args.resonant else region_noblinded
+                    val = val[region_name]
+                    val_down = val_down[region_name] if val_down is not None else val_down
+                if syst.diff_samples:
+                    val = val[sample_name]
+                    val_down = val_down[sample_name] if val_down is not None else val_down
+
+                sample.setParamEffect(param, val, effect_down=val_down)
 
             # correlated shape systematics
             for skey, syst in corr_year_shape_systs.items():
@@ -761,7 +810,9 @@ def fill_regions(
             # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
             channel_name = region if args.resonant else region_noblinded
             ch.autoMCStats(
-                channel_name=channel_name, threshold=args.mcstats_threshold, epsilon=args.epsilon
+                channel_name=f"{CMS_PARAMS_LABEL}_{channel_name}",
+                threshold=args.mcstats_threshold,
+                epsilon=args.epsilon,
             )
 
         # data observed
@@ -826,7 +877,7 @@ def nonres_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_s
 
         # add samples
         fail_qcd = rl.ParametericSample(
-            f"{failChName}_{PARAMS_LABEL}_qcd_datadriven",
+            f"{failChName}_{CMS_PARAMS_LABEL}_qcd_datadriven",
             rl.Sample.BACKGROUND,
             m_obs,
             scaled_params,
@@ -834,7 +885,7 @@ def nonres_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_s
         failCh.addSample(fail_qcd)
 
         pass_qcd = rl.TransferFactorSample(
-            f"{passChName}_{PARAMS_LABEL}_qcd_datadriven",
+            f"{passChName}_{CMS_PARAMS_LABEL}_qcd_datadriven",
             rl.Sample.BACKGROUND,
             tf_params_pass,
             fail_qcd,
@@ -907,7 +958,7 @@ def res_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_summ
 
             # add samples
             fail_qcd = rl.ParametericSample(
-                f"{failChName}_{PARAMS_LABEL}_qcd_datadriven",
+                f"{failChName}_{CMS_PARAMS_LABEL}_qcd_datadriven",
                 rl.Sample.BACKGROUND,
                 m_obs,
                 scaled_params,
@@ -915,7 +966,7 @@ def res_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_summ
             failCh.addSample(fail_qcd)
 
             pass_qcd = rl.TransferFactorSample(
-                f"{passChName}_{PARAMS_LABEL}_qcd_datadriven",
+                f"{passChName}_{CMS_PARAMS_LABEL}_qcd_datadriven",
                 rl.Sample.BACKGROUND,
                 tf_params_pass[mX_bin, :],
                 fail_qcd,
@@ -955,9 +1006,15 @@ def _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down
     ):
         valid = False
         logger.warning("Up and Down vary norm in the same direction")
+        # print("Norm nominal", norm_nominal)
+        # print("Norm up", norm_up)
+        # print("Norm down", norm_down)
+        # print("values nominal", values_nominal)
+        # print("values up", values_up)
+        # print("values down", values_down)
 
-    if valid:
-        logger.info("Shapes are valid")
+    # if valid:
+    #     logger.info("Shapes are valid")
 
 
 def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
