@@ -356,8 +356,7 @@ Kill each task:
 ```bash
 dataset=SingleMuon
 
-crab kill -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016B-ver2_HIPM
-for i in {C..F}; do crab kill -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016$i_HIPM; done
+for i in {B..F}; do crab kill -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016${i}*HIPM; done
 for i in {F..H}; do crab kill -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016$i; done
 for i in {B..F}; do crab kill -d crab/pfnano_v2_3/crab_pfnano_v2_3_2017_${dataset}_Run2017$i; done
 for i in {A..D}; do crab kill -d crab/pfnano_v2_3/crab_pfnano_v2_3_2018_${dataset}_Run2018$i; done
@@ -366,8 +365,7 @@ for i in {A..D}; do crab kill -d crab/pfnano_v2_3/crab_pfnano_v2_3_2018_${datase
 Get a crab report for each task:
 
 ```bash
-crab report -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016B-ver2_HIPM
-for i in {C..F}; do crab report -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016$i_HIPM; done
+for i in {B..F}; do crab report -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016${i}*HIPM; done
 for i in {F..H}; do crab report -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016$i; done
 for i in {B..F}; do crab report -d crab/pfnano_v2_3/crab_pfnano_v2_3_2017_${dataset}_Run2017$i; done
 for i in {A..D}; do crab report -d crab/pfnano_v2_3/crab_pfnano_v2_3_2018_${dataset}_Run2018$i; done
@@ -377,7 +375,9 @@ Combine the lumis to process:
 
 ```bash
 mkdir -p recovery/$dataset/
-jq -s 'reduce .[] as $item ({}; . * $item)' crab/pfnano_v2_3/crab_pfnano_v2_3_2018_${dataset}*/results/notFinishedLumis.json > recovery/$dataset/2018NotFinishedLumis.json
+# shopt extglob
+# jq -s 'reduce .[] as $item ({}; . * $item)' crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_*HIPM/results/notFinishedLumis.json > recovery/$dataset/2016APVNotFinishedLumis.json
+for year in 2016 2017 2018; do jq -s 'reduce .[] as $item ({}; . * $item)' crab/pfnano_v2_3/crab_pfnano_v2_3_${year}_${dataset}_*/results/notFinishedLumis.json > recovery/$dataset/${year}NotFinishedLumis.json; done
 ```
 
-Finally, add these as a lumimask for the recovery task
+Finally, add these as a lumimask for the recovery task.
