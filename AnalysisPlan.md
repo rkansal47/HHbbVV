@@ -87,7 +87,12 @@
  - [x] JMS/R
  - [ ] Top pT
  - Theory
-   - [x] pdf uncertainties
+   - [x] BR
+   - [ ] pdf uncertainties
+     - [x] rate
+     - [ ] shape?
+   - [x] QCD scale
+   - [ ] alpha_s (for single Higgs)
    - [x] parton shower weights
    - [ ] scale variation?
    - [ ] W k factor??

@@ -23,8 +23,8 @@ def get_subfolders(parent):
 
 folders_to_index = [
     #
-    "/store/user/lpcpfnano/rkansal/v2_3/2016/SingleMu2016",
-    "/store/user/lpcpfnano/rkansal/v2_3/2017/SingleMu2017",
+    # "/store/user/lpcpfnano/rkansal/v2_3/2016/SingleMu2016",
+    # "/store/user/lpcpfnano/rkansal/v2_3/2017/SingleMu2017",
     "/store/user/lpcpfnano/rkansal/v2_3/2018/SingleMu2018",
     #
     "/store/user/lpcpfnano/cmantill/v2_3/2016/JetHT2016",
@@ -123,8 +123,8 @@ ignore_files = [
 ignore_subsamples = ["SingleMuon_Run2016B_ver1_HIPM"]
 
 for pyear in ["2016", "2016APV", "2017", "2018"]:
-    # if pyear != "2017":
-    #    continue
+    if pyear != "2018":
+        continue
     print(pyear)
     index = {}
     for f1 in folders_to_index:
