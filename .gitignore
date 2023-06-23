@@ -61,6 +61,8 @@ src/HHbbVV/postprocessing/outs
 !paper
 !paper/**
 
+!inference_scans
+!inference_scans/**
 
 !.gitignore
 !.github
