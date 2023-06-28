@@ -261,6 +261,10 @@ def get_feat(events: pd.DataFrame, feat: str, bb_mask: pd.DataFrame = None):
         return events["ak8" + feat[2:]].values[bb_mask ^ feat.startswith("VV")].squeeze()
 
 
+def get_feat_first(events: pd.DataFrame, feat: str):
+    return events[feat][0].values.squeeze()
+
+
 def make_vector(events: dict, name: str, bb_mask: pd.DataFrame = None, mask=None):
     """
     Creates Lorentz vector from input events and beginning name, assuming events contain
@@ -369,6 +373,52 @@ def singleVarHist(
 
         if len(fill_data[var]):
             h.fill(Sample=sample, **fill_data, weight=weight)
+
+    if blind_region is not None:
+        blindBins(h, blind_region, data_key)
+
+    return h
+
+
+def singleVarHistNoMask(
+    events_dict: Dict[str, pd.DataFrame],
+    var: str,
+    bins: list,
+    label: str,
+    weight_key: str = "finalWeight",
+    blind_region: List = None,
+    selection: Dict = None,
+) -> Hist:
+    """
+    Makes and fills a histogram for variable `var` using data in the `events` dict.
+
+    Args:
+        events (dict): a dict of events of format
+          {sample1: {var1: np.array, var2: np.array, ...}, sample2: ...}
+        var (str): variable inside the events dict to make a histogram of
+        bins (list): bins in Hist format i.e. [num_bins, min_value, max_value]
+        label (str): label for variable (shows up when plotting)
+        weight_key (str, optional): which weight to use from events, if different from 'weight'
+        blind_region (list, optional): region to blind for data, in format [low_cut, high_cut].
+          Bins in this region will be set to 0 for data.
+        selection (dict, optional): if performing a selection first, dict of boolean arrays for
+          each sample
+    """
+    samples = list(events_dict.keys())
+
+    h = Hist.new.StrCat(samples, name="Sample").Reg(*bins, name=var, label=label).Weight()
+
+    for sample in samples:
+        events = events_dict[sample]
+        fill_data = {var: get_feat_first(events, var)}
+        weight = events[weight_key].values.squeeze()
+
+        if selection is not None:
+            sel = selection[sample]
+            fill_data[var] = fill_data[var][sel]
+            weight = weight[sel]
+
+        h.fill(Sample=sample, **fill_data, weight=weight)
 
     if blind_region is not None:
         blindBins(h, blind_region, data_key)

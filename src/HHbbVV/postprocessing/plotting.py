@@ -35,6 +35,7 @@ colours = {
     "darkred": "#A21315",
     "orange": "#ff7f00",
     "green": "#7CB518",
+    "darkgreen": "#064635",
     "purple": "#9381FF",
     "slategray": "#63768D",
     "deeppurple": "#36213E",
@@ -50,6 +51,7 @@ bg_colours = {
     "HWW": "deeppurple",
     "HH": "ashgrey",
 }
+
 sig_colour = "red"
 
 sig_colours = [
@@ -95,6 +97,8 @@ def ratioHistPlot(
     show: bool = True,
     variation: Tuple = None,
     plot_data: bool = True,
+    bg_order: List[str] = bg_order,
+    ratio_ylims: List[float] = [0, 2],
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -237,7 +241,7 @@ def ratioHistPlot(
         rax.set_xlabel(hists.axes[1].label)
 
     rax.set_ylabel("Data/MC")
-    rax.set_ylim([0, 2])
+    rax.set_ylim(ratio_ylims)
     rax.grid()
 
     if title is not None:
@@ -255,6 +259,121 @@ def ratioHistPlot(
         hep.cms.label(
             "Work in Progress", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax
         )
+    if len(name):
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def ratioLinePlot(
+    hists: Hist,
+    bg_keys: List[str],
+    year: str,
+    bg_colours: Dict[str, str] = bg_colours,
+    sig_colour: str = sig_colour,
+    bg_err: Union[np.ndarray, str] = None,
+    data_err: Union[ArrayLike, bool, None] = None,
+    title: str = None,
+    blind_region: list = None,
+    pulls: bool = False,
+    name: str = "",
+    sig_scale: float = 1.0,
+    show: bool = True,
+):
+    """
+    Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
+    scaled) with a data/mc ratio plot below
+    """
+    plt.rcParams.update({"font.size": 24})
+
+    fig, (ax, rax) = plt.subplots(
+        2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
+    )
+
+    bg_tot = np.sum(hists[bg_keys, :].values(), axis=0)
+    plot_hists = [hists[sample, :] for sample in bg_keys]
+
+    ax.set_ylabel("Events")
+    hep.histplot(
+        plot_hists + [sum(plot_hists)],
+        ax=ax,
+        histtype="step",
+        label=bg_keys + ["Total"],
+        color=[colours[bg_colours[sample]] for sample in bg_keys] + ["black"],
+        yerr=0,
+    )
+
+    if bg_err is not None:
+        ax.fill_between(
+            np.repeat(hists.axes[1].edges, 2)[1:-1],
+            np.repeat(bg_tot - bg_err, 2),
+            np.repeat(bg_tot + bg_err, 2),
+            color="black",
+            alpha=0.2,
+            hatch="//",
+            linewidth=0,
+        )
+
+    if sig_key in hists:
+        hep.histplot(
+            hists[sig_key, :] * sig_scale,
+            ax=ax,
+            histtype="step",
+            label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
+            color=colours[sig_colour],
+        )
+    hep.histplot(
+        hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
+    )
+    ax.legend(ncol=2)
+    ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
+
+    data_vals = hists[data_key, :].values()
+
+    if not pulls:
+        datamc_ratio = data_vals / (bg_tot + 1e-5)
+
+        if bg_err == "ratio":
+            yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
+        elif bg_err is None:
+            yerr = 0
+        else:
+            yerr = datamc_ratio * (bg_err / (bg_tot + 1e-8))
+
+        hep.histplot(
+            hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
+            yerr=yerr,
+            ax=rax,
+            histtype="errorbar",
+            color="black",
+            capsize=4,
+        )
+        rax.set_ylabel("Data/MC")
+        rax.set_ylim(0.5, 1.5)
+        rax.grid()
+    else:
+        mcdata_ratio = bg_tot / (data_vals + 1e-5)
+        yerr = bg_err / data_vals
+
+        hep.histplot(
+            (sum([hists[sample, :] for sample in bg_keys]) / (data_vals + 1e-5) - 1) * (-1),
+            yerr=yerr,
+            ax=rax,
+            histtype="errorbar",
+            color="black",
+            capsize=4,
+        )
+        rax.set_ylabel("(Data - MC) / Data")
+        rax.set_ylim(-0.5, 0.5)
+        rax.grid()
+
+    if title is not None:
+        ax.set_title(title, y=1.08)
+
+    hep.cms.label("Work in Progress", data=True, lumi=LUMI[year] * 1e-3, year=year, ax=ax)
     if len(name):
         plt.savefig(name, bbox_inches="tight")
 
