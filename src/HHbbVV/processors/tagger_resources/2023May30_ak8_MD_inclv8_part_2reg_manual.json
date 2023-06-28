@@ -313,7 +313,9 @@
     "label_QCD_cc",
     "label_QCD_b",
     "label_QCD_c",
-    "label_QCD_others"
+    "label_QCD_others",
+    "mreg1",
+    "mreg2"
   ],
   "input_names": [
     "pf_features",
