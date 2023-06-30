@@ -164,8 +164,6 @@ Applies cuts for a semi-leptonic ttbar control region, as defined for the [JMAR 
 
 Lund plane scale factors are calculated for top-matched jets in semi-leptonic ttbar events.
 
-Local testing:
-
 To test locally:
 ```bash
 python -W ignore src/run.py --year 2018 --processor ttsfs --sample TTbar --subsamples TTToSemiLeptonic --starti 0 --endi 1
