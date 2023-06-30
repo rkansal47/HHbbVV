@@ -183,9 +183,9 @@ if args.resonant:
         sys.exit()
 else:
     for key in nonres_sig_keys:
-        mc_samples[key] = key.replace("HHbbVV", "hbbhww4q")
+        mc_samples[key] = key.replace("HHbbVV", "hbbhww")
 
-    mc_samples["HHbbVV"] = "ggHH_kl_1_kt_1_HHbbVV"
+    mc_samples["HHbbVV"] = "ggHH_kl_1_kt_1_hbbhww"
     sig_keys = nonres_sig_keys
 
 all_mc = list(mc_samples.keys())
@@ -256,7 +256,9 @@ nuisance_params = {
 
 for sig_key in sig_keys:
     # values will be added in from the systematics JSON
-    nuisance_params[f"lp_sf_{mc_samples[sig_key]}"] = Syst(prior="lnN", samples=[sig_key])
+    nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{mc_samples[sig_key]}"] = Syst(
+        prior="lnN", samples=[sig_key]
+    )
 
 # remove keys in
 if args.year != "all":
@@ -527,7 +529,7 @@ def process_systematics_combined(systematics: Dict):
     global nuisance_params
     for sig_key in sig_keys:
         # already for all years
-        nuisance_params[f"lp_sf_{mc_samples[sig_key]}"].value = (
+        nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{mc_samples[sig_key]}"].value = (
             1 + systematics[sig_key]["lp_sf_unc"]
         )
 
@@ -561,7 +563,7 @@ def process_systematics_separate(bg_systematics: Dict, sig_systs: Dict[str, Dict
 
     for sig_key in sig_keys:
         # already for all years
-        nuisance_params[f"lp_sf_{mc_samples[sig_key]}"].value = (
+        nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{mc_samples[sig_key]}"].value = (
             1 + sig_systs[sig_key][sig_key]["lp_sf_unc"]
         )
 

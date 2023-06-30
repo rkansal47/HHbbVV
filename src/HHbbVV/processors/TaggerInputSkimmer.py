@@ -364,8 +364,8 @@ class TaggerInputSkimmer(ProcessorABC):
             # selection
             selection = PackedSelection()
             # preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
-            # preselection_cut = fatjets.pt > 200
-            # add_selection_no_cutflow("preselection", preselection_cut, selection)
+            preselection_cut = fatjets.pt > 200
+            add_selection_no_cutflow("preselection", preselection_cut, selection)
 
             # variables
             FatJetVars = {
