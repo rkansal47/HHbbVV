@@ -121,8 +121,9 @@
   - [x] Trim features
   - [x] Check sculpting
 - [x] Scan Txbb, BDT WPs
-- [ ] Run over all kL and k_2V
-  - [ ] Re-run VBF with gen selection
+- [x] Run over all kL and k_2V
+  - [x] Re-run VBF with gen selection
+- [x] HH inference
 - [ ] Theory uncertainties
 
 
