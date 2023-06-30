@@ -536,6 +536,103 @@ class wrapped_triton:
         return request.as_numpy(out_name)
 
 
+def _derive_vars_new_tagger(
+    jet_outputs: np.ndarray, jet_label: str, all_outputs: bool, tagger_vars: dict
+):
+    if len(jet_outputs):
+        derived_vars = {
+            f"{jet_label}FatJetParTMD_probQCD": np.sum(jet_outputs[:, 309:314], axis=1),
+            f"{jet_label}FatJetParTMD_probT": np.sum(jet_outputs[:, :17], axis=1),
+            **{
+                f"{jet_label}FatJetParTMD_probH{l}": jet_outputs[:, 17 + i]
+                for i, l in enumerate(["bb", "cc", "ss", "qq", "bc", "bs", "cs", "gg"])
+            },
+        }
+
+        pnet_vars_all = {}
+
+        if all_outputs:
+            for i, output_name in enumerate(tagger_vars["output_names"]):
+                pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = jet_outputs[:, i]
+
+        pvars = {**derived_vars, **pnet_vars_all}
+
+    else:
+        derived_vars = {
+            f"{jet_label}FatJetParTMD_probQCD": np.array([]),
+            f"{jet_label}FatJetParTMD_probT": np.array([]),
+            **{
+                f"{jet_label}FatJetParTMD_probH{l}": np.array([])
+                for i, l in enumerate(["bb", "cc", "ss", "qq", "bc", "bs", "cs", "gg"])
+            },
+        }
+        pnet_vars_all = {}
+
+        if all_outputs:
+            for i, output_name in enumerate(tagger_vars["output_names"]):
+                pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = np.array([])
+
+        pvars = {**derived_vars, **pnet_vars_all}
+
+    return pvars
+
+
+def _derive_vars(jet_outputs: np.ndarray, jet_label: str, all_outputs: bool, tagger_vars: dict):
+    if len(jet_outputs):
+        derived_vars = {
+            f"{jet_label}FatJetParTMD_probQCD": np.sum(jet_outputs[:, 23:28], axis=1),
+            f"{jet_label}FatJetParTMD_probHWW3q": np.sum(jet_outputs[:, 0:3], axis=1),
+            f"{jet_label}FatJetParTMD_probHWW4q": np.sum(jet_outputs[:, 3:6], axis=1),
+            f"{jet_label}FatJetParTMD_probT": np.sum(jet_outputs[:, 28:37], axis=1),
+        }
+
+        derived_vars[f"{jet_label}FatJetParTMD_THWW4q"] = (
+            derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
+            + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
+        ) / (
+            derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
+            + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
+            + derived_vars[f"{jet_label}FatJetParTMD_probQCD"]
+        )
+
+        derived_vars[f"{jet_label}FatJetParTMD_THWWvsT"] = (
+            derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
+            + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
+        ) / (
+            derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
+            + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
+            + derived_vars[f"{jet_label}FatJetParTMD_probQCD"]
+            + derived_vars[f"{jet_label}FatJetParTMD_probT"]
+        )
+
+        pnet_vars_all = {}
+
+        if all_outputs:
+            for i, output_name in enumerate(tagger_vars["output_names"]):
+                pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = jet_outputs[:, i]
+
+        pvars = {**derived_vars, **pnet_vars_all}
+
+    else:
+        derived_vars = {
+            f"{jet_label}FatJetParTMD_probQCD": np.array([]),
+            f"{jet_label}FatJetParTMD_probHWW3q": np.array([]),
+            f"{jet_label}FatJetParTMD_probHWW4q": np.array([]),
+            f"{jet_label}FatJetParTMD_probT": np.array([]),
+            f"{jet_label}FatJetParTMD_THWW4q": np.array([]),
+            f"{jet_label}FatJetParTMD_THWWvsT": np.array([]),
+        }
+        pnet_vars_all = {}
+
+        if all_outputs:
+            for i, output_name in enumerate(tagger_vars["output_names"]):
+                pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = np.array([])
+
+        pvars = {**derived_vars, **pnet_vars_all}
+
+    return pvars
+
+
 def runInferenceTriton(
     tagger_resources_path: str,
     events: NanoEventsArray,
@@ -545,6 +642,7 @@ def runInferenceTriton(
     ak15: bool = False,
     all_outputs: bool = False,
     jet_label: str = None,
+    new_tagger: bool = False,
 ) -> dict:
     """Runs inference with the triton server.
 
@@ -577,7 +675,14 @@ def runInferenceTriton(
     if jet_label is None:
         jet_label = "ak15" if ak15 else "ak8"
 
-    with open(f"{tagger_resources_path}/triton_config_{'ak8' if not ak15 else 'ak15'}.json") as f:
+    if new_tagger:
+        config_name = "triton_config_new_tagger_ak8"
+    elif not ak15:
+        config_name = "triton_config_ak8"
+    else:
+        config_name = "triton_config_ak15"
+
+    with open(f"{tagger_resources_path}/{config_name}.json") as f:
         triton_config = json.load(f)
 
     with open(f"{tagger_resources_path}/{triton_config['model_name']}.json") as f:
@@ -633,74 +738,39 @@ def runInferenceTriton(
     for jet_idx in range(num_jets):
         print(f"Running inference for Jet {jet_idx + 1}")
         start = time.time()
-        tagger_outputs.append(triton_model(tagger_inputs[jet_idx]))
+        out = triton_model(tagger_inputs[jet_idx])
         time_taken = time.time() - start
         print(f"Inference took {time_taken:.1f}s")
+
+        if triton_config["num_reg"] > 0:
+            # separate class and regression outputs
+            out_cls, out_reg = (
+                out[:, : -triton_config["num_reg"]],
+                out[:, -triton_config["num_reg"] :],
+            )
+            # apply softmax if not already included in model
+            if triton_config["softmax"] == "False":
+                out_cls = softmax(out_cls, axis=1)
+
+            out = np.concatenate((out_cls, out_reg), axis=1)
+        elif triton_config["softmax"] == "False":
+            out = softmax(out, axis=1)
+
+        tagger_outputs.append(out)
 
     pnet_vars_list = []
 
     for jet_idx in range(num_jets):
-        if len(tagger_outputs[jet_idx]):
-            derived_vars = {
-                f"{jet_label}FatJetParTMD_probQCD": np.sum(
-                    tagger_outputs[jet_idx][:, 23:28], axis=1
-                ),
-                f"{jet_label}FatJetParTMD_probHWW3q": np.sum(
-                    tagger_outputs[jet_idx][:, 0:3], axis=1
-                ),
-                f"{jet_label}FatJetParTMD_probHWW4q": np.sum(
-                    tagger_outputs[jet_idx][:, 3:6], axis=1
-                ),
-                f"{jet_label}FatJetParTMD_probT": np.sum(tagger_outputs[jet_idx][:, 28:37], axis=1),
-            }
-
-            derived_vars[f"{jet_label}FatJetParTMD_THWW4q"] = (
-                derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
-                + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
-            ) / (
-                derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
-                + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
-                + derived_vars[f"{jet_label}FatJetParTMD_probQCD"]
+        if new_tagger:
+            pnet_vars_list.append(
+                _derive_vars_new_tagger(
+                    tagger_outputs[jet_idx], jet_label, all_outputs, tagger_vars
+                )
             )
-
-            derived_vars[f"{jet_label}FatJetParTMD_THWWvsT"] = (
-                derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
-                + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
-            ) / (
-                derived_vars[f"{jet_label}FatJetParTMD_probHWW3q"]
-                + derived_vars[f"{jet_label}FatJetParTMD_probHWW4q"]
-                + derived_vars[f"{jet_label}FatJetParTMD_probQCD"]
-                + derived_vars[f"{jet_label}FatJetParTMD_probT"]
-            )
-
-            pnet_vars_all = {}
-
-            if all_outputs:
-                for i, output_name in enumerate(tagger_vars["output_names"]):
-                    pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = tagger_outputs[
-                        jet_idx
-                    ][:, i]
-
-            pvars = {**derived_vars, **pnet_vars_all}
-            pnet_vars_list.append(pvars)
-
         else:
-            derived_vars = {
-                f"{jet_label}FatJetParTMD_probQCD": np.array([]),
-                f"{jet_label}FatJetParTMD_probHWW3q": np.array([]),
-                f"{jet_label}FatJetParTMD_probHWW4q": np.array([]),
-                f"{jet_label}FatJetParTMD_probT": np.array([]),
-                f"{jet_label}FatJetParTMD_THWW4q": np.array([]),
-                f"{jet_label}FatJetParTMD_THWWvsT": np.array([]),
-            }
-            pnet_vars_all = {}
-
-            if all_outputs:
-                for i, output_name in enumerate(tagger_vars["output_names"]):
-                    pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = np.array([])
-
-            pvars = {**derived_vars, **pnet_vars_all}
-            pnet_vars_list.append(pvars)
+            pnet_vars_list.append(
+                _derive_vars(tagger_outputs[jet_idx], jet_label, all_outputs, tagger_vars)
+            )
 
     print(f"Total time taken: {time.time() - total_start:.1f}s")
 

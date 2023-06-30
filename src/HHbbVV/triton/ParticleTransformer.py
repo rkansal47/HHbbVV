@@ -363,7 +363,8 @@ class Block(nn.Module):
             tgt_len, bsz = x.size(0), x.size(1)
             x = x.view(tgt_len, bsz, self.num_heads, self.head_dim)
             x = torch.einsum("tbhd,h->tbdh", x, self.c_attn)
-            x = x.reshape(tgt_len, bsz, self.embed_dim)
+            # need to change this to avoid a bug for batch sizes > 1
+            x = x.reshape(tgt_len, -1, self.embed_dim)
         if self.post_attn_norm is not None:
             x = self.post_attn_norm(x)
         x = self.dropout(x)
