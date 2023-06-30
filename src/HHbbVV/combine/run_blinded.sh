@@ -32,10 +32,11 @@ dfit=0
 resonant=0
 gofdata=0
 goftoys=0
+impactsinit=0
 seed=42
 numtoys=100
 
-options=$(getopt -o "wblsdrgt" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,seed:,numtoys:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsinit,seed:,numtoys:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -63,6 +64,9 @@ while true; do
             ;;
         -t|--goftoys)
             goftoys=1
+            ;;
+        -i|--impactsinit)
+            impactsinit=1
             ;;
         --seed)
             shift
@@ -265,4 +269,13 @@ if [ $goftoys = 1 ]; then
     --setParameters ${maskunblindedargs},${setparams},r=0 \
     --freezeParameters ${freezeparams},r --saveToys \
     -n Toys -v 9 -s $seed -t $numtoys --toysFrequentist 2>&1 | tee $outsdir/GoF_toys.txt
+fi
+
+
+if [ $impactsinit = 1 ]; then
+    echo "Initial fit for impacts"
+    combineTool.py -M Impacts -t -1 --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist \
+    -m 125 -n ".impacts" -d ${wsm_snapshot}.root --doInitialFit --robustFit 1 \
+    ${unblindedparams},r=1 \
+    --setParameterRanges r=-20,20 --cminDefaultMinimizerStrategy=1 --saveWorkspace -v 9 2>&1 | tee $outsdir/Impacts_initial.txt
 fi
