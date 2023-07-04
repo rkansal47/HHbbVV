@@ -10,6 +10,7 @@
 # 5) Fit diagnostics (--dfit / -d)
 # 6) GoF on data (--gofdata / -g)
 # 7) GoF on toys (--goftoys / -t),
+# 8) Impacts: initial fit (--impactsinit / -i), per-nuisance fits (--impactsfits), collect (--impactscollect)
 #    specify seed with --seed (default 42) and number of toys with --numtoys (default 100)
 # 
 # Specify resonant with --resonant / -r, otherwise does nonresonant
@@ -33,10 +34,12 @@ resonant=0
 gofdata=0
 goftoys=0
 impactsinit=0
+impactsfits=0
+impactscollect=0
 seed=42
 numtoys=100
 
-options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsinit,seed:,numtoys:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsinit,impactsfits,impactscollect,seed:,numtoys:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -67,6 +70,12 @@ while true; do
             ;;
         -i|--impactsinit)
             impactsinit=1
+            ;;
+        --impactsfits)
+            impactsfits=1
+            ;;
+        --impactscollect)
+            impactscollect=1
             ;;
         --seed)
             shift
@@ -137,6 +146,8 @@ if [ $resonant = 0 ]; then
     freezeparamsblinded=${freezeparamsblinded%,}
 
     unblindedparams="--setParameters $maskblindedargs"
+
+    excludeimpactparams='rgx{.*tf_dataResidual_Bin.*}'
 else
     # resonant args
     ccargs=""
@@ -168,6 +179,8 @@ else
     freezeparamsunblinded="rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*}"
 
     unblindedparams="--freezeParameters ${freezeparamsunblinded} --setParameters ${maskblindedargs},${setparamsunblinded}"
+
+    excludeimpactparams='rgx{.*qcdparam_mXbin.*},rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*}'
 fi
 
 echo "mask args:"
@@ -274,8 +287,32 @@ fi
 
 if [ $impactsinit = 1 ]; then
     echo "Initial fit for impacts"
-    combineTool.py -M Impacts -t -1 --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist \
-    -m 125 -n ".impacts" -d ${wsm_snapshot}.root --doInitialFit --robustFit 1 \
-    ${unblindedparams},r=1 \
-    --setParameterRanges r=-20,20 --cminDefaultMinimizerStrategy=1 --saveWorkspace -v 9 2>&1 | tee $outsdir/Impacts_initial.txt
+    combineTool.py -M Impacts -t -1 --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal 1 \
+    -m 125 -n "impacts" -d ${wsm_snapshot}.root --doInitialFit --robustFit 1 \
+    ${unblindedparams} \
+    --setParameterRanges r=-20,20 --cminDefaultMinimizerStrategy=1 -v 9 2>&1 | tee $outsdir/Impacts_initial.txt
 fi
+
+
+if [ $impactsfits = 1 ]; then
+    echo "Submitting jobs for impact scans"
+    combineTool.py -M Impacts -t -1 --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal 1 \
+    -m 125 -n "impacts" -d ${wsm_snapshot}.root --doFits --robustFit 1 \
+    --setParameters ${maskblindedargs} \
+    --exclude ${excludeimpactparams} \
+    --setParameterRanges r=-20,20 --cminDefaultMinimizerStrategy=1 -v 9 2>&1 | tee $outsdir/Impacts_fits.txt
+    # --job-mode condor \
+fi
+
+
+if [ $impactscollect = 1 ]; then
+    echo "Collecting impacts"
+    combineTool.py -M Impacts -t -1 --snapshotName MultiDimFit \
+    -m 125 -n "impacts" -d ${wsm_snapshot}.root \
+    --setParameters ${maskblindedargs} \
+    --exclude ${excludeimpactparams} \
+    --setParameterRanges r=-20,20 -v 9 -o impacts.json 2>&1 | tee $outsdir/Impacts_collect.txt
+fi
+
+
+

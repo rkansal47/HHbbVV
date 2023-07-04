@@ -5,10 +5,10 @@
             # "TTbar": { "files_per_job": 20, "subsamples": ["TTTo2L2Nu", "TTToHadronic", "TTToSemiLeptonic"]},
             # "SingleTop": { "files_per_job": 10 },
             # "QCD": { "files_per_job": 20 },
-            # "WJetsToLNu": { "files_per_job": 20 },
-            # "Diboson": { 
-            #     "subsamples": ["WW", "WZ", "ZZ"],
-            #     "files_per_job": 20, 
-            # },
+            "WJetsToLNu": { "files_per_job": 20 },
+            "Diboson": { 
+                "subsamples": ["WW", "WZ", "ZZ"],
+                "files_per_job": 20, 
+            },
         },
 }
