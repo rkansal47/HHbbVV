@@ -38,8 +38,9 @@ impactsfits=0
 impactscollect=0
 seed=42
 numtoys=100
+biastest=0
 
-options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsinit,impactsfits,impactscollect,seed:,numtoys:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsinit,impactsfits,impactscollect,biastest,seed:,numtoys:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -76,6 +77,9 @@ while true; do
             ;;
         --impactscollect)
             impactscollect=1
+            ;;
+        --biastest)
+            biastest=1
             ;;
         --seed)
             shift
@@ -300,8 +304,8 @@ if [ $impactsfits = 1 ]; then
     -m 125 -n "impacts" -d ${wsm_snapshot}.root --doFits --robustFit 1 \
     --setParameters ${maskblindedargs} \
     --exclude ${excludeimpactparams} \
+    --job-mode condor \
     --setParameterRanges r=-20,20 --cminDefaultMinimizerStrategy=1 -v 9 2>&1 | tee $outsdir/Impacts_fits.txt
-    # --job-mode condor \
 fi
 
 
@@ -315,4 +319,16 @@ if [ $impactscollect = 1 ]; then
 fi
 
 
+if [ $biastest = 1 ]; then
+    echo "Bias tests"
+    # for bias in 0 0.15 0.3 1
+    # do
+    # done
+    bias=0.3
+    combineTool.py -M FitDiagnostics --trackParameters r --trackErrors r \
+    -m 125 -n "bias${bias}ggF" -d ${wsm_snapshot}.root \
+    --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal $bias \
+    --robustFit=1 -t 10 -s $seed 2>&1 | tee $outsdir/bias$bias.txt
+    # -s 1:10:1 --job-mode condor --task-name ggF$bias 
+fi
 

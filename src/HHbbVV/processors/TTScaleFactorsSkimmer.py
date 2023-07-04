@@ -123,6 +123,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         "btagWP": btagWPs,
         "ht": 250,
         "num": 2,
+        # "closest_muon_dr": 0.4,
+        # "closest_muon_ptrel": 25,
     }
 
     met_selection = {"pt": 50}
