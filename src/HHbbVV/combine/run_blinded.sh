@@ -325,10 +325,11 @@ if [ $biastest = 1 ]; then
     # do
     # done
     bias=0.3
-    combineTool.py -M FitDiagnostics --trackParameters r --trackErrors r \
-    -m 125 -n "bias${bias}ggF" -d ${wsm_snapshot}.root \
+    combineTool.py -M FitDiagnostics --trackParameters r --trackErrors r --justFit \
+    -m 125 -n "bias${bias}ggF" -d ${wsm_snapshot}.root --rMin "-20" --rMax 20 \
     --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal $bias \
-    --robustFit=1 -t 10 -s $seed 2>&1 | tee $outsdir/bias$bias.txt
+    ${unblindedparams} \
+    --robustFit=1 -t 5 -s $seed -v 4 2>&1 | tee $outsdir/bias$bias.txt
     # -s 1:10:1 --job-mode condor --task-name ggF$bias 
 fi
 
