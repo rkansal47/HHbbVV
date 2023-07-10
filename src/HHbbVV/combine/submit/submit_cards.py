@@ -14,6 +14,8 @@ import json
 import itertools
 import sys
 
+from utils import add_bool_arg, write_template, setup, parse_common_args
+
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
     """Add a boolean command line argument for argparse"""
@@ -188,21 +190,8 @@ res_scan_cuts = ["txbb", "thww"]
 def main(args):
     global scan_txbb_wps, scan_thww_wps
 
-    if args.site == "lpc":
-        t2_local_prefix = "/eos/uscms/"
-        t2_prefix = "root://cmseos.fnal.gov"
+    t2_local_prefix, t2_prefix, proxy, username, submitdir = setup(args)
 
-        try:
-            proxy = os.environ["X509_USER_PROXY"]
-        except:
-            print("No valid proxy. Exiting.")
-            exit(1)
-    elif args.site == "ucsd":
-        t2_local_prefix = "/ceph/cms/"
-        t2_prefix = "root://redirector.t2.ucsd.edu:1095"
-        proxy = "/home/users/rkansal/x509up_u31735"
-
-    username = os.environ["USER"]
     local_dir = f"condor/cards/{args.tag}"
 
     templates_dir = f"/store/user/{username}/bbVV/templates/{args.templates_dir}/"
@@ -216,8 +205,8 @@ def main(args):
     os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}")
     os.system(f"mkdir -p {t2_local_prefix}/{templates_dir}")
 
-    jdl_templ = "src/HHbbVV/combine/submit.templ.jdl"
-    sh_templ = "src/HHbbVV/combine/submit.templ.sh"
+    jdl_templ = f"{submitdir}/submit_cards.templ.jdl"
+    sh_templ = f"{submitdir}/submit_cards.templ.sh"
 
     samples = scan_samples if args.scan else full_samples
 
