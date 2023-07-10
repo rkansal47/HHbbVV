@@ -304,12 +304,23 @@ git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git Combine
 scramv1 b clean; scramv1 b
 ```
 
+I also add this to my .bashrc for convenience:
+
+```
+export PATH="$PATH:/uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine"
+
+csubmit() {
+    local file=$1; shift;
+    python "/uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine/submit/submit_${file}.py" "$@"
+}
+```
+
 ### Run fits and diagnostics locally
 
 All via the below script, with a bunch of options (see script):
 
 ```bash
-/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh --workspace --bfit --limits
+run_blinded.sh --workspace --bfit --limits
 ```
 
 ### Run fits on condor
@@ -317,14 +328,24 @@ All via the below script, with a bunch of options (see script):
 Can run over all the resonant signals (default) or scan working points for a subset of signals (`--scan`)
 
 ```bash
-python src/HHbbVV/combine/submit.py --test --scan --resonant --templates-dir 23Apr30Scan
+csubmit cards --test --scan --resonant --templates-dir 23Apr30Scan
 ```
 
 Generate toys and fits for F-tests (after making cards and b-only fits)
 
 ```bash
-python src/HHbbVV/combine/submit_ftest.py --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
+csubmit f_test --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
 ```
+
+Bias tests:
+
+```bash
+for bias in 0 0.15 0.3
+do
+  csubmit bias --seed 42 --num-jobs 10 --toys-per-job 10 --bias $bias --submit
+done
+```
+
 
 ## Misc
 
