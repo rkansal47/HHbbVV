@@ -269,7 +269,7 @@ Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rh
 python3 postprocessing/CreateDatacard.py --templates-dir templates/$TAG --model-name $TAG (--resonant)
 ```
 
-Or with separate templates for background and signal:
+Or from separate templates for background and signal:
 
 ```bash
 python3 -u postprocessing/CreateDatacard.py --templates-dir "/eos/uscms/store/user/rkansal/bbVV/templates/23Apr30Scan/txbb_HP_thww_0.96" \
@@ -342,7 +342,7 @@ Bias tests:
 ```bash
 for bias in 0 0.15 0.3
 do
-  csubmit bias --seed 42 --num-jobs 10 --toys-per-job 10 --bias $bias --submit
+  csubmit bias --seed 42 --num-jobs 10 --toys-per-job 10 --bias $bias --submit --tag $TAG
 done
 ```
 
