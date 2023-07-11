@@ -328,6 +328,6 @@ if [ $bias != -1 ]; then
     -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root --rMin "-20" --rMax 20 \
     --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal $bias \
     ${unblindedparams} \
-    --robustFit=1 -t $numtoys -s $seed -v 4 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
+    --robustFit=1 -t $numtoys -s $seed 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
 fi
 
