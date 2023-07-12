@@ -7,6 +7,8 @@
 # make dir for output
 mkdir outfiles
 
+export XRD_RUNFORKHANDLER=1
+
 # run code
 # pip install --user onnxruntime
 python -u -W ignore $script --year $year --starti $starti --endi $endi --samples $sample --subsamples $subsample --processor $processor --maxchunks $maxchunks --chunksize $chunksize --label $label --njets $njets ${save_ak15} ${save_systematics} ${inference} ${save_all}

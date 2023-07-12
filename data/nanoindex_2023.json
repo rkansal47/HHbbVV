@@ -1,0 +1,65 @@
+{
+  "2023": {
+    "Hbb": {
+      "GluGluHToBB_M-125_TuneCP5_13p6TeV_powheg-pythia8": [
+        "/store/mc/Run3Winter23NanoAOD/GluGluHToBB_M-125_TuneCP5_13p6TeV_powheg-pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/0a371dac-4dc5-477a-b8f1-48bf1c2fdef0.root",
+        "/store/mc/Run3Winter23NanoAOD/GluGluHToBB_M-125_TuneCP5_13p6TeV_powheg-pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/6d11672e-1e32-4c48-a134-501c9b971b6a.root",
+        "/store/mc/Run3Winter23NanoAOD/GluGluHToBB_M-125_TuneCP5_13p6TeV_powheg-pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/762714e5-d64d-40e2-be6d-cbdb6e2a1c66.root",
+        "/store/mc/Run3Winter23NanoAOD/GluGluHToBB_M-125_TuneCP5_13p6TeV_powheg-pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/b9ed3632-99c1-4435-9c69-be5aadcff702.root"
+      ]
+    },
+    "QCD": {
+      "QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8": [
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/2555300d-61f2-45cc-825a-8110ed5df5bf.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/398b8684-1f11-40aa-a5c1-da19b7c1fca6.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/3e7a9fcb-d3cf-4725-bf91-72a3a0c1567a.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/562daf66-cfa7-485f-933a-1c326b8e933f.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/597081d4-5005-49ec-aaf0-291d9928a63c.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/64b5fdd0-07a9-445f-83ae-560477eceba9.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/802d653f-470a-42ff-9c01-20990a4fbfc5.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/89dc8b7b-4c89-438c-8a0c-70b203438a88.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/a4985af5-cff4-45f8-82fe-604baa93983b.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/af347f59-6bb2-4c86-b49d-e2e18d154d9b.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/b9f2e40c-a3fc-48ab-8a78-71ef40a11658.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/da192c88-e74f-4c15-9c44-7364d7516153.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/eacd5b76-f098-48ce-9f6f-5b53eb2a2886.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/edbadd15-c267-49f1-9365-2d7f3279ae9e.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2540000/f58c2093-3009-449f-89a8-74346f13c201.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2550000/0946a243-1b36-4789-90fe-51eeeca92133.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2550000/189cc859-8a5f-410f-b7c8-b6b9576b87ef.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2550000/500877d8-2522-46bf-9117-184db69630f2.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2550000/6c52829b-2459-4fea-b84d-5db44896d30f.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2550000/9907610f-5dcd-41d8-920f-9343aa05e4b7.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2550000/b18211a5-192f-43a7-b1b6-17107ac9b1ca.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2550000/e968e02c-fb3d-4b9c-914f-efdc17661655.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/2b65eb79-7ac3-44a8-a6f0-1fca510013a2.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/4867f3bd-30ab-472c-a6ac-84dca23ed76c.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/4abcba60-31dc-4614-b366-12115cbd1721.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/4cf59b8a-d01a-47cb-98df-c6e320bb4e88.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/7cda0373-f752-4e80-bc1f-8dc1e2672d86.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/7f10b6ab-3e04-443d-b86d-92da8eb8991c.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/8561e2a1-9735-4296-8c16-6e67fca44b86.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/ab44aa6a-9b19-4311-8b1b-2a3f0e2ebb24.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/b035d665-8d8d-4dc3-bf8c-500a6af46b7a.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/c3d8ad9d-0626-4b5b-a6c7-0f701825790f.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/cea79752-2f72-4f02-8520-52980e1f4ec4.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/2560000/dc0427dd-814d-4be3-9591-59557fa42628.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/2ea69360-43f6-408a-bdcb-573dd22533a5.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/90a1313e-47b0-4672-8e9c-c3f1a50c6662.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/997d4dff-9d92-4dc6-9391-f2d38f6734b2.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/d2feb136-b908-4e38-9f1f-a24d4fd0d6ba.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/e711f1da-0b71-4e35-a8f0-cbb624140a5d.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/e83b928d-5a78-4a30-9e0b-3bc94663bd68.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/f51dbbbd-dc01-4b65-95b6-f19c9c4172d3.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/30000/f887f289-0e8f-4bd7-a6f7-401ed403566c.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/40000/d7c0894e-090b-4213-9028-4e216375275b.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/50000/02c29a77-3e0e-40e0-90a1-0562f54144e9.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/50000/1e717030-da3e-417e-99ae-401b41b91670.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/50000/254b752f-420e-4c99-aae1-f178e8042877.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/50000/7f0ec235-b40e-4515-8edf-55b6490680e6.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/50000/be73cd16-44b0-4394-92c5-f62d5a439740.root",
+        "/store/mc/Run3Winter23NanoAOD/QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8/NANOAODSIM/GTv3Digi_GTv3_MiniGTv3_NanoGTv3_126X_mcRun3_2023_forPU65_v3-v2/50000/ec5a7b7c-5c31-414b-b4a3-29fd40265416.root"
+      ]
+    }
+  }
+}

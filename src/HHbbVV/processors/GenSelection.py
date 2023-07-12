@@ -310,7 +310,6 @@ def gen_selection_HVV(
 ):
     """Gets H, VV, and 4q 4-vectors + Higgs children information"""
 
-    # finding the two gen higgs
     higgs = events.GenPart[
         (abs(events.GenPart.pdgId) == HIGGS_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)
     ]
@@ -342,6 +341,47 @@ def gen_selection_HVV(
     }
 
     return {**GenHiggsVars, **GenVVars, **GenqVars}
+
+
+def gen_selection_Hqq(
+    events: NanoEventsArray,
+    fatjet: FatJetArray,
+    selection: PackedSelection,
+    cutflow: dict,
+    signGenWeights: ak.Array,
+    skim_vars: dict,
+):
+    """Gets H and 2q 4-vectors"""
+
+    higgs = events.GenPart[
+        (abs(events.GenPart.pdgId) == HIGGS_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)
+    ]
+    higgs_children = higgs.children
+
+    GenHiggsVars = {f"GenHiggs{key}": higgs[var].to_numpy() for (var, key) in skim_vars.items()}
+    
+    children_mask = get_pid_mask(
+        higgs_children,
+        [g_PDGID, b_PDGID, c_PDGID, s_PDGID, d_PDGID, u_PDGID],
+        byall=False,
+    )
+    daughters = ak.firsts(higgs_children[children_mask])
+    daughters_pdgId = abs(daughters.pdgId)
+    decay = (
+        ((ak.sum(daughters_pdgId == b_PDGID, axis=1) == 2)) * 1
+        + ((ak.sum(daughters_pdgId == c_PDGID, axis=1) == 2)) * 3
+        + ((ak.sum(daughters_pdgId < c_PDGID, axis=1) == 2)) * 5
+        + ((ak.sum(daughters_pdgId == g_PDGID, axis=1) == 2)) * 7
+        + ((ak.sum(daughters_pdgId == b_PDGID, axis=1) == 1) * (
+                ak.sum(daughters_pdgId == s_PDGID, axis=1) == 1))*9
+    )
+    GenHiggsVars["GenHiggs_decay"] = decay
+
+    # compute dr of fatjets with higgs
+    Hqq = ak.pad_none(higgs, 1, axis=1, clip=True)[:, 0]
+    GenHiggsVars[f"ak8FatJetdRHqq"] = fatjet.delta_r(Hqq)
+
+    return {**GenHiggsVars}
 
 
 def get_pid_mask(

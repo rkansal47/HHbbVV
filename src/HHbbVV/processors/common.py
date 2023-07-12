@@ -60,6 +60,10 @@ HLTs = {
         #
         "AK8PFJet330_TrimMass30_PFAK8BTagCSV_p17_v",
     ],
+    "2022": [
+    ],
+    "2023": [
+    ],
 }
 
 # https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation

@@ -1,0 +1,13 @@
+{
+    "HbbSkimmer":
+        {
+            "Hbb": {
+                    "subsamples": ["GluGluHToBB_M-125_TuneCP5_13p6TeV_powheg-pythia8"],
+                    "files_per_job": 1
+            },
+            "QCD": {
+                    "subsamples": ["QCD_PT-15to7000_TuneCP5_13p6TeV_pythia8"],
+                    "files_per_job": 1
+            }
+        }
+}
