@@ -359,7 +359,7 @@ def gen_selection_Hqq(
     higgs_children = higgs.children
 
     GenHiggsVars = {f"GenHiggs{key}": higgs[var].to_numpy() for (var, key) in skim_vars.items()}
-    
+
     children_mask = get_pid_mask(
         higgs_children,
         [g_PDGID, b_PDGID, c_PDGID, s_PDGID, d_PDGID, u_PDGID],
@@ -372,8 +372,11 @@ def gen_selection_Hqq(
         + ((ak.sum(daughters_pdgId == c_PDGID, axis=1) == 2)) * 3
         + ((ak.sum(daughters_pdgId < c_PDGID, axis=1) == 2)) * 5
         + ((ak.sum(daughters_pdgId == g_PDGID, axis=1) == 2)) * 7
-        + ((ak.sum(daughters_pdgId == b_PDGID, axis=1) == 1) * (
-                ak.sum(daughters_pdgId == s_PDGID, axis=1) == 1))*9
+        + (
+            (ak.sum(daughters_pdgId == b_PDGID, axis=1) == 1)
+            * (ak.sum(daughters_pdgId == s_PDGID, axis=1) == 1)
+        )
+        * 9
     )
     GenHiggsVars["GenHiggs_decay"] = decay
 

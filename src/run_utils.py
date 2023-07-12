@@ -54,7 +54,7 @@ def get_fileset(
 ):
     if processor == "trigger":
         samples = [f"SingleMu{year[:4]}"]
-    print(samples,processor)
+    print(samples, processor)
     # redirector = "root://cmsxrootd.fnal.gov//" if not coffea_casa else "root://xcache//"
     redirector = "root://cmseos.fnal.gov//" if not coffea_casa else "root://xcache//"
 
@@ -64,7 +64,7 @@ def get_fileset(
     except FileNotFoundError:
         with open(f"data/nanoindex_{year}.json", "r") as f:
             full_fileset_pfnano = json.load(f)
-        #redirector = "root://cms-xrd-global.cern.ch/"
+        # redirector = "root://cms-xrd-global.cern.ch/"
         redirector = "root://cmsxrootd.fnal.gov/"
 
     fileset = {}
@@ -149,7 +149,9 @@ def get_processor(
         return XHYProcessor()
     elif processor == "hbb":
         from HHbbVV.processors.HbbSkimmer import HbbSkimmer
+
         return HbbSkimmer()
+
 
 def parse_common_args(parser):
     parser.add_argument(
@@ -161,7 +163,11 @@ def parse_common_args(parser):
     )
 
     parser.add_argument(
-        "--year", help="year", type=str, required=True, choices=["2016APV", "2016", "2017", "2018", "2023"]
+        "--year",
+        help="year",
+        type=str,
+        required=True,
+        choices=["2016APV", "2016", "2017", "2018", "2023"],
     )
 
     parser.add_argument(

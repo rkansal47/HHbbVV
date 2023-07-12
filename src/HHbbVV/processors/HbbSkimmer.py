@@ -28,6 +28,7 @@ from .common import LUMI
 from . import common
 
 import logging
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -35,13 +36,13 @@ gen_selection_dict = {
     "GluGluHToBB_M-125_TuneCP5_13p6TeV_powheg-pythia8": gen_selection_Hqq,
 }
 
+
 class HbbSkimmer(processor.ProcessorABC):
     """
     Skims nanoaod files, saving selected branches and events passing preselection cuts.
     """
 
     def __init__(self):
-
         self.skim_vars = {
             "FatJet": {
                 **P4,
@@ -53,13 +54,13 @@ class HbbSkimmer(processor.ProcessorABC):
             },
             "GenHiggs": P4,
         }
-        
+
         self.preselection = {
             "pt": 250.0,
         }
-        
+
         # run inference
-        #self._inference = inference
+        # self._inference = inference
 
         # for tagger model and preprocessing dict
         self.tagger_resources_path = (
@@ -67,7 +68,6 @@ class HbbSkimmer(processor.ProcessorABC):
         )
 
         self._accumulator = processor.dict_accumulator({})
-
 
     def to_pandas(self, events: Dict[str, np.array]):
         """
@@ -111,9 +111,7 @@ class HbbSkimmer(processor.ProcessorABC):
 
         isData = "JetHT" in dataset
         isQCD = "QCD" in dataset
-        isSignal = (
-            "HTobb" in dataset
-        )
+        isSignal = "HTobb" in dataset
 
         if not isData:
             gen_weights = events["genWeight"].to_numpy()
@@ -134,22 +132,18 @@ class HbbSkimmer(processor.ProcessorABC):
         #########################
         # Save / derive variables
         #########################
-        
+
         # FatJet variables
         fatjets = events.FatJet
 
         # note this changed in later versions of nano
-        # particleNet_XbbVsQCD 
+        # particleNet_XbbVsQCD
         # https://github.com/cms-sw/cmssw/blob/master/PhysicsTools/NanoAOD/python/jetsAK8_cff.py#L123C9-L123C29
         fatjets["Txbb"] = fatjets.particleNetMD_Xbb / (
             fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb
         )
 
-        goodfatjets = fatjets[
-            (fatjets.pt > 200)
-            & (abs(fatjets.eta) < 2.4)
-            & fatjets.isTight
-        ]
+        goodfatjets = fatjets[(fatjets.pt > 200) & (abs(fatjets.eta) < 2.4) & fatjets.isTight]
 
         candidatefatjet = ak.firsts(goodfatjets[ak.argmax(goodfatjets.Txbb, axis=1, keepdims=True)])
 
@@ -188,7 +182,7 @@ class HbbSkimmer(processor.ProcessorABC):
                 axis=0,
             )
             add_selection("trigger", HLT_triggered, *selection_args)
-            
+
         add_selection("ak8_pt", candidatefatjet.pt > self.preselection["pt"], *selection_args)
 
         ######################
@@ -204,10 +198,7 @@ class HbbSkimmer(processor.ProcessorABC):
         # reshape and apply selections
         sel_all = selection.all(*selection.names)
 
-        skimmed_events = {
-            key: value[sel_all]
-            for (key, value) in skimmed_events.items()
-        }
+        skimmed_events = {key: value[sel_all] for (key, value) in skimmed_events.items()}
 
         # convert to pandas
         df = self.to_pandas(skimmed_events)
@@ -218,4 +209,3 @@ class HbbSkimmer(processor.ProcessorABC):
 
     def postprocess(self, accumulator):
         return accumulator
-
