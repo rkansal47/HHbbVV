@@ -14,6 +14,7 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
   - [Instructions for running coffea processors](#instructions-for-running-coffea-processors)
     - [Coffea-Casa](#coffea-casa)
     - [Condor](#condor)
+      - [Setup](#setup)
       - [TODO: instructions for lpcjobqueue (currently quite buggy)](#todo-instructions-for-lpcjobqueue-currently-quite-buggy)
   - [Processors](#processors)
     - [JetHTTriggerEfficiencies](#jethttriggerefficiencies)
@@ -52,6 +53,23 @@ General note: Coffea-casa is faster and more convenient, however still somewhat 
 
 
 ### Condor
+
+#### Setup
+
+To submit to condor, all you need is python > 3.7.
+
+For testing locally, it is recommended to use miniconda/mamba:
+
+```bash
+# Download the setup bash file from here https://github.com/conda-forge/miniforge#mambaforge
+# e.g. wget https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
+# Install: (the mamba directory can end up taking O(1-10GB) so make sure the directory you're using allows that quota)
+./Mambaforge-Linux-x86_64.sh  # follow instructions in the installation
+mamba create -n bbVV python=3.9
+mamba activate bbVV
+pip install coffea "tritonclient[all]"
+```
+
 
 Manually splits up the files into condor jobs.
 
@@ -304,6 +322,18 @@ git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git Combine
 scramv1 b clean; scramv1 b
 ```
 
+New version:
+
+```bash
+cmsrel CMSSW_11_3_4
+cd CMSSW_11_3_4/src
+cmsenv
+git clone -b v9.1.0 https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
+git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
+# Important: this scram has to be run from src dir
+scramv1 b clean; scramv1 b
+```
+
 ### Run fits and diagnostics locally
 
 All via the below script, with a bunch of options (see script):
@@ -320,11 +350,13 @@ Can run over all the resonant signals (default) or scan working points for a sub
 python src/HHbbVV/combine/submit.py --test --scan --resonant --templates-dir 23Apr30Scan
 ```
 
-Generate toys and fits for F-tests (after making cards and b-only fits)
+Generate toys and fits for F-tests (after making cards and b-only fits for the testing order AND testing order + 1!)
 
 ```bash
 python src/HHbbVV/combine/submit_ftest.py --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
 ```
+
+(`--tag` here is just for the local condor directory).
 
 ## Misc
 
