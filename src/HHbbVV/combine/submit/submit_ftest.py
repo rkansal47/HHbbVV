@@ -11,8 +11,9 @@ import os
 from math import ceil
 from string import Template
 import json
-
 import sys
+
+from utils import add_bool_arg, write_template, setup, parse_common_args
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
@@ -44,19 +45,7 @@ def write_template(templ_file: str, out_file: str, templ_args: dict):
 
 
 def main(args):
-    if args.site == "lpc":
-        t2_local_prefix = "/eos/uscms/"
-        t2_prefix = "root://cmseos.fnal.gov"
-
-        try:
-            proxy = os.environ["X509_USER_PROXY"]
-        except:
-            print("No valid proxy. Exiting.")
-            exit(1)
-    elif args.site == "ucsd":
-        t2_local_prefix = "/ceph/cms/"
-        t2_prefix = "root://redirector.t2.ucsd.edu:1095"
-        proxy = "/home/users/rkansal/x509up_u31735"
+    t2_local_prefix, t2_prefix, proxy, username, submitdir = setup(args)
 
     username = os.environ["USER"]
     local_dir = f"condor/f_tests/{args.tag}_{args.low1}{args.low2}"
@@ -69,11 +58,11 @@ def main(args):
     for i, j in [(0, 0), (0, 1), (1, 0)]:
         os.system(
             f"mkdir -p {t2_local_prefix}//store/user/rkansal/bbVV/cards/f_tests/{args.cards_tag}/"
-            f"nTF1_{args.low1 + i}_nTF2_{args.low2 + j}/"
+            f"nTF1_{args.low1 + i}_nTF2_{args.low2 + j}/outs/"
         )
 
-    jdl_templ = "src/HHbbVV/combine/submit_ftest.templ.jdl"
-    sh_templ = "src/HHbbVV/combine/submit_ftest.templ.sh"
+    jdl_templ = f"{submitdir}/submit_ftest.templ.jdl"
+    sh_templ = f"{submitdir}/submit_ftest.templ.sh"
 
     # submit jobs
     if args.submit:

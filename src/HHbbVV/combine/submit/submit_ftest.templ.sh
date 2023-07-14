@@ -85,6 +85,7 @@ freezeparams="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx.*}"
 model_name="nTF1_${low1}_nTF2_${low2}"
 toys_name="${low1}${low2}"
 cd ${cards_dir}/${model_name}/
+mkdir -p $outsdir
 
 ulimit -s unlimited
 
@@ -118,6 +119,8 @@ do
         echo "GoF for $model_name"
 
         cd ${cards_dir}/${model_name}/
+        mkdir -p $outsdir
+
         ulimit -s unlimited
 
         combine -M GoodnessOfFit -d ${wsm_snapshot}.root --algo saturated -m 125 \
@@ -128,6 +131,9 @@ do
 
         xrdcp "higgsCombineToys${toys_name}Seed$seed.GoodnessOfFit.mH125.$seed.root" root://cmseos.fnal.gov//store/user/rkansal/bbVV/cards/f_tests/$tag/$model_name/
         xrdcp $outsdir/GoF_toys${toys_name}$seed.txt root://cmseos.fnal.gov//store/user/rkansal/bbVV/cards/f_tests/$tag/$model_name/$outsdir/
+
+        rm "higgsCombineToys${toys_name}Seed$seed.GoodnessOfFit.mH125.$seed.root" 
+        rm "$outsdir/GoF_toys${toys_name}$seed.txt"
 
         cd -
     done

@@ -793,7 +793,6 @@ def get_lpsf_all_years(
             column_labels.append(f"('{key}', '{i}')")
 
     for year in years:
-        print(year, sig_key)
         events_dict = utils.load_samples(
             data_dir, {sig_key: samples[sig_key]}, year, new_filters, column_labels
         )
@@ -1422,7 +1421,9 @@ if __name__ == "__main__":
     if args.signal_data_dir == "":
         args.signal_data_dir = args.data_dir
 
-    if args.bdt_preds_dir == "":
+    if args.bdt_preds_dir == "" and not args.resonant:
         args.bdt_preds_dir = f"{args.data_dir}/inferences/"
+    elif args.resonant:
+        args.bdt_preds_dir = None
 
     main(args)
