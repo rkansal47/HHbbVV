@@ -12,6 +12,8 @@
 # 7) GoF on toys (--goftoys / -t),
 # 8) Impacts: initial fit (--impactsinit / -i), per-nuisance fits (--impactsfits), collect (--impactscollect)
 #    specify seed with --seed (default 42) and number of toys with --numtoys (default 100)
+# 9) Bias test: run a bias test on toys (using post-fit nuisances) with expected signal strength 
+#    given by --bias X.
 # 
 # Specify resonant with --resonant / -r, otherwise does nonresonant
 #
@@ -38,9 +40,9 @@ impactsfits=0
 impactscollect=0
 seed=42
 numtoys=100
-biastest=0
+bias=-1
 
-options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsinit,impactsfits,impactscollect,biastest,seed:,numtoys:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsinit,impactsfits,impactscollect,seed:,numtoys:,bias:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -78,9 +80,6 @@ while true; do
         --impactscollect)
             impactscollect=1
             ;;
-        --biastest)
-            biastest=1
-            ;;
         --seed)
             shift
             seed=$1
@@ -88,6 +87,10 @@ while true; do
         --numtoys)
             shift
             numtoys=$1
+            ;;
+        --bias)
+            shift
+            bias=$1
             ;;
         --)
             shift
@@ -261,7 +264,7 @@ if [ $dfit = 1 ]; then
     --setParameters ${maskunblindedargs},${setparamsblinded} \
     --freezeParameters ${freezeparamsblinded} \
     -n Blinded --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnostics.txt
-    # --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
+    --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
 
     echo "Fit Shapes"
     PostFitShapesFromWorkspace --dataset $dataset -w ${wsm}.root --output FitShapes.root \
@@ -319,17 +322,12 @@ if [ $impactscollect = 1 ]; then
 fi
 
 
-if [ $biastest = 1 ]; then
-    echo "Bias tests"
-    # for bias in 0 0.15 0.3 1
-    # do
-    # done
-    bias=0.3
+if [ $bias != -1 ]; then
+    echo "Bias test with bias $bias"
     combineTool.py -M FitDiagnostics --trackParameters r --trackErrors r --justFit \
-    -m 125 -n "bias${bias}ggF" -d ${wsm_snapshot}.root --rMin "-20" --rMax 20 \
+    -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root --rMin "-20" --rMax 20 \
     --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal $bias \
     ${unblindedparams} \
-    --robustFit=1 -t 5 -s $seed -v 4 2>&1 | tee $outsdir/bias$bias.txt
-    # -s 1:10:1 --job-mode condor --task-name ggF$bias 
+    --robustFit=1 -t $numtoys -s $seed 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
 fi
 
