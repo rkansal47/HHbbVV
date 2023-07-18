@@ -68,6 +68,7 @@ For testing locally, it is recommended to use miniconda/mamba (**mamba is way fa
 mamba create -n bbVV python=3.9
 mamba activate bbVV
 pip install coffea "tritonclient[all]"
+mamba install -c conda-forge xrootd=5.4.0  # need openssl v1.1 for lxplus and UCSD t2, hence pinning xrootd version.
 ```
 
 
