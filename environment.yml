@@ -1,0 +1,11 @@
+name: bbVV
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - coffea=0.7.21
+  - fastjet=3.4.0.2
+  - xrootd=5.4.0
+  - tritonclient[all]
+  - pre-commit
+  - black
