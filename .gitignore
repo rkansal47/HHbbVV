@@ -4,6 +4,7 @@
 !*.ipynb
 !figure.png
 !requirements.txt
+!environment.yml
 
 !src
 src/*
