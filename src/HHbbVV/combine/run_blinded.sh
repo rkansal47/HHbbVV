@@ -150,7 +150,7 @@ if [ $resonant = 0 ]; then
 
     # remove last comma
     setparamsblinded=${setparamsblinded%,}
-    freezeparamsblinded=${freezeparamsblinded%,}
+    freezeparamsblinded="${freezeparamsblinded}CMS_XHYbbWW_boosted_PNetHbbScaleFactors_correlated"
 
     unblindedparams="--setParameters $maskblindedargs"
 
@@ -180,14 +180,15 @@ else
     maskblindedargs=${maskblindedargs%,}
 
     setparamsblinded="rgx{pass_.*mcstat.*}=0,rgx{fail_.*mcstat.*}=0"
-    freezeparamsblinded="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx.*}"
+    freezeparamsblinded="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx.*},CMS_XHYbbWW_boosted_PNetHbbScaleFactors_correlated"
 
     setparamsunblinded="rgx{passBlinded_.*mcstat.*}=0,rgx{failBlinded_.*mcstat.*}=0"
     freezeparamsunblinded="rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*}"
 
     unblindedparams="--freezeParameters ${freezeparamsunblinded} --setParameters ${maskblindedargs},${setparamsunblinded}"
 
-    excludeimpactparams='rgx{.*qcdparam_mXbin.*},rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*}'
+    # excludeimpactparams='rgx{.*qcdparam_mXbin.*},rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*}'
+    excludeimpactparams='rgx{.*qcdparam_mXbin.*},rgx{.*mcstat.*}'
 fi
 
 echo "mask args:"
@@ -263,12 +264,13 @@ if [ $dfit = 1 ]; then
     combine -M FitDiagnostics -m 125 -d ${wsm}.root \
     --setParameters ${maskunblindedargs},${setparamsblinded} \
     --freezeParameters ${freezeparamsblinded} \
+    --cminDefaultMinimizerStrategy 1 \
     -n Blinded --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnostics.txt
-    --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
+    # --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
 
-    echo "Fit Shapes"
-    PostFitShapesFromWorkspace --dataset $dataset -w ${wsm}.root --output FitShapes.root \
-    -m 125 -f fitDiagnosticsBlinded.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
+    # echo "Fit Shapes"
+    # PostFitShapesFromWorkspace --dataset $dataset -w ${wsm}.root --output FitShapes.root \
+    # -m 125 -f fitDiagnosticsBlinded.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
 fi
 
 
@@ -307,7 +309,7 @@ if [ $impactsfits = 1 ]; then
     -m 125 -n "impacts" -d ${wsm_snapshot}.root --doFits --robustFit 1 \
     --setParameters ${maskblindedargs} \
     --exclude ${excludeimpactparams} \
-    --job-mode condor \
+    --job-mode condor --dry-run \
     --setParameterRanges r=-20,20 --cminDefaultMinimizerStrategy=1 -v 9 2>&1 | tee $outsdir/Impacts_fits.txt
 fi
 
@@ -325,9 +327,13 @@ fi
 if [ $bias != -1 ]; then
     echo "Bias test with bias $bias"
     combineTool.py -M FitDiagnostics --trackParameters r --trackErrors r --justFit \
-    -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root --rMin "-20" --rMax 20 \
+    -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root --rMin "-1" --rMax 20 \
     --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal $bias \
-    ${unblindedparams} \
-    --robustFit=1 -t $numtoys -s $seed 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
-fi
+    ${unblindedparams},r=$bias \
+    --robustFit=1 -t $numtoys -s $seed -v 9 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
 
+    # combineTool.py -M GenerateOnly -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root \
+    # --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal $bias \
+    # ${unblindedparams} \
+    # -t $numtoys -s $seed -v 9 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
+fi
