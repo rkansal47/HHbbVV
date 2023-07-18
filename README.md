@@ -56,9 +56,9 @@ General note: Coffea-casa is faster and more convenient, however still somewhat 
 
 #### Setup
 
-To submit to condor, all you need is python > 3.7.
+To submit to condor, all you need is python >= 3.7.
 
-For testing locally, it is recommended to use miniconda/mamba:
+For testing locally, it is recommended to use miniconda/mamba (**mamba is way faster!**):
 
 ```bash
 # Download the setup bash file from here https://github.com/conda-forge/miniforge#mambaforge
