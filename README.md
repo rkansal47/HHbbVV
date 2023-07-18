@@ -372,7 +372,7 @@ Generate toys and fits for F-tests (after making cards and b-only fits for the t
 csubmit f_test --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
 ```
 
-Bias tests (run in conda environment):
+Bias tests (run in conda environment, from inside the cards folder!):
 
 ```bash
 for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190 NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250
