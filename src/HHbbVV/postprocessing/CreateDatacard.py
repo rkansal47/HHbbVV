@@ -112,6 +112,12 @@ parser.add_argument("--cards-dir", default="cards", type=str, help="output card 
 
 parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
 parser.add_argument("--epsilon", default=1e-3, type=float, help="epsilon to avoid numerical errs")
+parser.add_argument(
+    "--scale-templates", default=None, type=float, help="scale all templates for bias tests"
+)
+parser.add_argument(
+    "--min-qcd-val", default=1e-3, type=float, help="clip the pass QCD to above a minimum value"
+)
 
 parser.add_argument(
     "--sig-sample", default=None, type=str, help="can specify a specific signal key"
@@ -119,10 +125,11 @@ parser.add_argument(
 
 parser.add_argument(
     "--nTF",
-    default=[1, 0],
+    default=None,
     nargs="*",
     type=int,
-    help="order of polynomial for TF in [dim 1, dim 2] = [mH(bb), -] for nonresonant or [mY, mX] for resonant",
+    help="order of polynomial for TF in [dim 1, dim 2] = [mH(bb), -] for nonresonant or [mY, mX] for resonant"
+    "",
 )
 
 parser.add_argument("--model-name", default=None, type=str, help="output model name")
@@ -140,6 +147,9 @@ args = parser.parse_args()
 
 
 CMS_PARAMS_LABEL = "CMS_bbWW_hadronic" if not args.resonant else "CMS_XHYbbWW_boosted"
+
+if args.nTF is None:
+    args.nTF = [1, 2] if args.resonant else [0]
 
 # (name in templates, name in cards)
 mc_samples = OrderedDict(
@@ -276,7 +286,6 @@ nuisance_params_dict = {
     param: rl.NuisanceParameter(param, syst.prior) for param, syst in nuisance_params.items()
 }
 
-
 # dictionary of correlated shape systematics: name in templates -> name in cards, etc.
 corr_year_shape_systs = {
     "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=nonres_sig_keys_ggf + ["V+Jets"]),
@@ -336,7 +345,9 @@ def main(args):
     ]
 
     # templates per region per year, templates per region summed across years
-    templates_dict, templates_summed = get_templates(args.templates_dir, years, args.sig_separate)
+    templates_dict, templates_summed = get_templates(
+        args.templates_dir, years, args.sig_separate, args.scale_templates
+    )
 
     # TODO: check if / how to include signal trig eff uncs. (rn only using bg uncs.)
     process_systematics(args.templates_dir, args.sig_separate)
@@ -368,7 +379,7 @@ def main(args):
         args.bblite,
     ]
 
-    fit_args = [model, shape_vars, templates_summed]
+    fit_args = [model, shape_vars, templates_summed, args.scale_templates, args.min_qcd_val]
 
     if args.resonant:
         # fill 1 channel per mX bin
@@ -497,7 +508,7 @@ def combine_templates(
     return ctemplates
 
 
-def get_templates(templates_dir: str, years: List[str], sig_separate: bool):
+def get_templates(templates_dir: str, years: List[str], sig_separate: bool, scale: float = None):
     """Loads templates, combines bg and sig templates if separate, sums across all years"""
     templates_dict: Dict[str, Dict[str, Hist]] = {}
 
@@ -519,6 +530,11 @@ def get_templates(templates_dir: str, years: List[str], sig_separate: bool):
                     sig_templates.append(_rem_neg(pickle.load(f)))
 
             templates_dict[year] = combine_templates(bg_templates, sig_templates)
+
+    if scale is not None and scale != 1:
+        for year in templates_dict:
+            for key in templates_dict[year]:
+                templates_dict[year][key] = templates_dict[year][key] * scale
 
     templates_summed: Dict[str, Hist] = sum_templates(templates_dict)  # sum across years
     return templates_dict, templates_summed
@@ -821,7 +837,13 @@ def fill_regions(
         ch.setObservation(region_templates[data_key, :])
 
 
-def nonres_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_summed: Dict):
+def nonres_alphabet_fit(
+    model: rl.Model,
+    shape_vars: List[ShapeVar],
+    templates_summed: Dict,
+    scale: float = None,
+    min_qcd_val: float = None,
+):
     shape_var = shape_vars[0]
     m_obs = rl.Observable(shape_var.name, shape_var.bins)
 
@@ -872,7 +894,14 @@ def nonres_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_s
         if np.any(initial_qcd < 0.0):
             raise ValueError("initial_qcd negative for some bins..", initial_qcd)
 
+        # idea here is that the error should be 1/sqrt(N), so parametrizing it as (1 + 1/sqrt(N))^qcdparams
+        # will result in qcdparams errors ~±1
+        # but because qcd is poorly modelled we're scaling sigma scale
+
         sigmascale = 10  # to scale the deviation from initial
+        if scale is not None:
+            sigmascale *= scale
+
         scaled_params = (
             initial_qcd * (1 + sigmascale / np.maximum(1.0, np.sqrt(initial_qcd))) ** qcd_params
         )
@@ -891,11 +920,18 @@ def nonres_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_s
             rl.Sample.BACKGROUND,
             tf_params_pass,
             fail_qcd,
+            min_val=min_qcd_val,
         )
         passCh.addSample(pass_qcd)
 
 
-def res_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_summed: Dict):
+def res_alphabet_fit(
+    model: rl.Model,
+    shape_vars: List[ShapeVar],
+    templates_summed: Dict,
+    scale: float = None,
+    min_qcd_val: float = None,
+):
     shape_var_mY, shape_var_mX = shape_vars
     m_obs = rl.Observable(shape_var_mY.name, shape_var_mY.bins)
 
@@ -918,6 +954,7 @@ def res_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_summ
     mX_scaled_grid, mY_scaled_grid = np.meshgrid(
         shape_var_mX.scaled, shape_var_mY.scaled, indexing="ij"
     )
+    # numpy array of
     tf_dataResidual_params = tf_dataResidual(mX_scaled_grid, mY_scaled_grid)
     tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
 
@@ -953,10 +990,18 @@ def res_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_summ
                 logging.warning(f"initial_qcd negative for some bins... {initial_qcd}")
                 initial_qcd[initial_qcd < 0] = 0
 
+            # idea here is that the error should be 1/sqrt(N), so parametrizing it as (1 + 1/sqrt(N))^qcdparams
+            # will result in qcdparams errors ~±1
+            # but because qcd is poorly modelled we're scaling sigma scale
+
             sigmascale = 10  # to scale the deviation from initial
+            if scale is not None:
+                sigmascale *= scale
+
             scaled_params = (
                 initial_qcd * (1 + sigmascale / np.maximum(1.0, np.sqrt(initial_qcd))) ** qcd_params
             )
+            # scaled_params = initial_qcd * (1.1 ** qcd_params)
 
             # add samples
             fail_qcd = rl.ParametericSample(
@@ -972,6 +1017,7 @@ def res_alphabet_fit(model: rl.Model, shape_vars: List[ShapeVar], templates_summ
                 rl.Sample.BACKGROUND,
                 tf_params_pass[mX_bin, :],
                 fail_qcd,
+                min_val=min_qcd_val,
             )
             passCh.addSample(pass_qcd)
 

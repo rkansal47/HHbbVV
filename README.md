@@ -286,6 +286,11 @@ Datacards with different orders of TFs for F-tests:
 Use the `src/HHbbVV/combine/F_test_res.sh` script.
 
 
+Datacards (and background-only fits) for bias tests:
+
+`src/HHbbVV/combine/biastests.sh --cardstag $cardstag --templatestag $templatestag`
+
+
 ### PlotFits
 
 ```bash
@@ -337,12 +342,17 @@ Generate toys and fits for F-tests (after making cards and b-only fits)
 csubmit f_test --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
 ```
 
-Bias tests:
+Bias tests (run in conda environment):
 
 ```bash
-for bias in 0 0.15 0.3
+for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190 NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250
 do
-  csubmit bias --seed 42 --num-jobs 10 --toys-per-job 10 --bias $bias --submit --tag $TAG
+  cd $sample
+  for bias in 0.0 0.15 0.3 1.0
+  do
+    csubmit bias --seed 42 --num-jobs 50 --toys-per-job 10 --bias $bias --submit --tag $TAG
+  done
+  cd -
 done
 ```
 
