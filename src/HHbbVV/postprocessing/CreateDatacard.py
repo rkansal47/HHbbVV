@@ -860,6 +860,7 @@ def nonres_alphabet_fit(
         [shape_var.name],
         basis="Bernstein",
         limits=(-20, 20),
+        square_params=True,
     )
     tf_dataResidual_params = tf_dataResidual(shape_var.scaled)
     tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
@@ -948,6 +949,7 @@ def res_alphabet_fit(
         [shape_var_mX.name, shape_var_mY.name],
         basis="Bernstein",
         limits=(-20, 20),
+        square_params=True,
     )
 
     # based on https://github.com/nsmith-/rhalphalib/blob/9472913ef0bab3eb47bc942c1da4e00d59fb5202/tests/test_rhalphalib.py#L38
