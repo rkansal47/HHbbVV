@@ -1,11 +1,6 @@
-jetnet>=0.2.1.post2
-coffea>=0.7.20
-awkward>=1.10.2
-matplotlib
-mplhep
-hist
+coffea==0.7.21
 black
 pre-commit
-tritonclient[grpc]
-tritonclient[http]
-# fastjet
+tritonclient[all]
+fastjet==3.4.02
+xrootd==5.4.0

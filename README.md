@@ -56,9 +56,9 @@ General note: Coffea-casa is faster and more convenient, however still somewhat 
 
 #### Setup
 
-To submit to condor, all you need is python > 3.7.
+To submit to condor, all you need is python >= 3.7.
 
-For testing locally, it is recommended to use miniconda/mamba:
+For testing locally, it is recommended to use miniconda/mamba (**mamba is way faster!**):
 
 ```bash
 # Download the setup bash file from here https://github.com/conda-forge/miniforge#mambaforge
@@ -68,6 +68,7 @@ For testing locally, it is recommended to use miniconda/mamba:
 mamba create -n bbVV python=3.9
 mamba activate bbVV
 pip install coffea "tritonclient[all]"
+mamba install -c conda-forge xrootd=5.4.0  # need openssl v1.1 for lxplus and UCSD t2, hence pinning xrootd version.
 ```
 
 
