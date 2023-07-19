@@ -384,6 +384,8 @@ csubmit f_test --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
 csubmit impacts --tag 23May2 (--local [if you want to run them locally])
 ```
 
+This was also output a script to collect all the impacts after the jobs finish.
+
 #### Signal injection tests
 
 ```bash
