@@ -10,12 +10,12 @@
 # 5) Fit diagnostics (--dfit / -d)
 # 6) GoF on data (--gofdata / -g)
 # 7) GoF on toys (--goftoys / -t),
-# 8) Impacts: initial fit (--impactsinit / -i), per-nuisance fits (--impactsfits), collect (--impactscollect)
-#    specify seed with --seed (default 42) and number of toys with --numtoys (default 100)
+# 8) Impacts: initial fit (--impactsi / -i), per-nuisance fits (--impactsf $nuisance), collect (--impactsc $nuisances)
 # 9) Bias test: run a bias test on toys (using post-fit nuisances) with expected signal strength 
 #    given by --bias X.
 # 
 # Specify resonant with --resonant / -r, otherwise does nonresonant
+# Specify seed with --seed (default 42) and number of toys with --numtoys (default 100)
 #
 # Usage ./run_blinded.sh [-wblsdgt] [--numtoys 100] [--seed 42] 
 #
@@ -35,14 +35,14 @@ dfit=0
 resonant=0
 gofdata=0
 goftoys=0
-impactsinit=0
-impactsfits=0
-impactscollect=0
+impactsi=0
+impactsf=0
+impactsc=0
 seed=42
 numtoys=100
 bias=-1
 
-options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsinit,impactsfits,impactscollect,seed:,numtoys:,bias:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -71,14 +71,16 @@ while true; do
         -t|--goftoys)
             goftoys=1
             ;;
-        -i|--impactsinit)
-            impactsinit=1
+        -i|--impactsi)
+            impactsi=1
             ;;
-        --impactsfits)
-            impactsfits=1
+        --impactsf)
+            shift
+            impactsf=$1
             ;;
-        --impactscollect)
-            impactscollect=1
+        --impactsc)
+            shift
+            impactsc=$1
             ;;
         --seed)
             shift
@@ -150,9 +152,14 @@ if [ $resonant = 0 ]; then
 
     # remove last comma
     setparamsblinded=${setparamsblinded%,}
-    freezeparamsblinded="${freezeparamsblinded}CMS_XHYbbWW_boosted_PNetHbbScaleFactors_correlated"
+    freezeparamsblinded="${freezeparamsblinded},var{.*lp_sf.*},CMS_XHYbbWW_boosted_PNetHbbScaleFactors_correlated"
 
-    unblindedparams="--setParameters $maskblindedargs"
+
+    # floating parameters using var{} floats a bunch of parameters which shouldn't be floated,
+    # so countering this inside --freezeParameters which takes priority.
+    # Although, practically even if those are set to "float", I didn't see them ever being fitted,
+    # so this is just to be extra safe.
+    unblindedparams="--freezeParameters var{.*_In},var{.*__norm},var{n_exp_.*} --setParameters $maskblindedargs"
 
     excludeimpactparams='rgx{.*tf_dataResidual_Bin.*}'
 else
@@ -179,13 +186,19 @@ else
     maskunblindedargs=${maskunblindedargs%,}
     maskblindedargs=${maskblindedargs%,}
 
-    setparamsblinded="rgx{pass_.*mcstat.*}=0,rgx{fail_.*mcstat.*}=0"
-    freezeparamsblinded="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*},rgx{.*xhy_mx.*},CMS_XHYbbWW_boosted_PNetHbbScaleFactors_correlated"
+    setparamsblinded="var{.*pass_.*mcstat.*}=0,var{.*fail_.*mcstat.*}=0"
+    freezeparamsblinded='var{.*pass_.*mcstat.*},var{.*fail_.*mcstat.*},var{.*xhy_mx.*},CMS_XHYbbWW_boosted_PNetHbbScaleFactors_correlated'
+    # freezing them here meant they weren't included in the impacts, so unfreezing now
+    # freezeparamsblinded="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*}"
 
-    setparamsunblinded="rgx{passBlinded_.*mcstat.*}=0,rgx{failBlinded_.*mcstat.*}=0"
-    freezeparamsunblinded="rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*}"
+    setparamsunblinded="rgx{.*passBlinded_.*mcstat.*}=0,rgx{.*failBlinded_.*mcstat.*}=0"
+    freezeparamsunblinded="rgx{.*passBlinded_.*mcstat.*},rgx{.*failBlinded_.*mcstat.*}"
 
-    unblindedparams="--freezeParameters ${freezeparamsunblinded} --setParameters ${maskblindedargs},${setparamsunblinded}"
+    # floating parameters using var{} floats a bunch of parameters which shouldn't be floated,
+    # so countering this inside --freezeParameters which takes priority.
+    # Although, practically even if those are set to "float", I didn't see them ever being fitted,
+    # so this is just to be extra safe.
+    unblindedparams="--freezeParameters ${freezeparamsunblinded},var{.*_In},var{.*__norm},var{n_exp_.*} --setParameters ${maskblindedargs},${setparamsunblinded}"
 
     # excludeimpactparams='rgx{.*qcdparam_mXbin.*},rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*}'
     excludeimpactparams='rgx{.*qcdparam_mXbin.*},rgx{.*mcstat.*}'
@@ -242,20 +255,19 @@ fi
 
 if [ $limits = 1 ]; then
     echo "Expected limits"
-
-    combine -M AsymptoticLimits -m 125 -n pass -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v 9 \
+    combine -M AsymptoticLimits -m 125 -n "" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v 9 \
     --saveWorkspace --saveToys --bypassFrequentistFit \
-    ${unblindedparams} \
-    --floatParameters r --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
+    ${unblindedparams},r=0 -s $seed \
+    --floatParameters ${freezeparamsblinded},r --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
 fi
 
 
 if [ $significance = 1 ]; then
     echo "Expected significance"
-    combine -M Significance -d ${wsm_snapshot}.root --significance -m 125 -n pass --snapshotName MultiDimFit -v 9 \
+    combine -M Significance -d ${wsm_snapshot}.root -n "" --significance -m 125 --snapshotName MultiDimFit -v 9 \
     -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit \
     ${unblindedparams},r=1 \
-    --floatParameters r --toysFrequentist 2>&1 | tee $outsdir/Significance.txt
+    --floatParameters ${freezeparamsblinded},r --toysFrequentist 2>&1 | tee $outsdir/Significance.txt
 fi
 
 
@@ -268,9 +280,9 @@ if [ $dfit = 1 ]; then
     -n Blinded --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnostics.txt
     # --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
 
-    # echo "Fit Shapes"
-    # PostFitShapesFromWorkspace --dataset $dataset -w ${wsm}.root --output FitShapes.root \
-    # -m 125 -f fitDiagnosticsBlinded.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
+    echo "Fit Shapes"
+    PostFitShapesFromWorkspace --dataset $dataset -w ${wsm}.root --output FitShapes.root \
+    -m 125 -f fitDiagnosticsBlinded.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
 fi
 
 
@@ -294,46 +306,63 @@ if [ $goftoys = 1 ]; then
 fi
 
 
-if [ $impactsinit = 1 ]; then
+if [ $impactsi = 1 ]; then
     echo "Initial fit for impacts"
-    combineTool.py -M Impacts -t -1 --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal 1 \
-    -m 125 -n "impacts" -d ${wsm_snapshot}.root --doInitialFit --robustFit 1 \
-    ${unblindedparams} \
-    --setParameterRanges r=-20,20 --cminDefaultMinimizerStrategy=1 -v 9 2>&1 | tee $outsdir/Impacts_initial.txt
+    # from https://github.com/cms-analysis/CombineHarvester/blob/f0e0c53298521921abf59c175b5c5616026d203b/CombineTools/python/combine/Impacts.py#L113
+    # combine -M MultiDimFit -m 125 -n "_initialFit_impacts" -d ${wsm_snapshot}.root --snapshotName MultiDimFit \
+    #  --algo singles --redefineSignalPOIs r --floatOtherPOIs 1 --saveInactivePOI 1 -P r --setParameterRanges r=-0.5,20 \
+    # --toysFrequentist --expectSignal 1 --bypassFrequentistFit -t -1 \
+    # ${unblindedparams} --floatParameters ${freezeparamsblinded} \
+    # --robustFit 1 --cminDefaultMinimizerStrategy=1 -v 9 2>&1 | tee $outsdir/Impacts_init.txt
+
+    combineTool.py -M Impacts --snapshotName MultiDimFit -m 125 -n "impacts" \
+    -t -1 --bypassFrequentistFit --toysFrequentist --expectSignal 1 \
+    -d ${wsm_snapshot}.root --doInitialFit --robustFit 1 \
+    ${unblindedparams} --floatParameters ${freezeparamsblinded} \
+     --cminDefaultMinimizerStrategy=1 -v 1 2>&1 | tee $outsdir/Impacts_init.txt
 fi
 
 
-if [ $impactsfits = 1 ]; then
+if [ $impactsf != 0 ]; then
     echo "Submitting jobs for impact scans"
-    combineTool.py -M Impacts -t -1 --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal 1 \
-    -m 125 -n "impacts" -d ${wsm_snapshot}.root --doFits --robustFit 1 \
-    --setParameters ${maskblindedargs} \
-    --exclude ${excludeimpactparams} \
-    --job-mode condor --dry-run \
-    --setParameterRanges r=-20,20 --cminDefaultMinimizerStrategy=1 -v 9 2>&1 | tee $outsdir/Impacts_fits.txt
+    # Impacts module cannot access parameters which were frozen in MultiDimFit, so running impacts
+    # for each parameter directly using its internal command 
+    # (also need to do this for submitting to condor anywhere other than lxplus)
+    combine -M MultiDimFit -n _paramFit_impacts_$impactsf --algo impact --redefineSignalPOIs r -P $impactsf \
+    --floatOtherPOIs 1 --saveInactivePOI 1 --snapshotName MultiDimFit -d ${wsm_snapshot}.root \
+    -t -1 --bypassFrequentistFit --toysFrequentist --expectSignal 1 --robustFit 1 \
+    ${unblindedparams} --floatParameters ${freezeparamsblinded} \
+    --setParameterRanges r=-0.5,20 --cminDefaultMinimizerStrategy=1 -v 1 -m 125 | tee $outsdir/Impacts_$impactsf.txt
+
+    # Old Impacts command:
+    # combineTool.py -M Impacts -t -1 --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal 1 \
+    # -m 125 -n "impacts" -d ${wsm_snapshot}.root --doFits --robustFit 1 \
+    # --setParameters ${maskblindedargs} --floatParameters ${freezeparamsblinded} \
+    # --exclude ${excludeimpactparams} \
+    # --job-mode condor --dry-run \
+    # --setParameterRanges r=-0.5,20 --cminDefaultMinimizerStrategy=1 -v 9 2>&1 | tee $outsdir/Impacts_fits.txt
 fi
 
 
-if [ $impactscollect = 1 ]; then
+if [ $impactsc != 0 ]; then
     echo "Collecting impacts"
-    combineTool.py -M Impacts -t -1 --snapshotName MultiDimFit \
+    combineTool.py -M Impacts --snapshotName MultiDimFit \
     -m 125 -n "impacts" -d ${wsm_snapshot}.root \
-    --setParameters ${maskblindedargs} \
-    --exclude ${excludeimpactparams} \
-    --setParameterRanges r=-20,20 -v 9 -o impacts.json 2>&1 | tee $outsdir/Impacts_collect.txt
+    --setParameters ${maskblindedargs} --floatParameters ${freezeparamsblinded} \
+    -t -1 --named $impactsc \
+    --setParameterRanges r=-0.5,20 -v 1 -o impacts.json 2>&1 | tee $outsdir/Impacts_collect.txt
+
+    plotImpacts.py -i impacts.json -o impacts
 fi
 
 
 if [ $bias != -1 ]; then
     echo "Bias test with bias $bias"
-    combineTool.py -M FitDiagnostics --trackParameters r --trackErrors r --justFit \
+    # setting verbose > 0 here can lead to crazy large output files (~10-100GB!) because of getting
+    # stuck in negative yield areas
+    combine -M FitDiagnostics --trackParameters r --trackErrors r --justFit \
     -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root --rMin "-1" --rMax 20 \
     --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal $bias \
-    ${unblindedparams},r=$bias \
-    --robustFit=1 -t $numtoys -s $seed -v 9 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
-
-    # combineTool.py -M GenerateOnly -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root \
-    # --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal $bias \
-    # ${unblindedparams} \
-    # -t $numtoys -s $seed -v 9 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
+    ${unblindedparams},r=$bias --floatParameters ${freezeparamsblinded} \
+    --robustFit=1 -t $numtoys -s $seed 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
 fi
