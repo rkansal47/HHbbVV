@@ -36,15 +36,17 @@ def accumulate_files(files: list):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    run_utils.parse_common_args(parser)  # year, processor
-    parser.add_argument("--tag", type=str, required=True)
+    run_utils.parse_common_args(parser)  # year, processor, tag
     parser.add_argument("--name", default="combined", help="name of combined files", type=str)
     parser.add_argument(
-        "--inuser", default="", help="username where pickles are saved (if not you)", type=str
+        "--inuser",
+        default=os.getlogin(),
+        help="username where pickles are saved (if not you)",
+        type=str,
     )
     parser.add_argument(
         "--outuser",
-        default="",
+        default=os.getlogin(),
         help="username where combined output will be saved (if not you)",
         type=str,
     )
@@ -58,12 +60,6 @@ if __name__ == "__main__":
         help="combine different samples' pickles separately",
     )
     args = parser.parse_args()
-
-    user = os.getlogin()
-    if args.inuser == "":
-        args.inuser = user
-    if args.outuser == "":
-        args.outuser = user
 
     tag_dir = f"/eos/uscms/store/user/{args.inuser}/bbVV/{args.processor}/{args.tag}"
     indir = f"{tag_dir}/{args.year}/"

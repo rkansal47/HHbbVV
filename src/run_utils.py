@@ -52,7 +52,7 @@ def get_fileset(
     get_num_files: bool = False,
     coffea_casa: str = False,
 ):
-    if processor == "trigger":
+    if processor.startswith("trigger"):
         samples = [f"SingleMu{year[:4]}"]
 
     # redirector = "root://cmsxrootd.fnal.gov//" if not coffea_casa else "root://xcache//"
@@ -119,6 +119,10 @@ def get_processor(
         from HHbbVV.processors import JetHTTriggerEfficienciesProcessor
 
         return JetHTTriggerEfficienciesProcessor()
+    elif processor == "trigger4d":
+        from HHbbVV.processors import JetHT4DTriggerEfficienciesProcessor
+
+        return JetHT4DTriggerEfficienciesProcessor()
     elif processor == "skimmer":
         from HHbbVV.processors import bbVVSkimmer
 
@@ -149,7 +153,7 @@ def parse_common_args(parser):
         default="trigger",
         help="Trigger processor",
         type=str,
-        choices=["trigger", "skimmer", "input", "ttsfs", "xhy"],
+        choices=["trigger", "trigger4d", "skimmer", "input", "ttsfs", "xhy"],
     )
 
     parser.add_argument(
@@ -168,6 +172,8 @@ def parse_common_args(parser):
         help="which subsamples, by default will be all in the specified sample(s)",
         nargs="*",
     )
+
+    parser.add_argument("--tag", default="Test", help="process tag", type=str)
 
     parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
     parser.add_argument("--chunksize", default=10000, help="chunk size", type=int)
