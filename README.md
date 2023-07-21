@@ -334,7 +334,8 @@ New version:
 cmsrel CMSSW_11_3_4
 cd CMSSW_11_3_4/src
 cmsenv
-git clone -b v9.1.0 https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
+# need my fork until regex for float parameters is merged into the main repo
+git clone -b regex-float-parameters https://github.com/rkansal47/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 # Important: this scram has to be run from src dir
 scramv1 b clean; scramv1 b
@@ -347,7 +348,7 @@ export PATH="$PATH:/uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine"
 
 csubmit() {
     local file=$1; shift;
-    python "/uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine/submit/submit_${file}.py" "$@"
+    python3 "/uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine/submit/submit_${file}.py" "$@"
 }
 ```
 
@@ -361,11 +362,15 @@ run_blinded.sh --workspace --bfit --limits
 
 ### Run fits on condor
 
+#### Making datacards
+
 Can run over all the resonant signals (default) or scan working points for a subset of signals (`--scan`)
 
 ```bash
 csubmit cards --test --scan --resonant --templates-dir 23Apr30Scan
 ```
+
+#### F-tests
 
 Generate toys and fits for F-tests (after making cards and b-only fits for the testing order AND testing order + 1!)
 
@@ -373,7 +378,15 @@ Generate toys and fits for F-tests (after making cards and b-only fits for the t
 csubmit f_test --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
 ```
 
-Bias tests (run in conda environment, from inside the cards folder!):
+#### Impacts
+
+```bash
+csubmit impacts --tag 23May2 (--local [if you want to run them locally])
+```
+
+This was also output a script to collect all the impacts after the jobs finish.
+
+#### Signal injection tests
 
 ```bash
 for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190 NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250
