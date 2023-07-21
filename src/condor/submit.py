@@ -128,7 +128,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     run_utils.parse_common_args(parser)
     parser.add_argument("--script", default="run.py", help="script to run", type=str)
-    parser.add_argument("--tag", default="Test", help="process tag", type=str)
     parser.add_argument(
         "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
     )

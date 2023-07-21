@@ -231,7 +231,7 @@ nuisance_params = {
     "lumi_13TeV_1718": Syst(
         prior="lnN",
         samples=all_mc,
-        value=((1.002 ** (LUMI["2017"] / full_lumi)) * (1.006 ** (LUMI["2018"] / full_lumi))),
+        value=((1.006 ** (LUMI["2017"] / full_lumi)) * (1.002 ** (LUMI["2018"] / full_lumi))),
     ),
     # https://gitlab.cern.ch/hh/naming-conventions#theory-uncertainties
     "BR_hbb": Syst(prior="lnN", samples=nonres_sig_keys, value=1.0124, value_down=0.9874),

@@ -200,7 +200,7 @@ class JetHT4DTriggerEfficienciesProcessor(processor.ProcessorABC):
         eta_cut = np.abs(fatjets.eta) < ak8_jet_selection["eta"]
         dRmuon_cut = np.abs(fatjets.delta_r(muon)) > ak8_jet_selection["delta_r_muon"]
         fatjet_selection = np.any(dRmuon_cut, axis=1) * (
-            ak.count(fatjets[eta_cut], axis=1) >= num_jets
+            ak.count(fatjets[eta_cut].pt, axis=1) >= num_jets
         )
         add_selection("ak8_jet", fatjet_selection, *selection_args)
 
@@ -237,7 +237,7 @@ class JetHT4DTriggerEfficienciesProcessor(processor.ProcessorABC):
                 jet1txbb=fatjets.txbb[selection][:, 0].to_numpy(),
                 jet1pt=fatjets.pt[selection][:, 0].to_numpy(),
                 jet1msd=fatjets.msoftdrop[selection][:, 0].to_numpy(),
-                jet1txbb=fatjets.txbb[selection][:, 1].to_numpy(),
+                jet2txbb=fatjets.txbb[selection][:, 1].to_numpy(),
                 jet2pt=fatjets.pt[selection][:, 1].to_numpy(),
                 jet2msd=fatjets.msoftdrop[selection][:, 1].to_numpy(),
             )

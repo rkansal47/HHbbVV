@@ -107,7 +107,7 @@ Applies a muon pre-selection and accumulates 4D ([Txbb, Th4q, pT, mSD]) yields b
 To test locally:
 
 ```bash
-python -W ignore src/run.py --year 2018 --processor trigger --sample SingleMu2017 --subsamples SingleMuon_Run2018B --starti 0 --endi 1
+python -W ignore src/run.py --year 2018 --processor trigger --sample SingleMu2018 --subsamples SingleMuon_Run2018B --starti 0 --endi 1
 ```
 
 And to submit all:
