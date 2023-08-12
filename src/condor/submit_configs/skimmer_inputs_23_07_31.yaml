@@ -1,0 +1,15 @@
+{
+    "Skimmer":
+        {
+            "Diboson": {"files_per_job": 20 },
+            "HWW": { "files_per_job": 20 },
+            "GluGluHToBB": { "files_per_job": 20 },
+            "HToBB": { "files_per_job": 20 },
+            "QCD": { "files_per_job": 20 },
+            "SingleTop": { "files_per_job": 20 },
+            "TTbar": { "files_per_job": 20 },
+            "TTbarBoosted": { "files_per_job": 20 },
+            "WJetsToQQ": { "files_per_job": 20 },
+            "ZJetsToQQ": { "files_per_job": 20 },
+        },
+}
