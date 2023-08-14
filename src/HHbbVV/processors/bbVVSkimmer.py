@@ -710,6 +710,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         TODO:
             - Implement the use of pt_shift, mass_shift, skim_vars.
             - Study selection parameters that provide the best sensitivity.
+            - Decide best way to compute vbf variables (vector or by hand)
 
         Args:
             events (ak.Array): Event array.
@@ -776,28 +777,66 @@ class bbVVSkimmer(processor.ProcessorABC):
         vbfJets_mask = ak4_jet_mask & electron_muon_overlap_mask & fatjet_overlap_mask & (np.abs(jets.eta) > 1.5)
         vbfJets = jets[vbfJets_mask]
         
-        
-        
         vbfJets_sorted_pt = vbfJets[ak.argsort(vbfJets.pt,ascending = False)]
         vbfJets_sorted_pt = ak.pad_none(vbfJets_sorted_pt, 2, clip=True) # this is the only which does not guarantee two guys. in the other sorts, the entries are specifically None.
 
         # pt sorted eta and dijet mass mask
-        jj_sorted_pt = vbfJets_sorted_pt[:,0:1] + vbfJets_sorted_pt[:,1:2]
-        mass_jj_cut_sorted_pt = jj_sorted_pt.mass  > 500
-        eta_jj_cut_sorted_pt = np.abs(vbfJets_sorted_pt[:,0:1].eta - vbfJets_sorted_pt[:,1:2].eta)  > 4.0
+        vbf1 = vector.array(
+                {
+                    "pt": ak.flatten(pad_val(vbfJets_sorted_pt[:,0:1].pt, 1, axis=1)),
+                    "phi": ak.flatten(pad_val(vbfJets_sorted_pt[:,0:1].phi, 1, axis=1)),
+                    "eta": ak.flatten(pad_val(vbfJets_sorted_pt[:,0:1].eta, 1, axis=1)),
+                    "M": ak.flatten(pad_val(vbfJets_sorted_pt[:,0:1].mass, 1, axis=1)),
+                }
+            )
+
+        vbf2 = vector.array(
+                {
+                    "pt": ak.flatten(pad_val(vbfJets_sorted_pt[:,1:2].pt, 1, axis=1)),
+                    "phi": ak.flatten(pad_val(vbfJets_sorted_pt[:,1:2].phi, 1, axis=1)),
+                    "eta":ak.flatten(pad_val( vbfJets_sorted_pt[:,1:2].eta, 1, axis=1)),
+                    "M": ak.flatten(pad_val(vbfJets_sorted_pt[:,1:2].mass, 1, axis=1)),
+                }
+            )
+        
+        jj = vbf1 + vbf2
+        
+        mass_jj_cut_sorted_pt = jj.mass  > 500 # we won't need this cut if we have a boosted decision tree.
+        eta_jj_cut_sorted_pt = np.abs(vbf1.eta - vbf2.eta)  > 4.0
         
         vbfJets_mask_sorted_pt = vbfJets_mask * mass_jj_cut_sorted_pt * eta_jj_cut_sorted_pt
         n_good_vbf_jets_sorted_pt = ak.fill_none(ak.sum(vbfJets_mask_sorted_pt, axis=1),0)
         
         
         # add vbf gen quark info
-        if isGen | True: # add | True when debugging with local files
+        if isGen: # add | True when debugging with local files
             vbfGenJets = events.GenPart[events.GenPart.hasFlags(["isHardProcess"])][:, 4:6]
             
             vbfVars[f"vbfptGen"] = pad_val(vbfGenJets.pt, 2, axis=1)
             vbfVars[f"vbfetaGen"] = pad_val(vbfGenJets.eta, 2, axis=1)
             vbfVars[f"vbfphiGen"] = pad_val(vbfGenJets.phi, 2, axis=1)
             vbfVars[f"vbfMGen"] = pad_val(vbfGenJets.mass, 2, axis=1)
+            
+            jet_pairs = ak.cartesian({"reco": vbfJets_sorted_pt[:,0:2], "gen": vbfGenJets[:,0:2]})
+
+            # Calculate delta eta and delta phi for each pair
+            delta_eta = jet_pairs["reco"].eta - jet_pairs["gen"].eta
+            delta_phi = np.pi - np.abs(np.abs(jet_pairs["reco"].phi - jet_pairs["gen"].phi) - np.pi)
+
+            # Calculate delta R for each pair
+            delta_R = np.sqrt(delta_eta**2 + delta_phi**2)
+
+            # Apply a mask for a low delta R value 
+            mask_low_delta_R = delta_R < 0.4
+            num_per_event= ak.sum(mask_low_delta_R, axis=-1) # miscounts 0's since some are empty
+            
+            
+            # Combine masks with logical 'and' operation
+            total_mask = n_good_vbf_jets_sorted_pt > 1
+
+            # set event that fail to have 0 for num of events.
+            num_per_event = ak.where(total_mask, num_per_event, 0)
+            vbfVars[f"vbfNumMatchedGen"] = num_per_event.to_numpy()
             
             # adds data about R1 R2 selection efficiencies.
             graphingR1R2 = False 
@@ -894,26 +933,6 @@ class bbVVSkimmer(processor.ProcessorABC):
             
             
             
-            vbf1 = vbfJets_sorted_pt[:,0:1]
-            vbf2 = vbfJets_sorted_pt[:,1:2]
-            
-            vbf1 = vector.array(
-                {
-                    "pt": ak.flatten(pad_val(vbfJets_sorted_pt[:,0:1].pt, 1, axis=1)),
-                    "phi": ak.flatten(pad_val(vbfJets_sorted_pt[:,0:1].phi, 1, axis=1)),
-                    "eta": ak.flatten(pad_val(vbfJets_sorted_pt[:,0:1].eta, 1, axis=1)),
-                    "M": ak.flatten(pad_val(vbfJets_sorted_pt[:,0:1].mass, 1, axis=1)),
-                }
-            )
-
-            vbf2 = vector.array(
-                {
-                    "pt": ak.flatten(pad_val(vbfJets_sorted_pt[:,1:2].pt, 1, axis=1)),
-                    "phi": ak.flatten(pad_val(vbfJets_sorted_pt[:,1:2].phi, 1, axis=1)),
-                    "eta":ak.flatten(pad_val( vbfJets_sorted_pt[:,1:2].eta, 1, axis=1)),
-                    "M": ak.flatten(pad_val(vbfJets_sorted_pt[:,1:2].mass, 1, axis=1)),
-                }
-            )
             
            
             
@@ -925,8 +944,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
             # ∆R distance between H-VV and the leading VBF-jet: 
             #vbfVars[f"vbf_dR_HVV"] = pad_val(VVJet.delta_r(vbfJets_sorted_pt), 2, axis=1)  
-            print(vbfJets_sorted_pt[:,0:2],len(vbfJets_sorted_pt[:,0:2]))
-            print(bbJet,len(bbJet))
+
             vbfVars[f"vbf_dR_j0_HVV"] = vbf1.deltaR(VVJet)
             vbfVars[f"vbf_dR_j1_HVV"] = vbf2.deltaR(VVJet)
             vbfVars[f"vbf_dR_j0_Hbb"] = vbf1.deltaR(bbJet)
@@ -942,6 +960,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             #print(f"\nTime taken computing jj stuff: {time.time()-start_time:.6f} seconds")
             jj = vbf1 + vbf2
             vbfVars[f"vbf_Mass_jj"] = jj.M
+            print(jj.M[0:10] ,'testing masses to see if we implemented this correctly.')
             vbfVars[f"vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
             
             #print(f"\nTime taken inserting several: {time.time()-start_time:.6f} seconds")
@@ -976,8 +995,8 @@ class bbVVSkimmer(processor.ProcessorABC):
             
             costheta2 = pz2_boosted / np.sqrt(px2_boosted**2 + py2_boosted**2 + pz2_boosted**2)
 
-            vbfVars[f"vbf_cos1_j1"] = np.abs(costheta1)  # may have to treat same as nGoodVBFJets
-            vbfVars[f"vbf_cos1_j2"] = np.abs(costheta2)
+            vbfVars[f"vbf_cos_j1"] = np.abs(costheta1)  # may have to treat same as nGoodVBFJets
+            vbfVars[f"vbf_cos_j2"] = np.abs(costheta2)
             #print(f"\nTime taken computing theta1 and 2: {time.time()-start_time:.6f} seconds")
             
             # # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
