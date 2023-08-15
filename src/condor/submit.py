@@ -43,8 +43,12 @@ def main(args):
     elif args.site == "ucsd":
         t2_local_prefix = "/ceph/cms/"
         t2_prefix = "root://redirector.t2.ucsd.edu:1095"
-        proxy = "/home/users/annava/projects/HHbbVV/test"  # edited this to be this for Andres: grid-proxy-init -debug -verify
-        print(f"given proxy?", proxy)  # debug
+        username = os.environ["USER"]
+        if username == "rkansal":
+            proxy = "/home/users/rkansal/x509up_u31735"
+        elif username == "annava":
+            proxy = "/home/users/annava/projects/HHbbVV/test"
+       
 
     username = os.environ["USER"]
     local_dir = f"condor/{args.processor}/{args.tag}"

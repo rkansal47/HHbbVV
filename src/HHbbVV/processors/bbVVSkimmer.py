@@ -923,128 +923,36 @@ class bbVVSkimmer(processor.ProcessorABC):
             # Adapted from HIG-20-005 ggF_Killer 6.2.2
             # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.PtEtaPhiMLorentzVector.html
             # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.LorentzVector.html
-
-            def to_four_momentum(pt, phi, eta, m):
-                px = pt * np.cos(phi)
-                py = pt * np.sin(phi)
-                pz = pt * np.sinh(eta)
-                E = np.sqrt(m**2 + px**2 + py**2 + pz**2)
-                return E, px, py, pz
-
-            def compute_spatial_part(E, px, py, pz, boost_vector, boost_vector_dot_product):
-                gamma = 1.0 / np.sqrt(1.0 - boost_vector_dot_product)
-
-                # Dot product of momentum and boost vector
-                p_dot_v = px * boost_vector[0] + py * boost_vector[1] + pz * boost_vector[2]
-
-                # Lorentz transformation for the spatial components
-                px_prime = (
-                    px
-                    + (gamma - 1) * p_dot_v * boost_vector[0] / boost_vector_dot_product
-                    - gamma * E * boost_vector[0]
-                )
-                py_prime = (
-                    py
-                    + (gamma - 1) * p_dot_v * boost_vector[1] / boost_vector_dot_product
-                    - gamma * E * boost_vector[1]
-                )
-                pz_prime = (
-                    pz
-                    + (gamma - 1) * p_dot_v * boost_vector[2] / boost_vector_dot_product
-                    - gamma * E * boost_vector[2]
-                )
-
-                return px_prime, py_prime, pz_prime
+            # Adding variables defined in HIG-20-005 that show strong differentiation for VBF signal events and background
 
             # seperation between both ak8 higgs jets
-            # print(f"\nTime taken defining: {time.time()-start_time:.6f} seconds")
-
             vbfVars[f"vbf_dR_HH"] = VVJet.deltaR(
                 bbJet
-            )  # may have to treat same as nGoodVBFJets. same holds for other 1d arrays
-            # print(f"\nTime after inserting one item: {time.time()-start_time:.6f} seconds")
-
-            # ∆R distance between H-VV and the leading VBF-jet:
-            # vbfVars[f"vbf_dR_HVV"] = pad_val(VVJet.delta_r(vbfJets_sorted_pt), 2, axis=1)
+            )   
 
             vbfVars[f"vbf_dR_j0_HVV"] = vbf1.deltaR(VVJet)
             vbfVars[f"vbf_dR_j1_HVV"] = vbf2.deltaR(VVJet)
             vbfVars[f"vbf_dR_j0_Hbb"] = vbf1.deltaR(bbJet)
             vbfVars[f"vbf_dR_j1_Hbb"] = vbf2.deltaR(bbJet)
-
             vbfVars[f"vbf_dR_jj"] = vbf1.deltaR(vbf2)
-            # print(f"\nTime aftter first using vbf1: {time.time()-start_time:.6f} seconds")
-            # vbfVars[f"vbf_dR_HVV_j0"] = VVJet.deltaR(vbf1)  # probably not necessary since we can just reverse order
-            # vbfVars[f"vbf_dR_HVV_j1"] = VVJet.deltaR(vbf2)
-            # vbfVars[f"vbf_dR_Hbb_j0"] = bbJet.deltaR(vbf1)
-            # vbfVars[f"vbf_dR_Hbb_j1"] = bbJet.deltaR(vbf2)
-
-            # print(f"\nTime taken computing jj stuff: {time.time()-start_time:.6f} seconds")
-            jj = vbf1 + vbf2
             vbfVars[f"vbf_Mass_jj"] = jj.M
-            print(jj.M[0:10], "testing masses to see if we implemented this correctly.")
             vbfVars[f"vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
-
-            # print(f"\nTime taken inserting several: {time.time()-start_time:.6f} seconds")
-
-            # trying to compute j1_CMF stuff manually since system_4vec is very slow to use.
+            
             # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
-            # for each of the four particles of interest convert to 4momentum
-
-            E1, px1, py1, pz1 = to_four_momentum(vbf1.pt, vbf1.phi, vbf1.eta, vbf1.M)
-            E2, px2, py2, pz2 = to_four_momentum(vbf2.pt, vbf2.phi, vbf2.eta, vbf2.M)
-            EVV, pxVV, pyVV, pzVV = to_four_momentum(VVJet.pt, VVJet.phi, VVJet.eta, VVJet.M)
-            Ebb, pxbb, pybb, pzbb = to_four_momentum(bbJet.pt, bbJet.phi, bbJet.eta, bbJet.M)
-            total_E = EVV + Ebb + E1 + E2
-            total_px = pxVV + pxbb + px1 + px2
-            total_py = pyVV + pybb + py1 + py2
-            total_pz = pzVV + pzbb + pz1 + pz2
-            CM_boost_vector = np.array([total_px / total_E, total_py / total_E, total_pz / total_E])
-            boost_vector_dot_product = (
-                CM_boost_vector[0] ** 2 + CM_boost_vector[1] ** 2 + CM_boost_vector[2] ** 2
-            )
-
-            # print(f"\nTime taken defining cm boost manual: {time.time()-start_time:.6f} seconds")
-
-            # use this boost vector to lorentz transform vbf1 and vbf2's eta
-
-            # print(f"\nTime taken dot product: {time.time()-start_time:.6f} seconds")
-            px1_boosted, py1_boosted, pz1_boosted = compute_spatial_part(
-                E1, px1, py1, pz1, CM_boost_vector, boost_vector_dot_product
-            )
-            px2_boosted, py2_boosted, pz2_boosted = compute_spatial_part(
-                E2, px2, py2, pz2, CM_boost_vector, boost_vector_dot_product
-            )
-            # print(f"\nTime taken computing boost: {time.time()-start_time:.6f} seconds")
-
-            costheta1 = pz1_boosted / np.sqrt(
-                px1_boosted**2 + py1_boosted**2 + pz1_boosted**2
-            )
-
-            costheta2 = pz2_boosted / np.sqrt(
-                px2_boosted**2 + py2_boosted**2 + pz2_boosted**2
-            )
-
-            vbfVars[f"vbf_cos_j1"] = np.abs(costheta1)  # may have to treat same as nGoodVBFJets
-            vbfVars[f"vbf_cos_j2"] = np.abs(costheta2)
-            # print(f"\nTime taken computing theta1 and 2: {time.time()-start_time:.6f} seconds")
-
-            # # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
-            # system_4vec = vbf1 + vbf2 + VVJet + bbJet # this boost is not along beam line unfortunately possibly bc of missing energy or somth?
-            # print(f"\nTime taken defining system vector: {time.time()-start_time:.6f} seconds")
-            # #print(f'system: {system_4vec}, {system_4vec.eta} vb1: {vbf1}, {vbf1.eta} boosted vbf1: vb1: {vbf1.boostCM_of_p4(system_4vec)}, {vbf1.boostCM_of_p4(system_4vec).eta}')
-            # j1_CMF = vbf1.boostCM_of_p4(system_4vec) # this is very likely to fail in which case we can manually compute the boost. if it does work maybe we can combine both into 1.
-            # #or we can also define it same as VVJet and bbJet
-            # thetab1 = 2*np.arctan(np.exp(-j1_CMF.eta))
-            # thetab1 = np.cos(thetab1) # 12
-            # vbfVars[f"vbf_cos_j1"] = thetab1    # may have to treat same as nGoodVBFJets
-            # # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
-            # j2_CMF = vbf2.boostCM_of_p4(system_4vec)
-            # thetab2 = 2*np.arctan(np.exp(-j2_CMF.eta))
-            # thetab2 = np.cos(thetab2) # 13
-            # vbfVars[f"vbf_cos_j2"] =  thetab2
-
-            # print(f"\nTime taken computing thetas: {time.time()-start_time:.6f} seconds")
+            # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
+            system_4vec = vbf1 + vbf2 + VVJet + bbJet  
+            j1_CMF = vbf1.boostCM_of_p4(system_4vec)  
+            
+            # Leading VBF-jet cos(θ) in the HH+2j center of mass frame:
+            thetab1 = 2*np.arctan(np.exp(-j1_CMF.eta))
+            thetab1 = np.cos(thetab1) # 12
+            vbfVars[f"vbf_cos_j1"] = np.abs(thetab1)   
+     
+            # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
+            j2_CMF = vbf2.boostCM_of_p4(system_4vec)
+            thetab2 = 2*np.arctan(np.exp(-j2_CMF.eta))
+            thetab2 = np.cos(thetab2) 
+            vbfVars[f"vbf_cos_j2"] =  np.abs(thetab2)
 
             # H1-centrality * H2-centrality:
             delta_eta = vbf1.eta - vbf2.eta
@@ -1054,8 +962,6 @@ class bbVVSkimmer(processor.ProcessorABC):
                 - np.power((bbJet.eta - avg_eta) / delta_eta, 2)
             )
             vbfVars[f"vbf_prod_centrality"] = prod_centrality
-
-            # print(f"\nTime taken computing product centraliy: {time.time()-start_time:.6f} seconds")
 
         return vbfVars
 
