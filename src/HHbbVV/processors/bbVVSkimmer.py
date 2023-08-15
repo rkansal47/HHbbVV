@@ -917,18 +917,13 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         adding_bdt_vars = True
         if adding_bdt_vars == True:
-            import time
-
-            # start_time = time.time()
             # Adapted from HIG-20-005 ggF_Killer 6.2.2
             # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.PtEtaPhiMLorentzVector.html
             # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.LorentzVector.html
             # Adding variables defined in HIG-20-005 that show strong differentiation for VBF signal events and background
 
             # seperation between both ak8 higgs jets
-            vbfVars[f"vbf_dR_HH"] = VVJet.deltaR(
-                bbJet
-            )   
+            vbfVars[f"vbf_dR_HH"] = VVJet.deltaR(bbJet)
 
             vbfVars[f"vbf_dR_j0_HVV"] = vbf1.deltaR(VVJet)
             vbfVars[f"vbf_dR_j1_HVV"] = vbf2.deltaR(VVJet)
@@ -937,22 +932,22 @@ class bbVVSkimmer(processor.ProcessorABC):
             vbfVars[f"vbf_dR_jj"] = vbf1.deltaR(vbf2)
             vbfVars[f"vbf_Mass_jj"] = jj.M
             vbfVars[f"vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
-            
+
             # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
             # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
-            system_4vec = vbf1 + vbf2 + VVJet + bbJet  
-            j1_CMF = vbf1.boostCM_of_p4(system_4vec)  
-            
+            system_4vec = vbf1 + vbf2 + VVJet + bbJet
+            j1_CMF = vbf1.boostCM_of_p4(system_4vec)
+
             # Leading VBF-jet cos(θ) in the HH+2j center of mass frame:
-            thetab1 = 2*np.arctan(np.exp(-j1_CMF.eta))
-            thetab1 = np.cos(thetab1) # 12
-            vbfVars[f"vbf_cos_j1"] = np.abs(thetab1)   
-     
+            thetab1 = 2 * np.arctan(np.exp(-j1_CMF.eta))
+            thetab1 = np.cos(thetab1)  # 12
+            vbfVars[f"vbf_cos_j1"] = np.abs(thetab1)
+
             # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
             j2_CMF = vbf2.boostCM_of_p4(system_4vec)
-            thetab2 = 2*np.arctan(np.exp(-j2_CMF.eta))
-            thetab2 = np.cos(thetab2) 
-            vbfVars[f"vbf_cos_j2"] =  np.abs(thetab2)
+            thetab2 = 2 * np.arctan(np.exp(-j2_CMF.eta))
+            thetab2 = np.cos(thetab2)
+            vbfVars[f"vbf_cos_j2"] = np.abs(thetab2)
 
             # H1-centrality * H2-centrality:
             delta_eta = vbf1.eta - vbf2.eta
