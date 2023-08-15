@@ -31,6 +31,7 @@ def write_template(templ_file: str, out_file: str, templ_args: dict):
 
 
 def main(args):
+    username = os.environ["USER"]
     if args.site == "lpc":
         t2_local_prefix = "/eos/uscms/"
         t2_prefix = "root://cmseos.fnal.gov"
@@ -43,14 +44,12 @@ def main(args):
     elif args.site == "ucsd":
         t2_local_prefix = "/ceph/cms/"
         t2_prefix = "root://redirector.t2.ucsd.edu:1095"
-        username = os.environ["USER"]
         if username == "rkansal":
             proxy = "/home/users/rkansal/x509up_u31735"
         elif username == "annava":
             proxy = "/home/users/annava/projects/HHbbVV/test"
-       
-
-    username = os.environ["USER"]
+    
+    
     local_dir = f"condor/{args.processor}/{args.tag}"
     homedir = f"/store/user/{username}/bbVV/{args.processor}/"
     outdir = homedir + args.tag + "/"
