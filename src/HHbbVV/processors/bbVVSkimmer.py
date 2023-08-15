@@ -801,10 +801,10 @@ class bbVVSkimmer(processor.ProcessorABC):
         
         jj = vbf1 + vbf2
         
-        mass_jj_cut_sorted_pt = jj.mass  > 500 # we won't need this cut if we have a boosted decision tree.
+        mass_jj_cut_sorted_pt = jj.mass  > 500 
         eta_jj_cut_sorted_pt = np.abs(vbf1.eta - vbf2.eta)  > 4.0
         
-        vbfJets_mask_sorted_pt = vbfJets_mask * mass_jj_cut_sorted_pt * eta_jj_cut_sorted_pt
+        vbfJets_mask_sorted_pt = vbfJets_mask #* mass_jj_cut_sorted_pt * eta_jj_cut_sorted_pt # uncomment these last two to include dijet cuts
         n_good_vbf_jets_sorted_pt = ak.fill_none(ak.sum(vbfJets_mask_sorted_pt, axis=1),0)
         
         
@@ -940,7 +940,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             #print(f"\nTime taken defining: {time.time()-start_time:.6f} seconds")
             
             vbfVars[f"vbf_dR_HH"] = VVJet.deltaR(bbJet)  # may have to treat same as nGoodVBFJets. same holds for other 1d arrays
-            #print(f"\nTime aftter inserting one item: {time.time()-start_time:.6f} seconds")
+            #print(f"\nTime after inserting one item: {time.time()-start_time:.6f} seconds")
 
             # ∆R distance between H-VV and the leading VBF-jet: 
             #vbfVars[f"vbf_dR_HVV"] = pad_val(VVJet.delta_r(vbfJets_sorted_pt), 2, axis=1)  
