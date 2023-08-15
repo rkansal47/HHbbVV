@@ -48,7 +48,6 @@ def main(args):
             proxy = "/home/users/rkansal/x509up_u31735"
         elif username == "annava":
             proxy = "/home/users/annava/projects/HHbbVV/test"
-       
 
     username = os.environ["USER"]
     local_dir = f"condor/{args.processor}/{args.tag}"
