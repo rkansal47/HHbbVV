@@ -118,7 +118,13 @@ class bbVVSkimmer(processor.ProcessorABC):
         min_branches.append(f"DijetMass_{shift}")
 
     def __init__(
-        self, xsecs={}, save_ak15=False, save_systematics=True, inference=True, save_all=True,vbf_search = False
+        self,
+        xsecs={},
+        save_ak15=False,
+        save_systematics=True,
+        inference=True,
+        save_all=True,
+        vbf_search=False,
     ):
         super(bbVVSkimmer, self).__init__()
 
@@ -133,7 +139,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         # save all branches or only necessary ones
         self._save_all = save_all
-        
+
         # search for VBF production events
         self._vbf_search = vbf_search
 
@@ -779,11 +785,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         )  # this might not work due to types
 
         # Apply base masks, sort, and calculate vbf dijet (jj) cuts
-        vbfJets_mask = (
-            ak4_jet_mask
-            & electron_muon_overlap_mask
-            & fatjet_overlap_mask
-        )
+        vbfJets_mask = ak4_jet_mask & electron_muon_overlap_mask & fatjet_overlap_mask
         vbfJets = jets[vbfJets_mask]
 
         vbfJets_sorted_pt = vbfJets[ak.argsort(vbfJets.pt, ascending=False)]

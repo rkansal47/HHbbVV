@@ -182,4 +182,6 @@ def parse_common_args(parser):
     add_bool_arg(parser, "save-systematics", default=False, help="save systematic variations")
     add_bool_arg(parser, "save-all", default=True, help="save all branches")
     add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
-    add_bool_arg(parser, "vbf-search", default=False, help="run selections for VBF production search")
+    add_bool_arg(
+        parser, "vbf-search", default=False, help="run selections for VBF production search"
+    )
