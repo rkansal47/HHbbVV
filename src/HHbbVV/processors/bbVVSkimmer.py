@@ -118,7 +118,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         min_branches.append(f"DijetMass_{shift}")
 
     def __init__(
-        self, xsecs={}, save_ak15=False, save_systematics=True, inference=True, save_all=True
+        self, xsecs={}, save_ak15=False, save_systematics=True, inference=True, save_all=True,vbf_search = False
     ):
         super(bbVVSkimmer, self).__init__()
 
@@ -133,6 +133,9 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         # save all branches or only necessary ones
         self._save_all = save_all
+        
+        # search for VBF production events
+        self._vbf_search = vbf_search
 
         # for tagger model and preprocessing dict
         self.tagger_resources_path = (
@@ -142,7 +145,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         self._accumulator = processor.dict_accumulator({})
 
         logger.info(
-            f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all}"
+            f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all} and VBF search {self._vbf_search}"
         )
 
     def to_pandas(self, events: Dict[str, np.array]):
@@ -188,7 +191,6 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         isData = "JetHT" in dataset
         isQCD = "QCD" in dataset
-        isVBFSearch = True
         isSignal = (
             "GluGluToHHTobbVV" in dataset
             or "XToYHTo2W2BTo4Q2B" in dataset
@@ -295,7 +297,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 }
 
         # VBF ak4 Jet vars (pt, eta, phi, M, nGoodJets)
-        if isVBFSearch:
+        if self._vbf_search:
             ak4JetVars = {
                 **self.getVBFVars(events, ak8FatJetVars, bb_mask, isGen="VBF_HHTobbVV" in dataset)
             }
@@ -781,7 +783,6 @@ class bbVVSkimmer(processor.ProcessorABC):
             ak4_jet_mask
             & electron_muon_overlap_mask
             & fatjet_overlap_mask
-            & (np.abs(jets.eta) > 1.5)
         )
         vbfJets = jets[vbfJets_mask]
 
