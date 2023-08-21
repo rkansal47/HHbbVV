@@ -31,6 +31,7 @@ def write_template(templ_file: str, out_file: str, templ_args: dict):
 
 
 def main(args):
+    username = os.environ["USER"]
     if args.site == "lpc":
         t2_local_prefix = "/eos/uscms/"
         t2_prefix = "root://cmseos.fnal.gov"
@@ -43,9 +44,11 @@ def main(args):
     elif args.site == "ucsd":
         t2_local_prefix = "/ceph/cms/"
         t2_prefix = "root://redirector.t2.ucsd.edu:1095"
-        proxy = "/home/users/rkansal/x509up_u31735"
+        if username == "rkansal":
+            proxy = "/home/users/rkansal/x509up_u31735"
+        elif username == "annava":
+            proxy = "/home/users/annava/projects/HHbbVV/test"
 
-    username = os.environ["USER"]
     local_dir = f"condor/{args.processor}/{args.tag}"
     homedir = f"/store/user/{username}/bbVV/{args.processor}/"
     outdir = homedir + args.tag + "/"
@@ -105,6 +108,7 @@ def main(args):
                     "eosoutroot": f"{eosoutput_dir}/root/nano_skim_{j}.root",
                     "save_ak15": "--save-ak15" if args.save_ak15 else "--no-save-ak15",
                     "save_all": "--save-all" if args.save_all else "--no-save-all",
+                    "save_all": "--vbf-search" if args.vbf_search else "--no-vbf-search",
                     "save_systematics": "--save-systematics"
                     if args.save_systematics
                     else "--no-save-systematics",

@@ -55,6 +55,9 @@ src/HHbbVV/postprocessing/outs
 !src/HHbbVV/tagger
 !src/HHbbVV/tagger/**
 
+!src/HHbbVV/VBF_binder
+!src/HHbbVV/VBF_binder/**
+
 !data
 !data/*
 !data/*/**
