@@ -138,6 +138,7 @@ def main(args):
         args.save_systematics,
         args.inference,
         args.save_all,
+        args.vbf_search,
     )
 
     if len(args.files):
