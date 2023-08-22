@@ -98,6 +98,8 @@ class bbVVSkimmer(processor.ProcessorABC):
 
     # only the branches necessary for templates and post processing
     min_branches = [
+        "ak8FatJetPhi",
+        "ak8FatJetEta",
         "ak8FatJetPt",
         "ak8FatJetMsd",
         "ak8FatJetParticleNetMass",
@@ -107,6 +109,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         "ak8FatJetHVVNumProngs",
         "ak8FatJetParticleNetMD_Txbb",
         "VVFatJetParTMD_THWWvsT",
+        "MET_pt",
+        "MET_phi",
     ]
 
     for shift in jec_shifts:
