@@ -1,6 +1,0 @@
-coffea==0.7.21
-black
-pre-commit
-tritonclient[all]
-fastjet==3.4.02
-xrootd==5.4.0

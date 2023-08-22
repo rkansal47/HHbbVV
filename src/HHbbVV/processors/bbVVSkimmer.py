@@ -80,7 +80,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             "particleNet_mass": "ParticleNetMass",
         },
         "GenHiggs": P4,
-        "other": {"MET_pt": "MET_pt"},
+        "other": {"MET_pt": "MET_pt", "MET_phi": "MET_phi"},
     }
 
     preselection = {
