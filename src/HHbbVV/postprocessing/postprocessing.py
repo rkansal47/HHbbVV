@@ -124,17 +124,19 @@ old_filters = [
 
 # {var: (bins, label)}
 control_plot_vars = {
-    # "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
+    "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
     # "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
     # "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
     # "DijetMass": ([50, 500, 3000], r"$m^{jj}$ (GeV)"),
-    # "bbFatJetEta": ([50, -2.4, 2.4], r"$\eta^{bb}$"),
-    # "bbFatJetPt": ([50, 300, 1300], r"$p^{bb}_T$ (GeV)"),
+    "bbFatJetPhi": ([50, -2.4, 2.4], r"$\varphi^{bb}$"),
+    "bbFatJetEta": ([50, -2.4, 2.4], r"$\eta^{bb}$"),
+    "bbFatJetPt": ([50, 300, 1300], r"$p^{bb}_T$ (GeV)"),
     # "bbFatJetParticleNetMass": ([50, 0, 300], r"$m^{bb}_{reg}$ (GeV)"),
     # "bbFatJetMsd": ([50, 0, 300], r"$m^{bb}_{msd}$ (GeV)"),
     # "bbFatJetParticleNetMD_Txbb": ([50, 0.8, 1], r"$p^{bb}_{Txbb}$"),
-    # "VVFatJetEta": ([50, -2.4, 2.4], r"$\eta^{VV}$"),
-    # "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$ (GeV)"),
+    "VVFatJetPhi": ([50, -2.4, 2.4], r"$\varphi^{VV}$"),
+    "VVFatJetEta": ([50, -2.4, 2.4], r"$\eta^{VV}$"),
+    "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$ (GeV)"),
     # "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$ (GeV)"),
     # "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$ (GeV)"),
     # "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)"),
@@ -149,7 +151,7 @@ control_plot_vars = {
     # "nGoodMuons": ([3, 0, 3], r"# of Muons"),
     # "nGoodElectrons": ([3, 0, 3], r"# of Electrons"),
     # "nGoodJets": ([5, 0, 5], r"# of AK4 B-Jets"),
-    "BDTScore": ([50, 0, 1], r"BDT Score"),
+    # "BDTScore": ([50, 0, 1], r"BDT Score"),
 }
 
 

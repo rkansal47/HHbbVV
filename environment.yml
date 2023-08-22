@@ -4,8 +4,11 @@ channels:
 dependencies:
   - python=3.9
   - coffea=0.7.21
-  - fastjet=3.4.0.2
   - xrootd=5.4.0
-  - tritonclient[all]
-  - pre-commit
-  - black
+  - pip
+  - pip:
+      - fastjet=3.4.0.1  # pre awkward v2, but doesn't work on mac!
+      - pre-commit
+      - black
+      - pyyaml
+      - tritonclient[all]

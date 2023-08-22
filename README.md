@@ -35,6 +35,10 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [CMSSW + Combine Quickstart](#cmssw--combine-quickstart)
     - [Run fits and diagnostics locally](#run-fits-and-diagnostics-locally)
     - [Run fits on condor](#run-fits-on-condor)
+      - [Making datacards](#making-datacards)
+      - [F-tests](#f-tests)
+      - [Impacts](#impacts)
+      - [Signal injection tests](#signal-injection-tests)
   - [Misc](#misc)
     - [Command for copying directories to PRP in background](#command-for-copying-directories-to-prp-in-background)
     - [Get all running condor job names:](#get-all-running-condor-job-names)
@@ -67,7 +71,7 @@ For testing locally, it is recommended to use miniconda/mamba (**mamba is way fa
 ./Mambaforge-Linux-x86_64.sh  # follow instructions in the installation
 mamba create -n bbVV python=3.9
 mamba activate bbVV
-pip install coffea "tritonclient[all]"
+pip install coffea "tritonclient[all]" pyyaml
 mamba install -c conda-forge xrootd=5.4.0  # need openssl v1.1 for lxplus and UCSD t2, hence pinning xrootd version.
 ```
 
