@@ -113,6 +113,7 @@ def get_processor(
     save_systematics: bool = None,
     inference: bool = None,
     save_all: bool = None,
+    vbf_search: bool = None,
 ):
     # define processor
     if processor == "trigger":
@@ -132,6 +133,7 @@ def get_processor(
             save_systematics=save_systematics,
             inference=inference,
             save_all=save_all,
+            vbf_search=vbf_search,
         )
     elif processor == "input":
         from HHbbVV.processors import TaggerInputSkimmer
@@ -186,3 +188,6 @@ def parse_common_args(parser):
     add_bool_arg(parser, "save-systematics", default=False, help="save systematic variations")
     add_bool_arg(parser, "save-all", default=True, help="save all branches")
     add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
+    add_bool_arg(
+        parser, "vbf-search", default=False, help="run selections for VBF production search"
+    )
