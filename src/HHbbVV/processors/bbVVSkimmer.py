@@ -397,6 +397,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # 2018 HEM cleaning
         # https://indico.cern.ch/event/1249623/contributions/5250491/attachments/2594272/4477699/HWW_0228_Draft.pdf
         if year == "2018":
+            check_fatjets = events.FatJet[:, :2]
             hem_cleaning = (
                 ((events.run >= 319077) & isData)  # if data check if in Runs C or D
                 # else for MC randomly cut based on lumi fraction of C&D
@@ -404,18 +405,18 @@ class bbVVSkimmer(processor.ProcessorABC):
             ) & (
                 ak.any(
                     (
-                        (events.Jet.pt > 30.0)
-                        & (events.Jet.eta > -3.2)
-                        & (events.Jet.eta < -1.3)
-                        & (events.Jet.phi > -1.57)
-                        & (events.Jet.phi < -0.87)
+                        (check_fatjets.pt > 30.0)
+                        & (check_fatjets.eta > -3.2)
+                        & (check_fatjets.eta < -1.3)
+                        & (check_fatjets.phi > -1.57)
+                        & (check_fatjets.phi < -0.87)
                     ),
                     -1,
                 )
                 | ((events.MET.phi > -1.62) & (events.MET.pt < 470.0) & (events.MET.phi < -0.62))
             )
 
-            add_selection("hem_cleaning", ~hem_cleaning, *selection_args)
+            add_selection("hem_cleaning", ~np.array(hem_cleaning).astype(bool), *selection_args)
 
         # remove weird jets which have <4 particles (due to photon scattering?)
         pfcands_sel = []
@@ -578,7 +579,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Lund plane SFs
         ################
 
-        if isSignal:
+        if isSignal and self._systematics:
             # TODO: remember to add new LP variables
             items = [
                 ("lp_sf_lnN", 101),
