@@ -34,7 +34,6 @@ def add_bool_arg(parser, name, help, default=False, no_name=None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     run_utils.parse_common_args(parser)
-    parser.add_argument("--tag", default="Test", help="process tag", type=str)
     parser.add_argument("--jet", default="AK8", help="jet", type=str)
     parser.add_argument(
         "--submit", dest="submit", action="store_true", help="submit jobs when created"
