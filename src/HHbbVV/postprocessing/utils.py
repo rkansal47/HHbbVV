@@ -144,6 +144,32 @@ def check_selector(sample: str, selector: Union[str, List[str]]):
     return False
 
 
+def _hem_cleaning(sample, events):
+    if sample.startswith("JetHT") or sample.startswith("SingleMuon"):
+        if sample.endswith("2018C") or sample.endswith("2018D"):
+            hem_cut = np.any(
+                (events["ak8FatJetEta"] > -3.2)
+                * (events["ak8FatJetEta"] < -1.3)
+                * (events["ak8FatJetPhi"] > -1.57)
+                * (events["ak8FatJetPhi"] < -0.87),
+                axis=1,
+            )
+            print(f"Removing {np.sum(hem_cut)} events")
+            return events[~hem_cut]
+        else:
+            return events
+    else:
+        hem_cut = np.any(
+            (events["ak8FatJetEta"] > -3.2)
+            * (events["ak8FatJetEta"] < -1.3)
+            * (events["ak8FatJetPhi"] > -1.57)
+            * (events["ak8FatJetPhi"] < -0.87),
+            axis=1,
+        ) * (np.random.rand(len(events)) < 0.632)
+        print(f"Removing {np.sum(hem_cut)} events")
+        return events[~hem_cut]
+
+
 def load_samples(
     data_dir: str,
     samples: Dict[str, str],
@@ -212,6 +238,9 @@ def load_samples(
                         events["finalWeight_noTrigEffs"] = events["weight_noTrigEffs"] / n_events
                     else:
                         events["weight"] /= n_events
+
+            if year == "2018":
+                events = _hem_cleaning(sample, events)
 
             if not_empty:
                 events_dict[label].append(events)
