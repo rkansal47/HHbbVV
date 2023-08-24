@@ -28,6 +28,7 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [BDT Pre-Processing](#bdt-pre-processing)
     - [BDT Trainings](#bdt-trainings)
     - [Post-Processing](#post-processing-1)
+      - [Control plots with resonant and nonresonant samples](#control-plots-with-resonant-and-nonresonant-samples)
       - [Making separate background and signal templates for scan (resonant)](#making-separate-background-and-signal-templates-for-scan-resonant)
     - [Create Datacard](#create-datacard)
     - [PlotFits](#plotfits)
@@ -41,6 +42,7 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
       - [Signal injection tests](#signal-injection-tests)
   - [Misc](#misc)
     - [Command for copying directories to PRP in background](#command-for-copying-directories-to-prp-in-background)
+    - [Command for copying res samples to my laptop](#command-for-copying-res-samples-to-my-laptop)
     - [Get all running condor job names:](#get-all-running-condor-job-names)
     - [Crab data jobs recovery](#crab-data-jobs-recovery)
 
@@ -270,6 +272,11 @@ Scan (non-resonant):
 for year in 2016 2016APV 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" --old-processor --nonres-txbb-wp "LP" "MP" "HP" --nonres-bdt-wp 0.995 0.998 0.999 --no-do-jshifts; done
 ```
 
+#### Control plots with resonant and nonresonant samples
+
+Run `postprocessing/bash_scripts/ControlPlots.sh` from inside `postprocessing folder`.
+
+
 #### Making separate background and signal templates for scan (resonant)
 
 Background and data:
@@ -283,6 +290,7 @@ Signal:
 ```bash
 nohup bash -c 'for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250; do for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/$TAG/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --signal-data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Apr11" --resonant --sig-samples $sample --bg-keys "" --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name $sample --no-data; done; done' &> outs/sigout.txt & 
 ```
+
 
 ### Create Datacard
 
@@ -415,6 +423,12 @@ done
 cd ~/eos/bbVV/input/${TAG}_${JETS}/2017
 mkdir ../copy_logs
 for i in *; do echo $i && sleep 3 && (nohup sh -c "krsync -av --progress --stats $i/root/ $HWWTAGGERDEP_POD:/hwwtaggervol/training/$FOLDER/$i" &> ../copy_logs/$i.txt &) done
+```
+
+### Command for copying res samples to my laptop
+
+```bash
+for sample in 'NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80' 'NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190' 'NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125' 'NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250' 'NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150'; do for year in 2016APV 2016 2017 2018; do rsync -avP rkansal@cmslpc-sl7.fnal.gov:eos/bbVV/skimmer/Apr11/$year/$sample data/skimmer/Apr11/$year/; done; done
 ```
 
 

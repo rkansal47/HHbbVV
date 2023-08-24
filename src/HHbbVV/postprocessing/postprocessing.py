@@ -124,19 +124,19 @@ old_filters = [
 
 # {var: (bins, label)}
 control_plot_vars = {
-    "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
+    "MET_pt": ([40, 0, 320], r"$p^{miss}_T$ (GeV)"),
     # "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
     # "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
     # "DijetMass": ([50, 500, 3000], r"$m^{jj}$ (GeV)"),
-    "bbFatJetPhi": ([50, -2.4, 2.4], r"$\varphi^{bb}$"),
-    "bbFatJetEta": ([50, -2.4, 2.4], r"$\eta^{bb}$"),
-    "bbFatJetPt": ([50, 300, 1300], r"$p^{bb}_T$ (GeV)"),
+    "bbFatJetPhi": ([40, -3.5, 3.5], r"$\varphi^{bb}$"),
+    "bbFatJetEta": ([40, -3, 3], r"$\eta^{bb}$"),
+    "bbFatJetPt": ([40, 300, 2300], r"$p^{bb}_T$ (GeV)"),  # TODO: increase bin widths, x max
     # "bbFatJetParticleNetMass": ([50, 0, 300], r"$m^{bb}_{reg}$ (GeV)"),
     # "bbFatJetMsd": ([50, 0, 300], r"$m^{bb}_{msd}$ (GeV)"),
     # "bbFatJetParticleNetMD_Txbb": ([50, 0.8, 1], r"$p^{bb}_{Txbb}$"),
-    "VVFatJetPhi": ([50, -2.4, 2.4], r"$\varphi^{VV}$"),
-    "VVFatJetEta": ([50, -2.4, 2.4], r"$\eta^{VV}$"),
-    "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$ (GeV)"),
+    "VVFatJetPhi": ([40, -3.5, 3.5], r"$\varphi^{VV}$"),
+    "VVFatJetEta": ([40, -3, 3], r"$\eta^{VV}$"),
+    "VVFatJetPt": ([40, 300, 2300], r"$p^{VV}_T$ (GeV)"),
     # "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$ (GeV)"),
     # "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$ (GeV)"),
     # "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)"),
@@ -257,7 +257,7 @@ def get_res_selection_regions(
 nonres_shape_vars = [
     ShapeVar(
         "bbFatJetParticleNetMass",
-        r"$m^{bb}_{Reg}$ (GeV)",
+        r"$m^{bb}_\mathrm{Reg}$ (GeV)",
         [20, 50, 250],
         reg=True,
         blind_window=[100, 150],
@@ -269,7 +269,7 @@ nonres_shape_vars = [
 res_shape_vars = [
     ShapeVar(
         "VVFatJetParticleNetMass",
-        r"$m^{VV}_{Reg}$ (GeV)",
+        r"$m^{VV}_\mathrm{Reg}$ (GeV)",
         list(range(50, 110, 10)) + list(range(110, 200, 15)) + [200, 220, 250],
         reg=False,
     ),
@@ -323,12 +323,12 @@ def main(args):
 
     bb_masks = bb_VV_assignment(events_dict)
 
-    if "finalWeight_noTrigEffs" not in events_dict[list(events_dict.keys())[0]]:
-        # trigger effs (if not already from processor)
-        apply_weights(events_dict, args.year, cutflow)
-        print("\nCutflow\n", cutflow)
-        # THWW score vs Top (if not already from processor)
-        derive_variables(events_dict)
+    # trigger effs and QCD scale (if not already from processor)
+    apply_weights(events_dict, args.year, cutflow)
+    print("\nCutflow\n", cutflow)
+
+    # THWW score vs Top (if not already from processor)
+    derive_variables(events_dict)
 
     if args.plot_dir != "":
         cutflow.to_csv(f"{args.plot_dir}/preselection_cutflow.csv")
@@ -349,6 +349,7 @@ def main(args):
     # Control plots
     if args.control_plots:
         print("\nMaking control plots\n")
+
         control_plots(
             events_dict,
             bb_masks,
@@ -356,6 +357,8 @@ def main(args):
             control_plot_vars,
             f"{args.plot_dir}/ControlPlots/",
             args.year,
+            bg_keys=args.bg_keys,
+            sig_scale_dict={"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | {key: 2e4 for key in res_sig_keys},
             # sig_splits=sig_splits,
             show=False,
         )
@@ -390,7 +393,7 @@ def main(args):
                 args.bdt_preds_dir,
                 template_dir,
                 systs_file,
-                args.signal_data_dir,
+                args.signal_data_dirs[0],
             )
 
             # Check for 0 weights - would be an issue for weight shifts
@@ -424,6 +427,7 @@ def main(args):
                     jshift=jshift,
                     blind_pass=True if args.resonant else False,
                     show=False,
+                    hists_HEM2d=args.HEM2d,
                     plot_shifts=args.plot_shifts,
                 )
                 templates = {**templates, **temps}
@@ -466,7 +470,7 @@ def _process_samples(args, BDT_sample_order: List[str] = None):
     if args.read_sig_samples:
         # read all signal samples in directory
         read_year = args.year if args.year != "all" else "2017"
-        read_samples = os.listdir(f"{args.signal_data_dir}/{args.year}")
+        read_samples = os.listdir(f"{args.signal_data_dirs[0]}/{args.year}")
         sig_samples = OrderedDict()
         for sample in read_samples:
             if sample.startswith("NMSSM_XToYHTo2W2BTo4Q2B_MX-"):
@@ -479,6 +483,24 @@ def _process_samples(args, BDT_sample_order: List[str] = None):
         for sig_key, sample in list(sig_samples.items()):
             if sample not in args.sig_samples:
                 del sig_samples[sig_key]
+
+        # can load in nonres samples for control plots
+        for sample in args.sig_samples:
+            if sample in nonres_samples:
+                sig_samples[sample] = nonres_samples[sample]
+
+        # re-order acording to input ordering
+        tsig_samples = OrderedDict()
+        for sample in args.sig_samples:
+            if sample in sig_samples:
+                # if sample is a key, get it directly
+                tsig_samples[sample] = sig_samples[sample]
+            else:
+                # else if it is a value, have to find corresponding key
+                key = [key for key, value in sig_samples.items() if value == sample][0]
+                tsig_samples[key] = sample
+
+        sig_samples = tsig_samples
 
     bg_samples = deepcopy(samples)
     for bg_key, sample in list(bg_samples.items()):
@@ -564,7 +586,10 @@ def _load_samples(args, samples, sig_samples, cutflow, filters=None):
     if filters is None:
         filters = old_filters if args.old_processor else new_filters
 
-    events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
+    events_dict = {}
+    for d in args.signal_data_dirs:
+        events_dict = {**events_dict, **utils.load_samples(d, sig_samples, args.year, filters)}
+
     if args.data_dir:
         events_dict = {
             **events_dict,
@@ -589,7 +614,6 @@ def apply_weights(
     events_dict: Dict[str, pd.DataFrame],
     year: str,
     cutflow: pd.DataFrame = None,
-    weight_key: str = "finalWeight",
 ):
     """
     Applies (1) 2D trigger scale factors, (2) QCD scale facotr.
@@ -611,11 +635,13 @@ def apply_weights(
         np.nan_to_num(effs_txbb.view(flow=False), 0), np.squeeze(effs_txbb.axes.edges)
     )
 
+    weight_key = "finalWeight"
+
     for sample in events_dict:
         events = events_dict[sample]
         if sample == data_key:
             events[weight_key] = events["weight"]
-        else:
+        elif f"{weight_key}_noTrigEffs" not in events:
             fj_trigeffs = ak8TrigEffsLookup(
                 events["ak8FatJetParticleNetMD_Txbb"].values,
                 events["ak8FatJetPt"].values,
@@ -672,6 +698,10 @@ def derive_variables(events_dict: Dict[str, pd.DataFrame]):
     """Add HWW vs (QCD + Top) discriminant"""
     for sample, events in events_dict.items():
         if "VVFatJetParTMD_THWWvsT" in events or "ak8FatJetParTMD_THWWvsT" in events:
+            continue
+
+        if "ak8FatJetParTMD_probT" not in events:
+            warnings.warn(f"ParT variables missing in {sample}!")
             continue
 
         h4qvst = (events["ak8FatJetParTMD_probHWW3q"] + events["ak8FatJetParTMD_probHWW4q"]) / (
@@ -918,6 +948,55 @@ def lpsfs(
     utils.add_to_cutflow(events_dict, "LP SF", "finalWeight", cutflow)
 
 
+def hists_HEM2d(
+    events_dict: Dict[str, pd.DataFrame],
+    bb_masks: Dict[str, pd.DataFrame],
+    weight_key: str = "finalWeight",
+    selection: Dict[str, np.ndarray] = None,
+):
+    """Create 2D hists of FatJet phi vs eta for bb and VV jets as a check for HEM cleaning."""
+    HEM2d_vars = [
+        {
+            f"{jet}FatJetPhi": ([40, -3.5, 3.5], rf"$\varphi^{{{jet}}}$"),
+            f"{jet}FatJetEta": ([40, -3, 3], rf"$\eta^{{{jet}}}$"),
+        }
+        for jet in ["bb", "VV"]
+    ]
+
+    samples = list(events_dict.keys())
+    hists2d = []
+
+    for vars2d in HEM2d_vars:
+        h = Hist(
+            hist.axis.StrCategory(samples, name="Sample"),
+            *[
+                hist.axis.Regular(*bins, name=var, label=label)
+                for var, (bins, label) in vars2d.items()
+            ],
+            storage=hist.storage.Weight(),
+        )
+
+        for sample in samples:
+            events = events_dict[sample]
+
+            fill_data = {var: utils.get_feat(events, var, bb_masks[sample]) for var in vars2d}
+            weight = events[weight_key].values.squeeze()
+
+            if selection is not None:
+                sel = selection[sample]
+                for var in fill_data:
+                    fill_data[var] = fill_data[var][sel]
+
+                weight = weight[sel]
+
+            if len(weight):
+                h.fill(Sample=sample, **fill_data, weight=weight)
+
+        hists2d.append(h)
+
+    return hists2d
+
+
 def control_plots(
     events_dict: Dict[str, pd.DataFrame],
     bb_masks: Dict[str, pd.DataFrame],
@@ -933,6 +1012,7 @@ def control_plots(
     selection: Dict[str, np.ndarray] = None,
     sig_scale_dict: Dict[str, float] = None,
     combine_pdf: bool = True,
+    HEM2d: bool = False,
     show: bool = False,
 ):
     """
@@ -966,6 +1046,9 @@ def control_plots(
                 events_dict, var, bins, label, bb_masks, weight_key=weight_key, selection=selection
             )
 
+    if HEM2d and year == "2018":
+        hists["HEM2d"] = hists_HEM2d(events_dict, bb_masks, weight_key, selection)
+
     with open(f"{plot_dir}/hists.pkl", "wb") as f:
         pickle.dump(hists, f)
 
@@ -994,6 +1077,14 @@ def control_plots(
         if combine_pdf:
             merger_control_plots.write(f"{tplot_dir}/{cutstr}{year}_ControlPlots.pdf")
         merger_control_plots.close()
+
+    if HEM2d and year == "2018":
+        # TODO: change plot keys?
+        name = f"{plot_dir}/HEM2d.pdf"
+        # plot keys
+        plotting.plot_HEM2d(
+            hists["HEM2d"], ["Data", "QCD", "TT", "HHbbVV", "X[3000]->H(bb)Y[250](VV)"], year, name
+        )
 
     return hists
 
@@ -1305,9 +1396,10 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--signal-data-dir",
-        default="",
+        "--signal-data-dirs",
+        default=[],
         help="path to skimmed signal parquets, if different from other data",
+        nargs="*",
         type=str,
     )
 
@@ -1377,6 +1469,9 @@ if __name__ == "__main__":
     )
 
     utils.add_bool_arg(parser, "data", "include data", default=True)
+    utils.add_bool_arg(
+        parser, "HEM2d", "fatjet phi v eta plots to check HEM cleaning", default=False
+    )
 
     utils.add_bool_arg(parser, "old-processor", "temp arg for old processed samples", default=False)
 
@@ -1416,12 +1511,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.template_dir == "":
-        print("Need to set --template-dir. Exiting.")
+    if args.templates and args.template_dir == "":
+        print("Need to set --template-dir if making templates. Exiting.")
         sys.exit()
 
-    if args.signal_data_dir == "":
-        args.signal_data_dir = args.data_dir
+    if not args.signal_data_dirs:
+        args.signal_data_dirs = [args.data_dir]
 
     if args.bdt_preds_dir == "" and not args.resonant:
         args.bdt_preds_dir = f"{args.data_dir}/inferences/"

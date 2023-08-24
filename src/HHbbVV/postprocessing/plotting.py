@@ -56,10 +56,10 @@ sig_colour = "red"
 
 sig_colours = [
     "#23CE6B",
+    "#7F2CCB",
     "#ffbaba",
     "#ff7b7b",
     "#ff5252",
-    # "#EDB458",
     "#a70000",
     "#885053",
     "#3C0919",
@@ -85,14 +85,14 @@ def ratioHistPlot(
     year: str,
     sig_keys: List[str],
     bg_keys: List[str],
-    sig_colours: Dict[str, str] = sig_colours,
+    sig_colours: List[str] = sig_colours,
     bg_colours: Dict[str, str] = bg_colours,
     sig_err: Union[ArrayLike, str] = None,
     data_err: Union[ArrayLike, bool, None] = None,
     title: str = None,
     blind_region: list = None,
     name: str = "",
-    sig_scale_dict: Dict[str, float] = None,
+    sig_scale_dict: OrderedDict[str, float] = None,
     ylim: int = None,
     show: bool = True,
     variation: Tuple = None,
@@ -129,6 +129,8 @@ def ratioHistPlot(
           (wshift: name of systematic e.g. pileup, shift: up or down, wsamples: list of samples which are affected by this)
         plot_data (bool): plot data
     """
+
+    # set up samples, colours and labels
     bg_keys = [key for key in bg_order if key in bg_keys]
     bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
     bg_labels = deepcopy(bg_keys)
@@ -145,6 +147,7 @@ def ratioHistPlot(
         ]
     )
 
+    # set up systematic variations if needed
     if variation is not None:
         wshift, shift, wsamples = variation
         skey = {"up": " Up", "down": " Down"}[shift]
@@ -161,11 +164,15 @@ def ratioHistPlot(
                 sig_labels[new_key] = sig_labels[sig_key] + skey
                 del sig_scale_dict[sig_key], sig_labels[sig_key]
 
+    # set up plots
     fig, (ax, rax) = plt.subplots(
         2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
     )
 
+    # plot histograms
     ax.set_ylabel("Events")
+
+    # background samples
     hep.histplot(
         [hists[sample, :] for sample in bg_keys],
         ax=ax,
@@ -175,6 +182,7 @@ def ratioHistPlot(
         color=bg_colours,
     )
 
+    # signal samples
     if len(sig_scale_dict):
         hep.histplot(
             [hists[sig_key, :] * sig_scale for sig_key, sig_scale in sig_scale_dict.items()],
@@ -184,6 +192,7 @@ def ratioHistPlot(
             color=sig_colours[: len(sig_keys)],
         )
 
+    # plot signal errors
     if type(sig_err) == str:
         scolours = {"down": colours["lightred"], "up": colours["darkred"]}
         for skey, shift in [("Up", "up"), ("Down", "down")]:
@@ -209,6 +218,7 @@ def ratioHistPlot(
                 sig_scale,
             )
 
+    # plot data
     if plot_data:
         hep.histplot(
             hists[data_key, :],
@@ -218,6 +228,7 @@ def ratioHistPlot(
             label=data_key,
             color="black",
         )
+
     ax.legend()
 
     if ylim is not None:
@@ -225,6 +236,7 @@ def ratioHistPlot(
     else:
         ax.set_ylim(0)
 
+    # plot ratio below
     if plot_data:
         bg_tot = sum([hists[sample, :] for sample in bg_keys])
         yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")
@@ -373,7 +385,7 @@ def ratioLinePlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    hep.cms.label("Work in Progress", data=True, lumi=LUMI[year] * 1e-3, year=year, ax=ax)
+    hep.cms.label("Work in Progress", data=True, lumi=round(LUMI[year] * 1e-3), year=year, ax=ax)
     if len(name):
         plt.savefig(name, bbox_inches="tight")
 
@@ -476,3 +488,29 @@ def rocCurve(
     plt.ylim(*ylim)
     hep.cms.label(data=False, rlabel="")
     plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+
+
+def plot_HEM2d(hists2d: List[Hist], plot_keys: List[str], year: str, name: str, show: bool = False):
+    fig, axs = plt.subplots(
+        len(plot_keys),
+        2,
+        figsize=(20, 8 * len(plot_keys)),
+        gridspec_kw={"wspace": 0.25, "hspace": 0.25},
+    )
+
+    for j, key in enumerate(plot_keys):
+        for i in range(2):
+            ax = axs[j][i]
+            hep.hist2dplot(hists2d[i][key, ...], cmap="turbo", ax=ax)
+            hep.cms.label(
+                "Work in Progress", data=True, lumi=round(LUMI[year] * 1e-3), year=year, ax=ax
+            )
+            ax.set_title(key, y=1.07)
+            ax._children[0].colorbar.set_label("Events")
+
+    plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()

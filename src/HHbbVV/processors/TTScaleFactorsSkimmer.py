@@ -91,9 +91,10 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             "particleNet_H4qvsQCD": "ParticleNet_Th4q",
             "nConstituents": "nPFCands",
         },
+        "Jet": P4,
         "FatJetDerived": ["tau21", "tau32", "tau43", "tau42", "tau41"],
         "GenHiggs": P4,
-        "other": {"MET_pt": "MET_pt"},
+        "other": {"MET_pt": "MET_pt", "MET_phi": "MET_phi"},
     }
 
     muon_selection = {
@@ -135,11 +136,13 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
     top_matchings = ["top_matched", "w_matched", "unmatched"]
 
-    def __init__(self, xsecs={}):
+    def __init__(self, xsecs={}, inference: bool = True):
         super(TTScaleFactorsSkimmer, self).__init__()
 
         # TODO: Check if this is correct
         self.XSECS = xsecs  # in pb
+
+        self._inference = inference
 
         # find corrections path using this file's path
         package_path = str(pathlib.Path(__file__).parent.parent.resolve())
@@ -230,6 +233,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         add_selection("trigger", HLT_triggered, *selection_args)
 
         # objects
+        num_ak4_jets = 2
         num_jets = 1
         muon = events.Muon
         fatjets = get_jec_jets(events, year) if not isData else events.FatJet
@@ -321,7 +325,35 @@ class TTScaleFactorsSkimmer(ProcessorABC):
 
         add_selection("ak4_jet", ak.any(ak4_jet_selector, axis=1), *selection_args)
 
+        # 2018 HEM cleaning
+        # https://indico.cern.ch/event/1249623/contributions/5250491/attachments/2594272/4477699/HWW_0228_Draft.pdf
+        if year == "2018":
+            check_fatjets = events.FatJet[:, :2]
+            hem_cleaning = (
+                ((events.run >= 319077) & isData)  # if data check if in Runs C or D
+                # else for MC randomly cut based on lumi fraction of C&D
+                | ((np.random.rand(len(events)) < 0.632) & ~isData)
+            ) & (
+                ak.any(
+                    (
+                        (leading_fatjets.pt > 30.0)
+                        & (leading_fatjets.eta > -3.2)
+                        & (leading_fatjets.eta < -1.3)
+                        & (leading_fatjets.phi > -1.57)
+                        & (leading_fatjets.phi < -0.87)
+                    ),
+                    -1,
+                )
+                | ((events.MET.phi > -1.62) & (events.MET.pt < 470.0) & (events.MET.phi < -0.62))
+            )
+
+            add_selection("hem_cleaning", ~np.array(hem_cleaning).astype(bool), *selection_args)
+
         # select vars
+        ak4JetVars = {
+            f"ak4Jet{key}": pad_val(ak4_jets[ak4_jet_selector], num_ak4_jets, axis=1)
+            for (var, key) in self.skim_vars["Jet"].items()
+        }
 
         ak8FatJetVars = {
             f"ak8FatJet{key}": pad_val(leading_fatjets[var], num_jets, axis=1)
@@ -339,7 +371,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             for (var, key) in self.skim_vars["other"].items()
         }
 
-        skimmed_events = {**skimmed_events, **ak8FatJetVars, **otherVars}
+        skimmed_events = {**skimmed_events, **ak4JetVars, **ak8FatJetVars, **otherVars}
 
         # particlenet h4q vs qcd, xbb vs qcd
 
@@ -446,23 +478,24 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         }
 
         # apply HWW4q tagger
-        # print("pre-inference")
+        if self._inference:
+            print("pre-inference")
 
-        # pnet_vars = runInferenceTriton(
-        #     self.tagger_resources_path,
-        #     events[selection.all(*selection.names)],
-        #     num_jets=1,
-        #     in_jet_idx=fatjet_idx[selection.all(*selection.names)],
-        #     jets=ak.flatten(leading_fatjets[selection.all(*selection.names)]),
-        #     all_outputs=False,
-        # )
+            pnet_vars = runInferenceTriton(
+                self.tagger_resources_path,
+                events[selection.all(*selection.names)],
+                num_jets=1,
+                in_jet_idx=fatjet_idx[selection.all(*selection.names)],
+                jets=ak.flatten(leading_fatjets[selection.all(*selection.names)]),
+                all_outputs=False,
+            )
 
-        # print("post-inference")
+            print("post-inference")
 
-        # skimmed_events = {
-        #     **skimmed_events,
-        #     **{key: value for (key, value) in pnet_vars.items()},
-        # }
+            skimmed_events = {
+                **skimmed_events,
+                **{key: value for (key, value) in pnet_vars.items()},
+            }
 
         if len(skimmed_events["weight"]):
             df = self.to_pandas(skimmed_events)
