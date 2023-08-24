@@ -116,7 +116,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
     }
 
     ak4_jet_selection = {
-        "pt": 55,
+        "pt": 30,  # from JME-18-002
         "eta": 2.4,
         "delta_phi_muon": 2,
         "jetId": "tight",
@@ -307,7 +307,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
         # save the selection without btag for applying btag SFs
         ak4_jet_selector_no_btag = (
             ak4_jets.isTight
-            * (ak4_jets.puId % 2 == 1)
+            # pileup ID should only be applied for pT < 50 jets (https://twiki.cern.ch/twiki/bin/view/CMS/PileupJetIDUL)
+            * ((ak4_jets.puId % 2 == 1) + (ak4_jets.pt >= 50))
             * (ak4_jets.pt > self.ak4_jet_selection["pt"])
             * (np.abs(ak4_jets.eta) < self.ak4_jet_selection["eta"])
             * (np.abs(ak4_jets.delta_phi(muon)) < self.ak4_jet_selection["delta_phi_muon"])
@@ -323,7 +324,7 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             * (ak.sum(ak4_jets[ak4_jet_selector].pt, axis=1) >= 250)
         )
 
-        add_selection("ak4_jet", ak.any(ak4_jet_selector, axis=1), *selection_args)
+        add_selection("ak4_jet", ak4_selection, *selection_args)
 
         # 2018 HEM cleaning
         # https://indico.cern.ch/event/1249623/contributions/5250491/attachments/2594272/4477699/HWW_0228_Draft.pdf
