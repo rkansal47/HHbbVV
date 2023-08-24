@@ -37,14 +37,15 @@ package_path = str(pathlib.Path(__file__).parent.parent.resolve())
 
 """
 CorrectionLib files are available from: /cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration - synced daily
+See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/
 """
 pog_correction_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/"
 pog_jsons = {
     "muon": ["MUO", "muon_Z.json.gz"],
     "electron": ["EGM", "electron.json.gz"],
     "pileup": ["LUM", "puWeights.json.gz"],
-    "jec": ["JME", "fatJet_jerc.json.gz"],
     "btagging": ["BTV", "btagging.json.gz"],
+    "jmar": ["JME", "jmar.json.gz"],
 }
 
 
@@ -336,7 +337,6 @@ def add_btag_weights(
     weights: Weights,
     year: str,
     jets: JetArray,
-    jet_selector: ak.Array,
     wp: str = "M",
     algo: str = "deepJet",
 ):
@@ -344,8 +344,8 @@ def add_btag_weights(
     cset = correctionlib.CorrectionSet.from_file(get_pog_json("btagging", year))
     efflookup = cutil.load(package_path + f"/corrections/btag_effs/btageff_deepJet_M_{year}.coffea")
 
-    lightJets = jets[jet_selector & (jets.hadronFlavour == 0)]
-    bcJets = jets[jet_selector & (jets.hadronFlavour > 0)]
+    lightJets = jets[jets.hadronFlavour == 0]
+    bcJets = jets[jets.hadronFlavour > 0]
 
     lightEff = efflookup(lightJets.pt, abs(lightJets.eta), lightJets.hadronFlavour)
     bcEff = efflookup(bcJets.pt, abs(bcJets.eta), bcJets.hadronFlavour)
@@ -358,6 +358,32 @@ def add_btag_weights(
 
     weight = np.nan_to_num((1 - lightnum * bcnum) / (1 - lightden * bcden), nan=1)
     weights.add("btagSF", weight)
+
+
+def add_pileupid_weights(weights: Weights, year: str, jets: JetArray, genjets, wp: str = "L"):
+    """Pileup ID scale factors
+    https://twiki.cern.ch/twiki/bin/view/CMS/PileupJetIDUL#Data_MC_Efficiency_Scale_Factors
+
+    Takes ak4 jets which already passed the pileup ID WP.
+    Only applies to jets with pT < 50 GeV and those geometrically matched to a gen jet.
+    """
+
+    # pileup ID should only be used for jets with pT < 50
+    jets = jets[jets.pt < 50]
+    # check that there's a geometrically matched genjet (99.9% are, so not really necessary...)
+    jets = jets[ak.any(jets.metric_table(genjets) < 0.4, axis=-1)]
+
+    sf_cset = correctionlib.CorrectionSet.from_file(get_pog_json("jmar", year))["PUJetID_eff"]
+    # save offsets to reconstruct jagged shape
+    offsets = jets.pt.layout.content.offsets
+    # correctionlib < 2.3 doesn't accept jagged arrays (but >= 2.3 needs awkard v2)
+    sfs = sf_cset.evaluate(ak.flatten(jets.eta), ak.flatten(jets.pt), "nom", "L")
+    # reshape flat effs
+    sfs = ak.Array(ak.layout.ListOffsetArray64(offsets, ak.layout.NumpyArray(sfs)))
+    # product of SFs across arrays, automatically defaults empty lists to 1
+    sfs = ak.prod(sfs, axis=1)
+
+    weights.add("pileupIDSF", sfs)
 
 
 # for scale factor validation region selection

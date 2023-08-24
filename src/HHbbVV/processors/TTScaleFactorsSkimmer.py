@@ -35,6 +35,7 @@ from .corrections import (
     add_pileup_weight,
     add_lepton_weights,
     add_btag_weights,
+    add_pileupid_weights,
     add_top_pt_weight,
     get_jec_jets,
     get_lund_SFs,
@@ -414,7 +415,8 @@ class TTScaleFactorsSkimmer(ProcessorABC):
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
             # includes both ID and trigger SFs
             add_lepton_weights(weights, year, muon)
-            add_btag_weights(weights, year, ak4_jets, ak4_jet_selector_no_btag)
+            add_btag_weights(weights, year, ak4_jets[ak4_jet_selector_no_btag])
+            add_pileupid_weights(weights, year, ak4_jets[ak4_jet_selector_no_btag], events.GenJet)
 
             if year in ("2016APV", "2016", "2017"):
                 weights.add(
