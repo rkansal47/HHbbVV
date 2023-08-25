@@ -614,6 +614,7 @@ def apply_weights(
     events_dict: Dict[str, pd.DataFrame],
     year: str,
     cutflow: pd.DataFrame = None,
+    qcd_sf: bool = True,
 ):
     """
     Applies (1) 2D trigger scale factors, (2) QCD scale facotr.
@@ -656,7 +657,7 @@ def apply_weights(
         utils.add_to_cutflow(events_dict, "TriggerEffs", weight_key, cutflow)
 
     # calculate QCD scale factor
-    if qcd_key in events_dict:
+    if qcd_sf and qcd_key in events_dict:
         trig_yields = cutflow["TriggerEffs"]
         non_qcd_bgs_yield = np.sum(
             [
