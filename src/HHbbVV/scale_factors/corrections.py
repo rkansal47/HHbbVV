@@ -33,6 +33,7 @@ pog_jsons = {
     "electron": ["EGM", "electron.json.gz"],
     "pileup": ["LUM", "puWeights.json.gz"],
     "jec": ["JME", "fatJet_jerc.json.gz"],
+    "jmar": ["JME", "jmar.json.gz"],
 }
 
 
