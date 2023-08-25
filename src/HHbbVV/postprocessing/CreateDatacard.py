@@ -234,7 +234,9 @@ nuisance_params = {
         value=((1.006 ** (LUMI["2017"] / full_lumi)) * (1.002 ** (LUMI["2018"] / full_lumi))),
     ),
     # https://gitlab.cern.ch/hh/naming-conventions#theory-uncertainties
-    "BR_hbb": Syst(prior="lnN", samples=nonres_sig_keys, value=1.0124, value_down=0.9874),
+    "BR_hbb": Syst(
+        prior="lnN", samples=nonres_sig_keys + res_sig_keys, value=1.0124, value_down=0.9874
+    ),
     "BR_hww": Syst(prior="lnN", samples=nonres_sig_keys, value=1.0153, value_down=0.9848),
     "pdf_gg": Syst(prior="lnN", samples=["TT"], value=1.042),
     "pdf_qqbar": Syst(prior="lnN", samples=["ST"], value=1.027),
