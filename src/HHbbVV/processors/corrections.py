@@ -185,6 +185,8 @@ def add_VJets_kFactors(weights, genpart, dataset):
 def add_ps_weight(weights, ps_weights):
     """
     Parton Shower Weights (FSR and ISR)
+    "Default" variation: https://twiki.cern.ch/twiki/bin/view/CMS/HowToPDF#Which_set_of_weights_to_use
+    i.e. scaling ISR up and down
     """
 
     nweights = len(weights.weight())
