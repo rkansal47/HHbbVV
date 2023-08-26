@@ -604,7 +604,7 @@ def get_jmsr(
             smearing = np.random.normal(size=mass.shape)
             # scale to JMR nom, down, up (minimum at 0)
             jmr_nom, jmr_down, jmr_up = [
-                (smearing * max(jmrValues[mkey][year][i] - 1, 0) + 1) for i in range(3)
+                ((smearing * max(jmrValues[mkey][year][i] - 1, 0)) + 1) for i in range(3)
             ]
             jms_nom, jms_down, jms_up = jmsValues[mkey][year]
 
