@@ -178,7 +178,7 @@ res_mps = [
 ]
 
 for mX, mY in res_mps:
-    res_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
+    res_samples[f"X[{mX}]->H(bb)Y[{mY}](WW)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
 
 res_sig_keys = list(res_samples.keys())
 

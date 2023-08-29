@@ -16,12 +16,12 @@ mkdir ~/work/HH
 
 2. Setup inference as follows
   - Set up the environment in a new folder with a clean environment (no `cmsenv`, ETC.)
-  - Use `some_name` as the name of the environment.
+  - `v1` is the name of the environment here.
 
 ```bash
 git clone ssh://git@gitlab.cern.ch:7999/hh/tools/inference.git
 cd inference
-source setup.sh c1
+source setup.sh v1
 ```
 
 TODO: update this with better datacard dirs and setting up card repos.
