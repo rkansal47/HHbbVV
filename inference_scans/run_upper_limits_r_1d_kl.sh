@@ -19,5 +19,5 @@ law run PlotUpperLimits \
     --remove-output 0,a,y \
     --save-hep-data True \
     --frozen-groups signal_norm_xsbr
-    # --use-snapshot True \  # for after unblinding
+    # --use-snapshot True \  # for (fit to data) after unblinding
     # --Snapshot-workflow "local" \
