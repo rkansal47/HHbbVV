@@ -7,6 +7,7 @@ law run PlotPullsAndImpacts \
     --pois r \
     --PullsAndImpacts-workflow "htcondor" \
     --PullsAndImpacts-tasks-per-job 10 \
+    --PullsAndImpacts-custom-args="--rMin -40 --rMax 40" \
     --parameters-per-page 40 \
     --order-by-impact \
     --labels "nuisance_renames.py" \
