@@ -1,20 +1,19 @@
 #!/usr/bin/env bash
 
-# export DHI_CMS_POSTFIX="Supplementary"
-law run PlotUpperLimitsAtPoint \
+law run PlotPullsAndImpacts \
     --version "$VERSION" \
     --multi-datacards "$Cbbww4q" \
     --datacard-names "bbVV" \
     --file-types "pdf,png" \
     --pois r \
-    --show-parameters kl,kt,C2V,CV \
-    --UpperLimits-workflow "htcondor" \
-    --UpperLimits-tasks-per-job 1 \
-    --x-log \
+    --PullsAndImpacts-workflow "htcondor" \
+    --PullsAndImpacts-tasks-per-job 10 \
+    --parameters-per-page 40 \
+    --order-by-impact \
     --campaign run2 \
+    --page 0 \
+    --pull-range 3 \
     --unblinded $UNBLINDED \
-    --h-lines 1 \
-    --save-hep-data True \
     --remove-output 0,a,y
     # --use-snapshot True \  # for after unblinding
     # --Snapshot-workflow "local" \
