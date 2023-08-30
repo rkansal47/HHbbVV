@@ -3,7 +3,7 @@
 # export DHI_CMS_POSTFIX="Supplementary"
 law run PlotUpperLimits \
     --version "$VERSION" \
-    --datacards "$Cbbww4q" \
+    --datacards "$Cbbww4qInject" \
     --xsec fb \
     --pois r \
     --scan-parameters C2V,-1,3,10 \

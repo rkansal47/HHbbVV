@@ -32,6 +32,7 @@ export DHI_DATACARDS_RUN2="/afs/cern.ch/user/r/rkansal/work/hh/datacards_run2"
 export DHI_DATA="/afs/cern.ch/user/r/rkansal/work/hh/inference/data"
 export DHI_STORE="/eos/user/r/rkansal/bbVV/inference"
 export Cbbww4q="bbww_hadronic/v1"
+export Cbbww4qInject="$Cbbww4q<$DHI_DATACARDS_RUN2/$Cbbww4q/inject.json"
 export VERSION="dev"
 export UNBLINDED="False"
 ```
