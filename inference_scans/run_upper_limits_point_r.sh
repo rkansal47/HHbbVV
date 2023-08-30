@@ -3,7 +3,7 @@
 # export DHI_CMS_POSTFIX="Supplementary"
 law run PlotUpperLimitsAtPoint \
     --version "$VERSION" \
-    --multi-datacards "$Cbbww4q" \
+    --multi-datacards "$Cbbww4qInject" \
     --datacard-names "bbVV" \
     --file-types "pdf,png" \
     --pois r \

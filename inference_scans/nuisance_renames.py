@@ -5,4 +5,7 @@ def rename_nuisance(nuisance: str):
     if nuisance.startswith("tf_dataResidual_bbFatJetParticleNetMass_"):
         return "TF_" + nuisance.split("tf_dataResidual_bbFatJetParticleNetMass_")[1]
 
+    if nuisance.startswith("lp_sf"):
+        return "Lund plane SF"
+
     return nuisance
