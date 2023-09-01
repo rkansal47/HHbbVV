@@ -18,7 +18,7 @@ formatter.set_powerlimits((-3, 3))
 plt.rcParams.update({"font.size": 20})
 
 from hist import Hist
-from hist.intervals import ratio_uncertainty
+from hist.intervals import ratio_uncertainty, poisson_interval
 
 from typing import Dict, List, Union, Tuple
 from numpy.typing import ArrayLike
@@ -80,6 +80,45 @@ def _fill_error(ax, edges, down, up, scale=1):
     )
 
 
+def _divide_bin_widths(hists, data_err):
+    """Divide histograms by bin widths"""
+    edges = hists.axes[1].edges
+    bin_widths = edges[1:] - edges[:-1]
+
+    if data_err is None:
+        data_err = (
+            np.abs(poisson_interval(hists[data_key, ...]) - hists[data_key, ...]) / bin_widths
+        )
+
+    hists = hists / bin_widths[np.newaxis, :]
+    return hists, data_err
+
+
+def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict):
+    # set up samples, colours and labels
+    bg_keys = [key for key in bg_order if key in bg_keys]
+    bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
+    bg_labels = deepcopy(bg_keys)
+
+    if sig_scale_dict is None:
+        sig_scale_dict = OrderedDict([(sig_key, 1.0) for sig_key in sig_keys])
+    else:
+        sig_scale_dict = deepcopy(sig_scale_dict)
+
+    sig_labels = OrderedDict()
+    for sig_key, sig_scale in sig_scale_dict.items():
+        if sig_scale == 1:
+            label = sig_key
+        elif sig_scale <= 100:
+            label = f"{sig_key} $\\times$ {sig_scale:.0f}"
+        else:
+            label = f"{sig_key} $\\times$ {sig_scale:.1e}"
+
+        sig_labels[sig_key] = label
+
+    return bg_keys, bg_colours, bg_labels, sig_scale_dict, sig_labels
+
+
 def ratioHistPlot(
     hists: Hist,
     year: str,
@@ -99,6 +138,7 @@ def ratioHistPlot(
     plot_data: bool = True,
     bg_order: List[str] = bg_order,
     ratio_ylims: List[float] = [0, 2],
+    divide_bin_width: bool = False,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -130,22 +170,16 @@ def ratioHistPlot(
         plot_data (bool): plot data
     """
 
-    # set up samples, colours and labels
-    bg_keys = [key for key in bg_order if key in bg_keys]
-    bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
-    bg_labels = deepcopy(bg_keys)
+    # copy hists so input object is not changed
+    in_hists = hists
+    hists = deepcopy(hists)
 
-    if sig_scale_dict is None:
-        sig_scale_dict = OrderedDict([(sig_key, 1.0) for sig_key in sig_keys])
-    else:
-        sig_scale_dict = deepcopy(sig_scale_dict)
-
-    sig_labels = OrderedDict(
-        [
-            (sig_key, f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key)
-            for sig_key, sig_scale in sig_scale_dict.items()
-        ]
+    bg_keys, bg_colours, bg_labels, sig_scale_dict, sig_labels = _process_samples(
+        sig_keys, bg_keys, bg_colours, sig_scale_dict
     )
+
+    if divide_bin_width:
+        hists, data_err = _divide_bin_widths(hists, data_err)
 
     # set up systematic variations if needed
     if variation is not None:
@@ -170,7 +204,10 @@ def ratioHistPlot(
     )
 
     # plot histograms
-    ax.set_ylabel("Events")
+    if divide_bin_width:
+        ax.set_ylabel(r"Events / Bin Width (GeV$^{-1}$)")
+    else:
+        ax.set_ylabel("Events")
 
     # background samples
     hep.histplot(
@@ -227,6 +264,7 @@ def ratioHistPlot(
             histtype="errorbar",
             label=data_key,
             color="black",
+            # w2=None if not divide_bin_width else hists[data_key, :].variances()
         )
 
     ax.legend()
@@ -238,11 +276,11 @@ def ratioHistPlot(
 
     # plot ratio below
     if plot_data:
-        bg_tot = sum([hists[sample, :] for sample in bg_keys])
-        yerr = ratio_uncertainty(hists[data_key, :].values(), bg_tot.values(), "poisson")
+        bg_tot = sum([in_hists[sample, :] for sample in bg_keys])
+        yerr = ratio_uncertainty(in_hists[data_key, :].values(), bg_tot.values(), "poisson")
 
         hep.histplot(
-            hists[data_key, :] / (bg_tot.values() + 1e-5),
+            in_hists[data_key, :] / (bg_tot.values() + 1e-5),
             yerr=yerr,
             ax=rax,
             histtype="errorbar",
