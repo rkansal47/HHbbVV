@@ -3,7 +3,7 @@
 # export DHI_CMS_POSTFIX="Supplementary"
 law run PlotUpperLimitsAtPoint \
     --version "$VERSION" \
-    --multi-datacards "$Cbbww4q" \
+    --multi-datacards "$Cbbww4qInject" \
     --datacard-names "bbVV" \
     --file-types "pdf,png" \
     --pois r \
@@ -16,5 +16,5 @@ law run PlotUpperLimitsAtPoint \
     --h-lines 1 \
     --save-hep-data True \
     --remove-output 0,a,y
-    # --use-snapshot True \
+    # --use-snapshot True \  # for (fit to data) after unblinding
     # --Snapshot-workflow "local" \
