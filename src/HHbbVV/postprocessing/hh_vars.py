@@ -19,6 +19,8 @@ LUMI = {  # in pb^-1
 
 # order is important for loading BDT preds
 # label: selector
+# when loading samples, assigns all sample names which start with `selector` to the `label` dataframe
+# if `selector` starts with `*`, assigns all sample names which have `selector` in it
 samples = OrderedDict(
     [
         ("QCD", "QCD"),
@@ -26,11 +28,16 @@ samples = OrderedDict(
         ("ST", "ST"),
         ("V+Jets", ("WJets", "ZJets")),
         ("Diboson", ("WW", "WZ", "ZZ")),
-        # TODO: break this down into production modes for combination!!!!
+        # break this down into production modes for combination
         # https://gitlab.cern.ch/hh/naming-conventions#single-h-backgrounds
-        ("Hbb", "*HToBB"),
-        ("HWW", ("*HToWW", "*HToNonbb")),
-        ("HH", ("GluGluToHHTo4B_node_cHHH1_preUL")),
+        ("ggFHbb", "GluGluHToBB"),
+        ("VBFHbb", "VBFHToBB"),
+        ("ZHbb", "ZH_HToBB"),
+        ("WHbb", ("WminusH_HToBB", "WplusH_HToBB")),
+        ("ggZHbb", "ggZH_HToBB"),
+        ("ttHbb", "ttHToBB"),
+        # ("HWW", ("*HToWW", "*HToNonbb")),
+        # ("HH", ("GluGluToHHTo4B_node_cHHH1_preUL")),
         ("Data", "JetHT"),
     ]
 )
@@ -39,6 +46,7 @@ samples = OrderedDict(
 data_key = "Data"
 qcd_key = "QCD"
 bg_keys = [key for key in samples.keys() if key != data_key]
+hbb_bg_keys = [key for key in samples.keys() if "Hbb" in key]
 
 # change HHbbVV to hbbhVV
 nonres_samples = OrderedDict(
@@ -47,7 +55,7 @@ nonres_samples = OrderedDict(
         ("ggHH_kl_2p45_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH2p45"),
         ("ggHH_kl_5_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH5"),
         ("ggHH_kl_0_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH0"),
-        ("qqHH_CV_1_C2V_1_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_1"),
+        # ("qqHH_CV_1_C2V_1_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_1"),
         ("VBFHHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_1"),
         ("qqHH_CV_1_C2V_0_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_0_C3_1"),
         ("qqHH_CV_1p5_C2V_1_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_5_C2V_1_C3_1"),
@@ -178,7 +186,7 @@ res_mps = [
 ]
 
 for mX, mY in res_mps:
-    res_samples[f"X[{mX}]->H(bb)Y[{mY}](WW)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
+    res_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
 
 res_sig_keys = list(res_samples.keys())
 

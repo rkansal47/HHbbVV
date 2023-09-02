@@ -23,7 +23,7 @@ from hist.intervals import ratio_uncertainty
 from typing import Dict, List, Union, Tuple
 from numpy.typing import ArrayLike
 
-from hh_vars import LUMI, data_key
+from hh_vars import LUMI, data_key, hbb_bg_keys
 
 from copy import deepcopy
 
@@ -66,6 +66,27 @@ sig_colours = [
 ]
 
 bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "V+Jets", "TT", "QCD"]
+
+
+def _combine_hbb_bgs(hists, bg_keys):
+    # skip this if no hbb bg keys specified
+    if len(set(bg_keys) & set(hbb_bg_keys)) == 0:
+        return hists, bg_keys
+
+    # combine all hbb backgrounds into a single "Hbb" background for plotting
+    hists, bg_keys = deepcopy(hists), deepcopy(bg_keys)
+
+    hbb_hists = []
+    for key in hbb_bg_keys:
+        if key in bg_keys:
+            hbb_hists.append(hists[key, ...])
+            bg_keys.remove(key)
+
+    hists["Hbb"] = sum(hbb_hists)
+    if "Hbb" not in bg_keys:
+        bg_keys.append("Hbb")
+
+    return hists, bg_keys
 
 
 def _fill_error(ax, edges, down, up, scale=1):
@@ -129,6 +150,7 @@ def ratioHistPlot(
           (wshift: name of systematic e.g. pileup, shift: up or down, wsamples: list of samples which are affected by this)
         plot_data (bool): plot data
     """
+    hists, bg_keys = _combine_hbb_bgs(hists, bg_keys)
 
     # set up samples, colours and labels
     bg_keys = [key for key in bg_order if key in bg_keys]
