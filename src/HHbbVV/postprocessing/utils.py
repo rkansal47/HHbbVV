@@ -125,20 +125,15 @@ def get_cutflow(pickles_path, year, sample_name):
 
 
 def check_selector(sample: str, selector: Union[str, List[str]]):
-    if isinstance(selector, list) or isinstance(selector, tuple):
-        for s in selector:
-            if s.startswith("*"):
-                if s[1:] in sample:
-                    return True
-            else:
-                if sample.startswith(s):
-                    return True
-    else:
-        if selector.startswith("*"):
-            if selector[1:] in sample:
+    if not (isinstance(selector, list) or isinstance(selector, tuple)):
+        selector = [selector]
+
+    for s in selector:
+        if s.startswith("*"):
+            if s[1:] in sample:
                 return True
         else:
-            if sample.startswith(selector):
+            if sample.startswith(s):
                 return True
 
     return False
