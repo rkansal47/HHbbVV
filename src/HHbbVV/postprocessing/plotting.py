@@ -139,6 +139,7 @@ def ratioHistPlot(
     bg_order: List[str] = bg_order,
     ratio_ylims: List[float] = [0, 2],
     divide_bin_width: bool = False,
+    axrax: Tuple = None,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -168,6 +169,10 @@ def ratioHistPlot(
         variation (Tuple): Tuple of
           (wshift: name of systematic e.g. pileup, shift: up or down, wsamples: list of samples which are affected by this)
         plot_data (bool): plot data
+        bg_order (List[str]): order in which to plot backgrounds
+        ratio_ylims (List[float]): y limits on the ratio plots
+        divide_bin_width (bool): divide yields by the bin width (for resonant fit regions)
+        axrax (Tuple): optionally input ax and rax instead of creating new ones
     """
 
     # copy hists so input object is not changed
@@ -199,9 +204,13 @@ def ratioHistPlot(
                 del sig_scale_dict[sig_key], sig_labels[sig_key]
 
     # set up plots
-    fig, (ax, rax) = plt.subplots(
-        2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
-    )
+    if axrax is None:
+        fig, (ax, rax) = plt.subplots(
+            2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
+        )
+    else:
+        ax, rax = axrax
+        ax.sharex(rax)
 
     # plot histograms
     if divide_bin_width:
@@ -309,13 +318,15 @@ def ratioHistPlot(
         hep.cms.label(
             "Work in Progress", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax
         )
-    if len(name):
-        plt.savefig(name, bbox_inches="tight")
 
-    if show:
-        plt.show()
-    else:
-        plt.close()
+    if axrax is None:
+        if len(name):
+            plt.savefig(name, bbox_inches="tight")
+
+        if show:
+            plt.show()
+        else:
+            plt.close()
 
 
 def ratioLinePlot(
