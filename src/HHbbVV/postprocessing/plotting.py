@@ -17,6 +17,7 @@ formatter = mticker.ScalarFormatter(useMathText=True)
 formatter.set_powerlimits((-3, 3))
 plt.rcParams.update({"font.size": 20})
 
+import hist
 from hist import Hist
 from hist.intervals import ratio_uncertainty, poisson_interval
 
@@ -27,6 +28,16 @@ from hh_vars import LUMI, data_key, hbb_bg_keys
 
 from copy import deepcopy
 
+
+bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "V+Jets", "TT", "QCD"]
+
+sample_label_map = {
+    "HHbbVV": "ggF HHbbVV",
+    "VBFHHbbVV": "VBF HHbbVV",
+    "qqHH_CV_1_C2V_0_kl_1_HHbbVV": r"VBF HHbbVV ($\kappa_{2V} = 0$)",
+    "qqHH_CV_1_C2V_2_kl_1_HHbbVV": r"VBF HHbbVV ($\kappa_{2V} = 2$)",
+}
+
 colours = {
     "darkblue": "#1f78b4",
     "lightblue": "#a6cee3",
@@ -35,18 +46,28 @@ colours = {
     "darkred": "#A21315",
     "orange": "#ff7f00",
     "green": "#7CB518",
+    "mantis": "#81C14B",
+    "forestgreen": "#2E933C",
     "darkgreen": "#064635",
     "purple": "#9381FF",
     "slategray": "#63768D",
     "deeppurple": "#36213E",
     "ashgrey": "#ACBFA4",
+    "canary": "#FFE51F",
+    "arylideyellow": "#E3C567",
+    "earthyellow": "#D9AE61",
+    "satinsheengold": "#C8963E",
+    "flax": "#EDD382",
+    "vanilla": "#F2F3AE",
+    "dutchwhite": "#F5E5B8",
 }
+
 bg_colours = {
     "QCD": "lightblue",
     "TT": "darkblue",
     "V+Jets": "green",
     "ST": "orange",
-    "Diboson": "purple",
+    "Diboson": "canary",
     "Hbb": "lightred",
     "HWW": "deeppurple",
     "HH": "ashgrey",
@@ -65,8 +86,6 @@ sig_colours = [
     "#3C0919",
 ]
 
-bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "V+Jets", "TT", "QCD"]
-
 
 def _combine_hbb_bgs(hists, bg_keys):
     # skip this if no hbb bg keys specified
@@ -74,31 +93,74 @@ def _combine_hbb_bgs(hists, bg_keys):
         return hists, bg_keys
 
     # combine all hbb backgrounds into a single "Hbb" background for plotting
-    hists, bg_keys = deepcopy(hists), deepcopy(bg_keys)
-
     hbb_hists = []
     for key in hbb_bg_keys:
         if key in bg_keys:
             hbb_hists.append(hists[key, ...])
             bg_keys.remove(key)
 
-    hists["Hbb"] = sum(hbb_hists)
     if "Hbb" not in bg_keys:
         bg_keys.append("Hbb")
 
-    return hists, bg_keys
+    hbb_hist = sum(hbb_hists)
 
-
-def _fill_error(ax, edges, down, up, scale=1):
-    ax.fill_between(
-        np.repeat(edges, 2)[1:-1],
-        np.repeat(down, 2) * scale,
-        np.repeat(up, 2) * scale,
-        color="black",
-        alpha=0.2,
-        hatch="//",
-        linewidth=0,
+    # have to recreate hist with "Hbb" sample included
+    h = Hist(
+        hist.axis.StrCategory(list(hists.axes[0]) + ["Hbb"], name="Sample"),
+        *hists.axes[1:],
+        storage="weight",
     )
+
+    for i, sample in enumerate(hists.axes[0]):
+        h.view()[i] = hists[sample, ...].view()
+
+    h.view()[-1] = hbb_hist
+
+    return h, bg_keys
+
+
+def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, variation):
+    # set up samples, colours and labels
+    bg_keys = [key for key in bg_order if key in bg_keys]
+    bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
+    bg_labels = deepcopy(bg_keys)
+
+    if sig_scale_dict is None:
+        sig_scale_dict = OrderedDict([(sig_key, 1.0) for sig_key in sig_keys])
+    else:
+        sig_scale_dict = deepcopy(sig_scale_dict)
+
+    sig_labels = OrderedDict()
+    for sig_key, sig_scale in sig_scale_dict.items():
+        label = sig_key if sig_key not in sample_label_map else sample_label_map[sig_key]
+
+        if sig_scale == 1:
+            label = label
+        elif sig_scale <= 100:
+            label = f"{label} $\\times$ {sig_scale:.0f}"
+        else:
+            label = f"{label} $\\times$ {sig_scale:.1e}"
+
+        sig_labels[sig_key] = label
+
+    # set up systematic variations if needed
+    if variation is not None:
+        wshift, shift, wsamples = variation
+        skey = {"up": " Up", "down": " Down"}[shift]
+
+        for i, key in enumerate(bg_keys):
+            if key in wsamples:
+                bg_keys[i] += f"_{wshift}_{shift}"
+                bg_labels[i] += skey
+
+        for sig_key in list(sig_scale_dict.keys()):
+            if sig_key in wsamples:
+                new_key = f"{sig_key}_{wshift}_{shift}"
+                sig_scale_dict[new_key] = sig_scale_dict[sig_key]
+                sig_labels[new_key] = sig_labels[sig_key] + skey
+                del sig_scale_dict[sig_key], sig_labels[sig_key]
+
+    return bg_keys, bg_colours, bg_labels, sig_scale_dict, sig_labels
 
 
 def _divide_bin_widths(hists, data_err):
@@ -115,29 +177,16 @@ def _divide_bin_widths(hists, data_err):
     return hists, data_err
 
 
-def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict):
-    # set up samples, colours and labels
-    bg_keys = [key for key in bg_order if key in bg_keys]
-    bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
-    bg_labels = deepcopy(bg_keys)
-
-    if sig_scale_dict is None:
-        sig_scale_dict = OrderedDict([(sig_key, 1.0) for sig_key in sig_keys])
-    else:
-        sig_scale_dict = deepcopy(sig_scale_dict)
-
-    sig_labels = OrderedDict()
-    for sig_key, sig_scale in sig_scale_dict.items():
-        if sig_scale == 1:
-            label = sig_key
-        elif sig_scale <= 100:
-            label = f"{sig_key} $\\times$ {sig_scale:.0f}"
-        else:
-            label = f"{sig_key} $\\times$ {sig_scale:.1e}"
-
-        sig_labels[sig_key] = label
-
-    return bg_keys, bg_colours, bg_labels, sig_scale_dict, sig_labels
+def _fill_error(ax, edges, down, up, scale=1):
+    ax.fill_between(
+        np.repeat(edges, 2)[1:-1],
+        np.repeat(down, 2) * scale,
+        np.repeat(up, 2) * scale,
+        color="black",
+        alpha=0.2,
+        hatch="//",
+        linewidth=0,
+    )
 
 
 def ratioHistPlot(
@@ -158,6 +207,7 @@ def ratioHistPlot(
     variation: Tuple = None,
     plot_data: bool = True,
     bg_order: List[str] = bg_order,
+    log: bool = False,
     ratio_ylims: List[float] = [0, 2],
     divide_bin_width: bool = False,
     axrax: Tuple = None,
@@ -195,35 +245,17 @@ def ratioHistPlot(
         divide_bin_width (bool): divide yields by the bin width (for resonant fit regions)
         axrax (Tuple): optionally input ax and rax instead of creating new ones
     """
+    # copy hists and bg_keys so input objects are not changed
+    hists, bg_keys = deepcopy(hists), deepcopy(bg_keys)
     hists, bg_keys = _combine_hbb_bgs(hists, bg_keys)
 
-    # copy hists so input object is not changed
-    in_hists = hists
-    hists = deepcopy(hists)
-
     bg_keys, bg_colours, bg_labels, sig_scale_dict, sig_labels = _process_samples(
-        sig_keys, bg_keys, bg_colours, sig_scale_dict
+        sig_keys, bg_keys, bg_colours, sig_scale_dict, variation
     )
 
+    pre_divide_hists = hists
     if divide_bin_width:
         hists, data_err = _divide_bin_widths(hists, data_err)
-
-    # set up systematic variations if needed
-    if variation is not None:
-        wshift, shift, wsamples = variation
-        skey = {"up": " Up", "down": " Down"}[shift]
-
-        for i, key in enumerate(bg_keys):
-            if key in wsamples:
-                bg_keys[i] += f"_{wshift}_{shift}"
-                bg_labels[i] += skey
-
-        for sig_key in list(sig_scale_dict.keys()):
-            if sig_key in wsamples:
-                new_key = f"{sig_key}_{wshift}_{shift}"
-                sig_scale_dict[new_key] = sig_scale_dict[sig_key]
-                sig_labels[new_key] = sig_labels[sig_key] + skey
-                del sig_scale_dict[sig_key], sig_labels[sig_key]
 
     # set up plots
     if axrax is None:
@@ -235,10 +267,8 @@ def ratioHistPlot(
         ax.sharex(rax)
 
     # plot histograms
-    if divide_bin_width:
-        ax.set_ylabel(r"Events / Bin Width (GeV$^{-1}$)")
-    else:
-        ax.set_ylabel("Events")
+    y_label = r"Events / Bin Width (GeV$^{-1}$)" if divide_bin_width else "Events"
+    ax.set_ylabel(y_label)
 
     # background samples
     hep.histplot(
@@ -295,23 +325,26 @@ def ratioHistPlot(
             histtype="errorbar",
             label=data_key,
             color="black",
-            # w2=None if not divide_bin_width else hists[data_key, :].variances()
         )
+
+    if log:
+        ax.set_yscale("log")
 
     ax.legend()
 
+    y_lowlim = 0 if not log else 1e-3
     if ylim is not None:
-        ax.set_ylim([0, ylim])
+        ax.set_ylim([y_lowlim, ylim])
     else:
-        ax.set_ylim(0)
+        ax.set_ylim(y_lowlim)
 
     # plot ratio below
     if plot_data:
-        bg_tot = sum([in_hists[sample, :] for sample in bg_keys])
-        yerr = ratio_uncertainty(in_hists[data_key, :].values(), bg_tot.values(), "poisson")
+        bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
+        yerr = ratio_uncertainty(pre_divide_hists[data_key, :].values(), bg_tot.values(), "poisson")
 
         hep.histplot(
-            in_hists[data_key, :] / (bg_tot.values() + 1e-5),
+            pre_divide_hists[data_key, :] / (bg_tot.values() + 1e-5),
             yerr=yerr,
             ax=rax,
             histtype="errorbar",

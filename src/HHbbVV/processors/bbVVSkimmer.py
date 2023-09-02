@@ -794,9 +794,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         vbfJets = jets[vbfJets_mask]
 
         vbfJets_sorted_pt = vbfJets[ak.argsort(vbfJets.pt, ascending=False)]
-        vbfJets_sorted_pt = ak.pad_none(
-            vbfJets_sorted_pt, 2, clip=True
-        )  # this is the only which does not guarantee two guys. in the other sorts, the entries are specifically None.
+        # this is the only which does not guarantee two guys. in the other sorts, the entries are specifically None.
+        vbfJets_sorted_pt = ak.pad_none(vbfJets_sorted_pt, 2, clip=True)
 
         # pt sorted eta and dijet mass mask
         vbf1 = vector.array(
