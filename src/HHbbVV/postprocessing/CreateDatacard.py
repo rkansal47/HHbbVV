@@ -30,7 +30,7 @@ adjust_posdef_yields = False
 
 # from utils import add_bool_arg
 from hh_vars import LUMI, res_sig_keys, qcd_key, data_key, years, jecs, jmsr, res_mps
-
+import utils
 
 import argparse
 
@@ -108,6 +108,14 @@ parser.add_argument(
 add_bool_arg(parser, "sig-separate", "separate templates for signals and bgs", default=False)
 add_bool_arg(parser, "do-jshifts", "Do JEC/JMC corrections.", default=True)
 
+add_bool_arg(parser, "only-sm", "Only add SM HH samples for (for debugging nonres)", default=False)
+add_bool_arg(
+    parser,
+    "combine-lasttwo",
+    "Check combining last two bins in nonres for HWW review",
+    default=False,
+)
+
 parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
 
 parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
@@ -128,8 +136,8 @@ parser.add_argument(
     default=None,
     nargs="*",
     type=int,
-    help="order of polynomial for TF in [dim 1, dim 2] = [mH(bb), -] for nonresonant or [mY, mX] for resonant"
-    "",
+    help="order of polynomial for TF in [dim 1, dim 2] = [mH(bb), -] for nonresonant or [mY, mX] for resonant."
+    "Default is 0 for nonresonant and (1, 2) for resonant.",
 )
 
 parser.add_argument("--model-name", default=None, type=str, help="output model name")
@@ -178,6 +186,10 @@ nonres_sig_keys_vbf = [
     "qqHH_CV_1_C2V_1_kl_0_HHbbVV",
     "qqHH_CV_0p5_C2V_1_kl_1_HHbbVV",
 ]
+
+if args.only_sm:
+    nonres_sig_keys_ggf, nonres_sig_keys_vbf = ["HHbbVV"], []
+
 nonres_sig_keys = nonres_sig_keys_ggf + nonres_sig_keys_vbf
 sig_keys = []
 hist_names = {}  # names of hist files for the samples
@@ -348,7 +360,7 @@ def main(args):
 
     # templates per region per year, templates per region summed across years
     templates_dict, templates_summed = get_templates(
-        args.templates_dir, years, args.sig_separate, args.scale_templates
+        args.templates_dir, years, args.sig_separate, args.scale_templates, args.combine_lasttwo
     )
 
     # TODO: check if / how to include signal trig eff uncs. (rn only using bg uncs.)
@@ -510,7 +522,23 @@ def combine_templates(
     return ctemplates
 
 
-def get_templates(templates_dir: str, years: List[str], sig_separate: bool, scale: float = None):
+def _combine_last_two_bins(templates_dict):
+    for year in years:
+        for region in templates_dict[year]:
+            templates_dict[year][region] = utils.rebin_hist(
+                templates_dict[year][region],
+                "bbFatJetParticleNetMass",
+                list(range(50, 240, 10)) + [250],
+            )
+
+
+def get_templates(
+    templates_dir: str,
+    years: List[str],
+    sig_separate: bool,
+    scale: float = None,
+    combine_lasttwo: bool = False,
+):
     """Loads templates, combines bg and sig templates if separate, sums across all years"""
     templates_dict: Dict[str, Dict[str, Hist]] = {}
 
@@ -537,6 +565,9 @@ def get_templates(templates_dir: str, years: List[str], sig_separate: bool, scal
         for year in templates_dict:
             for key in templates_dict[year]:
                 templates_dict[year][key] = templates_dict[year][key] * scale
+
+    if combine_lasttwo:
+        _combine_last_two_bins(templates_dict)
 
     templates_summed: Dict[str, Hist] = sum_templates(templates_dict)  # sum across years
     return templates_dict, templates_summed
