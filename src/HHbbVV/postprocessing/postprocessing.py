@@ -1015,6 +1015,7 @@ def control_plots(
     combine_pdf: bool = True,
     HEM2d: bool = False,
     show: bool = False,
+    log: Tuple[bool, str] = "both",
 ):
     """
     Makes and plots histograms of each variable in ``control_plot_vars``.
@@ -1023,7 +1024,7 @@ def control_plots(
         control_plot_vars (Dict[str, Tuple]): Dictionary of variables to plot, formatted as
           {var1: ([num bins, min, max], label), var2...}.
         sig_splits: split up signals into different plots (in case there are too many for one)
-
+        log: True or False if plot on log scale or not - or "both" if both.
     """
 
     from PyPDF2 import PdfMerger
@@ -1056,28 +1057,37 @@ def control_plots(
     if sig_splits is None:
         sig_splits = [sig_keys]
 
-    for i, plot_sig_keys in enumerate(sig_splits):
-        tplot_dir = plot_dir if len(sig_splits) == 1 else f"{plot_dir}/sigs{i}/"
-        tsig_scale_dict = {key: sig_scale_dict.get(key, 1) for key in plot_sig_keys}
+    do_log = [True, False] if log == "both" else [log]
 
-        merger_control_plots = PdfMerger()
+    for log, logstr in [(False, ""), (True, "_log")]:
+        if log not in do_log:
+            continue
 
-        for var, var_hist in hists.items():
-            name = f"{tplot_dir}/{cutstr}{var}.pdf"
-            plotting.ratioHistPlot(
-                var_hist,
-                year,
-                plot_sig_keys,
-                bg_keys,
-                name=name,
-                sig_scale_dict=tsig_scale_dict,
-                show=show,
-            )
-            merger_control_plots.append(name)
+        for i, plot_sig_keys in enumerate(sig_splits):
+            tplot_dir = plot_dir if len(sig_splits) == 1 else f"{plot_dir}/sigs{i}/"
+            tsig_scale_dict = {key: sig_scale_dict.get(key, 1) for key in plot_sig_keys}
 
-        if combine_pdf:
-            merger_control_plots.write(f"{tplot_dir}/{cutstr}{year}_ControlPlots.pdf")
-        merger_control_plots.close()
+            merger_control_plots = PdfMerger()
+
+            for var, var_hist in hists.items():
+                name = f"{tplot_dir}/{cutstr}{var}{logstr}.pdf"
+                plotting.ratioHistPlot(
+                    var_hist,
+                    year,
+                    plot_sig_keys,
+                    bg_keys,
+                    name=name,
+                    sig_scale_dict=tsig_scale_dict if not log else None,
+                    show=show,
+                    log=log,
+                    ylim=None if not log else 1e15,
+                )
+                merger_control_plots.append(name)
+
+            if combine_pdf:
+                merger_control_plots.write(f"{tplot_dir}/{cutstr}{year}{logstr}_ControlPlots.pdf")
+
+            merger_control_plots.close()
 
     if HEM2d and year == "2018":
         # TODO: change plot keys?
@@ -1130,9 +1140,12 @@ def get_templates(
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
+    plot_sig_keys: List[str] = None,
     sig_splits: List[List[str]] = None,
+    sig_scale_dict: Dict = None,
     weight_shifts: Dict = {},
     jshift: str = "",
+    lpsfs: bool = True,
     plot_shifts: bool = False,
     pass_ylim: int = None,
     fail_ylim: int = None,
@@ -1192,8 +1205,9 @@ def get_templates(
 
             if pass_region:
                 # scale signal by LP SF
-                for wkey in [weight_key, f"{weight_key}_noTrigEffs"]:
-                    sig_events[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
+                if lpsfs:
+                    for wkey in [weight_key, f"{weight_key}_noTrigEffs"]:
+                        sig_events[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
 
                 corrections.apply_txbb_sfs(sig_events[sig_key], sig_bb_mask, year, weight_key)
 
@@ -1290,10 +1304,11 @@ def get_templates(
 
         # plot templates incl variations
         if plot_dir != "" and (not do_jshift or plot_shifts):
-            sig_scale_dict = {
-                **{skey: 1 for skey in nonres_sig_keys},
-                **{skey: 1 for skey in res_sig_keys},
-            }
+            if sig_scale_dict is None:
+                sig_scale_dict = {
+                    **{skey: 1 for skey in nonres_sig_keys},
+                    **{skey: 1 for skey in res_sig_keys},
+                }
 
             title = (
                 f"{region.label} Region Pre-Fit Shapes"
@@ -1302,16 +1317,16 @@ def get_templates(
             )
 
             if sig_splits is None:
-                sig_splits = [sig_keys]
+                sig_splits = [plot_sig_keys]
 
             for i, shape_var in enumerate(shape_vars):
-                for j, plot_sig_keys in enumerate(sig_splits):
+                for j, p_sig_keys in enumerate(sig_splits):
                     split_str = "" if len(sig_splits) == 1 else f"sigs{j}_"
                     plot_params = {
                         "hists": h.project(0, i + 1),
-                        "sig_keys": plot_sig_keys,
+                        "sig_keys": p_sig_keys,
                         "bg_keys": bg_keys,
-                        "sig_scale_dict": {key: sig_scale_dict[key] for key in plot_sig_keys}
+                        "sig_scale_dict": {key: sig_scale_dict[key] for key in p_sig_keys}
                         if pass_region
                         else None,
                         "show": show,
