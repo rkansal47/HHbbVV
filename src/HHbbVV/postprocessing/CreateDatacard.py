@@ -284,8 +284,8 @@ for sig_key in sig_keys:
         prior="lnN", samples=[sig_key]
     )
 
-# remove keys in
 if args.year != "all":
+    # remove other years' keys
     for key in [
         "lumi_13TeV_2016",
         "lumi_13TeV_2017",
@@ -293,7 +293,7 @@ if args.year != "all":
         "lumi_13TeV_correlated",
         "lumi_13TeV_1718",
     ]:
-        if key != f"lumi_13TeV{args.year}":
+        if key != f"lumi_13TeV_{args.year}":
             del nuisance_params[key]
 
 nuisance_params_dict = {
