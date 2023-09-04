@@ -189,6 +189,14 @@ def _fill_error(ax, edges, down, up, scale=1):
     )
 
 
+def _asimov_significance(s, b):
+    """Asimov estimate of discovery significance (with no systematic uncertainties).
+    See e.g. https://www.pp.rhul.ac.uk/~cowan/atlas/cowan_atlas_15feb11.pdf.
+    Or for more explanation: https://www.pp.rhul.ac.uk/~cowan/stat/cowan_munich16.pdf
+    """
+    return np.sqrt(2 * ((s + b) * np.log(1 + (s / b)) - s))
+
+
 def ratioHistPlot(
     hists: Hist,
     year: str,
@@ -210,6 +218,8 @@ def ratioHistPlot(
     log: bool = False,
     ratio_ylims: List[float] = [0, 2],
     divide_bin_width: bool = False,
+    plot_significance: bool = False,
+    significance_dir: str = "right",
     axrax: Tuple = None,
 ):
     """
@@ -243,6 +253,8 @@ def ratioHistPlot(
         bg_order (List[str]): order in which to plot backgrounds
         ratio_ylims (List[float]): y limits on the ratio plots
         divide_bin_width (bool): divide yields by the bin width (for resonant fit regions)
+        plot_significance (bool): plot Asimov significance below ratio plot
+        significance_dir (str): "Direction" for significance. i.e. a > cut ("right"), a < cut ("left"), or per-bin ("bin").
         axrax (Tuple): optionally input ax and rax instead of creating new ones
     """
     # copy hists and bg_keys so input objects are not changed
@@ -258,13 +270,20 @@ def ratioHistPlot(
         hists, data_err = _divide_bin_widths(hists, data_err)
 
     # set up plots
-    if axrax is None:
+    if axrax is not None:
+        if plot_significance:
+            raise RuntimeError("Significance plots with input axes not implemented yet.")
+
+        ax, rax = axrax
+        ax.sharex(rax)
+    elif plot_significance:
+        fig, (ax, rax, sax) = plt.subplots(
+            3, 1, figsize=(12, 18), gridspec_kw=dict(height_ratios=[3, 1, 1], hspace=0), sharex=True
+        )
+    else:
         fig, (ax, rax) = plt.subplots(
             2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
         )
-    else:
-        ax, rax = axrax
-        ax.sharex(rax)
 
     # plot histograms
     y_label = r"Events / Bin Width (GeV$^{-1}$)" if divide_bin_width else "Events"
@@ -357,6 +376,42 @@ def ratioHistPlot(
     rax.set_ylabel("Data/MC")
     rax.set_ylim(ratio_ylims)
     rax.grid()
+
+    if plot_significance:
+        bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys]).values()
+        sigs = [pre_divide_hists[sig_key, :].values() for sig_key in sig_scale_dict]
+
+        if significance_dir == "left":
+            bg_tot = np.cumsum(bg_tot[::-1])[::-1]
+            sigs = [np.cumsum(sig[::-1])[::-1] for sig in sigs]
+            sax.set_ylabel(r"Asimov Sign. for $\leq$ Cuts")
+        elif significance_dir == "right":
+            bg_tot = np.cumsum(bg_tot)
+            sigs = [np.cumsum(sig) for sig in sigs]
+            sax.set_ylabel(r"Asimov Sign. for $\geq$ Cuts")
+        elif significance_dir == "bin":
+            sax.set_ylabel("Asimov Sign. per Bin")
+        else:
+            raise RuntimeError(
+                'Invalid value for ``significance_dir``. Options are ["left", "right", "bin"].'
+            )
+
+        edges = pre_divide_hists.axes[1].edges
+        hep.histplot(
+            [(_asimov_significance(sig, bg_tot), edges) for sig in sigs],
+            ax=sax,
+            histtype="step",
+            label=[
+                sig_key if sig_key not in sample_label_map else sample_label_map[sig_key]
+                for sig_key in sig_scale_dict
+            ],
+            color=sig_colours[: len(sig_keys)],
+        )
+
+        sax.legend(fontsize=12)
+        sax.set_yscale("log")
+        sax.set_ylim([1e-7, 10])
+        sax.set_xlabel(hists.axes[1].label)
 
     if title is not None:
         ax.set_title(title, y=1.08)
