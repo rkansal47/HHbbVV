@@ -4,6 +4,7 @@ General utilities for postprocessing.
 Author: Raghav Kansal
 """
 
+from dataclasses import dataclass
 import time
 import contextlib
 from os import listdir
@@ -31,6 +32,35 @@ from hh_vars import (
 
 MAIN_DIR = "./"
 CUT_MAX_VAL = 9999.0
+
+
+@dataclass
+class ShapeVar:
+    """Class to store attributes of a variable to make a histogram of.
+
+    Args:
+        var (str): variable name
+        label (str): variable label
+        bins (List[int]): bins
+        reg (bool, optional): Use a regular axis or variable binning. Defaults to True.
+        blind_window (List[int], optional): if blinding, set min and max values to set 0. Defaults to None.
+        significance_dir (str, optional): if plotting significance, which direction to plot it in.
+          See more in plotting.py:ratioHistPlot(). Options are ["left", "right", "bin"]. Defaults to "right".
+    """
+
+    var: str = None
+    label: str = None
+    bins: List[int] = None
+    reg: bool = True
+    blind_window: List[int] = None
+    significance_dir: str = "right"
+
+    def __post_init__(self):
+        # create axis used for histogramming
+        if self.reg:
+            self.axis = hist.axis.Regular(*self.bins, name=self.var, label=self.label)
+        else:
+            self.axis = hist.axis.Variable(self.bins, name=self.var, label=self.label)
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
@@ -350,12 +380,9 @@ def blindBins(h: Hist, blind_region: List, blind_sample: str = None, axis=0):
 
 def singleVarHist(
     events_dict: Dict[str, pd.DataFrame],
-    var: str,
-    bins: list,
-    label: str,
+    shape_var: ShapeVar,
     bb_masks: Dict[str, pd.DataFrame],
     weight_key: str = "finalWeight",
-    blind_region: List = None,
     selection: Dict = None,
 ) -> Hist:
     """
@@ -364,9 +391,7 @@ def singleVarHist(
     Args:
         events (dict): a dict of events of format
           {sample1: {var1: np.array, var2: np.array, ...}, sample2: ...}
-        var (str): variable inside the events dict to make a histogram of
-        bins (list): bins in Hist format i.e. [num_bins, min_value, max_value]
-        label (str): label for variable (shows up when plotting)
+        shape_var (ShapeVar): ShapeVar object specifying the variable, label, binning, and (optionally) a blinding window.
         weight_key (str, optional): which weight to use from events, if different from 'weight'
         blind_region (list, optional): region to blind for data, in format [low_cut, high_cut].
           Bins in this region will be set to 0 for data.
@@ -375,10 +400,13 @@ def singleVarHist(
     """
     samples = list(events_dict.keys())
 
-    if len(bins) == 3:
-        h = Hist.new.StrCat(samples, name="Sample").Reg(*bins, name=var, label=label).Weight()
-    else:
-        h = Hist.new.StrCat(samples, name="Sample").Var(bins, name=var, label=label).Weight()
+    h = Hist(
+        hist.axis.StrCategory(samples, name="Sample"),
+        shape_var.axis,
+        storage="weight",
+    )
+
+    var = shape_var.var
 
     for sample in samples:
         events = events_dict[sample]
@@ -398,8 +426,8 @@ def singleVarHist(
         if len(fill_data[var]):
             h.fill(Sample=sample, **fill_data, weight=weight)
 
-    if blind_region is not None:
-        blindBins(h, blind_region, data_key)
+    if shape_var.blind_window is not None:
+        blindBins(h, shape_var.blind_window, data_key)
 
     return h
 
