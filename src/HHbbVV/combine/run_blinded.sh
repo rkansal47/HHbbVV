@@ -229,7 +229,9 @@ if [ $workspace = 1 ]; then
     combineCards.py $ccargs > $ws.txt
 
     echo "Running text2workspace"
-    text2workspace.py -D $dataset $ws.txt --channel-masks -o $wsm.root 2>&1 | tee $outsdir/text2workspace.txt
+    # text2workspace.py -D $dataset $ws.txt --channel-masks -o $wsm.root 2>&1 | tee $outsdir/text2workspace.txt
+    # new version got rid of -D arg??
+    text2workspace.py $ws.txt --channel-masks -o $wsm.root 2>&1 | tee $outsdir/text2workspace.txt
 else
     if [ ! -f "$wsm.root" ]; then
         echo "Workspace doesn't exist! Use the -w|--workspace option to make workspace first"
