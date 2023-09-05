@@ -49,7 +49,7 @@ from hh_vars import (
     jec_shifts,
     jmsr_shifts,
 )
-from utils import CUT_MAX_VAL
+from utils import CUT_MAX_VAL, ShapeVar
 
 from pprint import pprint
 from copy import deepcopy
@@ -60,36 +60,6 @@ import argparse
 
 # ignore these because they don't seem to apply
 # warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
-
-
-class ShapeVar:
-    """Class to store attributes of the variable to be fit on.
-
-    Args:
-        var (str): variable name
-        label (str): variable label
-        bins (List[int]): bins
-        reg (bool, optional): Use a regular axis or variable binning. Defaults to True.
-        blind_window (List[int], optional): if blinding . Defaults to None.
-    """
-
-    def __init__(
-        self,
-        var: str,
-        label: str,
-        bins: List[int],
-        reg: bool = True,
-        blind_window: List[int] = None,
-    ):
-        self.var = var
-        self.label = label
-        self.blind_window = blind_window
-
-        # create axis used for histogramming
-        if reg:
-            self.axis = hist.axis.Regular(*bins, name=var, label=label)
-        else:
-            self.axis = hist.axis.Variable(bins, name=var, label=label)
 
 
 @dataclass
@@ -123,36 +93,39 @@ old_filters = [
 ]
 
 # {var: (bins, label)}
-control_plot_vars = {
-    "MET_pt": ([40, 0, 320], r"$p^{miss}_T$ (GeV)"),
-    # "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
-    # "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
-    # "DijetMass": ([50, 500, 3000], r"$m^{jj}$ (GeV)"),
-    "bbFatJetPhi": ([40, -3.5, 3.5], r"$\varphi^{bb}$"),
-    "bbFatJetEta": ([40, -3, 3], r"$\eta^{bb}$"),
-    "bbFatJetPt": ([40, 300, 2300], r"$p^{bb}_T$ (GeV)"),  # TODO: increase bin widths, x max
-    # "bbFatJetParticleNetMass": ([50, 0, 300], r"$m^{bb}_{reg}$ (GeV)"),
-    # "bbFatJetMsd": ([50, 0, 300], r"$m^{bb}_{msd}$ (GeV)"),
-    # "bbFatJetParticleNetMD_Txbb": ([50, 0.8, 1], r"$p^{bb}_{Txbb}$"),
-    "VVFatJetPhi": ([40, -3.5, 3.5], r"$\varphi^{VV}$"),
-    "VVFatJetEta": ([40, -3, 3], r"$\eta^{VV}$"),
-    "VVFatJetPt": ([40, 300, 2300], r"$p^{VV}_T$ (GeV)"),
-    # "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$ (GeV)"),
-    # "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$ (GeV)"),
-    # "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)"),
-    # "VVFatJetParTMD_THWW4q": (
-    #     [50, 0, 1],
-    #     r"Prob($H \to VV \to 4q$) vs Prob(QCD) (Mass-Decorrelated)",
-    # ),
-    # "VVFatJetParTMD_probT": ([50, 0, 1], r"Prob(Top) (Mass-Decorrelated)"),
-    # "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
-    # "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
-    # "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.0], r"$p^{VV}_T / p^{bb}_T$"),
-    # "nGoodMuons": ([3, 0, 3], r"# of Muons"),
-    # "nGoodElectrons": ([3, 0, 3], r"# of Electrons"),
-    # "nGoodJets": ([5, 0, 5], r"# of AK4 B-Jets"),
-    # "BDTScore": ([50, 0, 1], r"BDT Score"),
-}
+control_plot_vars = [
+    ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[50, 0, 300]),
+    ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[30, -8, 8]),
+    ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[30, 0, 750]),
+    ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[30, 600, 4000]),
+    ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[30, -2.4, 2.4]),
+    ShapeVar(
+        var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[30, 300, 1500], significance_dir="right"
+    ),
+    ShapeVar(
+        var="bbFatJetParticleNetMass",
+        label=r"$m^{bb}_{reg}$ (GeV)",
+        bins=[20, 50, 250],
+        significance_dir="bin",
+    ),
+    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[50, 0, 300]),
+    ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[50, 0.8, 1]),
+    ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[30, -2.4, 2.4]),
+    ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[30, 300, 1500]),
+    ShapeVar(var="VVParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
+    ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[40, 50, 250]),
+    # ShapeVar(var="VVFatJetParticleNet_Th4q", label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)", bins=[50, 0, 1]),
+    # ShapeVar(var="VVFatJetParTMD_THWW4q", label=r"Prob($H \to VV \to 4q$) vs Prob(QCD) (Mass-Decorrelated)", bins=[50, 0, 1]),
+    # ShapeVar(var="VVFatJetParTMD_probT", label=r"Prob(Top) (Mass-Decorrelated)", bins=[50, 0, 1]),
+    ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[50, 0, 1]),
+    ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[50, 0, 40]),
+    ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[50, 0, 40]),
+    ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[50, 0.4, 2.0]),
+    # ShapeVar(var="nGoodMuons", label=r"# of Muons", bins=[3, 0, 3]),
+    # ShapeVar(var="nGoodElectrons", label=r"# of Electrons", bins=[3, 0, 3]),
+    # ShapeVar(var="nGoodJets", label=r"# of AK4 B-Jets", bins=[5, 0, 5]),
+    # ShapeVar(var="BDTScore", label=r"BDT Score", bins=[50, 0, 1]),
+]
 
 
 def get_nonres_selection_regions(
@@ -1002,7 +975,7 @@ def control_plots(
     events_dict: Dict[str, pd.DataFrame],
     bb_masks: Dict[str, pd.DataFrame],
     sig_keys: List[str],
-    control_plot_vars: Dict[str, Tuple],
+    control_plot_vars: List[ShapeVar],
     plot_dir: str,
     year: str,
     weight_key: str = "finalWeight",
@@ -1014,6 +987,7 @@ def control_plots(
     sig_scale_dict: Dict[str, float] = None,
     combine_pdf: bool = True,
     HEM2d: bool = False,
+    plot_significance: bool = False,
     show: bool = False,
     log: Tuple[bool, str] = "both",
 ):
@@ -1035,17 +1009,14 @@ def control_plots(
 
     if sig_scale_dict is None:
         sig_scale_dict = {sig_key: 2e5 for sig_key in sig_keys}
-        # sig_scale_dict["HHbbVV"] = 2e5
-
-    # print(f"{sig_scale_dict = }")
 
     print(control_plot_vars)
     print(selection)
 
-    for var, (bins, label) in control_plot_vars.items():
-        if var not in hists:
-            hists[var] = utils.singleVarHist(
-                events_dict, var, bins, label, bb_masks, weight_key=weight_key, selection=selection
+    for shape_var in control_plot_vars:
+        if shape_var.var not in hists:
+            hists[shape_var.var] = utils.singleVarHist(
+                events_dict, shape_var, bb_masks, weight_key=weight_key, selection=selection
             )
 
     if HEM2d and year == "2018":
@@ -1069,15 +1040,17 @@ def control_plots(
 
             merger_control_plots = PdfMerger()
 
-            for var, var_hist in hists.items():
-                name = f"{tplot_dir}/{cutstr}{var}{logstr}.pdf"
+            for shape_var in control_plot_vars:
+                name = f"{tplot_dir}/{cutstr}{shape_var.var}{logstr}.pdf"
                 plotting.ratioHistPlot(
-                    var_hist,
+                    hists[shape_var.var],
                     year,
                     plot_sig_keys,
                     bg_keys,
                     name=name,
                     sig_scale_dict=tsig_scale_dict if not log else None,
+                    plot_significance=plot_significance,
+                    significance_dir=shape_var.significance_dir,
                     show=show,
                     log=log,
                     ylim=None if not log else 1e15,
