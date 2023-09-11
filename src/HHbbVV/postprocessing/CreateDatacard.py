@@ -17,6 +17,7 @@ import numpy as np
 import pickle, json
 import logging
 from collections import OrderedDict
+from string import Template
 
 import hist
 from hist import Hist
@@ -91,6 +92,12 @@ def add_bool_arg(parser, name, help, default=False, no_name=None):
     parser.set_defaults(**{varname: default})
 
 
+def _join_with_padding(items, padding: int = 20):
+    """Joins items into a string, padded by ``padding`` spaces"""
+    ret = f"{{:<{padding}}}" * len(items)
+    return ret.format(*items)
+
+
 def mxmy(sample):
     mY = int(sample.split("-")[-1])
     mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
@@ -105,6 +112,9 @@ parser.add_argument(
     type=str,
     help="input pickle file of dict of hist.Hist templates",
 )
+
+add_bool_arg(parser, "vbf", "VBF category datacards", default=False)
+
 add_bool_arg(parser, "sig-separate", "separate templates for signals and bgs", default=False)
 add_bool_arg(parser, "do-jshifts", "Do JEC/JMC corrections.", default=True)
 
@@ -353,11 +363,6 @@ for skey, syst in uncorr_year_shape_systs.items():
 
 
 def main(args):
-    # (pass, fail) x (unblinded, blinded)
-    regions: List[str] = [
-        f"{pf}{blind_str}" for pf in [f"pass", "fail"] for blind_str in ["", "Blinded"]
-    ]
-
     # templates per region per year, templates per region summed across years
     templates_dict, templates_summed = get_templates(
         args.templates_dir, years, args.sig_separate, args.scale_templates, args.combine_lasttwo
@@ -367,11 +372,24 @@ def main(args):
     process_systematics(args.templates_dir, args.sig_separate)
 
     # random template from which to extract shape vars
-    sample_templates: Hist = templates_summed[regions[0]]
+    sample_templates: Hist = templates_summed[list(templates_summed.keys())[0]]
     # [mH(bb)] for nonresonant, [mY, mX] for resonant
     shape_vars = [
         ShapeVar(name=axis.name, bins=axis.edges, order=args.nTF[i])
         for i, axis in enumerate(sample_templates.axes[1:])
+    ]
+
+    dc_args = [args, templates_dict, templates_summed, shape_vars]
+    if args.vbf:
+        createDatacardABCD(*dc_args)
+    else:
+        createDatacardAlphabet(*dc_args)
+
+
+def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
+    # (pass, fail) x (unblinded, blinded)
+    regions: List[str] = [
+        f"{pf}{blind_str}" for pf in [f"pass", "fail"] for blind_str in ["", "Blinded"]
     ]
 
     # build actual fit model now
@@ -423,6 +441,32 @@ def main(args):
 
     with open(f"{out_dir}/model.pkl", "wb") as fout:
         pickle.dump(model, fout, 2)  # use python 2 compatible protocol
+
+
+def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
+    # A, B, C, D (in order)
+    channels = ["pass", "pass_sidebands", "fail", "fail_sidebands"]
+    channels_dict, channels_summed = get_channels(templates_dict, templates_summed)
+
+    # dict storing all the substitutions for the datacard template
+    datacard_dict = {
+        "num_bins": 4,
+        "bins": _join_with_padding(channels),
+        "observations": _join_with_padding(
+            [channels_summed[channel][data_key, :].values()[0] for channel in channels]
+        ),
+    }
+
+    # TODO: fill more args
+
+    # TODO: loop through systematics
+
+    # fill datacard with args
+    with open("datacard.templ.txt", "r") as f:
+        templ = Template(f.read())
+
+    with open(out_file, "w") as f:
+        f.write(templ.substitute(templ_args))
 
 
 def _rem_neg(template_dict: Dict):
@@ -658,6 +702,36 @@ def process_systematics(templates_dir: str, sig_separate: bool):
                 sig_systs[sig_key] = json.load(f)
 
         process_systematics_separate(bg_systematics, sig_systs)  # LP SF and trig effs.
+
+
+def rebin_channels(templates: Dict, axis_name: str, mass_window: List[float]):
+    """Convert templates into single-bin hists per ABCD channel"""
+    rebinning_edges = [0] + mass_window + [1e4]
+
+    channels = {}
+    for region in ["pass", "fail"]:
+        template = templates[region]
+        # rebin into [left sideband, mass window, right window]
+        rebinned = utils.rebin_hist(template, axis_name, rebinning_edges)
+        channels[region] = rebinned[..., 1]
+        # sum sidebands
+        channels[f"{region}_sidebands"] = rebinned[..., 0] + rebinned[..., 2]
+
+    return channels
+
+
+def get_channels(templates_dict: Dict, templates_summed: Dict, shape_var: ShapeVar):
+    """Convert templates into single-bin hists per ABCD channel"""
+
+    mass_window = [100, 150]
+    axis_name = shape_var.name
+
+    channels_summed = rebin_channels(templates_summed, axis_name, mass_window)
+    channels_dict = {}
+    for key, templates in templates_dict.items():
+        channels_dict[key] = rebin_channels(templates, axis_name, mass_window)
+
+    return channels_dict, channels_summed
 
 
 def fill_regions(
