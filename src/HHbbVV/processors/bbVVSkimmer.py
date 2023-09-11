@@ -116,6 +116,10 @@ class bbVVSkimmer(processor.ProcessorABC):
         "ak8FatJetMsd",
         "ak8FatJetParticleNetMass",
         "DijetMass",
+        "VBFJetEta",
+        "VBFJetPt",
+        "VBFJetPhi",
+        "VBFJetMass",
         "ak8FatJetHbb",
         "ak8FatJetHVV",
         "ak8FatJetHVVNumProngs",
@@ -132,6 +136,12 @@ class bbVVSkimmer(processor.ProcessorABC):
     for shift in jmsr_shifts:
         min_branches.append(f"ak8FatJetParticleNetMass_{shift}")
         min_branches.append(f"DijetMass_{shift}")
+        
+    for label, shift in common.jecs.items():
+                    for vari in ["up", "down"]:
+                        min_branches.append(f"VBFJetPt_{label}_{vari}")
+                        
+
 
     def __init__(
         self,
@@ -333,22 +343,21 @@ class bbVVSkimmer(processor.ProcessorABC):
             & ((jets.pt > 50) | ((jets.puId & 2) == 2))
             & (
                 ak.all(
-                    jets.metric_table(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[bb_mask])
+                    jets.metric_table(ak.singletons(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[bb_mask]))
                     > self.ak4_jet_selection["dR_fatjetbb"],
                     axis=-1,
                 )
             )
             & (
                 ak.all(
-                    jets.metric_table(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[~bb_mask])
+                    jets.metric_table(ak.singletons(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[~bb_mask]))
                     > self.ak4_jet_selection["dR_fatjetVV"],
                     axis=-1,
                 )
             )
         )
 
-        vbf_jets = jets[vbf_jet_mask]  # also needs pt sorting
-        vbf_jets = vbf_jets[ak.argsort(vbf_jets.pt, ascending=False)]
+        vbf_jets = jets[vbf_jet_mask] 
 
         VBFJetVars = {
             f"VBFJet{key}": pad_val(vbf_jets[var], num_ak4_jets, axis=1)
