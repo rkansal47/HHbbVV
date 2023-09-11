@@ -90,8 +90,10 @@ class bbVVSkimmer(processor.ProcessorABC):
         "pt": 300.0,
         "eta": 2.4,
         "VVmsd": 50,
-        "VVparticleNet_mass": [50, 250],
-        "bbparticleNet_mass": [92.5, 162.5],
+        # "VVparticleNet_mass": [50, 250],
+        # "bbparticleNet_mass": [92.5, 162.5],
+        "bbparticleNet_mass": 50,
+        "VVparticleNet_mass": 50,
         "bbFatJetParticleNetMD_Txbb": 0.8,
         "DijetMass": 800,  # TODO
         # "nGoodElectrons": 0,
@@ -435,12 +437,15 @@ class bbVVSkimmer(processor.ProcessorABC):
                     + (msds[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
                 ) * (pnetms[bb_mask] >= 50)
             else:
-                cut = (
-                    (pnetms[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
-                    * (pnetms[~bb_mask] < self.preselection["VVparticleNet_mass"][1])
-                    * (pnetms[bb_mask] >= self.preselection["bbparticleNet_mass"][0])
-                    * (pnetms[bb_mask] < self.preselection["bbparticleNet_mass"][1])
+                cut = (pnetms[~bb_mask] >= self.preselection["VVparticleNet_mass"]) * (
+                    pnetms[bb_mask] >= self.preselection["bbparticleNet_mass"]
                 )
+                # cut = (
+                #     (pnetms[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
+                #     * (pnetms[~bb_mask] < self.preselection["VVparticleNet_mass"][1])
+                #     * (pnetms[bb_mask] >= self.preselection["bbparticleNet_mass"][0])
+                #     * (pnetms[bb_mask] < self.preselection["bbparticleNet_mass"][1])
+                # )
 
             cuts.append(cut)
 
