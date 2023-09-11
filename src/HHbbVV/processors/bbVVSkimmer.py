@@ -537,7 +537,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         goodelectron = (
             (events.Electron.pt > 20)
             & (abs(events.Electron.eta) < 2.5)
-            & (events.Electron.pfRelIso04_all < 0.4)
+            & (events.Electron.miniPFRelIso_all < 0.4)
             & (events.Electron.cutBased >= events.Electron.LOOSE)
         )
         nelectrons = ak.sum(goodelectron, axis=1)
@@ -545,7 +545,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         goodmuon = (
             (events.Muon.pt > 15)
             & (abs(events.Muon.eta) < 2.4)
-            & (events.Muon.pfRelIso04_all < 0.4)
+            & (events.Muon.miniPFRelIso_all < 0.4)
             & events.Muon.looseId
         )
         nmuons = ak.sum(goodmuon, axis=1)
