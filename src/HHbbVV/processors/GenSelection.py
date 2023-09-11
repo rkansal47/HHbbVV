@@ -30,6 +30,7 @@ vMU_PDGID = 14
 TAU_PDGID = 15
 vTAU_PDGID = 16
 
+G_PDGID = 22
 Z_PDGID = 23
 W_PDGID = 24
 HIGGS_PDGID = 25
@@ -75,12 +76,22 @@ def gen_selection_HYbbVV(
     GenVVVars = {f"GenVV{key}": VV[var][:, :2].to_numpy() for (var, key) in skim_vars.items()}
 
     VV_children = VV.children
+
+    # iterate through the children in photon scattering events to get final daughter quarks
+    for i in range(5):
+        photon_mask = ak.any(ak.flatten(abs(VV_children.pdgId), axis=2) == G_PDGID, axis=1)
+        if not np.any(photon_mask):
+            break
+
+        # use a where condition to get next layer of children for photon scattering events
+        VV_children = ak.where(photon_mask, ak.flatten(VV_children.children, axis=3), VV_children)
+
     quarks = abs(VV_children.pdgId) <= b_PDGID
     all_q = ak.all(ak.all(quarks, axis=2), axis=1)
     add_selection("all_q", all_q, selection, cutflow, False, signGenWeights)
 
     V_has_2q = ak.count(VV_children.pdgId, axis=2) == 2
-    has_4q = ak.values_astype(ak.prod(V_has_2q, axis=1), np.bool)
+    has_4q = ak.values_astype(ak.prod(V_has_2q, axis=1), bool)
     add_selection("has_4q", has_4q, selection, cutflow, False, signGenWeights)
 
     Gen4qVars = {
@@ -173,6 +184,15 @@ def gen_selection_HHbbVV(
 
     # checking that each V has 2 q children
     VV_children = VV.children
+
+    # iterate through the children in photon scattering events to get final daughter quarks
+    for i in range(5):
+        photon_mask = ak.any(ak.flatten(abs(VV_children.pdgId), axis=2) == G_PDGID, axis=1)
+        if not np.any(photon_mask):
+            break
+
+        # use a where condition to get next layer of children for photon scattering events
+        VV_children = ak.where(photon_mask, ak.flatten(VV_children.children, axis=3), VV_children)
 
     quarks = abs(VV_children.pdgId) <= b_PDGID
     all_q = ak.all(ak.all(quarks, axis=2), axis=1)
@@ -493,6 +513,7 @@ def tagger_gen_H_matching(
         genVars = {**genVars, **genVVars, **genVstarVars, **genLabelVars}
 
     elif "qq" in decays:
+        print("qq")
         children_mask = get_pid_mask(
             matched_higgs_children,
             [g_PDGID, b_PDGID, c_PDGID, s_PDGID, d_PDGID, u_PDGID],
@@ -515,19 +536,31 @@ def tagger_gen_H_matching(
             + ((ak.sum(daughters_pdgId == g_PDGID, axis=1) == 2)) * 7
         )
 
+        bs_decay = (ak.sum(daughters_pdgId == b_PDGID, axis=1) == 1) * (
+            ak.sum(daughters_pdgId == s_PDGID, axis=1) == 1
+        )
+
+        print(bs_decay)
+        print(np.sum(bs_decay))
+
         genLabelVars = {
             "fj_nprongs": nprongs,
             "fj_H_bb": to_label(decay == 1),
             "fj_H_cc": to_label(decay == 3),
             "fj_H_qq": to_label(decay == 5),
             "fj_H_gg": to_label(decay == 7),
+            "fj_H_bs": to_label(bs_decay),
         }
+
+        print(genLabelVars)
 
         genVars = {**genVars, **genLabelVars}
 
         # select event only if any of the q/g decays are within jet radius
         matched_qs_mask = ak.any(fatjets.delta_r(daughters) < jet_dR, axis=1)
         matched_mask = matched_higgs_mask & matched_qs_mask
+
+        breakpoint()
 
     return matched_mask, genVars
 

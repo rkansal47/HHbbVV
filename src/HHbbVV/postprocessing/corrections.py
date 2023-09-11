@@ -80,11 +80,17 @@ def apply_txbb_sfs(
     bb_pt = utils.get_feat(events, "bbFatJetPt", bb_mask)
 
     for var in ["up", "down"]:
-        events[f"{weight_key}_txbb_{var}"] = events[weight_key] * txbb_sf_lookups[year][var](
-            bb_txbb, bb_pt
-        )
+        if len(events[weight_key]):
+            events[f"{weight_key}_txbb_{var}"] = events[weight_key] * txbb_sf_lookups[year][var](
+                bb_txbb, bb_pt
+            )
+        else:
+            events[f"{weight_key}_txbb_{var}"] = events[weight_key]
 
-    events[weight_key] = events[weight_key] * txbb_sf_lookups[year]["nom"](bb_txbb, bb_pt)
+    if len(events[weight_key]):
+        events[weight_key] = events[weight_key] * txbb_sf_lookups[year]["nom"](bb_txbb, bb_pt)
+    else:
+        events[weight_key] = events[weight_key]
 
 
 trig_effs = {}
@@ -124,7 +130,6 @@ def _get_uncorr_trig_eff_unc_per_sample(
     total_errs = []
 
     for jet, h in hists.items():
-        # print(jet)
         h.fill(
             jet1txbb=utils.get_feat(events, f"{jet}FatJetParticleNetMD_Txbb", bb_mask),
             jet1pt=utils.get_feat(events, f"{jet}FatJetPt", bb_mask),
@@ -132,20 +137,10 @@ def _get_uncorr_trig_eff_unc_per_sample(
             weight=utils.get_feat(events, f"{weight_key}_noTrigEffs"),
         )
 
-        # print(h)
-
-        # print(h.values(flow=True) * np.nan_to_num(effs.view(flow=True)))
-
         total = np.sum(h.values(flow=True) * np.nan_to_num(effs.view(flow=True)))
-
-        # print(f"{total = }")
-
         totals.append(total)
 
         total_err = np.linalg.norm((h.values(flow=True) * np.nan_to_num(errs)).reshape(-1))
-
-        # print(f"{total_err = }")
-
         total_errs.append(total_err)
 
     total = np.sum(totals)
@@ -171,8 +166,6 @@ def get_uncorr_trig_eff_unc(
             if not len(events) or (sel is not None and not len(events[sel[sample]])):
                 continue
 
-            # print(sample)
-
             total, total_err = _get_uncorr_trig_eff_unc_per_sample(
                 events[sel[sample]] if sel is not None else events,
                 bb_masks[sample][sel[sample]] if sel is not None else bb_masks[sample],
@@ -180,17 +173,167 @@ def get_uncorr_trig_eff_unc(
                 weight_key,
             )
 
-            # print(f"Sample {total = }")
-            # print(f"Sample {total_err = }")
-
             totals.append(total)
             total_errs.append(total_err)
 
     total = np.sum(totals)
     total_err = np.linalg.norm(total_errs)
 
-    # print("")
-    # print(f"{total = }")
-    # print(f"{total_err = }")
-
     return total, total_err
+
+
+def postprocess_lpsfs(
+    events: pd.DataFrame,
+    num_jets: int = 2,
+    num_lp_sf_toys: int = 100,
+    save_all: bool = True,
+    weight_key: str = "finalWeight",
+):
+    """
+    (1) Splits LP SFs into bb and VV based on gen matching.
+    (2) Sets defaults for unmatched jets.
+    (3) Cuts of SFs at 10 and normalises.
+    """
+
+    # for jet in ["bb", "VV"]:
+    for jet in ["VV"]:
+        # temp dict
+        td = {}
+
+        # defaults of 1 for jets which aren't matched to anything - i.e. no SF
+        for key in ["lp_sf_nom", "lp_sf_sys_down", "lp_sf_sys_up"]:
+            td[key] = np.ones(len(events))
+
+        td["lp_sf_toys"] = np.ones((len(events), num_lp_sf_toys))
+
+        # defaults of 0 - i.e. don't contribute to unc.
+        for key in ["lp_sf_double_matched_event", "lp_sf_unmatched_quarks", "lp_sf_num_sjpt_gt350"]:
+            td[key] = np.zeros(len(events))
+
+        # lp sfs saved for both jets
+        if events["lp_sf_sys_up"].shape[1] == 2:
+            # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
+            events.loc[np.sum(events[f"ak8FatJetH{jet}"], axis=1) > 1, f"ak8FatJetH{jet}"] = 0
+            jet_match = events[f"ak8FatJetH{jet}"].astype(bool)
+
+            # fill values from matched jets
+            for j in range(num_jets):
+                offset = num_lp_sf_toys + 1
+                td["lp_sf_nom"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]][j * offset]
+                td["lp_sf_toys"][jet_match[j]] = events["lp_sf_lnN"][jet_match[j]].loc[
+                    :, j * offset + 1 : (j + 1) * offset - 1
+                ]
+
+                for key in [
+                    "lp_sf_sys_down",
+                    "lp_sf_sys_up",
+                    "lp_sf_double_matched_event",
+                    "lp_sf_unmatched_quarks",
+                    "lp_sf_num_sjpt_gt350",
+                ]:
+                    td[key][jet_match[j]] = events[key][jet_match[j]][j]
+
+        # lp sfs saved only for hvv jet
+        elif events["lp_sf_sys_up"].shape[1] == 1:
+            # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
+            jet_match = np.sum(events[f"ak8FatJetH{jet}"], axis=1) == 1
+
+            # fill values from matched jets
+            td["lp_sf_nom"][jet_match] = events["lp_sf_lnN"][jet_match][0]
+            td["lp_sf_toys"][jet_match] = events["lp_sf_lnN"][jet_match].loc[:, 1:]
+
+            for key in [
+                "lp_sf_sys_down",
+                "lp_sf_sys_up",
+                "lp_sf_double_matched_event",
+                "lp_sf_unmatched_quarks",
+                "lp_sf_num_sjpt_gt350",
+            ]:
+                td[key][jet_match] = events[key][jet_match].squeeze()
+
+        else:
+            raise ValueError("LP SF shapes are invalid")
+
+        for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_sys_down", "lp_sf_sys_up"]:
+            # cut off at 10
+            td[key] = np.minimum(td[key], 10)
+            # normalise
+            td[key] = td[key] / np.mean(td[key], axis=0)
+
+        # add to dataframe
+        if save_all:
+            td = pd.concat(
+                [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in td.items()],
+                axis=1,
+                keys=[f"{jet}_{key}" for key in td.keys()],
+            )
+
+            events = pd.concat((events, td), axis=1)
+        else:
+            key = "lp_sf_nom"
+            events[f"{jet}_{key}"] = td[key]
+
+    return events
+
+
+def get_lpsf(
+    events: pd.DataFrame, sel: np.ndarray = None, VV: bool = True, weight_key: str = "finalWeight"
+):
+    """
+    Calculates LP SF and uncertainties in current phase space. ``postprocess_lpsfs`` must be called first.
+    Assumes bb/VV candidates are matched correctly - this is false for <0.1% events for the cuts we use.
+    """
+
+    jet = "VV" if VV else "bb"
+    if sel is not None:
+        events = events[sel]
+
+    tot_matched = np.sum(np.sum(events[f"ak8FatJetH{jet}"].astype(bool)))
+
+    weight = events[weight_key].values
+    tot_pre = np.sum(weight)
+    tot_post = np.sum(weight * events[f"{jet}_lp_sf_nom"][0])
+    lp_sf = tot_post / tot_pre
+
+    uncs = {}
+
+    # difference in yields between up and down shifts on LP SFs
+    uncs["syst_unc"] = np.abs(
+        (
+            np.sum(events[f"{jet}_lp_sf_sys_up"][0] * weight)
+            - np.sum(events[f"{jet}_lp_sf_sys_down"][0] * weight)
+        )
+        / 2
+        / tot_post
+    )
+
+    # std of yields after all smearings
+    uncs["stat_unc"] = (
+        np.std(np.sum(weight[:, np.newaxis] * events[f"{jet}_lp_sf_toys"].values, axis=0))
+        / tot_post
+    )
+
+    # fraction of subjets > 350 * 0.21 measured by CASE
+    uncs["sj_pt_unc"] = (np.sum(events[f"{jet}_lp_sf_num_sjpt_gt350"][0]) / tot_matched) * 0.21
+
+    if VV:
+        num_prongs = events["ak8FatJetHVVNumProngs"][0]
+
+        sj_matching_unc = np.sum(events[f"{jet}_lp_sf_double_matched_event"][0])
+        for nump in range(2, 5):
+            sj_matching_unc += (
+                np.sum(events[f"{jet}_lp_sf_unmatched_quarks"][0][num_prongs == nump]) / nump
+            )
+
+        uncs["sj_matching_unc"] = sj_matching_unc / tot_matched
+    else:
+        num_prongs = 2
+        uncs["sj_matching_unc"] = (
+            (np.sum(events[f"{jet}_lp_sf_unmatched_quarks"][0]) / num_prongs)
+            + np.sum(events[f"{jet}_lp_sf_double_matched_event"][0])
+        ) / tot_matched
+
+    tot_rel_unc = np.linalg.norm([val for val in uncs.values()])
+    tot_unc = lp_sf * tot_rel_unc
+
+    return lp_sf, tot_unc, uncs

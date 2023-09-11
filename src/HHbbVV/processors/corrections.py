@@ -1,3 +1,14 @@
+"""
+Collection of utilities for corrections and systematics in processors.
+
+Loosely based on https://github.com/jennetd/hbb-coffea/blob/master/boostedhiggs/corrections.py
+
+Most corrections retrieved from the cms-nanoAOD repo:
+See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/
+
+Authors: Raghav Kansal, Cristina Suarez
+"""
+
 import os
 from typing import Dict, List, Tuple, Union
 import numpy as np
@@ -6,11 +17,11 @@ import pickle
 import correctionlib
 import awkward as ak
 
+from coffea import util as cutil
 from coffea.analysis_tools import Weights
 from coffea.lookup_tools.dense_lookup import dense_lookup
 from coffea.nanoevents.methods.nanoaod import MuonArray, JetArray, FatJetArray, GenParticleArray
 from coffea.nanoevents.methods.base import NanoEventsArray
-
 from coffea.nanoevents.methods import vector
 
 ak.behavior.update(vector.behavior)
@@ -18,7 +29,7 @@ ak.behavior.update(vector.behavior)
 import pathlib
 
 from . import utils
-from .utils import P4
+from .utils import P4, pad_val
 
 
 package_path = str(pathlib.Path(__file__).parent.parent.resolve())
@@ -26,13 +37,15 @@ package_path = str(pathlib.Path(__file__).parent.parent.resolve())
 
 """
 CorrectionLib files are available from: /cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration - synced daily
+See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/
 """
 pog_correction_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/"
 pog_jsons = {
     "muon": ["MUO", "muon_Z.json.gz"],
     "electron": ["EGM", "electron.json.gz"],
     "pileup": ["LUM", "puWeights.json.gz"],
-    "jec": ["JME", "fatJet_jerc.json.gz"],
+    "btagging": ["BTV", "btagging.json.gz"],
+    "jmar": ["JME", "jmar.json.gz"],
 }
 
 
@@ -172,6 +185,8 @@ def add_VJets_kFactors(weights, genpart, dataset):
 def add_ps_weight(weights, ps_weights):
     """
     Parton Shower Weights (FSR and ISR)
+    "Default" variation: https://twiki.cern.ch/twiki/bin/view/CMS/HowToPDF#Which_set_of_weights_to_use
+    i.e. scaling ISR up and down
     """
 
     nweights = len(weights.weight())
@@ -301,6 +316,78 @@ def add_scalevar_3pt(weights, var_weights):
     weights.add("QCDscale3pt", nom, up, down)
 
 
+def _btagSF(cset, jets, flavour, wp="M", algo="deepJet", syst="central"):
+    j, nj = ak.flatten(jets), ak.num(jets)
+    corrs = cset[f"{algo}_comb"] if flavour == "bc" else cset[f"{algo}_incl"]
+    sf = corrs.evaluate(
+        syst,
+        wp,
+        np.array(j.hadronFlavour),
+        np.array(abs(j.eta)),
+        np.array(j.pt),
+    )
+    return ak.unflatten(sf, nj)
+
+
+def _btag_prod(eff, sf):
+    num = ak.fill_none(ak.prod(1 - sf * eff, axis=-1), 1)
+    den = ak.fill_none(ak.prod(1 - eff, axis=-1), 1)
+    return num, den
+
+
+def add_btag_weights(
+    weights: Weights,
+    year: str,
+    jets: JetArray,
+    wp: str = "M",
+    algo: str = "deepJet",
+):
+    ul_year = get_UL_year(year)
+    cset = correctionlib.CorrectionSet.from_file(get_pog_json("btagging", year))
+    efflookup = cutil.load(package_path + f"/corrections/btag_effs/btageff_deepJet_M_{year}.coffea")
+
+    lightJets = jets[jets.hadronFlavour == 0]
+    bcJets = jets[jets.hadronFlavour > 0]
+
+    lightEff = efflookup(lightJets.pt, abs(lightJets.eta), lightJets.hadronFlavour)
+    bcEff = efflookup(bcJets.pt, abs(bcJets.eta), bcJets.hadronFlavour)
+
+    lightSF = _btagSF(cset, lightJets, "light", wp, algo)
+    bcSF = _btagSF(cset, bcJets, "bc", wp, algo)
+
+    lightnum, lightden = _btag_prod(lightEff, lightSF)
+    bcnum, bcden = _btag_prod(bcEff, bcSF)
+
+    weight = np.nan_to_num((1 - lightnum * bcnum) / (1 - lightden * bcden), nan=1)
+    weights.add("btagSF", weight)
+
+
+def add_pileupid_weights(weights: Weights, year: str, jets: JetArray, genjets, wp: str = "L"):
+    """Pileup ID scale factors
+    https://twiki.cern.ch/twiki/bin/view/CMS/PileupJetIDUL#Data_MC_Efficiency_Scale_Factors
+
+    Takes ak4 jets which already passed the pileup ID WP.
+    Only applies to jets with pT < 50 GeV and those geometrically matched to a gen jet.
+    """
+
+    # pileup ID should only be used for jets with pT < 50
+    jets = jets[jets.pt < 50]
+    # check that there's a geometrically matched genjet (99.9% are, so not really necessary...)
+    jets = jets[ak.any(jets.metric_table(genjets) < 0.4, axis=-1)]
+
+    sf_cset = correctionlib.CorrectionSet.from_file(get_pog_json("jmar", year))["PUJetID_eff"]
+    # save offsets to reconstruct jagged shape
+    offsets = jets.pt.layout.content.offsets
+    # correctionlib < 2.3 doesn't accept jagged arrays (but >= 2.3 needs awkard v2)
+    sfs = sf_cset.evaluate(ak.flatten(jets.eta), ak.flatten(jets.pt), "nom", "L")
+    # reshape flat effs
+    sfs = ak.Array(ak.layout.ListOffsetArray64(offsets, ak.layout.NumpyArray(sfs)))
+    # product of SFs across arrays, automatically defaults empty lists to 1
+    sfs = ak.prod(sfs, axis=1)
+
+    weights.add("pileupIDSF", sfs)
+
+
 # for scale factor validation region selection
 lepton_corrections = {
     "trigger_noniso": {
@@ -388,6 +475,7 @@ try:
     with open(package_path + "/corrections/jec_compiled.pkl", "rb") as filehandler:
         jmestuff = pickle.load(filehandler)
 
+    ak4jet_factory = jmestuff["jet_factory"]
     fatjet_factory = jmestuff["fatjet_factory"]
 except:
     print("Failed loading compiled JECs")
@@ -404,18 +492,30 @@ def _add_jec_variables(jets: JetArray, event_rho: ak.Array) -> JetArray:
 
 
 def get_jec_jets(
-    events: NanoEventsArray, year: str, isData: bool = False, jecs: Dict[str, str] = None
+    events: NanoEventsArray,
+    year: str,
+    isData: bool = False,
+    jecs: Dict[str, str] = None,
+    fatjets: bool = True,
 ) -> FatJetArray:
     """
     Based on https://github.com/nsmith-/boostedhiggs/blob/master/boostedhiggs/hbbprocessor.py
     Eventually update to V5 JECs once I figure out what's going on with the 2017 UL V5 JER scale factors
 
+    See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/
+
     If ``jecs`` is not None, returns the shifted values of variables are affected by JECs.
     """
 
     jec_vars = ["pt"]  # vars we're saving that are affected by JECs
+    if fatjets:
+        jets = events.FatJet
+        jet_factory = fatjet_factory
+    else:
+        jets = events.Jet
+        jet_factory = ak4jet_factory
 
-    apply_jecs = not (not ak.any(events.FatJet.pt) or isData)
+    apply_jecs = not (not ak.any(jets.pt) or isData)
 
     import cachetools
 
@@ -424,29 +524,27 @@ def get_jec_jets(
     corr_key = f"{get_vfp_year(year)}mc"
 
     # fatjet_factory.build gives an error if there are no fatjets in event
-    if not apply_jecs:
-        fatjets = events.FatJet
-    else:
-        fatjets = fatjet_factory[corr_key].build(
-            _add_jec_variables(events.FatJet, events.fixedGridRhoFastjetAll), jec_cache
+    if apply_jecs:
+        jets = jet_factory[corr_key].build(
+            _add_jec_variables(jets, events.fixedGridRhoFastjetAll), jec_cache
         )
 
-    # return fatjets only if no jecs given
+    # return only fatjets if no jecs given
     if jecs is None:
-        return fatjets
+        return jets
 
     jec_shifted_vars = {}
 
     for jec_var in jec_vars:
-        tdict = {"": fatjets[jec_var]}
+        tdict = {"": jets[jec_var]}
         if apply_jecs:
             for key, shift in jecs.items():
                 for var in ["up", "down"]:
-                    tdict[f"{key}_{var}"] = fatjets[shift][var][jec_var]
+                    tdict[f"{key}_{var}"] = jets[shift][var][jec_var]
 
         jec_shifted_vars[jec_var] = tdict
 
-    return fatjets, jec_shifted_vars
+    return jets, jec_shifted_vars
 
 
 jmsr_vars = ["msoftdrop", "particleNet_mass"]
@@ -508,7 +606,7 @@ def get_jmsr(
             smearing = np.random.normal(size=mass.shape)
             # scale to JMR nom, down, up (minimum at 0)
             jmr_nom, jmr_down, jmr_up = [
-                (smearing * max(jmrValues[mkey][year][i] - 1, 0) + 1) for i in range(3)
+                ((smearing * max(jmrValues[mkey][year][i] - 1, 0)) + 1) for i in range(3)
             ]
             jms_nom, jms_down, jms_up = jmsValues[mkey][year]
 
@@ -524,6 +622,31 @@ def get_jmsr(
         jmsr_shifted_vars[mkey] = tdict
 
     return jmsr_shifted_vars
+
+
+def add_trig_effs(weights: Weights, fatjets: FatJetArray, year: str, num_jets: int = 2):
+    """Add the trigger efficiencies we measured in SingleMuon data"""
+    with open(f"{package_path}/corrections/trigEffs/{year}_combined.pkl", "rb") as filehandler:
+        combined = pickle.load(filehandler)
+
+    # sum over TH4q bins
+    effs_txbb = combined["num"][:, sum, :, :] / combined["den"][:, sum, :, :]
+
+    ak8TrigEffsLookup = dense_lookup(
+        np.nan_to_num(effs_txbb.view(flow=False), 0), np.squeeze(effs_txbb.axes.edges)
+    )
+
+    # TODO: confirm that these should be corrected pt, msd values
+    fj_trigeffs = ak8TrigEffsLookup(
+        pad_val(fatjets.Txbb, num_jets, axis=1),
+        pad_val(fatjets.pt, num_jets, axis=1),
+        pad_val(fatjets.msoftdrop, num_jets, axis=1),
+    )
+
+    # combined eff = 1 - (1 - fj1_eff) * (1 - fj2_eff)
+    combined_trigEffs = 1 - np.prod(1 - fj_trigeffs, axis=1)
+
+    weights.add("trig_effs", combined_trigEffs)
 
 
 def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Union[int, ak.Array], num_prongs: int):

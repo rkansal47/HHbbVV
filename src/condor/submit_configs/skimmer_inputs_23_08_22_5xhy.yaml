@@ -1,0 +1,17 @@
+{
+    "Skimmer":
+        {
+            "XHY":
+                {
+                    "subsamples":
+                        [
+                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80",
+                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190",
+                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125",
+                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250",
+                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150",
+                        ],
+                    "files_per_job": 20,
+                },
+        },
+}

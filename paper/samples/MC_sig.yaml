@@ -1,0 +1,7 @@
+samples:
+  HWW:
+    datasets:
+      GluGluToHHTobbVV_node_cHHH1_pn4q: /GluGluToHHTobbVV_node_cHHH1_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL17MiniAODv2-106X_mc2017_realistic_v9-v1/MINIAODSIM
+      GluGluToHHTobbVV_node_cHHH0_pn4q: /GluGluToHHTobbVV_node_cHHH0_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL17MiniAODv2-106X_mc2017_realistic_v9-v1/MINIAODSIM
+      GluGluToHHTobbVV_node_cHHH2p45_pn4q: /GluGluToHHTobbVV_node_cHHH2p45_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL17MiniAODv2-106X_mc2017_realistic_v9-v1/MINIAODSIM
+      GluGluToHHTobbVV_node_cHHH5_pn4q: /GluGluToHHTobbVV_node_cHHH5_TuneCP5_13TeV-powheg-pythia8/RunIISummer20UL17MiniAODv2-106X_mc2017_realistic_v9-v1/MINIAODSIM

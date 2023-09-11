@@ -52,7 +52,7 @@ def get_fileset(
     get_num_files: bool = False,
     coffea_casa: str = False,
 ):
-    if processor == "trigger":
+    if processor.startswith("trigger"):
         samples = [f"SingleMu{year[:4]}"]
 
     # redirector = "root://cmsxrootd.fnal.gov//" if not coffea_casa else "root://xcache//"
@@ -112,12 +112,18 @@ def get_processor(
     njets: int = None,
     save_systematics: bool = None,
     inference: bool = None,
+    save_all: bool = None,
+    vbf_search: bool = None,
 ):
     # define processor
     if processor == "trigger":
         from HHbbVV.processors import JetHTTriggerEfficienciesProcessor
 
         return JetHTTriggerEfficienciesProcessor()
+    elif processor == "trigger4d":
+        from HHbbVV.processors import JetHT4DTriggerEfficienciesProcessor
+
+        return JetHT4DTriggerEfficienciesProcessor()
     elif processor == "skimmer":
         from HHbbVV.processors import bbVVSkimmer
 
@@ -126,6 +132,8 @@ def get_processor(
             save_ak15=save_ak15,
             save_systematics=save_systematics,
             inference=inference,
+            save_all=save_all,
+            vbf_search=vbf_search,
         )
     elif processor == "input":
         from HHbbVV.processors import TaggerInputSkimmer
@@ -134,4 +142,53 @@ def get_processor(
     elif processor == "ttsfs":
         from HHbbVV.processors import TTScaleFactorsSkimmer
 
-        return TTScaleFactorsSkimmer(xsecs=get_xsecs())
+        return TTScaleFactorsSkimmer(xsecs=get_xsecs(), inference=inference)
+    elif processor == "xhy":
+        from HHbbVV.processors import XHYProcessor
+
+        return XHYProcessor()
+
+
+def parse_common_args(parser):
+    parser.add_argument(
+        "--processor",
+        default="trigger",
+        help="Trigger processor",
+        type=str,
+        choices=["trigger", "trigger4d", "skimmer", "input", "ttsfs", "xhy"],
+    )
+
+    parser.add_argument(
+        "--year", help="year", type=str, required=True, choices=["2016APV", "2016", "2017", "2018"]
+    )
+
+    parser.add_argument(
+        "--samples",
+        default=[],
+        help="which samples to run",  # , default will be all samples",
+        nargs="*",
+    )
+    parser.add_argument(
+        "--subsamples",
+        default=[],
+        help="which subsamples, by default will be all in the specified sample(s)",
+        nargs="*",
+    )
+
+    parser.add_argument("--tag", default="Test", help="process tag", type=str)
+
+    parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
+    parser.add_argument("--chunksize", default=10000, help="chunk size", type=int)
+    parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
+    parser.add_argument("--njets", default=2, help="njets", type=int)
+
+    # REMEMBER TO PROPAGATE THESE TO SUBMIT TEMPLATE!!
+    # processor args
+    add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
+    # bbVVSkimmer-only args
+    add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
+    add_bool_arg(parser, "save-systematics", default=False, help="save systematic variations")
+    add_bool_arg(parser, "save-all", default=True, help="save all branches")
+    add_bool_arg(
+        parser, "vbf-search", default=False, help="run selections for VBF production search"
+    )

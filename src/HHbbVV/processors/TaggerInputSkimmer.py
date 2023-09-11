@@ -12,7 +12,7 @@ import uproot
 from coffea.processor import ProcessorABC, dict_accumulator
 from coffea.analysis_tools import PackedSelection
 
-from .utils import add_selection_no_cutflow
+from .utils import add_selection_no_cutflow, PAD_VAL
 from .TaggerInference import (
     get_pfcands_features,
     get_svs_features,
@@ -364,8 +364,8 @@ class TaggerInputSkimmer(ProcessorABC):
             # selection
             selection = PackedSelection()
             # preselection_cut = (fatjets.pt > 200) * (fatjets.pt < 1500)
-            # preselection_cut = fatjets.pt > 200
-            # add_selection_no_cutflow("preselection", preselection_cut, selection)
+            preselection_cut = fatjets.pt > 200
+            add_selection_no_cutflow("preselection", preselection_cut, selection)
 
             # variables
             FatJetVars = {
@@ -487,6 +487,7 @@ class TaggerInputSkimmer(ProcessorABC):
             events[selection.all(*selection.names)],
             num_jets=self.num_jets,
             ak15=False,
+            new_tagger=True,
         )
 
         for jet_idx in range(self.num_jets):

@@ -31,6 +31,7 @@ def write_template(templ_file: str, out_file: str, templ_args: dict):
 
 
 def main(args):
+    username = os.environ["USER"]
     if args.site == "lpc":
         t2_local_prefix = "/eos/uscms/"
         t2_prefix = "root://cmseos.fnal.gov"
@@ -43,9 +44,11 @@ def main(args):
     elif args.site == "ucsd":
         t2_local_prefix = "/ceph/cms/"
         t2_prefix = "root://redirector.t2.ucsd.edu:1095"
-        proxy = "/home/users/rkansal/x509up_u31735"
+        if username == "rkansal":
+            proxy = "/home/users/rkansal/x509up_u31735"
+        elif username == "annava":
+            proxy = "/home/users/annava/projects/HHbbVV/test"
 
-    username = os.environ["USER"]
     local_dir = f"condor/{args.processor}/{args.tag}"
     homedir = f"/store/user/{username}/bbVV/{args.processor}/"
     outdir = homedir + args.tag + "/"
@@ -104,6 +107,8 @@ def main(args):
                     "eosoutparquet": f"{eosoutput_dir}/parquet/out_{j}.parquet",
                     "eosoutroot": f"{eosoutput_dir}/root/nano_skim_{j}.root",
                     "save_ak15": "--save-ak15" if args.save_ak15 else "--no-save-ak15",
+                    "save_all": "--save-all" if args.save_all else "--no-save-all",
+                    "vbf_search": "--vbf-search" if args.vbf_search else "--no-vbf-search",
                     "save_systematics": "--save-systematics"
                     if args.save_systematics
                     else "--no-save-systematics",
@@ -125,18 +130,10 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--year", help="year", type=str, required=True)
+    run_utils.parse_common_args(parser)
     parser.add_argument("--script", default="run.py", help="script to run", type=str)
-    parser.add_argument("--tag", default="Test", help="process tag", type=str)
     parser.add_argument(
         "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
-    )
-    parser.add_argument(
-        "--processor",
-        default="trigger",
-        help="which processor",
-        type=str,
-        choices=["trigger", "skimmer", "input", "ttsfs"],
     )
     parser.add_argument(
         "--site",
@@ -145,42 +142,17 @@ if __name__ == "__main__":
         type=str,
         choices=["lpc", "ucsd"],
     )
-    parser.add_argument(
-        "--samples",
-        default=[],
-        help="which samples to run",  # , default will be all samples",
-        nargs="*",
-    )
-    parser.add_argument(
-        "--subsamples",
-        default=[],
-        help="which subsamples, by default will be all in the specified sample(s)",
-        nargs="*",
-    )
-    parser.add_argument("--files-per-job", default=20, help="# files per condor job", type=int)
-    parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
-    parser.add_argument("--chunksize", default=10000, help="chunk size", type=int)
-    parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
-    parser.add_argument("--njets", default=2, help="njets", type=int)
-
     run_utils.add_bool_arg(
         parser,
         "test",
         default=False,
         help="test run or not - test run means only 2 jobs per sample will be created",
     )
+    parser.add_argument("--files-per-job", default=20, help="# files per condor job", type=int)
 
     run_utils.add_bool_arg(
         parser, "submit", default=False, help="submit files as well as create them"
     )
-
-    run_utils.add_bool_arg(
-        parser, "save-ak15", default=False, help="run inference for and save ak15 jets"
-    )
-    run_utils.add_bool_arg(
-        parser, "save-systematics", default=False, help="save systematic variations"
-    )
-    run_utils.add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
 
     args = parser.parse_args()
 
