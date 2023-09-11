@@ -487,9 +487,9 @@ class bbVVSkimmer(processor.ProcessorABC):
                 key: val for key, val in skimmed_events.items() if key in self.min_branches
             }
 
-        ######################
+        #######################
         # Weights
-        ######################
+        #######################
 
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
