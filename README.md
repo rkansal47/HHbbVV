@@ -400,16 +400,18 @@ This was also output a script to collect all the impacts after the jobs finish.
 
 #### Signal injection tests
 
+For resonant, use scripts inside the `src/HHbbVV/combine/` directory and run from one level above the sample datacard folders (e.g. `/uscms/home/rkansal/hhcombine/cards/biastests/23Jul17ResClipTFScale1`).
+
+Submitting 1000 toys for each sample and `r` value + more toys for samples with high fit failure rates:
+
 ```bash
-for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190 NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250
-do
-  cd $sample
-  for bias in 0.0 0.15 0.3 1.0
-  do
-    csubmit bias --seed 42 --num-jobs 50 --toys-per-job 10 --bias $bias --submit --tag $TAG
-  done
-  cd -
-done
+submit_bias_res_loop.sh $seed $TAG
+```
+
+Moving the outputs to a `bias/$TAG` dir after (uses the last digit of the seed - so make sure different runs use different last digits!):
+
+```bash
+mv_bias_outputs.sh [last-digit-of-seed] $TAG
 ```
 
 ## Misc
