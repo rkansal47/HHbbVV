@@ -136,14 +136,11 @@ class bbVVSkimmer(processor.ProcessorABC):
     for shift in jec_shifts:
         min_branches.append(f"ak8FatJetPt_{shift}")
         min_branches.append(f"DijetMass_{shift}")
+        min_branches.append(f"VBFJetPt_{shift}")
 
     for shift in jmsr_shifts:
         min_branches.append(f"ak8FatJetParticleNetMass_{shift}")
         min_branches.append(f"DijetMass_{shift}")
-
-    for label, shift in common.jecs.items():
-        for vari in ["up", "down"]:
-            min_branches.append(f"VBFJetPt_{label}_{vari}")
 
     def __init__(
         self,
