@@ -363,7 +363,7 @@ if [ $bias != -1 ]; then
     # setting verbose > 0 here can lead to crazy large output files (~10-100GB!) because of getting
     # stuck in negative yield areas
     combine -M FitDiagnostics --trackParameters r --trackErrors r --justFit \
-    -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root --rMin "-1" --rMax 20 \
+    -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root --rMin "-5" --rMax 40 \
     --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal $bias \
     ${unblindedparams},r=$bias --floatParameters ${freezeparamsblinded} \
     --robustFit=1 -t $numtoys -s $seed 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
