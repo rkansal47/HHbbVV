@@ -10,45 +10,44 @@ from .utils import add_selection
 from .common import HLTs
 
 
+muon_HLTs = {
+    "2016": ["IsoMu24", "IsoTkMu24", "Mu50"],
+    "2017": ["IsoMu27", "Mu50"],
+    "2018": ["IsoMu24", "Mu50"],
+}
+
+# same selection as in AN-2020-201
+
+muon_selection = {
+    "Id": "tight",
+    "pt": 30,
+    "eta": 2.4,
+    "pfIsoId": 4,  # tight PF isolation
+    "count": 1,
+}
+
+ak8_jet_selection = {
+    "eta": 2.4,
+    "delta_r_muon": 1.5,
+}
+
+# # bins, min, max
+msd_bins = (15, 0, 300)
+
+# edges
+pt_bins = [250, 275, 300, 325, 350, 375, 400, 450, 500, 600, 800, 1000]
+tagger_bins = [0.0, 0.9, 0.95, 0.98, 1.0]
+
+
 class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
     """Accumulates two 2D (pT, msd) histograms from all input events: 1) before triggers, and 2) after triggers"""
 
-    muon_HLTs = {
-        "2016": ["IsoMu24", "IsoTkMu24", "Mu50"],
-        "2017": ["IsoMu27", "Mu50"],
-        "2018": ["IsoMu24", "Mu50"],
-    }
-
-    # same selection as in AN-2020-201
-
-    muon_selection = {
-        "Id": "tight",
-        "pt": 30,
-        "eta": 2.4,
-        "pfIsoId": 4,  # tight PF isolation
-        "count": 1,
-    }
-
-    ak8_jet_selection = {
-        "eta": 2.4,
-        "delta_r_muon": 1.5,
-    }
-
-    # # bins, min, max
-    msd_bins = (15, 0, 300)
-
-    # edges
-    pt_bins = [250, 275, 300, 325, 350, 375, 400, 450, 500, 600, 800, 1000]
-    tagger_bins = [0.0, 0.9, 0.95, 0.98, 1.0]
-
     def __init__(self, ak15=False):
         super(JetHTTriggerEfficienciesProcessor, self).__init__()
-
         self.ak15 = ak15
 
     def process(self, events):
         """Returns pre- (den) and post- (num) trigger 2D (pT, msd) histograms from input NanoAOD events"""
-
         year = events.metadata["dataset"][:4]
 
         selection = PackedSelection()
@@ -65,7 +64,7 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
         # passing single-muon triggers
         muon_triggered = np.any(
-            np.array([events.HLT[trigger] for trigger in self.muon_HLTs[year]]),
+            np.array([events.HLT[trigger] for trigger in muon_HLTs[year]]),
             axis=0,
         )
 
@@ -79,14 +78,14 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
         # muon
         muon_selector = (
-            (muon[f"{self.muon_selection['Id']}Id"])
-            * (muon.pt > self.muon_selection["pt"])
-            * (np.abs(muon.eta) < self.muon_selection["eta"])
-            * (muon.pfIsoId >= self.muon_selection["pfIsoId"])
+            (muon[f"{muon_selection['Id']}Id"])
+            * (muon.pt > muon_selection["pt"])
+            * (np.abs(muon.eta) < muon_selection["eta"])
+            * (muon.pfIsoId >= muon_selection["pfIsoId"])
         )
 
         muon_selector = muon_selector * (
-            ak.count(events.Muon.pt[muon_selector], axis=1) == self.muon_selection["count"]
+            ak.count(events.Muon.pt[muon_selector], axis=1) == muon_selection["count"]
         )
         muon = ak.pad_none(muon[muon_selector], 1, axis=1)[:, 0]
 
@@ -94,8 +93,8 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         add_selection("muon", muon_selector, *selection_args)
 
         # ak8 jet selection
-        fatjet_selector = (np.abs(fatjets.eta) < self.ak8_jet_selection["eta"]) * (
-            np.abs(fatjets.delta_r(muon)) > self.ak8_jet_selection["delta_r_muon"]
+        fatjet_selector = (np.abs(fatjets.eta) < ak8_jet_selection["eta"]) * (
+            np.abs(fatjets.delta_r(muon)) > ak8_jet_selection["delta_r_muon"]
         )
 
         fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
@@ -110,10 +109,10 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
 
         # initialize histograms
         h = (
-            Hist.new.Var(self.tagger_bins, name="jet1txbb", label="$T_{Xbb}$ Score")
-            .Var(self.tagger_bins, name="jet1th4q", label="$T_{H4q}$ Score")
-            .Var(self.pt_bins, name="jet1pt", label="$p_T$ (GeV)")
-            .Reg(*self.msd_bins, name="jet1msd", label="$m_{SD}$ (GeV)")
+            Hist.new.Var(tagger_bins, name="jet1txbb", label="$T_{Xbb}$ Score")
+            .Var(tagger_bins, name="jet1th4q", label="$T_{H4q}$ Score")
+            .Var(pt_bins, name="jet1pt", label="$p_T$ (GeV)")
+            .Reg(*msd_bins, name="jet1msd", label="$m_{SD}$ (GeV)")
             .Double()
         )
 
@@ -144,90 +143,108 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         return accumulator
 
 
-class JetHT3DTriggerEfficienciesProcessor(processor.ProcessorABC):
+class JetHT4DTriggerEfficienciesProcessor(processor.ProcessorABC):
     """Accumulates two 2D (pT, msd) histograms from all input events: 1) before triggers, and 2) after triggers"""
 
-    def __init__(self, ak15=True):
-        super(JetHT3DTriggerEfficienciesProcessor, self).__init__()
-
-        self.muon_HLTs = {2017: ["IsoMu27", "Mu50"]}
-
-        self.HLTs = {
-            2017: [
-                "PFJet500",
-                "AK8PFJet400",
-                "AK8PFJet500",
-                "AK8PFJet360_TrimMass30",
-                "AK8PFJet380_TrimMass30",
-                "AK8PFJet400_TrimMass30",
-                "AK8PFHT750_TrimMass50",
-                "AK8PFHT800_TrimMass50",
-                "PFHT1050",
-                # 'AK8PFJet330_PFAK8BTagCSV_p17'
-            ]
-        }
-
+    def __init__(self, ak15=False):
+        super(JetHT4DTriggerEfficienciesProcessor, self).__init__()
         self.ak15 = ak15
 
     def process(self, events):
         """Returns pre- (den) and post- (num) trigger 3D (jet 2 pT, jet 1 pT, jet 1 msd) histograms from input NanoAOD events"""
+        year = events.metadata["dataset"][:4]
+
+        selection = PackedSelection()
+
+        cutflow = OrderedDict()
+        cutflow["all"] = len(events)
+
+        selection_args = (selection, cutflow, True)
+
+        # objects
+        num_jets = 2
+        muon = events.Muon
+        fatjets = events.FatJet
 
         # passing single-muon triggers
         muon_triggered = np.any(
-            np.array([events.HLT[trigger] for trigger in self.muon_HLTs[2017]]), axis=0
+            np.array([events.HLT[trigger] for trigger in muon_HLTs[year]]),
+            axis=0,
         )
 
-        fatjets = events.FatJetAK15 if self.ak15 else events.FatJet
-
-        # does event have a fat jet
-        fatjet1bool = ak.any(fatjets.pt, axis=1)
-
-        # for denominator select events which pass the muon triggers and contain at least one fat jet
-        den_selection = fatjet1bool * muon_triggered
-
-        # denominator
-        jet2varbins = [0, 250, 300, 350, 400, 500, 750, 1000]
-
-        den = (
-            Hist.new.Var(jet2varbins, name="jet2pt", label="AK15 Fat Jet 2 $p_T$ (GeV)")
-            .Reg(50, 0, 1000, name="jet1pt", label="AK15 Fat Jet 1 $p_T$ (GeV)")
-            .Reg(15, 0, 300, name="jet1msd", label="AK15 Fat Jet 1 MassSD (GeV)")
-            .Double()
-        ).fill(
-            jet1pt=fatjets.pt[den_selection][:, 0].to_numpy(),
-            jet1msd=fatjets.msoftdrop[den_selection][:, 0].to_numpy(),
-            jet2pt=ak.fill_none(
-                ak.pad_none(fatjets.pt[den_selection][:, 1:2], 1, axis=1), 0
-            ).to_numpy()[
-                :, 0
-            ],  # putting events with no fat jet 2 in the low pT bin
-        )
-
-        # numerator
-
-        # passing all HLT triggers
+        # passing our triggers
         bbVV_triggered = np.any(
-            np.array([events.HLT[trigger] for trigger in self.HLTs[2017]]), axis=0
+            np.array(
+                [events.HLT[trigger] for trigger in HLTs[year] if trigger in events.HLT.fields]
+            ),
+            axis=0,
         )
 
-        num_selection = fatjet1bool * muon_triggered * bbVV_triggered
+        # muon
+        muon_selector = (
+            (muon[f"{muon_selection['Id']}Id"])
+            * (muon.pt > muon_selection["pt"])
+            * (np.abs(muon.eta) < muon_selection["eta"])
+            * (muon.pfIsoId >= muon_selection["pfIsoId"])
+        )
 
-        num = (
-            Hist.new.Var(jet2varbins, name="jet2pt", label="AK15 Fat Jet 2 $p_T$ (GeV)")
-            .Reg(50, 0, 1000, name="jet1pt", label="AK15 Fat Jet 1 $p_T$ (GeV)")
-            .Reg(15, 0, 300, name="jet1msd", label="AK15 Fat Jet 1 MassSD (GeV)")
+        muon_selector = muon_selector * (
+            ak.count(events.Muon.pt[muon_selector], axis=1) == muon_selection["count"]
+        )
+        muon = ak.pad_none(muon[muon_selector], 1, axis=1)[:, 0]
+
+        muon_selector = ak.any(muon_selector, axis=1)
+        add_selection("muon", muon_selector, *selection_args)
+
+        # ak8 jet selection
+        eta_cut = np.abs(fatjets.eta) < ak8_jet_selection["eta"]
+        dRmuon_cut = np.abs(fatjets.delta_r(muon)) > ak8_jet_selection["delta_r_muon"]
+        fatjet_selection = np.any(dRmuon_cut, axis=1) * (
+            ak.count(fatjets[eta_cut].pt, axis=1) >= num_jets
+        )
+        add_selection("ak8_jet", fatjet_selection, *selection_args)
+
+        fatjets = ak.pad_none(fatjets[eta_cut], num_jets, axis=1)[:, :num_jets]
+
+        fatjets.txbb = fatjets.particleNetMD_Xbb / (
+            fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb
+        )
+
+        # initialize histograms
+        h = (
+            Hist.new.Var(tagger_bins, name="jet1txbb", label="$T_{Xbb}$ Score")
+            .Var(pt_bins, name="jet1pt", label="$p_T$ (GeV)")
+            .Reg(*msd_bins, name="jet1msd", label="$m_{SD}$ (GeV)")
+            .Var(tagger_bins, name="jet2txbb", label="$T_{Xbb}$ Score")
+            .Var(pt_bins, name="jet2pt", label="$p_T$ (GeV)")
+            .Reg(*msd_bins, name="jet2msd", label="$m_{SD}$ (GeV)")
             .Double()
-        ).fill(
-            jet1pt=fatjets.pt[num_selection][:, 0].to_numpy(),
-            jet1msd=fatjets.msoftdrop[num_selection][:, 0].to_numpy(),
-            jet2pt=ak.fill_none(
-                ak.pad_none(fatjets.pt[num_selection][:, 1:2], 1, axis=1), 0
-            ).to_numpy()[
-                :, 0
-            ],  # putting events with no fat jet 2 in the low pT bin
         )
 
-        return {"den": den, "num": num}
+        select = selection.all(*selection.names)
+
+        selections = {
+            # select events which pass the muon triggers and selection
+            "den": select * muon_triggered,
+            # add our triggers
+            "num": select * muon_triggered * bbVV_triggered,
+        }
+
+        hists = {}
+
+        for key, selection in selections.items():
+            hists[key] = h.copy().fill(
+                jet1txbb=fatjets.txbb[selection][:, 0].to_numpy(),
+                jet1pt=fatjets.pt[selection][:, 0].to_numpy(),
+                jet1msd=fatjets.msoftdrop[selection][:, 0].to_numpy(),
+                jet2txbb=fatjets.txbb[selection][:, 1].to_numpy(),
+                jet2pt=fatjets.pt[selection][:, 1].to_numpy(),
+                jet2msd=fatjets.msoftdrop[selection][:, 1].to_numpy(),
+            )
+
+        hists["cutflow"] = cutflow
+
+        return hists
 
     def postprocess(self, accumulator):
         return accumulator

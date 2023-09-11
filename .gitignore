@@ -4,6 +4,7 @@
 !*.ipynb
 !figure.png
 !requirements.txt
+!environment.yml
 
 !src
 src/*
@@ -36,6 +37,11 @@ src/HHbbVV/postprocessing/*.pkl
 src/HHbbVV/postprocessing/cards
 src/HHbbVV/postprocessing/templates_old
 src/HHbbVV/postprocessing/*.txt
+src/HHbbVV/postprocessing/condor_templates
+src/HHbbVV/postprocessing/outs
+
+!src/HHbbVV/resonant_studies
+!src/HHbbVV/resonant_studies/**
 
 !src/HHbbVV/scale_factors
 !src/HHbbVV/scale_factors/**
@@ -46,11 +52,21 @@ src/HHbbVV/postprocessing/*.txt
 !src/HHbbVV/combine
 !src/HHbbVV/combine/**
 
+!src/HHbbVV/tagger
+!src/HHbbVV/tagger/**
+
+!src/HHbbVV/VBF_binder
+!src/HHbbVV/VBF_binder/**
+
 !data
 !data/*
 !data/*/**
 
+!paper
+!paper/**
 
+!inference_scans
+!inference_scans/**
 
 !.gitignore
 !.github
@@ -62,6 +78,8 @@ src/HHbbVV/postprocessing/*.txt
 
 **/.ipynb_checkpoints
 **/*test*
+!**/*F_test*
+!**/*ftest*
 **/__pycache__
 **/.DS_Store
 .DS_Store

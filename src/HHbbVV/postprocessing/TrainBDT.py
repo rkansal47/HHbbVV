@@ -17,12 +17,14 @@ import pandas as pd
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc
+from sklearn.preprocessing import LabelEncoder
+
 import xgboost as xgb
 
 import utils
 import plotting
 
-from hh_vars import years, sig_key, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
+from hh_vars import years, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
 
 from copy import deepcopy
 
@@ -32,25 +34,33 @@ from copy import deepcopy
 
 
 weight_key = "finalWeight"
+sig_key = "HHbbVV"
+bg_keys = ["QCD", "TT", "V+Jets"]
+training_keys = [sig_key] + bg_keys
 
-# only vars used for training
+# if doing multiclass classification, encode each process separately
+label_encoder = LabelEncoder()
+label_encoder.fit(training_keys)
+
+
+# only vars used for training, ordered by importance
 bdtVars = [
-    "MET_pt",
-    "DijetEta",
-    "DijetPt",
-    "DijetMass",
-    "bbFatJetPt",
-    "VVFatJetEta",
-    "VVFatJetPt",
-    "VVFatJetParticleNetMass",
     # "VVFatJetParTMD_THWW4q",
-    "VVFatJetParTMD_probQCD",
-    "VVFatJetParTMD_probT",
     "VVFatJetParTMD_probHWW3q",
+    "VVFatJetParTMD_probQCD",
     "VVFatJetParTMD_probHWW4q",
-    "bbFatJetPtOverDijetPt",
+    "VVFatJetParticleNetMass",
+    "DijetMass",
+    "VVFatJetParTMD_probT",
     "VVFatJetPtOverDijetPt",
+    "DijetPt",
+    "bbFatJetPt",
+    "VVFatJetPt",
     "VVFatJetPtOverbbFatJetPt",
+    "MET_pt",
+    "bbFatJetPtOverDijetPt",
+    "VVFatJetEta",
+    "DijetEta",
 ]
 
 
@@ -107,10 +117,13 @@ def get_X(data_dict: Dict[str, pd.DataFrame], jec_shift: str = None, jmsr_shift:
     return pd.concat(X, axis=0), mc_vars
 
 
-def get_Y(data_dict: Dict[str, pd.DataFrame]):
+def get_Y(data_dict: Dict[str, pd.DataFrame], multiclass: bool = False):
     Y = []
     for year, data in data_dict.items():
-        Y.append((data["Dataset"] == sig_key).astype(int))
+        if multiclass:
+            Y.append(pd.DataFrame(label_encoder.transform(data["Dataset"])))
+        else:
+            Y.append((data["Dataset"] == sig_key).astype(int))
 
     return pd.concat(Y, axis=0)
 
@@ -127,11 +140,30 @@ def remove_neg_weights(data: pd.DataFrame):
     return data[data[weight_key] > 0]
 
 
-def equalize_weights(data: pd.DataFrame):
-    """Scales signal such that total signal = total background"""
+def equalize_weights(
+    data: pd.DataFrame, equalize_sig_bg: bool = True, equalize_per_process: bool = False
+):
+    """
+    If `equalize_sig_bg`: scales signal such that total signal = total background
+    If `equalize_per_process`: scales each background process separately to be equal as well
+        If `equalize_sig_bg` is False: signal scaled to match the individual bg process yields
+        instead of total.
+    """
     sig_total = np.sum(data[data["Dataset"] == sig_key][weight_key])
-    bg_total = np.sum(data[data["Dataset"] != sig_key][weight_key])
-    data[weight_key].loc[data["Dataset"] == sig_key] *= bg_total / sig_total
+
+    if equalize_per_process:
+        qcd_total = np.sum(data[data["Dataset"] == "QCD"][weight_key])
+        for bg_key in bg_keys:
+            if bg_key != "QCD":
+                total = np.sum(data[data["Dataset"] == bg_key][weight_key])
+                data[weight_key].loc[data["Dataset"] == bg_key] *= qcd_total / total
+
+        if not equalize_sig_bg:
+            data[weight_key].loc[data["Dataset"] == sig_key] *= qcd_total / sig_total
+
+    if equalize_sig_bg:
+        bg_total = np.sum(data[data["Dataset"] != sig_key][weight_key])
+        data[weight_key].loc[data["Dataset"] == sig_key] *= bg_total / sig_total
 
 
 def load_data(data_path: str, year: str, all_years: bool):
@@ -144,67 +176,98 @@ def load_data(data_path: str, year: str, all_years: bool):
 
 
 def main(args):
+    global bdtVars
+
     classifier_params = {
-        "max_depth": 3,
+        "max_depth": args.max_depth,
+        "min_child_weight": args.min_child_weight,
         "learning_rate": 0.1,
-        "n_estimators": 400,
+        "n_estimators": args.n_estimators,
         "verbosity": 2,
         "n_jobs": 4,
         "reg_lambda": 1.0,
     }
 
+    if args.rem_feats:
+        bdtVars = bdtVars[: -args.rem_feats]
+
+    print("BDT features:\n", bdtVars)
+
     data_dict = load_data(args.data_path, args.year, args.all_years)
-    training_data_dict = {
-        year: data[
-            (data["Dataset"] == sig_key)
-            | (data["Dataset"] == "QCD")
-            | (data["Dataset"] == "TT")
-            | (data["Dataset"] == "V+Jets")
-        ]
-        for year, data in data_dict.items()
-    }
 
-    print("Training samples:", np.unique(list(training_data_dict.values())[0]["Dataset"]))
-
-    if args.test:
-        data_dict = {
-            year: pd.concat(
-                (data[:50], data[1000000:1000050], data[2000000:2000050], data[-50:]), axis=0
-            )
+    if not args.inference_only:
+        training_data_dict = {
+            year: data[
+                # select only signal and `bg_keys` backgrounds for training - rest are only inferenced
+                np.sum(
+                    [data["Dataset"] == key for key in training_keys],
+                    axis=0,
+                ).astype(bool)
+            ]
             for year, data in data_dict.items()
         }
-        # 100 signal, 100 bg events
-        training_data_dict = {
-            year: pd.concat((data[:100], data[-100:]), axis=0)
-            for year, data in training_data_dict.items()
-        }
 
-    if args.equalize_weights:
-        for year, data in training_data_dict.items():
-            print(
-                (
-                    f"Pre-equalization {year} sig total: "
-                    f'{np.sum(data[data["Dataset"] == sig_key][weight_key])}'
+        training_samples = np.unique(list(training_data_dict.values())[0]["Dataset"])
+        print("Training samples:", training_samples)
+
+        if args.test:
+            # get a sample of different processes
+            data_dict = {
+                year: pd.concat(
+                    (data[:50], data[1000000:1000050], data[2000000:2000050], data[-50:]), axis=0
                 )
-            )
-
-            equalize_weights(data)
-
-            print(
-                (
-                    f"Post-equalization {year} sig total: "
-                    f'{np.sum(data[data["Dataset"] == sig_key][weight_key])}'
+                for year, data in data_dict.items()
+            }
+            # 100 signal, 100 bg events
+            training_data_dict = {
+                year: pd.concat(
+                    (
+                        data[:150],
+                        data[
+                            np.sum(data["Dataset"] == sig_key) : np.sum(data["Dataset"] == sig_key)
+                            + 50
+                        ],
+                        data[
+                            np.sum(data["Dataset"] == "V+Jets")
+                            - 50 : np.sum(data["Dataset"] == "V+Jets")
+                        ],
+                        data[-50:],
+                    ),
+                    axis=0,
                 )
-            )
+                for year, data in training_data_dict.items()
+            }
 
-    train, test = {}, {}
+        if args.equalize_weights or args.equalize_weights_per_process:
+            for year, data in training_data_dict.items():
+                for key in training_keys:
+                    print(
+                        (
+                            f"Pre-equalization {year} {key} total: "
+                            f'{np.sum(data[data["Dataset"] == key][weight_key])}'
+                        )
+                    )
 
-    for year, data in training_data_dict.items():
-        train[year], test[year] = train_test_split(
-            remove_neg_weights(data) if not args.absolute_weights else data,
-            test_size=args.test_size,
-            random_state=args.seed,
-        )
+                equalize_weights(data, args.equalize_weights, args.equalize_weights_per_process)
+
+                for key in training_keys:
+                    print(
+                        (
+                            f"Post-equalization {year} {key} total: "
+                            f'{np.sum(data[data["Dataset"] == key][weight_key])}'
+                        )
+                    )
+
+                print("")
+
+        if len(training_samples) > 0:
+            train, test = {}, {}
+            for year, data in training_data_dict.items():
+                train[year], test[year] = train_test_split(
+                    remove_neg_weights(data) if not args.absolute_weights else data,
+                    test_size=args.test_size,
+                    random_state=args.seed,
+                )
 
     if args.evaluate_only or args.inference_only:
         model = xgb.XGBClassifier()
@@ -214,8 +277,8 @@ def main(args):
         model = train_model(
             get_X(train),
             get_X(test),
-            get_Y(train),
-            get_Y(test),
+            get_Y(train, args.multiclass),
+            get_Y(test, args.multiclass),
             get_weights(train, args.absolute_weights),
             get_weights(test, args.absolute_weights),
             args.model_dir,
@@ -225,10 +288,10 @@ def main(args):
         )
 
     if not args.inference_only:
-        evaluate_model(model, args.model_dir, test)
+        evaluate_model(model, args.model_dir, test, multiclass=args.multiclass)
 
     if not args.evaluate_only:
-        do_inference(model, args.model_dir, data_dict)
+        do_inference(model, args.model_dir, data_dict, multiclass=args.multiclass)
 
 
 def train_model(
@@ -273,6 +336,7 @@ def evaluate_model(
     model_dir: str,
     test: Dict[str, pd.DataFrame],
     txbb_threshold: float = 0.98,
+    multiclass: bool = False,
 ):
     """ """
     print("Evaluating model")
@@ -281,6 +345,7 @@ def evaluate_model(
     weights_test = get_weights(test)
 
     preds = model.predict_proba(get_X(test))
+    preds = preds[:, 0] if multiclass else preds[:, 1]
 
     var_labels = [var_label_map[var][1] for var in bdtVars]
 
@@ -298,15 +363,15 @@ def evaluate_model(
 
     sig_effs = [0.15, 0.2]
 
-    fpr, tpr, thresholds = roc_curve(Y_test, preds[:, 1], sample_weight=weights_test)
+    fpr, tpr, thresholds = roc_curve(Y_test, preds, sample_weight=weights_test)
     plotting.rocCurve(
         fpr,
         tpr,
-        auc(fpr, tpr),
+        # auc(fpr, tpr),
         sig_eff_lines=sig_effs,
-        title="ROC Curve",
+        title=None,
         plotdir=model_dir,
-        name="bdtroccurve",
+        name="bdtroc",
     )
 
     np.savetxt(f"{model_dir}/fpr.txt", fpr)
@@ -318,7 +383,7 @@ def evaluate_model(
         print(f"Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
 
     if txbb_threshold > 0:
-        preds_txbb_thresholded = preds[:, 1].copy()
+        preds_txbb_thresholded = preds.copy()
         preds_txbb_thresholded[_txbb_thresholds(test, txbb_threshold)] = 0
 
         fpr_txbb_threshold, tpr_txbb_threshold, thresholds_txbb_threshold = roc_curve(
@@ -328,11 +393,11 @@ def evaluate_model(
         plotting.rocCurve(
             fpr_txbb_threshold,
             tpr_txbb_threshold,
-            auc(fpr_txbb_threshold, tpr_txbb_threshold),
+            # auc(fpr_txbb_threshold, tpr_txbb_threshold),
             sig_eff_lines=sig_effs,
-            title=f"ROC Curve Including Txbb > {txbb_threshold} Cut",
+            title=f"Including Txbb > {txbb_threshold} Cut",
             plotdir=model_dir,
-            name="bdtroccurve_txbb_cut",
+            name="bdtroc_txbb_cut",
         )
 
         np.savetxt(f"{model_dir}/fpr_txbb_threshold.txt", fpr_txbb_threshold)
@@ -349,6 +414,7 @@ def do_inference(
     model_dir: str,
     data_dict: Dict[str, pd.DataFrame],
     jec_jmsr_shifts: bool = True,
+    multiclass: bool = False,
 ):
     """ """
     import time
@@ -359,13 +425,21 @@ def do_inference(
         year_data_dict = {year: data}
         os.system(f"mkdir -p {model_dir}/inferences/{year}")
 
+        sample_order = list(pd.unique(data["Dataset"]))
+        value_counts = data["Dataset"].value_counts()
+        sample_order_dict = OrderedDict([(sample, value_counts[sample]) for sample in sample_order])
+
+        with open(f"{model_dir}/inferences/{year}/sample_order.txt", "w") as f:
+            f.write(str(sample_order_dict))
+
         print("Running inference")
         X = get_X(year_data_dict)
         model.get_booster().feature_names = bdtVars
 
         start = time.time()
-        preds = model.predict_proba(X)[:, 1]
+        preds = model.predict_proba(X)
         print(f"Finished in {time.time() - start:.2f}s")
+        preds = preds[:, :-1] if multiclass else preds[:, 1]  # save n-1 probs to save space
         np.save(f"{model_dir}/inferences/{year}/preds.npy", preds)
 
         if jec_jmsr_shifts:
@@ -374,7 +448,8 @@ def do_inference(
                 X, mcvars = get_X(year_data_dict, jec_shift=jshift)
                 # have to change model's feature names since we're passing in a dataframe
                 model.get_booster().feature_names = mcvars
-                preds = model.predict_proba(X)[:, 1]
+                preds = model.predict_proba(X)
+                preds = preds[:, :-1] if multiclass else preds[:, 1]
                 np.save(f"{model_dir}/inferences/{year}/preds_{jshift}.npy", preds)
 
             for jshift in jmsr_shifts:
@@ -382,7 +457,8 @@ def do_inference(
                 X, mcvars = get_X(year_data_dict, jmsr_shift=jshift)
                 # have to change model's feature names since we're passing in a dataframe
                 model.get_booster().feature_names = mcvars
-                preds = model.predict_proba(X)[:, 1]
+                preds = model.predict_proba(X)
+                preds = preds[:, :-1] if multiclass else preds[:, 1]
                 np.save(f"{model_dir}/inferences/{year}/preds_{jshift}.npy", preds)
 
 
@@ -397,17 +473,16 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--model-dir",
-        default="./",
+        default="testBDT",
         help="directory in which to save model and evaluation output",
         type=str,
     )
     parser.add_argument(
         "--year",
-        default="",
-        choices=["2016", "2016APV", "2017", "2018"],
+        choices=["2016", "2016APV", "2017", "2018", "all"],
         type=str,
+        required=True,
     )
-    utils.add_bool_arg(parser, "all-years", "Combine data from all years", default=False)
     utils.add_bool_arg(parser, "load-data", "Load pre-processed data if done already", default=True)
     utils.add_bool_arg(
         parser, "save-data", "Save pre-processed data if loading the data", default=True
@@ -419,9 +494,14 @@ if __name__ == "__main__":
         help="Num events per sample to train on - if 0 train on all",
         type=int,
     )
-    utils.add_bool_arg(
-        parser, "preselection", "Apply preselection on events before training", default=True
-    )
+
+    parser.add_argument("--max-depth", default=6, help="xgboost param", type=int)
+    parser.add_argument("--min-child-weight", default=1, help="xgboost param", type=int)
+    parser.add_argument("--n-estimators", default=1000, help="xgboost param", type=int)
+
+    parser.add_argument("--rem-feats", default=3, help="remove N lowest importance feats", type=int)
+
+    utils.add_bool_arg(parser, "multiclass", "Classify each background separtely", default=True)
 
     utils.add_bool_arg(
         parser, "use-sample-weights", "Use properly scaled event weights", default=True
@@ -433,7 +513,13 @@ if __name__ == "__main__":
         default=True,
     )
     utils.add_bool_arg(
-        parser, "equalize-weights", "Equalise signal and background weights", default=True
+        parser, "equalize-weights", "Equalise total signal and background weights", default=True
+    )
+    utils.add_bool_arg(
+        parser,
+        "equalize-weights-per-process",
+        "Equalise each backgrounds' weights too",
+        default=False,
     )
 
     parser.add_argument(
@@ -450,7 +536,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.equalize_weights:
+    if args.equalize_weights or args.equalize_weights_per_process:
         args.use_sample_weights = True  # sample weights are used before equalizing
+
+    args.all_years = True if args.year == "all" else False
 
     main(args)

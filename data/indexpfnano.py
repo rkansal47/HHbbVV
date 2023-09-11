@@ -23,9 +23,9 @@ def get_subfolders(parent):
 
 folders_to_index = [
     #
-    "/store/user/lpcpfnano/dryu/v2_2_1/2016/SingleMu2016",
-    "/store/user/lpcpfnano/dryu/v2_2_1/2017/SingleMu2017",
-    "/store/user/lpcpfnano/dryu/v2_2/2018/SingleMu2018",
+    # "/store/user/lpcpfnano/rkansal/v2_3/2016/SingleMu2016",
+    # "/store/user/lpcpfnano/rkansal/v2_3/2017/SingleMu2017",
+    "/store/user/lpcpfnano/rkansal/v2_3/2018/SingleMu2018",
     #
     "/store/user/lpcpfnano/cmantill/v2_3/2016/JetHT2016",
     "/store/user/lpcpfnano/cmantill/v2_3/2017/JetHT2017",
@@ -73,11 +73,12 @@ folders_to_index = [
     #
     "/store/user/lpcpfnano/cmantill/v2_2/2017/HWWPrivate",
     #
-    "/store/user/lpcpfnano/cmantill/v2_3/2017/Hgg/",
+    # "/store/user/lpcpfnano/cmantill/v2_3/2017/Hgg/",
     #
-    "/store/user/lpcpfnano/cmantill/v2_3/2017/XHYPrivate",
-    "/store/user/lpcpfnano/ammitra/v2_3/2017/XHYPrivate",
-    "/store/user/lpcpfnano/rkansal/v2_3/2017/XHYPrivate",
+    "/store/user/lpcpfnano/rkansal/v2_3/2016/XHY",
+    "/store/user/lpcpfnano/rkansal/v2_3/2016APV/XHY",
+    "/store/user/lpcpfnano/ammitra/v2_3/2017/XHY",
+    "/store/user/lpcpfnano/cmantill/v2_3/2018/XHY",
     #
     "/store/user/lpcpfnano/rkansal/v2_3/2016/Diboson/",
     "/store/user/lpcpfnano/rkansal/v2_3/2016APV/Diboson/",
@@ -119,9 +120,11 @@ ignore_files = [
     "/store/user/lpcpfnano/cmantill/v2_3/2018/SingleTop/ST_t-channel_top_4f_InclusiveDecays_TuneCP5_13TeV-powheg-madspin-pythia8/ST_t-channel_top_4f_InclusiveDecays/220808_150919/0000/nano_mc2018_17.root"
 ]
 
+ignore_subsamples = ["SingleMuon_Run2016B_ver1_HIPM"]
+
 for pyear in ["2016", "2016APV", "2017", "2018"]:
-    # if pyear != "2017":
-    #    continue
+    if pyear != "2018":
+        continue
     print(pyear)
     index = {}
     for f1 in folders_to_index:
@@ -164,8 +167,12 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                 if "ext1" in subsample_short:
                     print("   Ext1")
 
-                if year == "2016" and subsample_short.endswith("HIPM"):
+                if subsample_short in ignore_subsamples:
+                    print(f"Ignoring {subsample_short}")
                     continue
+
+                # if year == "2016" and subsample_short.endswith("HIPM"):
+                #     continue
 
                 # skip non-PSWeights files, and rename PSWeights ones
                 if year == "2018" and subsample_short.startswith("QCD"):

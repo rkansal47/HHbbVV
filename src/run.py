@@ -99,6 +99,8 @@ def run(p: processor, fileset: dict, args):
     pickle.dump(out, filehandler)
     filehandler.close()
 
+    print(out)
+
     # need to combine all the files from these processors before transferring to EOS
     # otherwise it will complain about too many small files
     if args.processor in ["skimmer", "input", "ttsfs"]:
@@ -137,6 +139,8 @@ def main(args):
         args.njets,
         args.save_systematics,
         args.inference,
+        args.save_all,
+        args.vbf_search,
     )
 
     if len(args.files):
@@ -145,6 +149,17 @@ def main(args):
         fileset = run_utils.get_fileset(
             args.processor, args.year, args.samples, args.subsamples, args.starti, args.endi
         )
+
+    ignore_files = [
+        "root://cmseos.fnal.gov///store/user/lpcpfnano/rkansal/v2_3/2016APV/XHY/NMSSM_XToYHTo2W2BTo4Q2B_MX-600_MY-80_TuneCP5_13TeV-madgraph-pythia8/NMSSM_XToYHTo2W2BTo4Q2B_MX-600_MY-80/230323_175525/0000/nano_mc2016pre_36.root",
+        "root://cmseos.fnal.gov///store/user/lpcpfnano/rkansal/v2_3/2016/XHY/NMSSM_XToYHTo2W2BTo4Q2B_MX-1600_MY-190_TuneCP5_13TeV-madgraph-pythia8/NMSSM_XToYHTo2W2BTo4Q2B_MX-1600_MY-190/230323_195705/0000/nano_mc2016post_27.root",
+        "'root://cmseos.fnal.gov///store/user/lpcpfnano/rkansal/v2_3/2016APV/XHY/NMSSM_XToYHTo2W2BTo4Q2B_MX-3500_MY-80_TuneCP5_13TeV-madgraph-pythia8/NMSSM_XToYHTo2W2BTo4Q2B_MX-3500_MY-80/230323_175525/0000/nano_mc2016pre_16.root",
+    ]
+
+    for key in fileset:
+        for file in ignore_files:
+            if file in fileset[key]:
+                fileset[key].remove(file)
 
     print(f"Running on fileset {fileset}")
 
@@ -160,18 +175,9 @@ if __name__ == "__main__":
     # inside a dask job:  python run.py --year 2017 --processor trigger --dask
 
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--year", help="year", type=str, required=True, choices=["2016APV", "2016", "2017", "2018"]
-    )
+    run_utils.parse_common_args(parser)
     parser.add_argument("--starti", default=0, help="start index of files", type=int)
     parser.add_argument("--endi", default=-1, help="end index of files", type=int)
-    parser.add_argument(
-        "--processor",
-        default="trigger",
-        help="Trigger processor",
-        type=str,
-        choices=["trigger", "skimmer", "input", "ttsfs"],
-    )
     parser.add_argument(
         "--executor",
         type=str,
@@ -179,8 +185,6 @@ if __name__ == "__main__":
         choices=["futures", "iterative", "dask"],
         help="type of processor executor",
     )
-    parser.add_argument("--samples", default=[], help="samples", nargs="*")
-    parser.add_argument("--subsamples", default=[], help="subsamples", nargs="*")
     parser.add_argument(
         "--files", default=[], help="set of files to run on instead of samples", nargs="*"
     )
@@ -190,18 +194,6 @@ if __name__ == "__main__":
         default="files",
         help="sample name of files being run on, if --files option used",
     )
-    parser.add_argument("--chunksize", type=int, default=10000, help="chunk size in processor")
-    parser.add_argument("--label", default="AK8_H_VV", help="label", type=str)
-    parser.add_argument("--njets", default=2, help="njets", type=int)
-    parser.add_argument("--maxchunks", default=0, help="max chunks", type=int)
-
-    run_utils.add_bool_arg(
-        parser, "save-ak15", default=False, help="run inference for and save ak15 jets"
-    )
-    run_utils.add_bool_arg(
-        parser, "save-systematics", default=False, help="save systematic variations"
-    )
-    run_utils.add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
 
     args = parser.parse_args()
 
