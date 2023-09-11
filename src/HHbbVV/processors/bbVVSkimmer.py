@@ -12,8 +12,7 @@ from coffea.analysis_tools import Weights, PackedSelection
 import vector
 
 import pathlib
-import pickle
-import gzip
+import pickle, json, gzip
 import os
 
 from typing import Dict
@@ -90,6 +89,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         "VVparticleNet_mass": [50, 250],
         "bbparticleNet_mass": [92.5, 162.5],
         "bbFatJetParticleNetMD_Txbb": 0.8,
+        "jetId": 2,  # tight ID bit
         "DijetMass": 800,  # TODO
         # "nGoodElectrons": 0,
     }
@@ -111,6 +111,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         "VVFatJetParTMD_THWWvsT",
         "MET_pt",
         "MET_phi",
+        "nGoodElectrons",
+        "nGoodMuons",
     ]
 
     for shift in jec_shifts:
@@ -151,6 +153,12 @@ class bbVVSkimmer(processor.ProcessorABC):
         self.tagger_resources_path = (
             str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
         )
+
+        # MET filters
+        # https://twiki.cern.ch/twiki/bin/view/CMS/MissingETOptionalFiltersRun2
+        package_path = str(pathlib.Path(__file__).parent.parent.resolve())
+        with open(package_path + "/data/metfilters.json", "rb") as filehandler:
+            self.metfilters = json.load(filehandler)
 
         self._accumulator = processor.dict_accumulator({})
 
@@ -349,7 +357,9 @@ class bbVVSkimmer(processor.ProcessorABC):
             cut = np.prod(
                 pad_val(
                     (pts > self.preselection["pt"])
-                    * (np.abs(fatjets.eta) < self.preselection["eta"]),
+                    * (np.abs(fatjets.eta) < self.preselection["eta"])
+                    # tight ID
+                    * (fatjets.jetId & self.preselection["jetId"] == self.preselection["jetId"]),
                     num_jets,
                     False,
                     axis=1,
@@ -418,6 +428,16 @@ class bbVVSkimmer(processor.ProcessorABC):
 
             add_selection("hem_cleaning", ~np.array(hem_cleaning).astype(bool), *selection_args)
 
+        # MET filters
+
+        metfilters = np.ones(len(events), dtype="bool")
+        metfilterkey = "data" if isData else "mc"
+        for mf in self.metfilters[year][metfilterkey]:
+            if mf in events.Flag.fields:
+                metfilters = metfilters & events.Flag[mf]
+
+        add_selection("met_filters", metfilters, *selection_args)
+
         # remove weird jets which have <4 particles (due to photon scattering?)
         pfcands_sel = []
 
@@ -435,44 +455,27 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         electrons, muons = events.Electron, events.Muon
 
-        # selection from https://github.com/cmantill/boostedhiggs/blob/e7dc206de17fd108a5e1abcb7d76a52ccb636599/boostedhiggs/hwwprocessor.py#L185-L224
+        # selection from https://github.com/jennetd/hbb-coffea/blob/85bc3692be9e0e0a0c82ae3c78e22cdf5b3e4d68/boostedhiggs/vhbbprocessor.py#L283-L307
+        # https://indico.cern.ch/event/1154430/#b-471403-higgs-meeting-special
 
-        good_muons = (
-            (muons.pt > 30)
-            & (np.abs(muons.eta) < 2.4)
-            & (np.abs(muons.dz) < 0.1)
-            & (np.abs(muons.dxy) < 0.05)
-            & (muons.sip3d <= 4.0)
-            & muons.mediumId
+        goodelectron = (
+            (events.Electron.pt > 20)
+            & (abs(events.Electron.eta) < 2.5)
+            & (events.Electron.pfRelIso04_all < 0.4)
+            & (events.Electron.cutBased >= events.Electron.LOOSE)
         )
-        n_good_muons = ak.sum(good_muons, axis=1)
+        nelectrons = ak.sum(goodelectron, axis=1)
 
-        good_electrons = (
-            (electrons.pt > 38)
-            & (np.abs(electrons.eta) < 2.4)
-            & ((np.abs(electrons.eta) < 1.44) | (np.abs(electrons.eta) > 1.57))
-            & (np.abs(electrons.dz) < 0.1)
-            & (np.abs(electrons.dxy) < 0.05)
-            & (electrons.sip3d <= 4.0)
-            & (electrons.mvaFall17V2noIso_WP90)
+        goodmuon = (
+            (events.Muon.pt > 15)
+            & (abs(events.Muon.eta) < 2.4)
+            & (events.Muon.pfRelIso04_all < 0.4)
+            & events.Muon.looseId
         )
-        n_good_electrons = ak.sum(good_electrons, axis=1)
+        nmuons = ak.sum(goodmuon, axis=1)
 
-        bbjet = ak.pad_none(fatjets[ak.argsort(fatjets.Txbb, ascending=False)], 1, axis=1)[:, 0]
-
-        goodjets = (
-            (events.Jet.pt > 30)
-            & (np.abs(events.Jet.eta) < 5.0)
-            & events.Jet.isTight
-            & (events.Jet.puId > 0)
-            & (events.Jet.btagDeepFlavB > btagWPs["deepJet"][year]["M"])
-            & (np.abs(events.Jet.delta_r(bbjet)) > 0.8)
-        )
-        n_good_jets = ak.sum(goodjets, axis=1)
-
-        skimmed_events["nGoodMuons"] = n_good_muons.to_numpy()
-        skimmed_events["nGoodElectrons"] = n_good_electrons.to_numpy()
-        skimmed_events["nGoodJets"] = n_good_jets.to_numpy()
+        skimmed_events["nGoodMuons"] = nmuons.to_numpy()
+        skimmed_events["nGoodElectrons"] = nelectrons.to_numpy()
 
         ######################
         # Remove branches
@@ -989,9 +992,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][~bb_mask],
                 "phi": ak8FatJetVars["ak8FatJetPhi"][~bb_mask],
                 "eta": ak8FatJetVars["ak8FatJetEta"][~bb_mask],
-                "M": ak8FatJetVars[f"ak8FatJetMsd{mlabel}"][~bb_mask],
-                # TODO: change this to ParticleNetMass for next run
-                # "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][~bb_mask],
+                "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][~bb_mask],
             }
         )
 
