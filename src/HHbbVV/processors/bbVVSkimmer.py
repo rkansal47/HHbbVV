@@ -324,7 +324,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         ak4_jet_vars = {}
 
         jets, _ = get_jec_jets(events, year, isData, self.jecs, fatjets=False)
-        print('fatjet',fatjets)
+        print("fatjet", fatjets)
 
         vbf_jet_mask = (
             jets.isTight
@@ -342,13 +342,13 @@ class bbVVSkimmer(processor.ProcessorABC):
             & (
                 ak.all(
                     jets.metric_table(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[~bb_mask])
-                    > self.ak4_jet_selection["dR_fatjetVV"], 
+                    > self.ak4_jet_selection["dR_fatjetVV"],
                     axis=-1,
                 )
             )
         )
 
-        vbf_jets = jets[vbf_jet_mask] # also needs pt sorting
+        vbf_jets = jets[vbf_jet_mask]  # also needs pt sorting
         vbf_jets = vbf_jets[ak.argsort(vbf_jets.pt, ascending=False)]
 
         VBFJetVars = {
@@ -566,12 +566,12 @@ class bbVVSkimmer(processor.ProcessorABC):
             weights.add("genweight", gen_weights)
 
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
-            #print(len(vbf_jets),type(vbf_jets.pt.layout.content),vbf_jets.pt.layout.content)
-            #print(dir(vbf_jets.pt.layout.content))
-            #print(dir(JetArray(vbf_jets).pt.layout.content))
-            #print(JetArray(vbf_jets).pt.layout.content.offsets)
-            #print(vbf_jets.pt.layout.content.offsets)
-            add_pileupid_weights(weights, year, vbf_jets, events.GenJet, wp="M") # this gives error
+            # print(len(vbf_jets),type(vbf_jets.pt.layout.content),vbf_jets.pt.layout.content)
+            # print(dir(vbf_jets.pt.layout.content))
+            # print(dir(JetArray(vbf_jets).pt.layout.content))
+            # print(JetArray(vbf_jets).pt.layout.content.offsets)
+            # print(vbf_jets.pt.layout.content.offsets)
+            add_pileupid_weights(weights, year, vbf_jets, events.GenJet, wp="M")  # this gives error
             add_VJets_kFactors(weights, events.GenPart, dataset)
 
             # if dataset.startswith("TTTo"):
