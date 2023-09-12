@@ -343,8 +343,9 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         jets, _ = get_jec_jets(events, year, isData, self.jecs, fatjets=False)
 
-        # dR_fatjetVV = 0.8 used from last two cells of VBFgenInfoTests.ipynb with data generated from SM signal vbf
-        # (0-14R1R2study.parquet) has columns of different nGoodVBFJets corresponding to R1 and R2 cuts
+        # dR_fatjetVV = 0.8 used from last two cells of VBFgenInfoTests.ipynb with data generated from SM signal vbf 
+        # https://github.com/rkansal47/HHbbVV/blob/vbf_systematics/src/HHbbVV/VBF_binder/VBFgenInfoTests.ipynb 
+        # (0-14R1R2study.parquet) has columns of different nGoodVBFJets corresponding to R1 and R2 cuts 
         vbf_jet_mask = (
             jets.isTight
             & (jets.pt > self.ak4_jet_selection["pt"])
