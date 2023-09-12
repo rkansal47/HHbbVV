@@ -165,9 +165,13 @@ def get_nonres_selection_regions(
 
 
 def get_res_selection_regions(
-    year: str, mass_window: List[float] = [110, 145], txbb_wp: str = "HP", thww_wp: float = 0.96
+    year: str,
+    mass_window: List[float] = [110, 145],
+    txbb_wp: str = "HP",
+    thww_wp: float = 0.96,
+    leadingpt_wp: float = 300,
+    subleadingpt_wp: float = 300,
 ):
-    pt_cuts = [300, CUT_MAX_VAL]
     mwsize = mass_window[1] - mass_window[0]
     mw_sidebands = [
         [mass_window[0] - mwsize / 2, mass_window[0]],
@@ -175,12 +179,11 @@ def get_res_selection_regions(
     ]
     txbb_cut = txbb_wps[year][txbb_wp]
 
-    return {
+    # first define without pT cuts
+    regions = {
         # "unblinded" regions:
         "pass": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mass_window,
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
                 "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
@@ -189,8 +192,6 @@ def get_res_selection_regions(
         ),
         "fail": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mass_window,
                 "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
                 "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, thww_wp],
@@ -200,8 +201,6 @@ def get_res_selection_regions(
         # "blinded" validation regions:
         "passBlinded": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mw_sidebands,
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
                 "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
@@ -210,8 +209,6 @@ def get_res_selection_regions(
         ),
         "failBlinded": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mw_sidebands,
                 "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
                 "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, thww_wp],
@@ -224,6 +221,22 @@ def get_res_selection_regions(
             label="LP SF Cut",
         ),
     }
+
+    # add pT cuts
+    leading_pt_cut = [leadingpt_wp, CUT_MAX_VAL]
+    subleading_pt_cut = [subleadingpt_wp, CUT_MAX_VAL]
+
+    for key, region in regions.items():
+        cuts = {
+            "bbFatJetPt": subleading_pt_cut,
+            "VVFatJetPt": subleading_pt_cut,
+            # '+' means OR
+            "bbFatJetPt+VVFatJetPt": leading_pt_cut,
+            **region.cuts,
+        }
+        region.cuts = cuts
+
+    return regions
 
 
 # fitting on bb regressed mass for nonresonant
@@ -255,7 +268,7 @@ res_shape_vars = [
 ]
 
 nonres_scan_cuts = ["txbb", "bdt"]
-res_scan_cuts = ["txbb", "thww"]
+res_scan_cuts = ["txbb", "thww", "leadingpt", "subleadingpt"]
 
 nonres_sig_keys_ggf = [
     "HHbbVV",
@@ -289,16 +302,10 @@ def main(args):
 
     # utils.remove_empty_parquets(samples_dir, year)
     events_dict = _load_samples(args, bg_samples, sig_samples, cutflow)
-
-    for sample in events_dict:
-        tot_weight = np.sum(events_dict[sample]["weight"].values)
-        print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
-
     bb_masks = bb_VV_assignment(events_dict)
 
     # trigger effs and QCD scale (if not already from processor)
     apply_weights(events_dict, args.year, cutflow)
-    print("\nCutflow\n", cutflow)
 
     # THWW score vs Top (if not already from processor)
     derive_variables(events_dict)
@@ -306,7 +313,7 @@ def main(args):
     if args.plot_dir != "":
         cutflow.to_csv(f"{args.plot_dir}/preselection_cutflow.csv")
 
-    print("\nCutflow\n", cutflow)
+    print("\nCutflow", cutflow)
 
     # Load BDT Scores
     if not args.resonant:
@@ -333,6 +340,7 @@ def main(args):
             bg_keys=args.bg_keys,
             sig_scale_dict={"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | {key: 2e4 for key in res_sig_keys},
             # sig_splits=sig_splits,
+            hists_HEM2d=args.HEM2d,
             show=False,
         )
 
@@ -348,7 +356,6 @@ def main(args):
                 else get_res_selection_regions(args.year, **cutargs)
             )
 
-            print(sig_keys)
             # load pre-calculated systematics and those for different years if saved already
             systs_file = f"{template_dir}/systematics.json"
             systematics = _check_load_systematics(systs_file, args.year)
@@ -400,7 +407,6 @@ def main(args):
                     jshift=jshift,
                     blind_pass=True if args.resonant else False,
                     show=False,
-                    hists_HEM2d=args.HEM2d,
                     plot_shifts=args.plot_shifts,
                 )
                 templates = {**templates, **temps}
@@ -425,8 +431,19 @@ def _init(args):
         scan_cuts = nonres_scan_cuts
         shape_vars = nonres_shape_vars
     else:
-        scan = len(args.res_txbb_wp) > 1 or len(args.res_thww_wp) > 1
-        scan_wps = list(itertools.product(args.res_txbb_wp, args.res_thww_wp))
+        scan = (
+            len(args.res_txbb_wp) > 1
+            or len(args.res_thww_wp) > 1
+            or len(args.res_leading_pt) > 1
+            or len(args.res_subleading_pt) > 1
+        )
+        scan_wps = list(
+            itertools.product(
+                args.res_txbb_wp, args.res_thww_wp, args.res_leading_pt, args.res_subleading_pt
+            )
+        )
+        # remove WPs where subleading pT > leading pT
+        scan_wps = [wp for wp in scan_wps if wp[3] <= wp[2]]
         scan_cuts = res_scan_cuts
         shape_vars = res_shape_vars
 
@@ -462,18 +479,19 @@ def _process_samples(args, BDT_sample_order: List[str] = None):
             if sample in nonres_samples:
                 sig_samples[sample] = nonres_samples[sample]
 
-        # re-order acording to input ordering
-        tsig_samples = OrderedDict()
-        for sample in args.sig_samples:
-            if sample in sig_samples:
-                # if sample is a key, get it directly
-                tsig_samples[sample] = sig_samples[sample]
-            else:
-                # else if it is a value, have to find corresponding key
-                key = [key for key, value in sig_samples.items() if value == sample][0]
-                tsig_samples[key] = sample
+        if len(sig_samples):
+            # re-order acording to input ordering
+            tsig_samples = OrderedDict()
+            for sample in args.sig_samples:
+                if sample in sig_samples:
+                    # if sample is a key, get it directly
+                    tsig_samples[sample] = sig_samples[sample]
+                else:
+                    # else if it is a value, have to find corresponding key
+                    key = [key for key, value in sig_samples.items() if value == sample][0]
+                    tsig_samples[key] = sample
 
-        sig_samples = tsig_samples
+            sig_samples = tsig_samples
 
     bg_samples = deepcopy(samples)
     for bg_key, sample in list(bg_samples.items()):
@@ -1158,6 +1176,7 @@ def get_templates(
         sel, cf = utils.make_selection(
             region.cuts, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
+        # print(cf)
 
         if template_dir != "":
             cf.to_csv(f"{template_dir}/cutflows/{year}/{rname}_cutflow{jlabel}.csv")
@@ -1493,7 +1512,23 @@ if __name__ == "__main__":
     parser.add_argument(
         "--res-thww-wp",
         help="Thww WP for signal region. If multiple arguments, will make templates for each.",
-        default=[0.96],
+        default=[0.8],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--res-leading-pt",
+        help="pT cut for leading AK8 jet (resonant only)",
+        default=[300],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--res-subleading-pt",
+        help="pT cut for sub-leading AK8 jet (resonant only)",
+        default=[300],
         nargs="*",
         type=float,
     )
