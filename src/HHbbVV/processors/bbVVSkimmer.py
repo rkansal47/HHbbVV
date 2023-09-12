@@ -140,12 +140,10 @@ class bbVVSkimmer(processor.ProcessorABC):
     for shift in jmsr_shifts:
         min_branches.append(f"ak8FatJetParticleNetMass_{shift}")
         min_branches.append(f"DijetMass_{shift}")
-        
-    for label, shift in common.jecs.items():
-                    for vari in ["up", "down"]:
-                        min_branches.append(f"VBFJetPt_{label}_{vari}")
-                        
 
+    for label, shift in common.jecs.items():
+        for vari in ["up", "down"]:
+            min_branches.append(f"VBFJetPt_{label}_{vari}")
 
     def __init__(
         self,
@@ -345,7 +343,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         jets, _ = get_jec_jets(events, year, isData, self.jecs, fatjets=False)
 
-        # dR_fatjetVV = 0.8 used from last two cells of VBFgenInfoTests.ipynb with data generated from SM signal vbf 
+        # dR_fatjetVV = 0.8 used from last two cells of VBFgenInfoTests.ipynb with data generated from SM signal vbf
         # (0-14R1R2study.parquet) has columns of different nGoodVBFJets corresponding to R1 and R2 cuts
         vbf_jet_mask = (
             jets.isTight
@@ -355,21 +353,25 @@ class bbVVSkimmer(processor.ProcessorABC):
             & ((jets.pt > 50) | ((jets.puId & 2) == 2))
             & (
                 ak.all(
-                    jets.metric_table(ak.singletons(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[bb_mask]))
+                    jets.metric_table(
+                        ak.singletons(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[bb_mask])
+                    )
                     > self.ak4_jet_selection["dR_fatjetbb"],
                     axis=-1,
                 )
             )
             & (
                 ak.all(
-                    jets.metric_table(ak.singletons(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[~bb_mask]))
+                    jets.metric_table(
+                        ak.singletons(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[~bb_mask])
+                    )
                     > self.ak4_jet_selection["dR_fatjetVV"],
                     axis=-1,
                 )
             )
         )
 
-        vbf_jets = jets[vbf_jet_mask] 
+        vbf_jets = jets[vbf_jet_mask]
 
         VBFJetVars = {
             f"VBFJet{key}": pad_val(vbf_jets[var], num_ak4_jets, axis=1)
