@@ -376,16 +376,20 @@ def add_pileupid_weights(weights: Weights, year: str, jets: JetArray, genjets, w
     jets = jets[ak.any(jets.metric_table(genjets) < 0.4, axis=-1)]
 
     sf_cset = correctionlib.CorrectionSet.from_file(get_pog_json("jmar", year))["PUJetID_eff"]
-    # save offsets to reconstruct jagged shape
-    offsets = jets.pt.layout.content.offsets
-    # correctionlib < 2.3 doesn't accept jagged arrays (but >= 2.3 needs awkard v2)
-    sfs = sf_cset.evaluate(ak.flatten(jets.eta), ak.flatten(jets.pt), "nom", "L")
-    # reshape flat effs
-    sfs = ak.Array(ak.layout.ListOffsetArray64(offsets, ak.layout.NumpyArray(sfs)))
-    # product of SFs across arrays, automatically defaults empty lists to 1
-    sfs = ak.prod(sfs, axis=1)
 
-    weights.add("pileupIDSF", sfs)
+    # save offsets to reconstruct jagged shape
+    offsets = jets.pt.layout.offsets
+
+    sfs_var = []
+    for var in ["nom", "up", "down"]:
+        # correctionlib < 2.3 doesn't accept jagged arrays (but >= 2.3 needs awkard v2)
+        sfs = sf_cset.evaluate(ak.flatten(jets.eta), ak.flatten(jets.pt), var, "L")
+        # reshape flat effs
+        sfs = ak.Array(ak.layout.ListOffsetArray64(offsets, ak.layout.NumpyArray(sfs)))
+        # product of SFs across arrays, automatically defaults empty lists to 1
+        sfs_var.append(ak.prod(sfs, axis=1))
+
+    weights.add("pileupIDSF", *sfs_var)
 
 
 # for scale factor validation region selection
@@ -500,7 +504,6 @@ def get_jec_jets(
 ) -> FatJetArray:
     """
     Based on https://github.com/nsmith-/boostedhiggs/blob/master/boostedhiggs/hbbprocessor.py
-    Eventually update to V5 JECs once I figure out what's going on with the 2017 UL V5 JER scale factors
 
     See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/
 
@@ -515,6 +518,7 @@ def get_jec_jets(
         jets = events.Jet
         jet_factory = ak4jet_factory
 
+    # don't apply if data
     apply_jecs = not (not ak.any(jets.pt) or isData)
 
     import cachetools
