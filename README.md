@@ -284,6 +284,7 @@ nohup bash_scripts/res_tagger_scan.sh $TAG &> scan.txt &
 nohup bash_scripts/res_pt_scan.sh $TAG &> scan.txt &
 ```
 
+**Remember to check output to make sure all years' templates are made!!**
 
 ### Create Datacard
 

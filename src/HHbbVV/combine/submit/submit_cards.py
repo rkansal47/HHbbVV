@@ -185,8 +185,8 @@ for mX, mY in res_mps:
 
 scan_txbb_wps = ["HP"]
 scan_thww_wps = [0.6, 0.8]
-scan_leadingpt_wps = [300, 350, 400, 450]
-scan_subleadingpt_wps = [300, 350, 400, 450]
+scan_leadingpt_wps = [300.0, 350.0, 400.0, 450.0]
+scan_subleadingpt_wps = [300.0, 350.0, 400.0, 450.0]
 
 nonres_scan_cuts = ["txbb", "bdt"]
 res_scan_cuts = ["txbb", "thww", "leadingpt", "subleadingpt"]
