@@ -29,7 +29,7 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [BDT Trainings](#bdt-trainings)
     - [Post-Processing](#post-processing-1)
       - [Control plots with resonant and nonresonant samples](#control-plots-with-resonant-and-nonresonant-samples)
-      - [Making separate background and signal templates for scan (resonant)](#making-separate-background-and-signal-templates-for-scan-resonant)
+      - [Making separate background and signal templates for scan and bias tests (resonant)](#making-separate-background-and-signal-templates-for-scan-and-bias-tests-resonant)
     - [Create Datacard](#create-datacard)
     - [PlotFits](#plotfits)
   - [Combine](#combine)
@@ -277,11 +277,12 @@ for year in 2016 2016APV 2017 2018; do python -u postprocessing.py --templates -
 Run `postprocessing/bash_scripts/ControlPlots.sh` from inside `postprocessing folder`.
 
 
-#### Making separate background and signal templates for scan (resonant)
+#### Making separate background and signal templates for scan and bias tests (resonant)
 
 ```bash
 nohup bash_scripts/res_tagger_scan.sh $TAG &> scan.txt &
 nohup bash_scripts/res_pt_scan.sh $TAG &> scan.txt &
+nohup bash_scripts/res_bias_templates.sh $TAG &> bias.txt &
 ```
 
 **Remember to check output to make sure all years' templates are made!!**
@@ -395,6 +396,12 @@ This was also output a script to collect all the impacts after the jobs finish.
 #### Signal injection tests
 
 For resonant, use scripts inside the `src/HHbbVV/combine/` directory and run from one level above the sample datacard folders (e.g. `/uscms/home/rkansal/hhcombine/cards/biastests/23Jul17ResClipTFScale1`).
+
+Setting up the datacards, assuming templates have already been made (see [templates section](#making-separate)), e.g.:
+
+```bash
+setup_bias.sh -r --scale 1 --cardstag 23Sep14_hww0.6_pt_400_350 --templatestag 23Sep14_thww0.6_pt_400_350
+```
 
 Submitting 1000 toys for each sample and `r` value + more toys for samples with high fit failure rates:
 
