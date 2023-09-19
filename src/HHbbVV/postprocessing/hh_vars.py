@@ -230,6 +230,8 @@ jec_vars = [
     "VVFatJetPtOverDijetPt",
     "VVFatJetPtOverbbFatJetPt",
     "BDTScore",
+    "VBFJetPt",
+    "vbf_Mass_jj",
 ]
 
 
