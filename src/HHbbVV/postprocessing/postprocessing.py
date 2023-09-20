@@ -705,7 +705,8 @@ def apply_weights(
     for sample in events_dict:
         events = events_dict[sample]
         if sample == data_key:
-            events[weight_key] = events["weight"]
+            if weight_key not in events:
+                events[weight_key] = events["weight"]
         elif f"{weight_key}_noTrigEffs" not in events:
             fj_trigeffs = ak8TrigEffsLookup(
                 events["ak8FatJetParticleNetMD_Txbb"].values,
