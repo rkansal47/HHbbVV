@@ -351,6 +351,14 @@ weight_shifts = {
 }
 
 
+plot_sig_keys_nonres = [
+    "HHbbVV",
+    "VBFHHbbVV",
+    "qqHH_CV_1_C2V_0_kl_1_HHbbVV",
+    "qqHH_CV_1_C2V_2_kl_1_HHbbVV",
+]
+
+
 def main(args):
     shape_vars, scan, scan_cuts, scan_wps = _init(args)
     sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args)
@@ -459,6 +467,7 @@ def main(args):
                     systematics,
                     template_dir,
                     bg_keys=bg_keys,
+                    plot_sig_keys=plot_sig_keys_nonres if not args.resonant else sig_keys,
                     plot_dir=plot_dir,
                     prev_cutflow=cutflow,
                     # sig_splits=sig_splits,
