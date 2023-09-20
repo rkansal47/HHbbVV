@@ -76,6 +76,7 @@ class Region:
 
 
 # Both Jet's Regressed Mass above 50, electron veto included in new samples
+# TODO: JMSR shifts!
 new_filters = [
     [
         ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
