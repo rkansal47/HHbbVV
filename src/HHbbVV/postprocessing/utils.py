@@ -313,12 +313,23 @@ def getParticles(particle_list, particle_type):
         return (abs(particle_list) == W_PDGID) + (abs(particle_list) == Z_PDGID)
 
 
+# check if string is an int
+def _is_int(s: str) -> bool:
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
 def get_feat(events: pd.DataFrame, feat: str, bb_mask: pd.DataFrame = None):
     if feat in events:
         return events[feat].values.squeeze()
     elif feat.startswith("bb") or feat.startswith("VV"):
         assert bb_mask is not None, "No bb mask given!"
         return events["ak8" + feat[2:]].values[bb_mask ^ feat.startswith("VV")].squeeze()
+    elif _is_int(feat[-1]):
+        return events[feat[:-1]].values[:, int(feat[-1])].squeeze()
 
 
 def get_feat_first(events: pd.DataFrame, feat: str):
