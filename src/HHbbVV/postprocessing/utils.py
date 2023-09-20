@@ -269,6 +269,8 @@ def load_samples(
                         events["finalWeight_noTrigEffs"] = events["weight_noTrigEffs"] / n_events
                     else:
                         events["weight"] /= n_events
+            else:
+                events["finalWeight"] = events["weight"]
 
             if year == "2018":
                 events = _hem_cleaning(sample, events)
