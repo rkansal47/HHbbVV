@@ -960,6 +960,9 @@ def lpsfs(
         - Does it for all years once if args.lp_sf_all_years or just for the given year
     2) Saves them to ``systs_file`` and CSV for posterity
     """
+    if not all_years:
+        warnings.warn(f"LP SF only calculated from single year's samples", RuntimeWarning)
+
     for sig_key in sig_keys:
         if sig_key not in systematics or "lp_sf" not in systematics[sig_key]:
             print(f"\nGetting LP SFs for {sig_key}")
@@ -978,7 +981,6 @@ def lpsfs(
                 )
             # Only for testing, can do just for a single year
             else:
-                warnings.warn(f"LP SF only calculated from single year's samples", RuntimeWarning)
                 # calculate only for current year
                 events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
                 sel, cf = utils.make_selection(

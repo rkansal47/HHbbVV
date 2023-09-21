@@ -180,9 +180,9 @@ def _hem_cleaning(sample, events):
         if sample.endswith("2018C") or sample.endswith("2018D"):
             hem_cut = np.any(
                 (events["ak8FatJetEta"] > -3.2)
-                * (events["ak8FatJetEta"] < -1.3)
-                * (events["ak8FatJetPhi"] > -1.57)
-                * (events["ak8FatJetPhi"] < -0.87),
+                & (events["ak8FatJetEta"] < -1.3)
+                & (events["ak8FatJetPhi"] > -1.57)
+                & (events["ak8FatJetPhi"] < -0.87),
                 axis=1,
             )
             print(f"Removing {np.sum(hem_cut)} events")
@@ -192,11 +192,11 @@ def _hem_cleaning(sample, events):
     else:
         hem_cut = np.any(
             (events["ak8FatJetEta"] > -3.2)
-            * (events["ak8FatJetEta"] < -1.3)
-            * (events["ak8FatJetPhi"] > -1.57)
-            * (events["ak8FatJetPhi"] < -0.87),
+            & (events["ak8FatJetEta"] < -1.3)
+            & (events["ak8FatJetPhi"] > -1.57)
+            & (events["ak8FatJetPhi"] < -0.87),
             axis=1,
-        ) * (np.random.rand(len(events)) < 0.632)
+        ) & (np.random.rand(len(events)) < 0.632)
         print(f"Removing {np.sum(hem_cut)} events")
         return events[~hem_cut]
 
@@ -207,6 +207,7 @@ def load_samples(
     year: str,
     filters: List = None,
     columns: List = None,
+    hem_cleaning: bool = True,
 ) -> Dict[str, pd.DataFrame]:
     """
     Loads events with an optional filter.
@@ -217,6 +218,8 @@ def load_samples(
         samples (Dict[str, str]): dictionary of samples and selectors to load.
         year (str): year.
         filters (List): Optional filters when loading data.
+        columns (List): Optional columns to load.
+        hem_cleaning (bool): Whether to apply HEM cleaning to 2018 data.
 
     Returns:
         Dict[str, pd.DataFrame]: ``events_dict`` dictionary of events dataframe for each sample.
@@ -272,7 +275,7 @@ def load_samples(
             else:
                 events["finalWeight"] = events["weight"]
 
-            if year == "2018":
+            if year == "2018" and hem_cleaning:
                 events = _hem_cleaning(sample, events)
 
             if not_empty:
