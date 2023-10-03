@@ -76,6 +76,7 @@ class Region:
 
 
 # Both Jet's Regressed Mass above 50, electron veto included in new samples
+# TODO: JMSR shifts!
 new_filters = [
     [
         ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
@@ -158,6 +159,49 @@ def get_nonres_selection_regions(
         "lpsf": Region(
             cuts={  # cut for which LP SF is calculated
                 "BDTScore": [bdt_wp, CUT_MAX_VAL],
+            },
+            label="LP SF Cut",
+        ),
+    }
+
+
+# TODO: fill out VBF selection
+def get_nonres_vbf_selection_regions(
+    year: str,
+    txbb_wp: str = "HP",
+    thww_wp: float = 0.6,
+):
+    # edit
+    pt_cuts = [300, CUT_MAX_VAL]
+    txbb_cut = txbb_wps[year][txbb_wp]
+
+    return {
+        # {label: {cutvar: [min, max], ...}, ...}
+        "pass": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
+                "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+                # add more
+            },
+            label="Pass",
+        ),
+        "fail": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
+                "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+                # add more
+            },
+            label="Fail",
+        ),
+        "lpsf": Region(
+            cuts={  # cut for which LP SF is calculated
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
             },
             label="LP SF Cut",
         ),
@@ -251,6 +295,19 @@ nonres_shape_vars = [
 ]
 
 
+# templates saved in bb regressed mass for nonresonant VBF
+# TODO: edit as needed
+nonres_vbf_shape_vars = [
+    ShapeVar(
+        "bbFatJetParticleNetMass",
+        r"$m^{bb}_\mathrm{Reg}$ (GeV)",
+        [20, 50, 250],
+        reg=True,
+        blind_window=[100, 150],
+    )
+]
+
+
 # fitting on VV regressed mass + dijet mass for resonant
 res_shape_vars = [
     ShapeVar(
@@ -268,6 +325,7 @@ res_shape_vars = [
 ]
 
 nonres_scan_cuts = ["txbb", "bdt"]
+nonres_vbf_scan_cuts = ["txbb", "thww"]  # TODO: add more cuts being scanned over
 res_scan_cuts = ["txbb", "thww", "leadingpt", "subleadingpt"]
 
 nonres_sig_keys_ggf = [
@@ -280,8 +338,8 @@ nonres_sig_keys_ggf = [
 # TODO: check which of these applies to resonant as well
 weight_shifts = {
     "pileup": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup"),
-    # "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
-    # "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"),
+    "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
+    "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"),
     "ISRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="ISR Parton Shower"),
     "FSRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="FSR Parton Shower"),
     "L1EcalPrefiring": Syst(
@@ -291,6 +349,14 @@ weight_shifts = {
     ),
     # "top_pt": ["TT"],
 }
+
+
+plot_sig_keys_nonres = [
+    "HHbbVV",
+    "VBFHHbbVV",
+    "qqHH_CV_1_C2V_0_kl_1_HHbbVV",
+    "qqHH_CV_1_C2V_2_kl_1_HHbbVV",
+]
 
 
 def main(args):
@@ -316,7 +382,7 @@ def main(args):
     print("\nCutflow", cutflow)
 
     # Load BDT Scores
-    if not args.resonant:
+    if not args.resonant and not args.vbf:
         print("\nLoading BDT predictions")
         load_bdt_preds(
             events_dict,
@@ -350,11 +416,12 @@ def main(args):
             template_dir = f"{args.template_dir}/{cutstr}/{args.templates_name}/"
 
             cutargs = {f"{cut}_wp": wp for cut, wp in zip(scan_cuts, wps)}
-            selection_regions = (
-                get_nonres_selection_regions(args.year, **cutargs)
-                if not args.resonant
-                else get_res_selection_regions(args.year, **cutargs)
-            )
+            if args.resonant:
+                selection_regions = get_res_selection_regions(args.year, **cutargs)
+            elif args.vbf:
+                selection_regions = get_nonres_vbf_selection_regions(args.year, **cutargs)
+            else:
+                selection_regions = get_nonres_selection_regions(args.year, **cutargs)
 
             # load pre-calculated systematics and those for different years if saved already
             systs_file = f"{template_dir}/systematics.json"
@@ -400,6 +467,7 @@ def main(args):
                     systematics,
                     template_dir,
                     bg_keys=bg_keys,
+                    plot_sig_keys=plot_sig_keys_nonres if not args.resonant else sig_keys,
                     plot_dir=plot_dir,
                     prev_cutflow=cutflow,
                     # sig_splits=sig_splits,
@@ -425,12 +493,7 @@ def _init(args):
         print("You need to pass at least one of --control-plots, --templates, or --scan")
         return
 
-    if not args.resonant:
-        scan = len(args.nonres_txbb_wp) > 1 or len(args.nonres_bdt_wp) > 1
-        scan_wps = list(itertools.product(args.nonres_txbb_wp, args.nonres_bdt_wp))
-        scan_cuts = nonres_scan_cuts
-        shape_vars = nonres_shape_vars
-    else:
+    if args.resonant:
         scan = (
             len(args.res_txbb_wp) > 1
             or len(args.res_thww_wp) > 1
@@ -446,6 +509,16 @@ def _init(args):
         scan_wps = [wp for wp in scan_wps if wp[3] <= wp[2]]
         scan_cuts = res_scan_cuts
         shape_vars = res_shape_vars
+    elif not args.vbf:
+        scan = len(args.nonres_txbb_wp) > 1 or len(args.nonres_bdt_wp) > 1
+        scan_wps = list(itertools.product(args.nonres_txbb_wp, args.nonres_bdt_wp))
+        scan_cuts = nonres_scan_cuts
+        shape_vars = nonres_shape_vars
+    else:
+        scan = len(args.nonres_vbf_txbb_wp) > 1 or len(args.nonres_vbf_thww_wp) > 1
+        scan_wps = list(itertools.product(args.nonres_vbf_txbb_wp, args.nonres_vbf_thww_wp))
+        scan_cuts = nonres_vbf_scan_cuts
+        shape_vars = nonres_vbf_shape_vars
 
     return shape_vars, scan, scan_cuts, scan_wps
 
@@ -632,7 +705,8 @@ def apply_weights(
     for sample in events_dict:
         events = events_dict[sample]
         if sample == data_key:
-            events[weight_key] = events["weight"]
+            if weight_key not in events:
+                events[weight_key] = events["weight"]
         elif f"{weight_key}_noTrigEffs" not in events:
             fj_trigeffs = ak8TrigEffsLookup(
                 events["ak8FatJetParticleNetMD_Txbb"].values,
@@ -886,6 +960,9 @@ def lpsfs(
         - Does it for all years once if args.lp_sf_all_years or just for the given year
     2) Saves them to ``systs_file`` and CSV for posterity
     """
+    if not all_years:
+        warnings.warn(f"LP SF only calculated from single year's samples", RuntimeWarning)
+
     for sig_key in sig_keys:
         if sig_key not in systematics or "lp_sf" not in systematics[sig_key]:
             print(f"\nGetting LP SFs for {sig_key}")
@@ -904,7 +981,6 @@ def lpsfs(
                 )
             # Only for testing, can do just for a single year
             else:
-                warnings.warn(f"LP SF only calculated from single year's samples", RuntimeWarning)
                 # calculate only for current year
                 events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
                 sel, cf = utils.make_selection(
@@ -1447,6 +1523,7 @@ if __name__ == "__main__":
     )
 
     utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
+    utils.add_bool_arg(parser, "vbf", "non-resonant VBF or inclusive", default=False)
     utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
     utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
     utils.add_bool_arg(
@@ -1496,6 +1573,23 @@ if __name__ == "__main__":
         "--nonres-bdt-wp",
         help="BDT WP for signal region. If multiple arguments, will make templates for each.",
         default=[0.998],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--nonres-vbf-txbb-wp",
+        help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
+        default=["HP"],
+        choices=["LP", "MP", "HP"],
+        nargs="*",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--nonres-vbf-thww-wp",
+        help="THWWvsT WP for signal region. If multiple arguments, will make templates for each.",
+        default=[0.6],
         nargs="*",
         type=float,
     )
