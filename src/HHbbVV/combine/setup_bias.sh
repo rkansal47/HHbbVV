@@ -61,7 +61,12 @@ do
 
     cd ${cards_dir}/${sample}/
 
-    run_blinded.sh -rwb
+    # if scale is greater than or equal to 10 then run with higher minimum tolerance
+    if [ $scale -ge 10 ]; then
+        run_blinded.sh -rwb --mintol 15
+    else
+        run_blinded.sh -rwb
+    fi
 
     cd -
 done

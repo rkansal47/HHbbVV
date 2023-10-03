@@ -41,8 +41,10 @@ impactsc=0
 seed=42
 numtoys=100
 bias=-1
+mintol=0.1  # --cminDefaultMinimizerTolerance
+# maxcalls=1000000000  # --X-rtd MINIMIZER_MaxCalls
 
-options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -89,6 +91,10 @@ while true; do
         --numtoys)
             shift
             numtoys=$1
+            ;;
+        --mintol)
+            shift
+            mintol=$1
             ;;
         --bias)
             shift
@@ -243,7 +249,7 @@ fi
 if [ $bfit = 1 ]; then
     echo "Blinded background-only fit"
     combine -D $dataset -M MultiDimFit --saveWorkspace -m 125 -d ${wsm}.root -v 9 \
-    --cminDefaultMinimizerStrategy 1 \
+    --cminDefaultMinimizerStrategy 1 --cminDefaultMinimizerTolerance $mintol --X-rtd MINIMIZER_MaxCalls=400000 \
     --setParameters ${maskunblindedargs},${setparamsblinded},r=0  \
     --freezeParameters r,${freezeparamsblinded} \
     -n Snapshot 2>&1 | tee $outsdir/MultiDimFit.txt
@@ -278,7 +284,7 @@ if [ $dfit = 1 ]; then
     combine -M FitDiagnostics -m 125 -d ${wsm}.root \
     --setParameters ${maskunblindedargs},${setparamsblinded} \
     --freezeParameters ${freezeparamsblinded} \
-    --cminDefaultMinimizerStrategy 1 \
+    --cminDefaultMinimizerStrategy 1  --cminDefaultMinimizerTolerance $mintol --X-rtd MINIMIZER_MaxCalls=400000 \
     -n Blinded --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnostics.txt
     # --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
 
@@ -363,8 +369,9 @@ if [ $bias != -1 ]; then
     # setting verbose > 0 here can lead to crazy large output files (~10-100GB!) because of getting
     # stuck in negative yield areas
     combine -M FitDiagnostics --trackParameters r --trackErrors r --justFit \
-    -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root --rMin "-20" --rMax 50 \
+    -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root --rMin "-15" --rMax 15 \
     --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal $bias \
     ${unblindedparams},r=$bias --floatParameters ${freezeparamsblinded} \
-    --robustFit=1 -t $numtoys -s $seed 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
+    --robustFit=1 -t $numtoys -s $seed \
+    --X-rtd MINIMIZER_MaxCalls=1000000 --cminDefaultMinimizerTolerance $mintol 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
 fi

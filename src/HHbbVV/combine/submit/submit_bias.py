@@ -53,6 +53,7 @@ def main(args):
             "num_toys": args.toys_per_job,
             "resonant": "--resonant" if args.resonant else "",
             "bias": args.bias,
+            "mintol": args.mintol,
         }
         write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
@@ -72,5 +73,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--bias", help="expected signal strength to test", type=float, required=True
     )
+    parser.add_argument("--mintol", default=0.1, help="minimizer tolerance", type=float)
     args = parser.parse_args()
     main(args)
