@@ -28,5 +28,5 @@ cd ../..
 
 ls -lh
 chmod u+x run_blinded.sh
-./run_blinded.sh $resonant --bias $bias --seed $seed --numtoys $num_toys 
+./run_blinded.sh $resonant --bias $bias --seed $seed --numtoys $num_toys --mintol $mintol
 ls -lh

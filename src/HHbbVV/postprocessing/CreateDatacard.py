@@ -564,7 +564,19 @@ def get_templates(
     if scale is not None and scale != 1:
         for year in templates_dict:
             for key in templates_dict[year]:
-                templates_dict[year][key] = templates_dict[year][key] * scale
+                for j, sample in enumerate(templates_dict[year][key].axes[0]):
+                    # only scale backgrounds / data
+                    is_sig_key = False
+                    for sig_key in sig_keys:
+                        if sample.startswith(sig_key):
+                            is_sig_key = True
+                            break
+
+                    if not is_sig_key:
+                        vals = templates_dict[year][key][sample, ...].values()
+                        variances = templates_dict[year][key][sample, ...].variances()
+                        templates_dict[year][key].values()[j, ...] = vals * scale
+                        templates_dict[year][key].variances()[j, ...] = variances * (scale**2)
 
     if combine_lasttwo:
         _combine_last_two_bins(templates_dict)
@@ -1031,7 +1043,7 @@ def res_alphabet_fit(
 
             sigmascale = 10  # to scale the deviation from initial
             if scale is not None:
-                sigmascale *= scale
+                sigmascale *= np.sqrt(scale)
 
             scaled_params = (
                 initial_qcd * (1 + sigmascale / np.maximum(1.0, np.sqrt(initial_qcd))) ** qcd_params
