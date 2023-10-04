@@ -940,8 +940,6 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
 
     logging.info("rendering combine model")
 
-    os.system(f"mkdir -p {args.cards_dir}")
-
     out_dir = (
         os.path.join(str(args.cards_dir), args.model_name)
         if args.model_name is not None
@@ -981,7 +979,10 @@ def fill_yields(channels, channels_summed):
         "processes_rates": [],
     }
 
+    rates_dict = {}
+
     for channel in channels:
+        rates_dict[channel] = {}
         for i, key in enumerate(sig_keys + bg_keys + [qcd_data_key]):
             channel_bins_dict["bins_x_processes"].append(channel)
             channel_bins_dict["processes_index"].append(i + 1 - len(sig_keys))
@@ -991,11 +992,64 @@ def fill_yields(channels, channels_summed):
             else:
                 channel_bins_dict["processes_per_bin"].append(mc_samples[key])
                 channel_bins_dict["processes_rates"].append(channels_summed[channel][key].value)
+                rates_dict[channel][key] = channels_summed[channel][key].value
 
     for key, arr in channel_bins_dict.items():
         datacard_dict[key] = join_with_padding(arr)
 
     return datacard_dict
+
+
+def get_systematics_abcd(channels, channels_summed):
+    channel_systs_dict = {}
+
+    for region in channels:
+        channel_systs_dict[region] = {}
+
+        pass_region = region.startswith("pass")
+        region_nosidebands = region.split("_sidebands")[0]
+        sideband_str = "_sidebands" if region.endswith("_sidebands") else ""
+
+        logging.info("starting region: %s" % region)
+
+        for sample_name, card_name in mc_samples.items():
+            systs_dict = {}
+            channel_systs_dict[region][sample_name] = systs_dict
+
+            # rate systematics
+            for skey, syst in nuisance_params.items():
+                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
+                    continue
+
+                val, val_down = syst.value, syst.value_down
+                if syst.diff_regions:
+                    val = val[region_nosidebands]
+                    val_down = val_down[region_nosidebands] if val_down is not None else val_down
+                if syst.diff_samples:
+                    val = val[sample_name]
+                    val_down = val_down[sample_name] if val_down is not None else val_down
+
+                systs_dict[skey] = (val, val_down)
+
+    syst_strs = []
+    for skey in (
+        nuisance_params.keys() + corr_year_shape_systs.keys() + uncorr_year_shape_systs.keys()
+    ):
+        sstr = f"{skey:<92}lnN     "
+        vals = []
+        for channel in channels:
+            for i, key in enumerate(sig_keys + bg_keys + [qcd_data_key]):
+                if key == qcd_data_key or skey not in channel_systs_dict[channel][key]:
+                    vals.append("-")
+                else:
+                    val, val_down = channel_systs_dict[channel][key][skey]
+                    val_str = val if val_down is None else f"{val}/{val_down}"
+
+        sstr += join_with_padding(vals)
+
+    syst_str = syst_strs.join("\n")
+
+    return syst_str
 
 
 def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
@@ -1004,10 +1058,20 @@ def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
     channels_dict, channels_summed = get_channels(templates_dict, templates_summed, shape_vars[0])
 
     datacard_dict = fill_yields(channels, channels_summed)
+    datacard_dict["systematics"] = get_systematics_abcd(channels, channels_summed)
+
+    out_dir = (
+        os.path.join(str(args.cards_dir), args.model_name)
+        if args.model_name is not None
+        else args.cards_dir
+    )
+
+    with open(f"{out_dir}/datacard.txt", "w") as f:
+        f.write(helpers.abcd_datacard_template.substitute(datacard_dict))
+
+    return
 
     for region in channels:
-        region_templates = channels_summed[region]
-
         pass_region = region.startswith("pass")
         region_nosidebands = region.split("_sidebands")[0]
         sideband_str = "_sidebands" if region.endswith("_sidebands") else ""
@@ -1039,40 +1103,6 @@ def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
                 errors_nominal = 1.0 + np.sqrt(sample_template.variance) / values_nominal
 
             # no MC stats?? I removed it
-
-            # rate systematics
-            for skey, syst in nuisance_params.items():
-                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
-                    continue
-
-                logging.info(f"Getting {skey} rate")
-                if skey == "CMS_bbWW_hadronic_triggerEffSF_uncorrelated":
-                    logging.info(
-                        f"\nSkipping rate systematics calc for {skey} of {sample_name} in {region} region\n"
-                    )
-                    continue
-
-                val, val_down = syst.value, syst.value_down
-                if syst.diff_regions:
-                    region_name = region_noblinded
-                    val = val[region_name]
-                    val_down = val_down[region_name] if val_down is not None else val_down
-                if syst.diff_samples:
-                    val = val[sample_name]
-                    val_down = val_down[sample_name] if val_down is not None else val_down
-
-                # sample.setParamEffect(param, val, effect_down=val_down)
-                print("513 rate systematics val, val down", val, val_down)
-                collected_data.append(
-                    {
-                        "type": "rate systematics",
-                        "region": region,
-                        "sample_name": sample_name,
-                        "skey": skey,
-                        "val": val,
-                        "val_down": val_down,
-                    }
-                )
 
             # correlated shape systematics
             for skey, syst in corr_year_shape_systs.items():
@@ -1237,9 +1267,6 @@ def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
 
     syst_string = "\n".join(syst_list)
 
-    # fill datacard with args
-    with open("datacard.templ.txt", "r") as f:
-        templ = Template(f.read())
     out_file = f"/home/users/annava/CMSSW_12_3_4/src/HiggsAnalysis/CombinedLimit/datacards/datacard.templ_{sig_key}.txt"
     with open(out_file, "w") as f:
         f.write(templ.substitute(datacard_dict))
@@ -1262,6 +1289,8 @@ def main(args):
         ShapeVar(name=axis.name, bins=axis.edges, order=args.nTF[i])
         for i, axis in enumerate(sample_templates.axes[1:])
     ]
+
+    os.makedirs(args.cards_dir, exist_ok=True)
 
     dc_args = [args, templates_dict, templates_summed, shape_vars]
     if args.vbf:
