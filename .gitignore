@@ -34,6 +34,7 @@ src/*
 !src/HHbbVV/postprocessing/**
 src/HHbbVV/postprocessing/data/*
 src/HHbbVV/postprocessing/*.pkl
+src/HHbbVV/postprocessing/*.txt
 src/HHbbVV/postprocessing/cards
 src/HHbbVV/postprocessing/templates_old
 src/HHbbVV/postprocessing/condor_templates

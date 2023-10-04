@@ -7,6 +7,8 @@ import hist
 from hist import Hist
 import utils
 
+from hh_vars import years as all_years
+
 
 #################################################
 # Common
@@ -24,13 +26,14 @@ class Syst:
     # if both, region should be the higher level of the dictionary
     value: Union[float, Dict[str, float]] = None
     value_down: Union[float, Dict[str, float]] = None  # if None assumes symmetric effect
+
     # if the value is different for different regions or samples
     diff_regions: bool = False
     diff_samples: bool = False
 
     samples: List[str] = None  # samples affected by it
     # in case of uncorrelated unc., which years to split into
-    uncorr_years: List[str] = field(default_factory=lambda: years)
+    uncorr_years: List[str] = field(default_factory=lambda: all_years)
     pass_only: bool = False  # is it applied only in the pass regions
 
     def __post_init__(self):
@@ -248,6 +251,27 @@ def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
 #################################################
 # VBF
 #################################################
+
+
+abcd_datacard_template = """
+imax $num_bins
+jmax $num_bgs
+kmax * 
+--------------- 
+bin                 $bins
+observation         $observations
+------------------------------ 
+bin                                                                                                 $bins_x_processes       
+process                                                                                             $processes_per_bin 
+process                                                                                             $processes_index
+rate                                                                                                $processes_rates
+------------------------------ 
+single_A    rateParam       $binA     bkg       (@0*@2/@1)       single_B,single_C,single_D 
+single_B    rateParam       $binB     bkg       $obsB
+single_C    rateParam       $binC     bkg       $obsC
+single_D    rateParam       $binD     bkg       $obsD
+$systematics
+"""
 
 
 def join_with_padding(items, padding: int = 36):
