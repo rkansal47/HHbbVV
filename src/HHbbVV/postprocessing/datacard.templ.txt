@@ -1,14 +1,14 @@
-imax $num_bins 
+imax $num_bins
 jmax $num_bgs
 kmax * 
 --------------- 
 bin                 $bins
 observation         $observations
 ------------------------------ 
-bin                 $bins_x_processes       
-process             $processes_per_bin 
-process             $processes_index
-rate                $processes_rates
+bin                                                                                                 $bins_x_processes       
+process                                                                                             $processes_per_bin 
+process                                                                                             $processes_index
+rate                                                                                                $processes_rates
 ------------------------------ 
 single_A    rateParam       $binA     bkg       (@0*@2/@1)       single_B,single_C,single_D 
 single_B    rateParam       $binB     bkg       $obsB
