@@ -16,18 +16,17 @@ import numpy as np
 import pickle, json
 import logging
 from collections import OrderedDict
-from string import Template
 
 import hist
 from hist import Hist
 
-try:
-    import rhalphalib as rl
+import rhalphalib as rl
 
+try:
     rl.util.install_roofit_helpers()
     rl.ParametericSample.PreferRooParametricHist = False
 except:
-    print("rhalphalib import or install failed - not an issue for VBF")
+    print("rootfit install failed - not an issue for VBF")
 
 # logging.basicConfig(level=logging.DEBUG)
 logging.basicConfig(level=logging.INFO)
@@ -78,7 +77,12 @@ add_bool_arg(
 parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
 
 parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
-parser.add_argument("--epsilon", default=1e-3, type=float, help="epsilon to avoid numerical errs")
+parser.add_argument(
+    "--epsilon",
+    default=1e-2,
+    type=float,
+    help="epsilon to avoid numerical errs - also used to decide whether to add mc stats error",
+)
 parser.add_argument(
     "--scale-templates", default=None, type=float, help="scale all templates for bias tests"
 )
@@ -141,7 +145,6 @@ nonres_sig_keys_vbf = [
     "qqHH_CV_1_C2V_0_kl_1_HHbbVV",
     "qqHH_CV_1p5_C2V_1_kl_1_HHbbVV",
     "qqHH_CV_1_C2V_1_kl_2_HHbbVV",
-    "qqHH_CV_1_C2V_2_kl_1_HHbbVV",
     "qqHH_CV_1_C2V_2_kl_1_HHbbVV",
     "qqHH_CV_1_C2V_1_kl_0_HHbbVV",
     "qqHH_CV_0p5_C2V_1_kl_1_HHbbVV",
@@ -390,8 +393,6 @@ def process_systematics_combined(systematics: Dict):
 
     nuisance_params[f"{CMS_PARAMS_LABEL}_triggerEffSF_uncorrelated"].value = tdict
 
-    print("Nuisance Parameters\n", nuisance_params)
-
 
 def process_systematics_separate(bg_systematics: Dict, sig_systs: Dict[str, Dict]):
     """Get total uncertainties from per-year systs separated into bg and sig systs"""
@@ -449,7 +450,7 @@ def process_systematics(templates_dir: str, sig_separate: bool):
 
 # TODO: separate function for VBF?
 def get_year_updown(
-    templates_dict, sample, region, region_noblinded, blind_str, year, skey, mX_bin=None
+    templates_dict, sample, region, region_noblinded, blind_str, year, skey, mX_bin=None, vbf=False
 ):
     """
     Return templates with only the given year's shapes shifted up and down by the ``skey`` systematic.
@@ -461,7 +462,8 @@ def get_year_updown(
         sshift = f"{skey}_{shift}"
         # get nominal templates for each year
         templates = {y: templates_dict[y][region][sample, ...] for y in years}
-        # replace template for this year with the shifted tempalte
+
+        # replace template for this year with the shifted template
         if skey in jecs or skey in jmsr:
             # JEC/JMCs saved as different "region" in dict
             reg_name = (
@@ -470,18 +472,7 @@ def get_year_updown(
                 else f"{region}_{sshift}"
             )
 
-            if args.vbf:
-                prefix, *suffix = region_noblinded.split("_")
-
-                if suffix:  # If there's a suffix like "sidebands"
-                    suffix_str = f"_{suffix[0]}"
-                else:
-                    suffix_str = ""
-                reg_name = f"{prefix}_{sshift}{blind_str}{suffix_str}"
-                # print("templates",templates,year,reg_name,sample,templates_dict[year][reg_name][sample , ...])
-                templates[year] = templates_dict[year][reg_name][sample, ...]
-            else:
-                templates[year] = templates_dict[year][reg_name][sample, :, ...]
+            templates[year] = templates_dict[year][reg_name][sample, ...]
         else:
             # weight uncertainties saved as different "sample" in dict
             templates[year] = templates_dict[year][region][f"{sample}_{sshift}", ...]
@@ -490,9 +481,9 @@ def get_year_updown(
             for year, template in templates.items():
                 templates[year] = template[:, mX_bin]
 
-        # sum templates with year's template replaced with shifted # might need to adjust the dimensions of this if args.vbf
-        if args.vbf:
-            updown.append(list(templates.values())[0].value)
+        # sum templates with year's template replaced with shifted
+        if vbf:
+            updown.append(sum([t.value for t in templates.values()]))
         else:
             updown.append(sum(list(templates.values())).values())
 
@@ -957,21 +948,25 @@ def fill_yields(channels, channels_summed):
     # dict storing all the substitutions for the datacard template
     datacard_dict = {
         "num_bins": len(channels),
-        "num_bgs": len(bg_keys),
-        "bins": join_with_padding(channels),
+        "num_bgs": len(bg_keys) + 1,  # + 1 for qcd
+        "bins": join_with_padding(channels, padding=16),
         "observations": join_with_padding(
-            [channels_summed[channel][data_key].value for channel in channels]
+            [channels_summed[channel][data_key].value for channel in channels], padding=16
         ),
-        "binA": channels[0],
-        "binB": channels[1],
-        "binC": channels[2],
-        "binD": channels[3],
-        "obsB": channels_summed[channels[1]][data_key].value,
-        "obsC": channels_summed[channels[2]][data_key].value,
-        "obsD": channels_summed[channels[3]][data_key].value,
+        "qcdlabel": qcd_data_key,
     }
 
-    # collecting MC samples and yields
+    for i, l in enumerate(["A", "B", "C", "D"]):
+        # channel labels
+        datacard_dict[f"bin{l}"] = f"{channels[i]:<14}"
+
+        # fill in data - MC yields for ABCD method
+        if i > 0:
+            data_obs = channels_summed[channels[i]][data_key].value
+            mc_bg_yields = sum([channels_summed[channels[i]][key].value for key in bg_keys])
+            datacard_dict[f"dataqcd{l}"] = data_obs - mc_bg_yields
+
+    # collecting MC samples and yields per chanel
     channel_bins_dict = {
         "bins_x_processes": [],
         "processes_per_bin": [],
@@ -992,29 +987,44 @@ def fill_yields(channels, channels_summed):
             else:
                 channel_bins_dict["processes_per_bin"].append(mc_samples[key])
                 channel_bins_dict["processes_rates"].append(channels_summed[channel][key].value)
-                rates_dict[channel][key] = channels_summed[channel][key].value
+                rates_dict[channel][key] = channels_summed[channel][key]
 
     for key, arr in channel_bins_dict.items():
         datacard_dict[key] = join_with_padding(arr)
 
-    return datacard_dict
+    return datacard_dict, rates_dict
 
 
-def get_systematics_abcd(channels, channels_summed):
+def get_systematics_abcd(channels, channels_dict, channels_summed, rates_dict):
     channel_systs_dict = {}
 
     for region in channels:
+        logging.info("starting region: %s" % region)
+
         channel_systs_dict[region] = {}
 
         pass_region = region.startswith("pass")
         region_nosidebands = region.split("_sidebands")[0]
         sideband_str = "_sidebands" if region.endswith("_sidebands") else ""
 
-        logging.info("starting region: %s" % region)
+        # TODO: bblite
+        channel_systs_dict[region]["mcstats"] = {}
 
         for sample_name, card_name in mc_samples.items():
             systs_dict = {}
             channel_systs_dict[region][sample_name] = systs_dict
+
+            # skip signal nuisances in non-signal region
+            if sample_name in sig_keys and region != "pass":
+                continue
+
+            # MC stats
+            mcstats_err = (
+                np.sqrt(rates_dict[region][sample_name].variance)
+                / rates_dict[region][sample_name].value
+            )
+            if mcstats_err > args.epsilon:
+                channel_systs_dict[region]["mcstats"][sample_name] = 1.0 + mcstats_err
 
             # rate systematics
             for skey, syst in nuisance_params.items():
@@ -1031,23 +1041,113 @@ def get_systematics_abcd(channels, channels_summed):
 
                 systs_dict[skey] = (val, val_down)
 
+            # correlated shape systematics
+            for skey, syst in corr_year_shape_systs.items():
+                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
+                    continue
+
+                if skey in jecs or skey in jmsr:
+                    # JEC/JMCs saved as different "region" in dict
+                    val_up = channels_summed[f"{region_nosidebands}_{skey}_up{sideband_str}"][
+                        sample_name
+                    ].value
+                    val_down = channels_summed[f"{region_nosidebands}_{skey}_down{sideband_str}"][
+                        sample_name
+                    ].value
+                else:
+                    # weight uncertainties saved as different "sample" in dict
+                    val_up = channels_summed[region][f"{sample_name}_{skey}_up"].value
+                    val_down = channels_summed[region][f"{sample_name}_{skey}_down"].value
+
+                srate = rates_dict[region][sample_name].value
+                systs_dict[skey] = (val_up / srate, val_down / srate)
+
+            # uncorrelated shape systematics
+            for skey, syst in uncorr_year_shape_systs.items():
+                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
+                    continue
+
+                # TODO: figure out why pileup is going crazy
+                if skey == "pileup":
+                    continue
+
+                for year in years:
+                    if year not in syst.uncorr_years:
+                        continue
+
+                    val_up, val_down = get_year_updown(
+                        channels_dict,
+                        sample_name,
+                        region,
+                        region_nosidebands,
+                        sideband_str,
+                        year,
+                        skey,
+                        vbf=True,
+                    )
+
+                    srate = rates_dict[region][sample_name].value
+                    systs_dict[skey] = (val_up / srate, val_down / srate)
+
     syst_strs = []
+    all_processes = sig_keys + bg_keys + [qcd_data_key]
+    num_ps = len(all_processes)
+
+    # mc stats
+    for j, channel in enumerate(channels):
+        cmcstats = channel_systs_dict[channel]["mcstats"]
+
+        # mc stats error too low to add
+        if cmcstats is None:
+            continue
+
+        # bblite criteria sastisfied for this channel - single nuisance for all mc samples
+        elif isinstance(cmcstats, float):
+            vals = []
+            skey = f"mcstats_{channel}"
+            sstr = f"{skey:<54}lnN   "
+            vals += ["-"] * (j * num_ps)
+            # add same nuisance for all processes except qcd
+            vals += [cmcstats] * (num_ps - 1) + ["-"]
+            vals += ["-"] * ((len(channels) - j - 1) * num_ps)
+            sstr += join_with_padding(vals)
+            syst_strs.append(sstr)
+
+        # bblite not satisifed - separate nuisance for all mc samples
+        else:
+            for i, key in enumerate(sig_keys + bg_keys):
+                if key in cmcstats:
+                    vals = []
+                    skey = f"mcstats_{channel}_{key}"
+                    sstr = f"{skey:<54}lnN   "
+                    # add single nuisance for this sample
+                    vals += ["-"] * ((j * num_ps) + i)
+                    vals += [cmcstats[key]]
+                    vals += ["-"] * ((len(channels) - j - 1) * num_ps + (num_ps - i - 1))
+                    sstr += join_with_padding(vals)
+                    syst_strs.append(sstr)
+
+    # all other nuisances
     for skey in (
-        nuisance_params.keys() + corr_year_shape_systs.keys() + uncorr_year_shape_systs.keys()
+        list(nuisance_params.keys())
+        + list(corr_year_shape_systs.keys())
+        + list(uncorr_year_shape_systs.keys())
     ):
-        sstr = f"{skey:<92}lnN     "
+        sstr = f"{skey:<54}lnN   "
         vals = []
         for channel in channels:
-            for i, key in enumerate(sig_keys + bg_keys + [qcd_data_key]):
+            for i, key in enumerate(all_processes):
                 if key == qcd_data_key or skey not in channel_systs_dict[channel][key]:
                     vals.append("-")
                 else:
                     val, val_down = channel_systs_dict[channel][key][skey]
-                    val_str = val if val_down is None else f"{val}/{val_down}"
+                    val_str = val if val_down is None else f"{val_down}/{val}"
+                    vals.append(val_str)
 
         sstr += join_with_padding(vals)
+        syst_strs.append(sstr)
 
-    syst_str = syst_strs.join("\n")
+    syst_str = "\n".join(syst_strs)
 
     return syst_str
 
@@ -1057,8 +1157,10 @@ def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
     channels = ["pass", "pass_sidebands", "fail", "fail_sidebands"]  # analogous to regions
     channels_dict, channels_summed = get_channels(templates_dict, templates_summed, shape_vars[0])
 
-    datacard_dict = fill_yields(channels, channels_summed)
-    datacard_dict["systematics"] = get_systematics_abcd(channels, channels_summed)
+    datacard_dict, rates_dict = fill_yields(channels, channels_summed)
+    datacard_dict["systematics"] = get_systematics_abcd(
+        channels, channels_dict, channels_summed, rates_dict
+    )
 
     out_dir = (
         os.path.join(str(args.cards_dir), args.model_name)
@@ -1079,29 +1181,6 @@ def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
         logging.info("starting region: %s" % region)
 
         for sample_name, card_name in mc_samples.items():
-            # don't add signals in fail regions
-            # also skip resonant signals in pass blinded - they are ignored in the validation fits anyway
-            if sample_name in sig_keys:
-                if not pass_region:  # or (mX_bin is not None and region == "passBlinded"):
-                    logging.info(f"\nSkipping {sample_name} in {region} region\n")
-                    continue
-
-            # single top only in fail regions
-            if sample_name == "ST" and pass_region:
-                logging.info(f"\nSkipping ST in {region} region\n")
-                continue
-
-            logging.info("get templates for: %s" % sample_name)
-            sample_template = region_templates[sample_name]
-
-            # nominal values, errors
-            values_nominal = np.maximum(sample_template.value, 0.0)
-
-            mask = values_nominal > 0
-            errors_nominal = np.ones_like(values_nominal)
-            if mask:
-                errors_nominal = 1.0 + np.sqrt(sample_template.variance) / values_nominal
-
             # no MC stats?? I removed it
 
             # correlated shape systematics

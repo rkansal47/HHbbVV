@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple, Union
 from dataclasses import dataclass, field
 import logging
+from string import Template
 
 import numpy as np
 import hist
@@ -253,7 +254,8 @@ def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
 #################################################
 
 
-abcd_datacard_template = """
+abcd_datacard_template = Template(
+    """
 imax $num_bins
 jmax $num_bgs
 kmax * 
@@ -261,20 +263,21 @@ kmax *
 bin                 $bins
 observation         $observations
 ------------------------------ 
-bin                                                                                                 $bins_x_processes       
-process                                                                                             $processes_per_bin 
-process                                                                                             $processes_index
-rate                                                                                                $processes_rates
+bin                                                         $bins_x_processes       
+process                                                     $processes_per_bin 
+process                                                     $processes_index
+rate                                                        $processes_rates
 ------------------------------ 
-single_A    rateParam       $binA     bkg       (@0*@2/@1)       single_B,single_C,single_D 
-single_B    rateParam       $binB     bkg       $obsB
-single_C    rateParam       $binC     bkg       $obsC
-single_D    rateParam       $binD     bkg       $obsD
 $systematics
+single_A    rateParam       $binA     $qcdlabel       (@0*@2/@1)       single_B,single_C,single_D 
+single_B    rateParam       $binB     $qcdlabel       $dataqcdB
+single_C    rateParam       $binC     $qcdlabel       $dataqcdC
+single_D    rateParam       $binD     $qcdlabel       $dataqcdD
 """
+)
 
 
-def join_with_padding(items, padding: int = 36):
+def join_with_padding(items, padding: int = 40):
     """Joins items into a string, padded by ``padding`` spaces"""
     ret = f"{{:<{padding}}}" * len(items)
     return ret.format(*items)
