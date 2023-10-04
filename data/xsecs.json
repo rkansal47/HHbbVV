@@ -22,19 +22,19 @@
   "QCD_Pt_3200toInf": 0.0001353,
 
   "ST_s-channel_4f_leptonDecays": 1.188915,
-  "ST_t-channel_antitop_4f_InclusiveDecays": 67.93,
-  "ST_t-channel_top_4f_InclusiveDecays": 113.4,
+  "ST_t-channel_antitop_4f_InclusiveDecays": 80.0,
+  "ST_t-channel_top_4f_InclusiveDecays": 134.2,
   "ST_t-channel_antitop_5f_InclusiveDecays": 71.74,
   "ST_t-channel_top_5f_InclusiveDecays": 119.7,
-  "ST_tW_antitop_5f_inclusiveDecays": 32.51,
+  "ST_tW_antitop_5f_inclusiveDecays": 39.65,
   "ST_tW_antitop_5f_NoFullyHadronicDecays": 10.890849999999999,
-  "ST_tW_top_5f_inclusiveDecays": 32.45,
+  "ST_tW_top_5f_inclusiveDecays": 39.65,
   "ST_tW_top_5f_NoFullyHadronicDecays": 10.87075,
 
-  "TTTo2L2Nu": 77.10979749999998,
-  "TTToHadronic": 303.8527975,
-  "TTToSemiLeptonic": 306.137405,
-  "TTToSemiLeptonic_ext1": 306.137405,
+  "TTTo2L2Nu": "670.3*1.24088*0.333*0.333",
+  "TTToHadronic": "670.3*1.24088*0.667*0.667",
+  "TTToSemiLeptonic": "670.3*1.24088*2*(0.667*0.333)",
+  "TTToSemiLeptonic_ext1": "670.3*1.24088*2*(0.667*0.333)",
   "TT_MTT1000ToInf": 76.61,
   "TT_MTT700To1000": 20.58,
   
@@ -57,9 +57,9 @@
   "ZJetsToQQ_HT-600to800": 25.41,
   "ZJetsToQQ_HT-800toInf": 12.91,
 
-  "WW": 75.83,
-  "WZ": 27.56,
-  "ZZ": 12.14,
+  "WW": 118.7,
+  "WZ": "28.55 + 18.19",
+  "ZZ": 16.91,
 
   "GluGluToHHTobbVV_node_cHHH0": "0.069725 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
   "GluGluToHHTobbVV_node_cHHH1": "31.05e-3 * 5.824e-01 * (0.2154 * 0.676 ** 2 + 0.02643 * 0.692 ** 2) * 2",
@@ -94,5 +94,4 @@
   "ZH_HToBB_ZToQQ": 0.326,
   "ggZH_HToBB_ZToQQ": 0.025,
   "ttHToBB": 0.2912
-
 }
