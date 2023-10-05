@@ -180,15 +180,20 @@ scan_samples = []
 for mX, mY in res_mps:
     scan_samples.append(f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}")
 
-scan_txbb_wps = ["LP", "MP", "HP"]
-scan_thww_wps = [0.4, 0.6, 0.8, 0.9, 0.94, 0.96, 0.98]
+# scan_txbb_wps = ["LP", "MP", "HP"]
+# scan_thww_wps = [0.4, 0.6, 0.8, 0.9, 0.94, 0.96, 0.98]
+
+scan_txbb_wps = ["HP"]
+scan_thww_wps = [0.6, 0.8]
+scan_leadingpt_wps = [300.0, 350.0, 400.0, 450.0]
+scan_subleadingpt_wps = [300.0, 350.0, 400.0, 450.0]
 
 nonres_scan_cuts = ["txbb", "bdt"]
-res_scan_cuts = ["txbb", "thww"]
+res_scan_cuts = ["txbb", "thww", "leadingpt", "subleadingpt"]
 
 
 def main(args):
-    global scan_txbb_wps, scan_thww_wps
+    global scan_txbb_wps, scan_thww_wps, scan_leadingpt_wps, scan_subleadingpt_wps
 
     t2_local_prefix, t2_prefix, proxy, username, submitdir = setup(args)
 
@@ -215,19 +220,21 @@ def main(args):
         scan_txbb_wps = scan_txbb_wps[-1:]
         scan_thww_wps = scan_thww_wps[-2:]
 
+    scan_wps = list(
+        itertools.product(scan_txbb_wps, scan_thww_wps, scan_leadingpt_wps, scan_subleadingpt_wps)
+    )
+    # remove WPs where subleading pT > leading pT
+    scan_wps = [wp for wp in scan_wps if wp[3] <= wp[2]]
+
+    scan_cuts = res_scan_cuts if args.resonant else nonres_scan_cuts
+
     for sample in samples:
         if args.scan:
-            for txbb_wp in scan_txbb_wps:
-                for thww_wp in scan_thww_wps:
-                    os.system(
-                        f"mkdir -p {t2_local_prefix}/{cards_dir}/"
-                        f"txbb_{txbb_wp}_thww_{thww_wp}/{sample}"
-                    )
+            for wps in scan_wps:
+                cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
+                os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}/{cutstr}/{sample}")
         else:
             os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}/{sample}")
-
-    scan_wps = list(itertools.product(scan_txbb_wps, scan_thww_wps))
-    scan_cuts = res_scan_cuts if args.resonant else nonres_scan_cuts
 
     # split along WPs for scan or along # of samples for regular jobs
     njobs = len(scan_wps) if args.scan else ceil(len(samples) / args.files_per_job)
@@ -243,7 +250,6 @@ def main(args):
     for j in range(njobs):
         if args.scan:
             run_samples = samples
-
             cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, scan_wps[j])])
             run_templates_dir = templates_dir + cutstr
             run_cards_dir = cards_dir + cutstr

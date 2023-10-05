@@ -76,6 +76,7 @@ class Region:
 
 
 # Both Jet's Regressed Mass above 50, electron veto included in new samples
+# TODO: JMSR shifts!
 new_filters = [
     [
         ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
@@ -164,10 +165,69 @@ def get_nonres_selection_regions(
     }
 
 
-def get_res_selection_regions(
-    year: str, mass_window: List[float] = [110, 145], txbb_wp: str = "HP", thww_wp: float = 0.96
+# TODO: fill out VBF selection
+def get_nonres_vbf_selection_regions(
+    year: str,
+    txbb_wp: str = "HP",
+    thww_wp: float = 0.6,
 ):
+    # edit
     pt_cuts = [300, CUT_MAX_VAL]
+    txbb_cut = txbb_wps[year][txbb_wp]
+
+    return {
+        # {label: {cutvar: [min, max], ...}, ...}
+        "pass": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
+                "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+                "vbf_Mass_jj": [500, 10000],
+                "vbf_dEta_jj": [4, 10000],
+                "ak8FatJetEta0": [-2.4,2.4],
+                "ak8FatJetEta1": [-2.4,2.4],
+                "DijetdEta": [0,2.0],
+                "DijetdPhi": [2.6,10000],
+                # add more
+            },
+            label="Pass",
+        ),
+        "fail": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
+                "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+                "vbf_Mass_jj": [500, 10000],
+                "vbf_dEta_jj": [4, 10000],
+                "ak8FatJetEta0": [-2.4,2.4],
+                "ak8FatJetEta1": [-2.4,2.4],
+                "DijetdEta": [0,2.0],
+                "DijetdPhi": [2.6,10000],
+                # add more
+            },
+            label="Fail",
+        ),
+        "lpsf": Region(
+            cuts={  # cut for which LP SF is calculated
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+            },
+            label="LP SF Cut",
+        ),
+    }
+
+
+def get_res_selection_regions(
+    year: str,
+    mass_window: List[float] = [110, 145],
+    txbb_wp: str = "HP",
+    thww_wp: float = 0.96,
+    leadingpt_wp: float = 300,
+    subleadingpt_wp: float = 300,
+):
     mwsize = mass_window[1] - mass_window[0]
     mw_sidebands = [
         [mass_window[0] - mwsize / 2, mass_window[0]],
@@ -175,12 +235,11 @@ def get_res_selection_regions(
     ]
     txbb_cut = txbb_wps[year][txbb_wp]
 
-    return {
+    # first define without pT cuts
+    regions = {
         # "unblinded" regions:
         "pass": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mass_window,
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
                 "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
@@ -189,8 +248,6 @@ def get_res_selection_regions(
         ),
         "fail": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mass_window,
                 "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
                 "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, thww_wp],
@@ -200,8 +257,6 @@ def get_res_selection_regions(
         # "blinded" validation regions:
         "passBlinded": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mw_sidebands,
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
                 "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
@@ -210,8 +265,6 @@ def get_res_selection_regions(
         ),
         "failBlinded": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mw_sidebands,
                 "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
                 "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, thww_wp],
@@ -225,9 +278,38 @@ def get_res_selection_regions(
         ),
     }
 
+    # add pT cuts
+    leading_pt_cut = [leadingpt_wp, CUT_MAX_VAL]
+    subleading_pt_cut = [subleadingpt_wp, CUT_MAX_VAL]
+
+    for key, region in regions.items():
+        cuts = {
+            "bbFatJetPt": subleading_pt_cut,
+            "VVFatJetPt": subleading_pt_cut,
+            # '+' means OR
+            "bbFatJetPt+VVFatJetPt": leading_pt_cut,
+            **region.cuts,
+        }
+        region.cuts = cuts
+
+    return regions
+
 
 # fitting on bb regressed mass for nonresonant
 nonres_shape_vars = [
+    ShapeVar(
+        "bbFatJetParticleNetMass",
+        r"$m^{bb}_\mathrm{Reg}$ (GeV)",
+        [20, 50, 250],
+        reg=True,
+        blind_window=[100, 150],
+    )
+]
+
+
+# templates saved in bb regressed mass for nonresonant VBF
+# TODO: edit as needed
+nonres_vbf_shape_vars = [
     ShapeVar(
         "bbFatJetParticleNetMass",
         r"$m^{bb}_\mathrm{Reg}$ (GeV)",
@@ -255,7 +337,8 @@ res_shape_vars = [
 ]
 
 nonres_scan_cuts = ["txbb", "bdt"]
-res_scan_cuts = ["txbb", "thww"]
+nonres_vbf_scan_cuts = ["txbb", "thww"]  # TODO: add more cuts being scanned over
+res_scan_cuts = ["txbb", "thww", "leadingpt", "subleadingpt"]
 
 nonres_sig_keys_ggf = [
     "HHbbVV",
@@ -267,8 +350,8 @@ nonres_sig_keys_ggf = [
 # TODO: check which of these applies to resonant as well
 weight_shifts = {
     "pileup": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup"),
-    # "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
-    # "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"),
+    #"PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
+    #"QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"), # commented out
     "ISRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="ISR Parton Shower"),
     "FSRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="FSR Parton Shower"),
     "L1EcalPrefiring": Syst(
@@ -278,6 +361,13 @@ weight_shifts = {
     ),
     # "top_pt": ["TT"],
 }
+
+plot_sig_keys_nonres = [
+    "HHbbVV",
+    "VBFHHbbVV",
+    "qqHH_CV_1_C2V_0_kl_1_HHbbVV",
+    "qqHH_CV_1_C2V_2_kl_1_HHbbVV",
+]
 
 
 def main(args):
@@ -289,16 +379,10 @@ def main(args):
 
     # utils.remove_empty_parquets(samples_dir, year)
     events_dict = _load_samples(args, bg_samples, sig_samples, cutflow)
-
-    for sample in events_dict:
-        tot_weight = np.sum(events_dict[sample]["weight"].values)
-        print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
-
     bb_masks = bb_VV_assignment(events_dict)
 
     # trigger effs and QCD scale (if not already from processor)
     apply_weights(events_dict, args.year, cutflow)
-    print("\nCutflow\n", cutflow)
 
     # THWW score vs Top (if not already from processor)
     derive_variables(events_dict)
@@ -306,10 +390,10 @@ def main(args):
     if args.plot_dir != "":
         cutflow.to_csv(f"{args.plot_dir}/preselection_cutflow.csv")
 
-    print("\nCutflow\n", cutflow)
+    print("\nCutflow", cutflow)
 
     # Load BDT Scores
-    if not args.resonant:
+    if not args.resonant and not args.vbf:
         print("\nLoading BDT predictions")
         load_bdt_preds(
             events_dict,
@@ -318,6 +402,33 @@ def main(args):
             jec_jmsr_shifts=True,
         )
         print("Loaded BDT preds\n")
+        
+    # Load VBF Variables (edits events_dict so that all of the events have the appropriate variables and stuff) TODO:
+    if args.vbf: 
+        pt_labels = ["JES", "JER"]
+        m_labels = ["JMS", "JMR"]
+        for key,df in events_dict.items():
+            
+            # for each JES,JER, and JMS JMR correction
+            ptlabel = "_JES_up"
+            mlabel = "_JMS_down"
+            
+            bb_mask = (
+                        df[("ak8FatJetParticleNetMD_Txbb", 0)]
+                        > df[("ak8FatJetParticleNetMD_Txbb", 1)]
+                    )
+            
+            if key == 'Data':
+                _add_vbf_columns(df,bb_mask,ptlabel="",mlabel="")
+                break
+
+            for var in pt_labels:
+                for direction in ["down", "up"]:
+                    _add_vbf_columns(df,bb_mask,ptlabel=f"_{var}_{direction}",mlabel="")
+
+            for var in m_labels:
+                for direction in ["down", "up"]:
+                    _add_vbf_columns(df,bb_mask,ptlabel="",mlabel=f"_{var}_{direction}")
 
     # Control plots
     if args.control_plots:
@@ -333,6 +444,7 @@ def main(args):
             bg_keys=args.bg_keys,
             sig_scale_dict={"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | {key: 2e4 for key in res_sig_keys},
             # sig_splits=sig_splits,
+            hists_HEM2d=args.HEM2d,
             show=False,
         )
 
@@ -342,13 +454,13 @@ def main(args):
             template_dir = f"{args.template_dir}/{cutstr}/{args.templates_name}/"
 
             cutargs = {f"{cut}_wp": wp for cut, wp in zip(scan_cuts, wps)}
-            selection_regions = (
-                get_nonres_selection_regions(args.year, **cutargs)
-                if not args.resonant
-                else get_res_selection_regions(args.year, **cutargs)
-            )
+            if args.resonant:
+                selection_regions = get_res_selection_regions(args.year, **cutargs)
+            elif args.vbf:
+                selection_regions = get_nonres_vbf_selection_regions(args.year, **cutargs)
+            else:
+                selection_regions = get_nonres_selection_regions(args.year, **cutargs)
 
-            print(sig_keys)
             # load pre-calculated systematics and those for different years if saved already
             systs_file = f"{template_dir}/systematics.json"
             systematics = _check_load_systematics(systs_file, args.year)
@@ -393,6 +505,7 @@ def main(args):
                     systematics,
                     template_dir,
                     bg_keys=bg_keys,
+                    plot_sig_keys=plot_sig_keys_nonres if not args.resonant else sig_keys,
                     plot_dir=plot_dir,
                     prev_cutflow=cutflow,
                     # sig_splits=sig_splits,
@@ -400,7 +513,6 @@ def main(args):
                     jshift=jshift,
                     blind_pass=True if args.resonant else False,
                     show=False,
-                    hists_HEM2d=args.HEM2d,
                     plot_shifts=args.plot_shifts,
                 )
                 templates = {**templates, **temps}
@@ -419,24 +531,132 @@ def _init(args):
         print("You need to pass at least one of --control-plots, --templates, or --scan")
         return
 
-    if not args.resonant:
+    if args.resonant:
+        scan = (
+            len(args.res_txbb_wp) > 1
+            or len(args.res_thww_wp) > 1
+            or len(args.res_leading_pt) > 1
+            or len(args.res_subleading_pt) > 1
+        )
+        scan_wps = list(
+            itertools.product(
+                args.res_txbb_wp, args.res_thww_wp, args.res_leading_pt, args.res_subleading_pt
+            )
+        )
+        # remove WPs where subleading pT > leading pT
+        scan_wps = [wp for wp in scan_wps if wp[3] <= wp[2]]
+        scan_cuts = res_scan_cuts
+        shape_vars = res_shape_vars
+    elif not args.vbf:
         scan = len(args.nonres_txbb_wp) > 1 or len(args.nonres_bdt_wp) > 1
         scan_wps = list(itertools.product(args.nonres_txbb_wp, args.nonres_bdt_wp))
         scan_cuts = nonres_scan_cuts
         shape_vars = nonres_shape_vars
     else:
-        scan = len(args.res_txbb_wp) > 1 or len(args.res_thww_wp) > 1
-        scan_wps = list(itertools.product(args.res_txbb_wp, args.res_thww_wp))
-        scan_cuts = res_scan_cuts
-        shape_vars = res_shape_vars
+        scan = len(args.nonres_vbf_txbb_wp) > 1 or len(args.nonres_vbf_thww_wp) > 1
+        scan_wps = list(itertools.product(args.nonres_vbf_txbb_wp, args.nonres_vbf_thww_wp))
+        scan_cuts = nonres_vbf_scan_cuts
+        shape_vars = nonres_vbf_shape_vars
 
     return shape_vars, scan, scan_cuts, scan_wps
+
+# adds all necessary columns to dataframes from events_dict
+def _add_vbf_columns(df,bb_mask,ptlabel,mlabel):
+    import vector
+    
+    bbJet = vector.array(
+        {
+            "pt": np.where(bb_mask, df[f"ak8FatJetPt{ptlabel}"][0], df[f"ak8FatJetPt{ptlabel}"][1]),
+            "phi": np.where(bb_mask, df["ak8FatJetPhi"][0], df["ak8FatJetPhi"][1]),
+            "eta": np.where(bb_mask, df["ak8FatJetEta"][0], df["ak8FatJetEta"][1]),
+            "M": np.where(bb_mask, df[f"ak8FatJetParticleNetMass{mlabel}"][0], df[f"ak8FatJetParticleNetMass{mlabel}"][1]),
+        }
+    )
+
+    VVJet = vector.array(
+        {
+            "pt": np.where(~bb_mask, df[f"ak8FatJetPt{ptlabel}"][0], df[f"ak8FatJetPt{ptlabel}"][1]),
+            "phi": np.where(~bb_mask, df["ak8FatJetPhi"][0], df["ak8FatJetPhi"][1]),
+            "eta": np.where(~bb_mask, df["ak8FatJetEta"][0], df["ak8FatJetEta"][1]),
+            "M": np.where(~bb_mask, df[f"ak8FatJetParticleNetMass{mlabel}"][0], df[f"ak8FatJetParticleNetMass{mlabel}"][1]),
+        }
+    )
+
+
+    vbf1 = vector.array(
+                {
+                    "pt": df[(f'VBFJetPt{ptlabel}', 0)],
+                    "phi": df[('VBFJetPhi', 0)],
+                    "eta": df[('VBFJetEta', 0)],
+                    "M": df[('VBFJetMass', 0)],
+                }
+            )
+
+    vbf2 = vector.array(
+                {
+                    "pt": df[(f'VBFJetPt{ptlabel}', 1)],
+                    "phi": df[('VBFJetPhi', 1)],
+                    "eta": df[('VBFJetEta', 1)],
+                    "M": df[('VBFJetMass', 1)],
+                }
+            )
+
+    jj = vbf1 + vbf2
+
+    mass_jj_cut_sorted_pt = jj.mass > 500
+    eta_jj_cut_sorted_pt = np.abs(vbf1.eta - vbf2.eta) > 4.0
+
+    # Adapted from HIG-20-005 ggF_Killer 6.2.2
+    # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.PtEtaPhiMLorentzVector.html
+    # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.LorentzVector.html
+    # Adding variables defined in HIG-20-005 that show strong differentiation for VBF signal events and background
+
+    # seperation between both ak8 higgs jets
+    if "vbf_dR_HH" not in df.columns: df[f"vbf_dR_HH"] = VVJet.deltaR(bbJet)
+    if "vbf_dR_j0_HVV" not in df.columns: df[f"vbf_dR_j0_HVV"] = vbf1.deltaR(VVJet)
+    if "vbf_dR_j1_HVV" not in df.columns: df[f"vbf_dR_j1_HVV"] = vbf2.deltaR(VVJet)
+    if "vbf_dR_j0_Hbb" not in df.columns: df[f"vbf_dR_j0_Hbb"] = vbf1.deltaR(bbJet)
+    if "vbf_dR_j1_Hbb" not in df.columns: df[f"vbf_dR_j1_Hbb"] = vbf2.deltaR(bbJet)
+    if "vbf_dR_jj" not in df.columns: df[f"vbf_dR_jj"] = vbf1.deltaR(vbf2)
+    if "vbf_Mass_jj{ptlabel}" not in df.columns: df[f"vbf_Mass_jj{ptlabel}"] = jj.M
+    if "vbf_dEta_jj" not in df.columns: df[f"vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
+    
+    if "DijetdEta" not in df.columns: df[f"DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
+    if "DijetdPhi" not in df.columns: df[f"DijetdPhi"] = np.abs(bbJet.phi - VVJet.phi)
+
+    # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
+    # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
+    system_4vec = vbf1 + vbf2 + VVJet + bbJet
+    j1_CMF = vbf1.boostCM_of_p4(system_4vec)
+
+    # Leading VBF-jet cos(θ) in the HH+2j center of mass frame:
+    thetab1 = 2 * np.arctan(np.exp(-j1_CMF.eta))
+    thetab1 = np.cos(thetab1)  # 12
+    
+    if f"vbf_cos_j1{ptlabel}{mlabel}" not in df.columns: df[f"vbf_cos_j1{ptlabel}{mlabel}"] = np.abs(thetab1) 
+
+    # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
+    j2_CMF = vbf2.boostCM_of_p4(system_4vec)
+    thetab2 = 2 * np.arctan(np.exp(-j2_CMF.eta))
+    thetab2 = np.cos(thetab2)
+    if f"vbf_cos_j2{ptlabel}{mlabel}" not in df.columns: df[f"vbf_cos_j2{ptlabel}{mlabel}"] = np.abs(thetab2) 
+
+    
+    if "vbf_prod_centrality" not in df.columns: 
+        # H1-centrality * H2-centrality:
+        delta_eta = vbf1.eta - vbf2.eta
+        avg_eta = (vbf1.eta + vbf2.eta) / 2
+        prod_centrality = np.exp(
+            -np.power((VVJet.eta - avg_eta) / delta_eta, 2)
+            - np.power((bbJet.eta - avg_eta) / delta_eta, 2)
+        )
+        df[f"vbf_prod_centrality"] = prod_centrality
 
 
 def _process_samples(args, BDT_sample_order: List[str] = None):
     sig_samples = res_samples if args.resonant else nonres_samples
 
-    if not args.resonant and BDT_sample_order is None:
+    if not args.resonant and BDT_sample_order is None and not args.vbf:
         with open(f"{args.bdt_preds_dir}/{args.year}/sample_order.txt", "r") as f:
             BDT_sample_order = list(eval(f.read()).keys())
 
@@ -462,25 +682,26 @@ def _process_samples(args, BDT_sample_order: List[str] = None):
             if sample in nonres_samples:
                 sig_samples[sample] = nonres_samples[sample]
 
-        # re-order acording to input ordering
-        tsig_samples = OrderedDict()
-        for sample in args.sig_samples:
-            if sample in sig_samples:
-                # if sample is a key, get it directly
-                tsig_samples[sample] = sig_samples[sample]
-            else:
-                # else if it is a value, have to find corresponding key
-                key = [key for key, value in sig_samples.items() if value == sample][0]
-                tsig_samples[key] = sample
+        if len(sig_samples):
+            # re-order acording to input ordering
+            tsig_samples = OrderedDict()
+            for sample in args.sig_samples:
+                if sample in sig_samples:
+                    # if sample is a key, get it directly
+                    tsig_samples[sample] = sig_samples[sample]
+                else:
+                    # else if it is a value, have to find corresponding key
+                    key = [key for key, value in sig_samples.items() if value == sample][0]
+                    tsig_samples[key] = sample
 
-        sig_samples = tsig_samples
+            sig_samples = tsig_samples
 
     bg_samples = deepcopy(samples)
     for bg_key, sample in list(bg_samples.items()):
         if bg_key not in args.bg_keys and bg_key != data_key:
             del bg_samples[bg_key]
 
-    if not args.resonant:
+    if not args.resonant and not args.vbf:
         for key in sig_samples.copy():
             if key not in BDT_sample_order:
                 del sig_samples[key]
@@ -614,7 +835,8 @@ def apply_weights(
     for sample in events_dict:
         events = events_dict[sample]
         if sample == data_key:
-            events[weight_key] = events["weight"]
+            if weight_key not in events:
+                events[weight_key] = events["weight"]
         elif f"{weight_key}_noTrigEffs" not in events:
             fj_trigeffs = ak8TrigEffsLookup(
                 events["ak8FatJetParticleNetMD_Txbb"].values,
@@ -1158,6 +1380,7 @@ def get_templates(
         sel, cf = utils.make_selection(
             region.cuts, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
+        # print(cf)
 
         if template_dir != "":
             cf.to_csv(f"{template_dir}/cutflows/{year}/{rname}_cutflow{jlabel}.csv")
@@ -1230,6 +1453,7 @@ def get_templates(
                     if sample in wsyst.samples and year in wsyst.years:
                         # print(wshift)
                         for skey, shift in [("Down", "down"), ("Up", "up")]:
+                            print(sample,shift, "debugging on line 1319")
                             if "QCDscale" in wshift:
                                 # QCDscale7pt/QCDscale4
                                 # https://github.com/LPC-HH/HHLooper/blob/master/python/prepare_card_SR_final.py#L263-L288
@@ -1291,7 +1515,7 @@ def get_templates(
 
             if sig_splits is None:
                 sig_splits = [plot_sig_keys]
-
+            print(sig_splits,plot_sig_keys)
             for i, shape_var in enumerate(shape_vars):
                 for j, p_sig_keys in enumerate(sig_splits):
                     split_str = "" if len(sig_splits) == 1 else f"sigs{j}_"
@@ -1428,6 +1652,7 @@ if __name__ == "__main__":
     )
 
     utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
+    utils.add_bool_arg(parser, "vbf", "non-resonant VBF or inclusive", default=False)
     utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
     utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
     utils.add_bool_arg(
@@ -1482,6 +1707,23 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--nonres-vbf-txbb-wp",
+        help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
+        default=["HP"],
+        choices=["LP", "MP", "HP"],
+        nargs="*",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--nonres-vbf-thww-wp",
+        help="THWWvsT WP for signal region. If multiple arguments, will make templates for each.",
+        default=[0.6],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
         "--res-txbb-wp",
         help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
         default=["HP"],
@@ -1493,7 +1735,23 @@ if __name__ == "__main__":
     parser.add_argument(
         "--res-thww-wp",
         help="Thww WP for signal region. If multiple arguments, will make templates for each.",
-        default=[0.96],
+        default=[0.8],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--res-leading-pt",
+        help="pT cut for leading AK8 jet (resonant only)",
+        default=[300],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--res-subleading-pt",
+        help="pT cut for sub-leading AK8 jet (resonant only)",
+        default=[300],
         nargs="*",
         type=float,
     )

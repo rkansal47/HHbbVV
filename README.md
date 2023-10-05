@@ -29,7 +29,7 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [BDT Trainings](#bdt-trainings)
     - [Post-Processing](#post-processing-1)
       - [Control plots with resonant and nonresonant samples](#control-plots-with-resonant-and-nonresonant-samples)
-      - [Making separate background and signal templates for scan (resonant)](#making-separate-background-and-signal-templates-for-scan-resonant)
+      - [Making separate background and signal templates for scan and bias tests (resonant)](#making-separate-background-and-signal-templates-for-scan-and-bias-tests-resonant)
     - [Create Datacard](#create-datacard)
     - [PlotFits](#plotfits)
   - [Combine](#combine)
@@ -277,20 +277,15 @@ for year in 2016 2016APV 2017 2018; do python -u postprocessing.py --templates -
 Run `postprocessing/bash_scripts/ControlPlots.sh` from inside `postprocessing folder`.
 
 
-#### Making separate background and signal templates for scan (resonant)
-
-Background and data:
+#### Making separate background and signal templates for scan and bias tests (resonant)
 
 ```bash
-nohup bash -c 'for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/$TAG/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --resonant --sig-samples "" --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name backgrounds --old-processor; done' &> outs/bgout.txt & 
+nohup bash_scripts/res_tagger_scan.sh $TAG &> scan.txt &
+nohup bash_scripts/res_pt_scan.sh $TAG &> scan.txt &
+nohup bash_scripts/res_bias_templates.sh $TAG &> bias.txt &
 ```
 
-Signal:
-
-```bash
-nohup bash -c 'for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250; do for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/$TAG/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --signal-data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Apr11" --resonant --sig-samples $sample --bg-keys "" --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name $sample --no-data; done; done' &> outs/sigout.txt & 
-```
-
+**Remember to check output to make sure all years' templates are made!!**
 
 ### Create Datacard
 
@@ -401,6 +396,12 @@ This was also output a script to collect all the impacts after the jobs finish.
 #### Signal injection tests
 
 For resonant, use scripts inside the `src/HHbbVV/combine/` directory and run from one level above the sample datacard folders (e.g. `/uscms/home/rkansal/hhcombine/cards/biastests/23Jul17ResClipTFScale1`).
+
+Setting up the datacards, assuming templates have already been made (see [templates section](#making-separate)), e.g.:
+
+```bash
+setup_bias.sh -r --scale 1 --cardstag 23Sep14_hww0.6_pt_400_350 --templatestag 23Sep14_thww0.6_pt_400_350
+```
 
 Submitting 1000 toys for each sample and `r` value + more toys for samples with high fit failure rates:
 
