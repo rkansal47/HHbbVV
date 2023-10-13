@@ -418,8 +418,9 @@ def main(args):
                         > df[("ak8FatJetParticleNetMD_Txbb", 1)]
                     )
             
+            _add_vbf_columns(df,bb_mask,ptlabel="",mlabel="")
+            
             if key == 'Data':
-                _add_vbf_columns(df,bb_mask,ptlabel="",mlabel="")
                 break
 
             for var in pt_labels:
