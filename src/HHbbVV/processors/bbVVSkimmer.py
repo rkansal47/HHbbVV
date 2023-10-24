@@ -387,6 +387,9 @@ class bbVVSkimmer(processor.ProcessorABC):
                         )
 
         skimmed_events["nGoodVBFJets"] = np.array(ak.sum(vbf_jet_mask, axis=1))
+        # Temp
+        skimmed_events["gen_weights"] = gen_weights
+        
 
         # VBF ak4 Jet vars (pt, eta, phi, M, nGoodJets)
         # if self._vbf_search:
@@ -452,7 +455,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             msds = jmsr_shifted_vars["msoftdrop"][shift]
             pnetms = jmsr_shifted_vars["particleNet_mass"][shift]
 
-            if self._save_all:
+            if self._save_all & False:
                 cut = (
                     (pnetms[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
                     + (msds[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
@@ -630,7 +633,15 @@ class bbVVSkimmer(processor.ProcessorABC):
                 systematics += list(weights.variations)
 
             # TODO: need to be careful about the sum of gen weights used for the LHE/QCDScale uncertainties
-            logger.debug("weights ", weights._weights.keys())
+            logger.debug("weights ", weights._weights.keys())    
+            
+            # TEMP: save each individual weight
+            skimmed_events["L1EcalPrefiring"] = ak.to_numpy(events.L1PreFiringWeight.Nom)
+           
+            for key in weights._weights.keys():
+                print(f"single_weight_{key}")
+                skimmed_events[f"single_weight_{key}"] = weights.partial_weight([key])
+                
             for systematic in systematics:
                 if systematic in weights.variations:
                     weight = weights.weight(modifier=systematic)
@@ -879,6 +890,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Apply base masks, sort, and calculate vbf dijet (jj) cuts
         vbfJets_mask = ak4_jet_mask  # & electron_muon_overlap_mask & fatjet_overlap_mask
         vbfJets = jets[vbfJets_mask]
+        print()
 
         vbfJets_sorted_pt = vbfJets[ak.argsort(vbfJets.pt, ascending=False)]
         # this is the only which does not guarantee two guys. in the other sorts, the entries are specifically None.

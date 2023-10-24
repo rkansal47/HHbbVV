@@ -419,9 +419,9 @@ def main(args):
                     )
             
             _add_vbf_columns(df,bb_mask,ptlabel="",mlabel="")
-            
+
             if key == 'Data':
-                break
+                continue
 
             for var in pt_labels:
                 for direction in ["down", "up"]:
