@@ -750,7 +750,7 @@ def nonres_alphabet_fit(
         # was integer, and numpy complained about subtracting float from it
         initial_qcd = failCh.getObservation().astype(float)
         for sample in failCh:
-            if args.resonant and sample.sampletype == rl.Sample.SIGNAL:
+            if sample.sampletype == rl.Sample.SIGNAL:
                 continue
             logging.debug("subtracting %s from qcd" % sample._name)
             initial_qcd -= sample.getExpectation(nominal=True)

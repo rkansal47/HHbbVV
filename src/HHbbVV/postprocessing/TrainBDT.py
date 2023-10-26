@@ -195,6 +195,19 @@ def main(args):
 
     data_dict = load_data(args.data_path, args.year, args.all_years)
 
+    for year, data in data_dict.items():
+        for key in training_keys:
+            print(
+                (
+                    f"{year} {key} Yield: "
+                    f'{np.sum(data[data["Dataset"] == key][weight_key])}, '
+                    "Number of Events: ",
+                    f'{len(data[data["Dataset"] == key])}, ',
+                )
+            )
+
+    return
+
     if not args.inference_only:
         training_data_dict = {
             year: data[
