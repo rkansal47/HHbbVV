@@ -294,7 +294,7 @@ nohup bash -c 'for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150 NMSSM_XToYHT
 
 ### Create Datacard
 
-Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rhalphalib installed (`pip install -e . --user` after checking out the branch). `CMSSW_11_2_0` recommended.
+Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rhalphalib installed (`pip install -e . --user` after checking out the branch).
 
 ```bash
 python3 postprocessing/CreateDatacard.py --templates-dir templates/$TAG --model-name $TAG (--resonant)
