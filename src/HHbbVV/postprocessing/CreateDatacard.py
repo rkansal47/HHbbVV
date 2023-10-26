@@ -26,7 +26,7 @@ try:
     rl.util.install_roofit_helpers()
     rl.ParametericSample.PreferRooParametricHist = False
 except:
-    print("rootfit install failed - not an issue for VBF")
+    print("rootfit install failed (not an issue for VBF)")
 
 # logging.basicConfig(level=logging.DEBUG)
 logging.basicConfig(level=logging.INFO)
@@ -897,7 +897,6 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
     model = rl.Model("HHModel" if not args.resonant else "XHYModel")
 
     # Fill templates per sample, incl. systematics
-    # TODO: blinding for resonant
     fill_args = [
         model,
         regions,
@@ -1172,183 +1171,6 @@ def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
         f.write(helpers.abcd_datacard_template.substitute(datacard_dict))
 
     return
-
-    for region in channels:
-        pass_region = region.startswith("pass")
-        region_nosidebands = region.split("_sidebands")[0]
-        sideband_str = "_sidebands" if region.endswith("_sidebands") else ""
-
-        logging.info("starting region: %s" % region)
-
-        for sample_name, card_name in mc_samples.items():
-            # no MC stats?? I removed it
-
-            # correlated shape systematics
-            for skey, syst in corr_year_shape_systs.items():
-                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
-                    continue
-
-                logging.info(f"Getting {skey} shapes")
-                if region == "pass_sidebands" or region == "fail_sidebands":
-                    logging.info(f"\nSkipping shape systematics calc in {region} region\n")
-                    # continue
-
-                if (
-                    skey in jecs or skey in jmsr
-                ):  # Here we are not using the channels_summed values since I am not sure if I can get 'pass_JES_up' in there...
-                    # JEC/JMCs saved as different "region" in dict # notation is off here, check actual names to compare
-                    # s1 = f"{region_noblinded}_{skey}_up{blind_str}"
-
-                    prefix, *suffix = region_noblinded.split("_")
-
-                    if suffix:  # If there's a suffix like "sidebands"
-                        suffix_str = f"_{suffix[0]}"
-                    else:
-                        suffix_str = ""
-
-                    up_hist = channels_summed[f"{prefix}_{skey}_up{blind_str}{suffix_str}"][
-                        sample_name
-                    ]
-                    down_hist = channels_summed[f"{prefix}_{skey}_down{blind_str}{suffix_str}"][
-                        sample_name
-                    ]
-
-                    values_up = up_hist.value
-                    values_down = down_hist.value
-                else:
-                    # weight uncertainties saved as different "sample" in dict
-                    values_up = region_templates[f"{sample_name}_{skey}_up"].value
-                    values_down = region_templates[f"{sample_name}_{skey}_down"].value
-
-                logger = logging.getLogger(
-                    "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
-                )
-
-                # effect_up, effect_down = get_effect_updown( values_nominal, values_up, values_down, mask, logger )
-                effect_up = values_up / values_nominal
-                effect_down = values_down / values_nominal
-
-                # sample.setParamEffect(shape_systs_dict[skey], effect_up, effect_down)
-                print(
-                    "correlated shape systematics shape_systs_dict[skey], effect_up, effect_down",
-                    shape_systs_dict,
-                    skey,
-                    effect_up,
-                    effect_down,
-                )
-                collected_data.append(
-                    {
-                        "type": "correlated shape systematics",
-                        "region": region,
-                        "sample_name": sample_name,
-                        "skey": skey,
-                        "effect_up": effect_up,
-                        "effect_down": effect_down,
-                    }
-                )
-
-            # uncorrelated shape systematics
-            for skey, syst in uncorr_year_shape_systs.items():
-                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
-                    continue
-
-                logging.info(f"Getting {skey} shapes")
-                if region == "pass_sidebands" or region == "fail_sidebands":
-                    logging.info(
-                        f"\nSkipping uncorrelated shape systematics calc in {region} region\n"
-                    )
-                    # continue
-
-                for year in years:
-                    if year not in syst.uncorr_years:
-                        continue
-
-                    values_up, values_down = get_year_updown(
-                        channels_dict,
-                        sample_name,
-                        region,
-                        region_noblinded,
-                        blind_str,
-                        year,
-                        skey,
-                        mX_bin=None,
-                    )
-                    logger = logging.getLogger(
-                        "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
-                    )
-
-                    # effect_up, effect_down = get_effect_updown( values_nominal, values_up, values_down, mask, logger )
-                    effect_up = values_up / values_nominal
-                    effect_down = values_down / values_nominal
-                    # sample.setParamEffect(  shape_systs_dict[f"{skey}_{year}"], effect_up, effect_down)
-                    print(
-                        "uncorrelated shape systematics (shape_systs_dict[fskey_year], effect_up, effect_down)",
-                        shape_systs_dict,
-                        f"{skey}_{year}",
-                        effect_up,
-                        effect_down,
-                    )
-                    collected_data.append(
-                        {
-                            "type": "uncorrelated shape systematics",
-                            "region": region,
-                            "sample_name": sample_name,
-                            "skey": skey,
-                            "effect_up": effect_up,
-                            "effect_down": effect_down,
-                            "year": year,
-                        }
-                    )
-
-    sig_key = "qqHH_CV_1_C2V_0_kl_1_HHbbVV"
-
-    # Process collected_data to compute systematics argument:
-    systematics_strings = {}
-    sig_key = "qqHH_CV_1_C2V_0_kl_1_HHbbVV"
-
-    # Iterate through the collected_data
-    for data in collected_data:
-        sample = data["sample_name"]
-        systematics_type = data["type"]
-        skey = data["skey"]
-
-        if (
-            systematics_type != "rate systematics" and sample != sig_key
-        ):  # if shaped uncertainty then only look at signal. assuming only one signal matters
-            continue
-
-        is_rs = systematics_type == "rate systematics"
-        val = data.get("val", None)
-        val_down = data.get("val_down", None)
-        region = data["region"]
-        effect_up = data.get("effect_up", None)
-        effect_down = data.get("effect_down", None)
-
-        # initialize list of systematics
-        if skey not in systematics_strings:
-            systematics_strings[skey] = ["-"] * 2 * len(channels)
-
-        index = channels.index(region)
-        if is_rs:  # if rate scale, then apply uncertainty to sig and bck
-            if val_down != None:
-                systematics_strings[skey][2 * index] = f"{{{val},{val_down}}}"
-                systematics_strings[skey][2 * index + 1] = f"{{{val},{val_down}}}"
-            else:
-                systematics_strings[skey][2 * index] = val
-                systematics_strings[skey][2 * index + 1] = val
-        else:
-            systematics_strings[skey][2 * index] = f"{{{effect_up},{effect_down}}}"
-
-    # Format the resulting lists into strings
-    syst_list = []
-    for skey, values in systematics_strings.items():
-        syst_list.append(join_with_padding([skey, "lnN", *values]))
-
-    syst_string = "\n".join(syst_list)
-
-    out_file = f"/home/users/annava/CMSSW_12_3_4/src/HiggsAnalysis/CombinedLimit/datacards/datacard.templ_{sig_key}.txt"
-    with open(out_file, "w") as f:
-        f.write(templ.substitute(datacard_dict))
 
 
 def main(args):
