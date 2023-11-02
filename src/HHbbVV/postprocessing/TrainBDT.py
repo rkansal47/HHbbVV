@@ -413,15 +413,15 @@ def evaluate_model(
         save_model_dir = f"{model_dir}/rocs_{label}/"
         os.makedirs(save_model_dir, exist_ok=True)
 
-        Y_test = get_Y(test)
-        weights_test = get_weights(test)
+        Y = get_Y(data)
+        weights_test = get_weights(data)
 
-        preds = model.predict_proba(get_X(test))
+        preds = model.predict_proba(get_X(data))
         preds = preds[:, 0] if multiclass else preds[:, 1]
 
         sig_effs = [0.15, 0.2]
 
-        fpr, tpr, thresholds = roc_curve(Y_test, preds, sample_weight=weights_test)
+        fpr, tpr, thresholds = roc_curve(Y, preds, sample_weight=weights_test)
 
         rocs[label] = {
             "fpr": fpr,
@@ -448,10 +448,10 @@ def evaluate_model(
 
         if txbb_threshold > 0:
             preds_txbb_thresholded = preds.copy()
-            preds_txbb_thresholded[_txbb_thresholds(test, txbb_threshold)] = 0
+            preds_txbb_thresholded[_txbb_thresholds(data, txbb_threshold)] = 0
 
             fpr_txbb_threshold, tpr_txbb_threshold, thresholds_txbb_threshold = roc_curve(
-                Y_test, preds_txbb_thresholded, sample_weight=weights_test
+                Y, preds_txbb_thresholded, sample_weight=weights_test
             )
 
             plotting.rocCurve(
