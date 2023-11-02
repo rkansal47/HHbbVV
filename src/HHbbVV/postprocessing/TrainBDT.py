@@ -318,7 +318,7 @@ def main(args):
         )
 
     if not args.inference_only:
-        evaluate_model(model, args.model_dir, test, multiclass=args.multiclass)
+        evaluate_model(model, args.model_dir, train, test, multiclass=args.multiclass)
 
     if not args.evaluate_only:
         do_inference(model, args.model_dir, data_dict, multiclass=args.multiclass)
@@ -338,6 +338,7 @@ def _plot_losses(trained_model: xgb.XGBClassifier, model_dir: str):
     plt.ylabel("Loss")
     plt.legend()
     plt.savefig(f"{model_dir}/losses.pdf", bbox_inches="tight")
+    plt.close()
 
 
 def train_model(
@@ -382,18 +383,13 @@ def _txbb_thresholds(test: Dict[str, pd.DataFrame], txbb_threshold: float):
 def evaluate_model(
     model: xgb.XGBClassifier,
     model_dir: str,
+    train: Dict[str, pd.DataFrame],
     test: Dict[str, pd.DataFrame],
     txbb_threshold: float = 0.98,
     multiclass: bool = False,
 ):
     """ """
     print("Evaluating model")
-
-    Y_test = get_Y(test)
-    weights_test = get_weights(test)
-
-    preds = model.predict_proba(get_X(test))
-    preds = preds[:, 0] if multiclass else preds[:, 1]
 
     var_labels = [var_label_map[var][1] for var in bdtVars]
 
@@ -409,52 +405,96 @@ def evaluate_model(
 
     print(feature_importance_df)
 
-    sig_effs = [0.15, 0.2]
+    # make and save ROCs for training and testing data
+    rocs = {}
 
-    fpr, tpr, thresholds = roc_curve(Y_test, preds, sample_weight=weights_test)
-    plotting.rocCurve(
-        fpr,
-        tpr,
-        # auc(fpr, tpr),
-        sig_eff_lines=sig_effs,
-        title=None,
-        plotdir=model_dir,
-        name="bdtroc",
-    )
+    for data, label in [(train, "train"), (test, "test")]:
+        save_model_dir = f"{model_dir}/rocs_{label}/"
+        os.makedirs(save_model_dir, exist_ok=True)
 
-    np.savetxt(f"{model_dir}/fpr.txt", fpr)
-    np.savetxt(f"{model_dir}/tpr.txt", tpr)
-    np.savetxt(f"{model_dir}/thresholds.txt", thresholds)
+        Y_test = get_Y(test)
+        weights_test = get_weights(test)
 
-    for sig_eff in sig_effs:
-        thresh = thresholds[np.searchsorted(tpr, sig_eff)]
-        print(f"Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
+        preds = model.predict_proba(get_X(test))
+        preds = preds[:, 0] if multiclass else preds[:, 1]
 
-    if txbb_threshold > 0:
-        preds_txbb_thresholded = preds.copy()
-        preds_txbb_thresholded[_txbb_thresholds(test, txbb_threshold)] = 0
+        sig_effs = [0.15, 0.2]
 
-        fpr_txbb_threshold, tpr_txbb_threshold, thresholds_txbb_threshold = roc_curve(
-            Y_test, preds_txbb_thresholded, sample_weight=weights_test
-        )
+        fpr, tpr, thresholds = roc_curve(Y_test, preds, sample_weight=weights_test)
+
+        rocs[label] = {
+            "fpr": fpr,
+            "tpr": tpr,
+            "thresholds": thresholds,
+        }
+
+        with open(f"{save_model_dir}/roc_dict.txt", "w") as f:
+            f.write(str(rocs[label]))
 
         plotting.rocCurve(
-            fpr_txbb_threshold,
-            tpr_txbb_threshold,
-            # auc(fpr_txbb_threshold, tpr_txbb_threshold),
+            fpr,
+            tpr,
+            # auc(fpr, tpr),
             sig_eff_lines=sig_effs,
-            title=f"Including Txbb > {txbb_threshold} Cut",
+            title=None,
             plotdir=model_dir,
-            name="bdtroc_txbb_cut",
+            name="bdtroc",
         )
 
-        np.savetxt(f"{model_dir}/fpr_txbb_threshold.txt", fpr_txbb_threshold)
-        np.savetxt(f"{model_dir}/tpr_txbb_threshold.txt", tpr_txbb_threshold)
-        np.savetxt(f"{model_dir}/thresholds_txbb_threshold.txt", thresholds_txbb_threshold)
-
         for sig_eff in sig_effs:
-            thresh = thresholds_txbb_threshold[np.searchsorted(tpr_txbb_threshold, sig_eff)]
-            print(f"Incl Txbb Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
+            thresh = thresholds[np.searchsorted(tpr, sig_eff)]
+            print(f"Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
+
+        if txbb_threshold > 0:
+            preds_txbb_thresholded = preds.copy()
+            preds_txbb_thresholded[_txbb_thresholds(test, txbb_threshold)] = 0
+
+            fpr_txbb_threshold, tpr_txbb_threshold, thresholds_txbb_threshold = roc_curve(
+                Y_test, preds_txbb_thresholded, sample_weight=weights_test
+            )
+
+            plotting.rocCurve(
+                fpr_txbb_threshold,
+                tpr_txbb_threshold,
+                # auc(fpr_txbb_threshold, tpr_txbb_threshold),
+                sig_eff_lines=sig_effs,
+                title=f"Including Txbb > {txbb_threshold} Cut",
+                plotdir=save_model_dir,
+                name="bdtroc_txbb_cut",
+            )
+
+            np.savetxt(f"{save_model_dir}/fpr_txbb_threshold.txt", fpr_txbb_threshold)
+            np.savetxt(f"{save_model_dir}/tpr_txbb_threshold.txt", tpr_txbb_threshold)
+            np.savetxt(f"{save_model_dir}/thresholds_txbb_threshold.txt", thresholds_txbb_threshold)
+
+            for sig_eff in sig_effs:
+                thresh = thresholds_txbb_threshold[np.searchsorted(tpr_txbb_threshold, sig_eff)]
+                print(f"Incl Txbb Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
+
+    # combined ROC curve with thresholds
+    xlim = [0, 1]
+    ylim = [1e-6, 1]
+
+    plt.figure(figsize=(12, 12))
+    for inf, label in [("train", "Train"), ("test", "Test")]:
+        roc = rocs[inf]
+
+        plt.plot(
+            roc["tpr"],
+            roc["fpr"],
+            label=label,
+            linewidth=2,
+        )
+
+    hep.cms.label(data=False, rlabel="")
+    plt.yscale("log")
+    plt.xlabel("Signal efficiency")
+    plt.ylabel("Background efficiency")
+    plt.xlim(*xlim)
+    plt.ylim(*ylim)
+    plt.legend(loc="upper left")
+    plt.savefig(f"{model_dir}/roc.pdf", bbox_inches="tight")
+    plt.close()
 
 
 def do_inference(
