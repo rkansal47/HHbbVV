@@ -7,6 +7,7 @@ Author(s): Raghav Kansal
 import argparse
 from collections import OrderedDict
 import os
+import pickle
 from typing import Dict
 import warnings
 
@@ -428,8 +429,8 @@ def evaluate_model(
             "thresholds": thresholds,
         }
 
-        with open(f"{save_model_dir}/roc_dict.txt", "w") as f:
-            f.write(str(rocs[label]))
+        with open(f"{save_model_dir}/roc_dict.pkl", "wb") as f:
+            pickle.dump(rocs[label], f)
 
         plotting.rocCurve(
             fpr,
@@ -437,7 +438,7 @@ def evaluate_model(
             # auc(fpr, tpr),
             sig_eff_lines=sig_effs,
             title=None,
-            plotdir=model_dir,
+            plotdir=save_model_dir,
             name="bdtroc",
         )
 
