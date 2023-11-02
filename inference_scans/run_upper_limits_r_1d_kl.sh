@@ -21,4 +21,8 @@ law run PlotUpperLimits \
     --frozen-groups signal_norm_xsbr
     # --scan-parameters kl,-30,-12,7:kl,-7,-5,3:kl,-2,7,19:kl,10,30,6 \
     # --use-snapshot True \  # for (fit to data) after unblinding
+<<<<<<< HEAD
     # --Snapshot-workflow "local" \
+=======
+    # --Snapshot-workflow "local" \
+>>>>>>> cd879748e9464d27f7df38cd604d5e2ae694cde3
