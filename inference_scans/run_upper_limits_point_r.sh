@@ -17,8 +17,4 @@ law run PlotUpperLimitsAtPoint \
     --save-hep-data True \
     --remove-output 0,a,y
     # --use-snapshot True \  # for (fit to data) after unblinding
-<<<<<<< HEAD
     # --Snapshot-workflow "local" \
-=======
-    # --Snapshot-workflow "local" \
->>>>>>> cd879748e9464d27f7df38cd604d5e2ae694cde3

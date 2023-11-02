@@ -16,14 +16,7 @@ law run PlotPullsAndImpacts \
     --page 0 \
     --pull-range 3 \
     --unblinded $UNBLINDED \
-<<<<<<< HEAD
-    --remove-output 2,a,y
-    # --print-command 2 \
-    # --use-snapshot True \  # for (fit to data) after unblinding
-    # --Snapshot-workflow "local" \
-=======
     --remove-output 0,a,y
     # --print-command 2 \
     # --use-snapshot True \  # for (fit to data) after unblinding
     # --Snapshot-workflow "local" \
->>>>>>> cd879748e9464d27f7df38cd604d5e2ae694cde3
