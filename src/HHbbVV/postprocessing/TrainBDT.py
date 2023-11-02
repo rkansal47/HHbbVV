@@ -189,6 +189,10 @@ def load_data(data_path: str, year: str, all_years: bool):
 def main(args):
     global bdtVars
 
+    early_stopping_callback = xgb.callback.EarlyStopping(
+        rounds=args.early_stopping_rounds, min_delta=args.early_stopping_min_delta
+    )
+
     classifier_params = {
         "max_depth": args.max_depth,
         "min_child_weight": args.min_child_weight,
@@ -197,7 +201,7 @@ def main(args):
         "verbosity": 2,
         "n_jobs": 4,
         "reg_lambda": 1.0,
-        "early_stopping_rounds": args.early_stopping_rounds,
+        "callbacks": [early_stopping_callback],
     }
 
     if args.rem_feats:
@@ -620,6 +624,12 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--early-stopping-rounds", default=5, help="early stopping rounds", type=int
+    )
+    parser.add_argument(
+        "--early-stopping-min-delta",
+        default=0.0,
+        help="min abs improvement needed for early stopping",
+        type=float,
     )
     parser.add_argument("--test-size", default=0.3, help="testing/training split", type=float)
     parser.add_argument("--seed", default=4, help="seed for testing/training split", type=int)
