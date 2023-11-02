@@ -475,9 +475,11 @@ def evaluate_model(
     # combined ROC curve with thresholds
     xlim = [0, 1]
     ylim = [1e-6, 1]
+    sig_effs = [0.15, 0.2]
+    line_style = {"colors": "lightgrey", "linestyles": "dashed"}
 
     plt.figure(figsize=(12, 12))
-    for inf, label in [("train", "Train"), ("test", "Test")]:
+    for inf, label in [("train", "Training Data"), ("test", "Testing Data")]:
         roc = rocs[inf]
 
         plt.plot(
@@ -486,6 +488,11 @@ def evaluate_model(
             label=label,
             linewidth=2,
         )
+
+        for sig_eff in sig_effs:
+            y = roc["fpr"][np.searchsorted(roc["tpr"], sig_eff)]
+            plt.hlines(y=y, xmin=0, xmax=sig_eff, **line_style)
+            plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
 
     hep.cms.label(data=False, rlabel="")
     plt.yscale("log")
