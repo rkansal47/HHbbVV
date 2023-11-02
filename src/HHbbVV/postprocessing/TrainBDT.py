@@ -13,6 +13,16 @@ import warnings
 import numpy as np
 import pandas as pd
 
+import matplotlib.pyplot as plt
+import mplhep as hep
+import matplotlib.ticker as mticker
+
+plt.style.use(hep.style.CMS)
+hep.style.use("CMS")
+formatter = mticker.ScalarFormatter(useMathText=True)
+formatter.set_powerlimits((-3, 3))
+plt.rcParams.update({"font.size": 28})
+
 # from pandas.errors import SettingWithCopyWarning
 
 from sklearn.model_selection import train_test_split
@@ -186,6 +196,7 @@ def main(args):
         "verbosity": 2,
         "n_jobs": 4,
         "reg_lambda": 1.0,
+        "early_stopping_rounds": args.early_stopping_rounds,
     }
 
     if args.rem_feats:
@@ -201,12 +212,19 @@ def main(args):
                 (
                     f"{year} {key} Yield: "
                     f'{np.sum(data[data["Dataset"] == key][weight_key])}, '
-                    "Number of Events: ",
-                    f'{len(data[data["Dataset"] == key])}, ',
+                    "Number of Events: "
+                    f'{len(data[data["Dataset"] == key])}, '
                 )
             )
 
-    return
+        bg_select = np.sum(
+            [data["Dataset"] == key for key in bg_keys],
+            axis=0,
+        ).astype(bool)
+
+        print(
+            f"Total BG Yield: {np.sum(data[bg_select][weight_key])}, Number of Events: {len(data[bg_select])}"
+        )
 
     if not args.inference_only:
         training_data_dict = {
@@ -296,7 +314,6 @@ def main(args):
             get_weights(test, args.absolute_weights),
             args.model_dir,
             use_sample_weights=args.use_sample_weights,
-            early_stopping_rounds=args.early_stopping_rounds,
             **classifier_params,
         )
 
@@ -305,6 +322,22 @@ def main(args):
 
     if not args.evaluate_only:
         do_inference(model, args.model_dir, data_dict, multiclass=args.multiclass)
+
+
+def _plot_losses(trained_model: xgb.XGBClassifier, model_dir: str):
+    evals_result = trained_model.evals_result()
+
+    with open(f"{model_dir}/evals_result.txt", "w") as f:
+        f.write(str(evals_result))
+
+    fig = plt.figure(figsize=(10, 8))
+    for i, label in enumerate(["Train", "Test"]):
+        plt.plot(evals_result[f"validation_{i}"]["mlogloss"], label=label, linewidth=2)
+
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.savefig(f"{model_dir}/losses.pdf", bbox_inches="tight")
 
 
 def train_model(
@@ -316,7 +349,6 @@ def train_model(
     weights_test: np.ndarray,
     model_dir: str,
     use_sample_weights: bool = False,
-    early_stopping_rounds: int = 5,
     **classifier_params,
 ):
     """Trains BDT. ``classifier_params`` are hyperparameters for the classifier"""
@@ -328,11 +360,14 @@ def train_model(
         X_train,
         y_train,
         sample_weight=weights_train if use_sample_weights else None,
-        early_stopping_rounds=5,
-        eval_set=[(X_test, y_test)],
-        sample_weight_eval_set=[weights_test] if use_sample_weights else None,
+        # xgboost uses the last set for early stopping
+        # https://xgboost.readthedocs.io/en/stable/python/python_intro.html#early-stopping
+        eval_set=[(X_train, y_train), (X_test, y_test)],
+        sample_weight_eval_set=[weights_train, weights_test] if use_sample_weights else None,
+        verbose=True,
     )
     trained_model.save_model(f"{model_dir}/trained_bdt.model")
+    _plot_losses(trained_model, model_dir)
     return model
 
 

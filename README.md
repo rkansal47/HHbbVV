@@ -248,7 +248,7 @@ python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --signal
 ### BDT Trainings
 
 ```bash
-python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb24/" --year "all" (--test)
+python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb24/bdt_data" --year "all" (--test)
 ```
 
 Inference-only:

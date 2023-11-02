@@ -6,10 +6,11 @@ Author(s): Raghav Kansal
 
 from collections import OrderedDict
 import numpy as np
+
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import mplhep as hep
 import matplotlib.ticker as mticker
-import matplotlib
 
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
@@ -596,9 +597,9 @@ def hist2ds(
                 continue
 
             if lim is not None:
-                norm = matplotlib.colors.LogNorm(vmax=lim)
+                norm = mpl.colors.LogNorm(vmax=lim)
             else:
-                norm = matplotlib.colors.LogNorm()
+                norm = mpl.colors.LogNorm()
 
             plt.figure(figsize=(12, 12))
             hep.hist2dplot(hists[region][sample, ...], cmap="turbo", norm=norm)
