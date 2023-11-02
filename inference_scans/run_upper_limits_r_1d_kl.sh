@@ -6,7 +6,7 @@ law run PlotUpperLimits \
     --datacards "$Cbbww4qInject" \
     --xsec fb \
     --pois r \
-    --scan-parameters kl,-30,-7,4:kl,-6,7,14:kl,15,30,4 \
+    --scan-parameters kl,-30,-5,26:kl,-2,5,8:kl,10,30,21 \
     --UpperLimits-workflow "htcondor" \
     --UpperLimits-tasks-per-job 1 \
     --file-types "png,pdf" \
@@ -17,8 +17,12 @@ law run PlotUpperLimits \
     --br bbww \
     --save-ranges \
     --remove-output 0,a,y \
-    --save-hep-data True \
+    --save-hep-data False \
     --frozen-groups signal_norm_xsbr
-    # --scan-parameters kl,-30,-12,7:kl,-7,-5,3:kl,-2,7,19:kl,10,30,6 \
+
     # --use-snapshot True \  # for (fit to data) after unblinding
     # --Snapshot-workflow "local" \
+    # --save-hep-data True \
+
+    # --scan-parameters kl,-30,-6,25:kl,-6,10,33:kl,0,30,31 \
+    # --scan-parameters kl,-30,-6,5:kl,-6,-5,2:kl,-3,-2,2:kl,0,4,5:kl,7,10,2:kl,14,30,5 \
