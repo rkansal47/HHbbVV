@@ -13,7 +13,7 @@ law run PlotUpperLimits \
     --campaign run2 \
     --unblinded $UNBLINDED \
     --y-log \
-    --show-parameters "kt,C2V,CV" \
+    --show-parameters "kl,kt,C2V,CV" \
     --br bbww \
     --save-ranges \
     --remove-output 0,a,y \
