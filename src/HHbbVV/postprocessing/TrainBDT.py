@@ -356,7 +356,13 @@ def main(args):
 
     if not args.inference_only:
         evaluate_model(
-            model, args.model_dir, train, test, args.test_size, multiclass=args.multiclass
+            model,
+            args.model_dir,
+            train,
+            test,
+            args.test_size,
+            args.equalize_weights,
+            multiclass=args.multiclass,
         )
 
     if not args.evaluate_only:
@@ -425,6 +431,7 @@ def evaluate_model(
     train: Dict[str, pd.DataFrame],
     test: Dict[str, pd.DataFrame],
     test_size: float,
+    equalize_sig_bg: bool,
     txbb_threshold: float = 0.98,
     multiclass: bool = False,
 ):
@@ -545,9 +552,11 @@ def evaluate_model(
 
             for dataset, label in [(train, "Train"), (test, "Test")]:
                 # Normalize the two distributions
-                sf = (0.5 / test_size) if label == "Test" else (0.5 / (1 - test_size))
-                print(f"Scaling {label} by {sf}")
+                data_sf = (0.5 / test_size) if label == "Test" else (0.5 / (1 - test_size))
                 for key in training_keys:
+                    # scale signal down by ~equalizing scale factor
+                    sf = data_sf / 1e6 if (key == sig_key and equalize_sig_bg) else data_sf
+                    print(f"Scaling {label} {key} by {sf}")
                     data = dataset[year][dataset[year]["Dataset"] == key]
                     fill_data = {shape_var.var: data[shape_var.var]}
                     h.fill(Data=label, Sample=key, **fill_data, weight=data[weight_key] * sf)
