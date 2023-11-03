@@ -708,7 +708,7 @@ def multiROCCurve(
                 *pths[th],
                 marker="o",
                 s=40,
-                label=f"BDT Score > {th}" if i == 0 else None,
+                label=f"BDT Score > {th}" if i == len(rocs) - 1 else None,
                 color=th_colours[k],
                 zorder=100,
             )
