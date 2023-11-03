@@ -422,6 +422,7 @@ def evaluate_model(
     model_dir: str,
     train: Dict[str, pd.DataFrame],
     test: Dict[str, pd.DataFrame],
+    test_size: float,
     txbb_threshold: float = 0.98,
     multiclass: bool = False,
 ):
@@ -539,11 +540,15 @@ def evaluate_model(
                 shape_var.axis,
                 storage="weight",
             )
+
             for dataset, label in [(train, "Train"), (test, "Test")]:
+                # Normalize the two distributions
+                sf = 0.5 / test_size if label == "Test" else (1 - test_size) / 0.5
+                print(f"Scaling {label} by {sf}")
                 for key in training_keys:
                     data = dataset[year][dataset[year]["Dataset"] == key]
                     fill_data = {shape_var.var: data[shape_var.var]}
-                    h.fill(Data=label, Sample=key, **fill_data, weight=data[weight_key])
+                    h.fill(Data=label, Sample=key, **fill_data, weight=data[weight_key] * sf)
 
             plotting.ratioTestTrain(
                 h,
