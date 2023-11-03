@@ -687,7 +687,6 @@ def multiROCCurve(
 
     plt.rcParams.update({"font.size": 24})
 
-    pths = {th: [[], []] for th in thresholds}
     plt.figure(figsize=(12, 12))
     for i, roc in enumerate(rocs.values()):
         plt.plot(
@@ -698,39 +697,39 @@ def multiROCCurve(
             color=roc_colours[i],
         )
 
-        if i == len(rocs) - 1:
-            for th in thresholds:
-                idx = _find_nearest(roc["thresholds"], th)
-                pths[th][0].append(roc["tpr"][idx])
-                pths[th][1].append(roc["fpr"][idx])
+        pths = {th: [[], []] for th in thresholds}
+        for th in thresholds:
+            idx = _find_nearest(roc["thresholds"], th)
+            pths[th][0].append(roc["tpr"][idx])
+            pths[th][1].append(roc["fpr"][idx])
 
-    for k, th in enumerate(thresholds):
-        plt.scatter(
-            *pths[th],
-            marker="o",
-            s=40,
-            label=f"BDT Score > {th}",
-            color=th_colours[k],
-            zorder=100,
-        )
+        for k, th in enumerate(thresholds):
+            plt.scatter(
+                *pths[th],
+                marker="o",
+                s=40,
+                label=f"BDT Score > {th}" if i == 0 else None,
+                color=th_colours[k],
+                zorder=100,
+            )
 
-        plt.vlines(
-            x=pths[th][0],
-            ymin=0,
-            ymax=pths[th][1],
-            color=th_colours[k],
-            linestyles="dashed",
-            alpha=0.5,
-        )
+            plt.vlines(
+                x=pths[th][0],
+                ymin=0,
+                ymax=pths[th][1],
+                color=th_colours[k],
+                linestyles="dashed",
+                alpha=0.5,
+            )
 
-        plt.hlines(
-            y=pths[th][1],
-            xmin=0,
-            xmax=pths[th][0],
-            color=th_colours[k],
-            linestyles="dashed",
-            alpha=0.5,
-        )
+            plt.hlines(
+                y=pths[th][1],
+                xmin=0,
+                xmax=pths[th][0],
+                color=th_colours[k],
+                linestyles="dashed",
+                alpha=0.5,
+            )
 
     hep.cms.label(data=False, rlabel="")
     plt.yscale("log")
