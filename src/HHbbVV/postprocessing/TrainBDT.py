@@ -545,7 +545,7 @@ def evaluate_model(
 
             for dataset, label in [(train, "Train"), (test, "Test")]:
                 # Normalize the two distributions
-                sf = 0.5 / test_size if label == "Test" else (1 - test_size) / 0.5
+                sf = (0.5 / test_size) if label == "Test" else (0.5 / (1 - test_size))
                 print(f"Scaling {label} by {sf}")
                 for key in training_keys:
                     data = dataset[year][dataset[year]["Dataset"] == key]
