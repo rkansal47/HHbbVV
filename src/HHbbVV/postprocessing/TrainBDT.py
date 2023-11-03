@@ -491,8 +491,10 @@ def evaluate_model(
             sig_eff_lines=sig_effs,
             title=None,
             plotdir=save_model_dir,
-            name="bdtroc",
+            name="roc",
         )
+
+        plotting.multiROCCurve({label: rocs[label]}, plotdir=save_model_dir, name="roc_thresholds")
 
         for sig_eff in sig_effs:
             thresh = thresholds[np.searchsorted(tpr, sig_eff)]
@@ -568,6 +570,15 @@ def evaluate_model(
                 year,
                 save_model_dir,
                 name=f"{year}_{shape_var.var}_{shape_var.bins[1]}",
+            )
+
+            plotting.ratioTestTrain(
+                h,
+                [key for key in training_keys if key != "QCD"],
+                shape_var,
+                year,
+                save_model_dir,
+                name=f"{year}_{shape_var.var}_{shape_var.bins[1]}_noqcd",
             )
 
     # temporarily save train and test data as pickles to iterate on plots

@@ -680,10 +680,7 @@ def multiROCCurve(
         "#a70000",
     ]
 
-    roc_colours = [
-        "blue",
-        "#23CE6B",
-    ]
+    roc_colours = ["blue", "#23CE6B"][-len(rocs) :]
 
     plt.rcParams.update({"font.size": 24})
 
@@ -692,7 +689,7 @@ def multiROCCurve(
         plt.plot(
             roc["tpr"],
             roc["fpr"],
-            label=roc["label"],
+            label=roc["label"] if len(rocs) > 1 else None,
             linewidth=2,
             color=roc_colours[i],
         )
@@ -845,7 +842,7 @@ def ratioTestTrain(
     rax.set_ylim([0, 2])
     rax.set_xlabel(shape_var.label)
     rax.set_ylabel("Train / Test")
-    rax.legend(fontsize=16, loc="upper left")
+    rax.legend(fontsize=16, loc="upper left", ncol=2)
     rax.grid()
 
     hep.cms.label(data=False, year=year, ax=ax, lumi=f"{LUMI[year] / 1e3:.0f}")
