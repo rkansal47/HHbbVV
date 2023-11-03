@@ -355,7 +355,9 @@ def main(args):
         )
 
     if not args.inference_only:
-        evaluate_model(model, args.model_dir, train, test, multiclass=args.multiclass)
+        evaluate_model(
+            model, args.model_dir, train, test, args.test_size, multiclass=args.multiclass
+        )
 
     if not args.evaluate_only:
         do_inference(model, args.model_dir, data_dict, multiclass=args.multiclass)
