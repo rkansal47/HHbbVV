@@ -43,7 +43,7 @@ class ShapeVar:
     Args:
         var (str): variable name
         label (str): variable label
-        bins (List[int]): bins
+        bins (List[int]): [# num bins, min, max] if ``reg`` is False, else list of bin edges
         reg (bool, optional): Use a regular axis or variable binning. Defaults to True.
         blind_window (List[int], optional): if blinding, set min and max values to set 0. Defaults to None.
         significance_dir (str, optional): if plotting significance, which direction to plot it in.

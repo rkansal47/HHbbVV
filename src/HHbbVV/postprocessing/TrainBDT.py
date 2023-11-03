@@ -11,6 +11,9 @@ import pickle
 from typing import Dict
 import warnings
 
+import hist
+from hist import Hist
+
 import numpy as np
 import pandas as pd
 
@@ -139,6 +142,16 @@ def get_Y(data_dict: Dict[str, pd.DataFrame], multiclass: bool = False):
     return pd.concat(Y, axis=0)
 
 
+def add_preds(data_dict: Dict[str, pd.DataFrame], preds: np.ndarray):
+    """Adds BDT predictions to ``data_dict``."""
+    count = 0
+    for year, data in data_dict.items():
+        data["BDTScore"] = preds[count : count + len(data)]
+        count += len(data)
+
+    return data_dict
+
+
 def get_weights(data_dict: Dict[str, pd.DataFrame], abs_weights: bool = True):
     weights = []
     for year, data in data_dict.items():
@@ -228,51 +241,70 @@ def main(args):
         ).astype(bool)
 
         print(
-            f"Total BG Yield: {np.sum(data[bg_select][weight_key])}, Number of Events: {len(data[bg_select])}"
+            f"Total BG Yield: {np.sum(data[bg_select][weight_key])}, "
+            f"Number of Events: {len(data[bg_select])}"
         )
 
     if not args.inference_only:
-        training_data_dict = {
-            year: data[
-                # select only signal and `bg_keys` backgrounds for training - rest are only inferenced
-                np.sum(
-                    [data["Dataset"] == key for key in training_keys],
-                    axis=0,
-                ).astype(bool)
+        training_data_dict = OrderedDict(
+            [
+                (
+                    year,
+                    data[
+                        # select only signal and `bg_keys` backgrounds for training - rest are only inferenced
+                        np.sum(
+                            [data["Dataset"] == key for key in training_keys],
+                            axis=0,
+                        ).astype(bool)
+                    ],
+                )
+                for year, data in data_dict.items()
             ]
-            for year, data in data_dict.items()
-        }
+        )
 
         training_samples = np.unique(list(training_data_dict.values())[0]["Dataset"])
         print("Training samples:", training_samples)
 
         if args.test:
             # get a sample of different processes
-            data_dict = {
-                year: pd.concat(
-                    (data[:50], data[1000000:1000050], data[2000000:2000050], data[-50:]), axis=0
-                )
-                for year, data in data_dict.items()
-            }
-            # 100 signal, 100 bg events
-            training_data_dict = {
-                year: pd.concat(
+            data_dict = OrderedDict(
+                [
                     (
-                        data[:150],
-                        data[
-                            np.sum(data["Dataset"] == sig_key) : np.sum(data["Dataset"] == sig_key)
-                            + 50
-                        ],
-                        data[
-                            np.sum(data["Dataset"] == "V+Jets")
-                            - 50 : np.sum(data["Dataset"] == "V+Jets")
-                        ],
-                        data[-50:],
-                    ),
-                    axis=0,
-                )
-                for year, data in training_data_dict.items()
-            }
+                        year,
+                        pd.concat(
+                            (data[:50], data[1000000:1000050], data[2000000:2000050], data[-50:]),
+                            axis=0,
+                        ),
+                    )
+                    for year, data in data_dict.items()
+                ]
+            )
+            # 100 signal, 100 bg events
+            training_data_dict = OrderedDict(
+                [
+                    (
+                        year,
+                        pd.concat(
+                            (
+                                data[:150],
+                                data[
+                                    np.sum(data["Dataset"] == sig_key) : np.sum(
+                                        data["Dataset"] == sig_key
+                                    )
+                                    + 50
+                                ],
+                                data[
+                                    np.sum(data["Dataset"] == "V+Jets")
+                                    - 50 : np.sum(data["Dataset"] == "V+Jets")
+                                ],
+                                data[-50:],
+                            ),
+                            axis=0,
+                        ),
+                    )
+                    for year, data in training_data_dict.items()
+                ]
+            )
 
         if args.equalize_weights or args.equalize_weights_per_process:
             for year, data in training_data_dict.items():
@@ -297,7 +329,7 @@ def main(args):
                 print("")
 
         if len(training_samples) > 0:
-            train, test = {}, {}
+            train, test = OrderedDict(), OrderedDict()
             for year, data in training_data_dict.items():
                 train[year], test[year] = train_test_split(
                     remove_neg_weights(data) if not args.absolute_weights else data,
@@ -329,7 +361,7 @@ def main(args):
         do_inference(model, args.model_dir, data_dict, multiclass=args.multiclass)
 
 
-def _plot_losses(trained_model: xgb.XGBClassifier, model_dir: str):
+def plot_losses(trained_model: xgb.XGBClassifier, model_dir: str):
     evals_result = trained_model.evals_result()
 
     with open(f"{model_dir}/evals_result.txt", "w") as f:
@@ -373,7 +405,7 @@ def train_model(
         verbose=True,
     )
     trained_model.save_model(f"{model_dir}/trained_bdt.model")
-    _plot_losses(trained_model, model_dir)
+    plot_losses(trained_model, model_dir)
     return model
 
 
@@ -393,7 +425,12 @@ def evaluate_model(
     txbb_threshold: float = 0.98,
     multiclass: bool = False,
 ):
-    """ """
+    """
+    1) Saves feature importance
+    2) Makes ROC curves for training and testing data
+    3) Combined ROC Curve
+    4) Plots BDT score shape
+    """
     print("Evaluating model")
 
     var_labels = [var_label_map[var][1] for var in bdtVars]
@@ -411,7 +448,7 @@ def evaluate_model(
     print(feature_importance_df)
 
     # make and save ROCs for training and testing data
-    rocs = {}
+    rocs = OrderedDict()
 
     for data, label in [(train, "train"), (test, "test")]:
         save_model_dir = f"{model_dir}/rocs_{label}/"
@@ -422,6 +459,7 @@ def evaluate_model(
 
         preds = model.predict_proba(get_X(data))
         preds = preds[:, 0] if multiclass else preds[:, 1]
+        add_preds(data, preds)
 
         sig_effs = [0.15, 0.2]
 
@@ -477,36 +515,51 @@ def evaluate_model(
                 print(f"Incl Txbb Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
 
     # combined ROC curve with thresholds
-    xlim = [0, 1]
-    ylim = [1e-6, 1]
-    sig_effs = [0.15, 0.2]
-    line_style = {"colors": "lightgrey", "linestyles": "dashed"}
+    rocs["train"]["label"] = "Train"
+    rocs["test"]["label"] = "Test"
+    plotting.multiROCCurve(rocs, plotdir=model_dir, name="roc_combined_thresholds")
+    plotting.multiROCCurve(rocs, thresholds=[], plotdir=model_dir, name="roc_combined")
 
-    plt.figure(figsize=(12, 12))
-    for inf, label in [("train", "Training Data"), ("test", "Testing Data")]:
-        roc = rocs[inf]
+    # BDT score shapes
+    plot_vars = [
+        utils.ShapeVar("BDTScore", "BDT Score", [20, 0, 1]),
+        utils.ShapeVar("BDTScore", "BDT Score", [20, 0.4, 1]),
+        utils.ShapeVar("BDTScore", "BDT Score", [20, 0.8, 1]),
+        utils.ShapeVar("BDTScore", "BDT Score", [20, 0.9, 1]),
+    ]
 
-        plt.plot(
-            roc["tpr"],
-            roc["fpr"],
-            label=label,
-            linewidth=2,
-        )
+    save_model_dir = f"{model_dir}/hists/"
+    os.makedirs(save_model_dir, exist_ok=True)
 
-        for sig_eff in sig_effs:
-            y = roc["fpr"][np.searchsorted(roc["tpr"], sig_eff)]
-            plt.hlines(y=y, xmin=0, xmax=sig_eff, **line_style)
-            plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
+    for year in train:
+        for shape_var in plot_vars:
+            h = Hist(
+                hist.axis.StrCategory(["Train", "Test"], name="Data"),
+                hist.axis.StrCategory(training_keys, name="Sample"),
+                shape_var.axis,
+                storage="weight",
+            )
+            for dataset, label in [(train, "Train"), (test, "Test")]:
+                for key in training_keys:
+                    data = dataset[year][dataset[year]["Dataset"] == key]
+                    fill_data = {shape_var.var: data[shape_var.var]}
+                    h.fill(Data=label, Sample=key, **fill_data, weight=data[weight_key])
 
-    hep.cms.label(data=False, rlabel="")
-    plt.yscale("log")
-    plt.xlabel("Signal efficiency")
-    plt.ylabel("Background efficiency")
-    plt.xlim(*xlim)
-    plt.ylim(*ylim)
-    plt.legend(loc="upper left")
-    plt.savefig(f"{model_dir}/roc.pdf", bbox_inches="tight")
-    plt.close()
+            plotting.ratioTestTrain(
+                h,
+                training_keys,
+                shape_var,
+                year,
+                save_model_dir,
+                name=f"{year}_{shape_var.var}_{shape_var.bins[1]}",
+            )
+
+    # temporarily save train and test data as pickles to iterate on plots
+    with open(f"{model_dir}/train.pkl", "wb") as f:
+        pickle.dump(train, f)
+
+    with open(f"{model_dir}/test.pkl", "wb") as f:
+        pickle.dump(test, f)
 
 
 def do_inference(

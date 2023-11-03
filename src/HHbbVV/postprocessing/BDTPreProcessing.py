@@ -41,6 +41,7 @@ BDT_data_vars = [
     "VVFatJetParTMD_probHWW3q",
     "VVFatJetParTMD_probHWW4q",
     "VVFatJetParTMD_probT",
+    "bbFatJetParticleNetMass",  # newly added, just for checking training vs testing dists
     "bbFatJetParticleNetMD_Txbb",
     "bbFatJetPtOverDijetPt",
     "VVFatJetPtOverDijetPt",

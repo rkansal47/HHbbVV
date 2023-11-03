@@ -26,6 +26,7 @@ from typing import Dict, List, Union, Tuple
 from numpy.typing import ArrayLike
 
 from hh_vars import LUMI, data_key, hbb_bg_keys
+import utils
 
 from copy import deepcopy
 
@@ -72,6 +73,7 @@ bg_colours = {
     "Hbb": "lightred",
     "HWW": "deeppurple",
     "HH": "ashgrey",
+    "HHbbVV": "red",
 }
 
 sig_colour = "red"
@@ -650,6 +652,103 @@ def rocCurve(
     plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
 
 
+def _find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx
+
+
+def multiROCCurve(
+    rocs: Dict,
+    thresholds=[0.6, 0.9, 0.96, 0.99, 0.997, 0.998, 0.999],
+    title=None,
+    xlim=[0, 1],
+    ylim=[1e-6, 1],
+    plotdir="",
+    name="",
+    show=False,
+):
+    th_colours = [
+        "#36213E",
+        "#9381FF",
+        "#1f78b4",
+        # "#a6cee3",
+        # "#32965D",
+        "#7CB518",
+        "#EDB458",
+        "#ff7f00",
+        "#a70000",
+    ]
+
+    roc_colours = [
+        "blue",
+        "#23CE6B",
+    ]
+
+    plt.rcParams.update({"font.size": 24})
+
+    pths = {th: [[], []] for th in thresholds}
+    plt.figure(figsize=(12, 12))
+    for i, roc in enumerate(rocs.values()):
+        plt.plot(
+            roc["tpr"],
+            roc["fpr"],
+            label=roc["label"],
+            linewidth=2,
+            color=roc_colours[i],
+        )
+
+        if i == len(rocs) - 1:
+            for th in thresholds:
+                idx = _find_nearest(roc["thresholds"], th)
+                pths[th][0].append(roc["tpr"][idx])
+                pths[th][1].append(roc["fpr"][idx])
+
+    for k, th in enumerate(thresholds):
+        plt.scatter(
+            *pths[th],
+            marker="o",
+            s=40,
+            label=f"BDT Score > {th}",
+            color=th_colours[k],
+            zorder=100,
+        )
+
+        plt.vlines(
+            x=pths[th][0],
+            ymin=0,
+            ymax=pths[th][1],
+            color=th_colours[k],
+            linestyles="dashed",
+            alpha=0.5,
+        )
+
+        plt.hlines(
+            y=pths[th][1],
+            xmin=0,
+            xmax=pths[th][0],
+            color=th_colours[k],
+            linestyles="dashed",
+            alpha=0.5,
+        )
+
+    hep.cms.label(data=False, rlabel="")
+    plt.yscale("log")
+    plt.xlabel("Signal efficiency")
+    plt.ylabel("Background efficiency")
+    plt.xlim(*xlim)
+    plt.ylim(*ylim)
+    plt.legend(loc="lower right")
+
+    if len(name):
+        plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
 def plot_HEM2d(hists2d: List[Hist], plot_keys: List[str], year: str, name: str, show: bool = False):
     fig, axs = plt.subplots(
         len(plot_keys),
@@ -669,6 +768,91 @@ def plot_HEM2d(hists2d: List[Hist], plot_keys: List[str], year: str, name: str, 
             ax._children[0].colorbar.set_label("Events")
 
     plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def ratioTestTrain(
+    h: Hist,
+    training_keys: List[str],
+    shape_var: utils.ShapeVar,
+    year: str,
+    plotdir="",
+    name="",
+    show=False,
+):
+    """Line and ratio plots comparing training and testing distributions
+
+    Args:
+        h (Hist): Histogram with ["Train", "Test"] x [sample] x [shape_var] axes
+        training_keys (List[str]): List of training samples.
+        shape_var (utils.ShapeVar): Variable being plotted.
+        year (str): year.
+    """
+    plt.rcParams.update({"font.size": 24})
+
+    style = {
+        "Train": {"linestyle": "--"},
+        "Test": {"alpha": 0.5},
+    }
+
+    fig, (ax, rax) = plt.subplots(
+        2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
+    )
+
+    for data in ["Train", "Test"]:
+        plot_hists = [h[data, sample, :] for sample in training_keys]
+
+        ax.set_ylabel("Events")
+        hep.histplot(
+            plot_hists,
+            ax=ax,
+            histtype="step",
+            label=[data + " " + key for key in training_keys],
+            color=[colours[bg_colours[sample]] for sample in training_keys],
+            yerr=True,
+            **style[data],
+        )
+
+    ax.set_yscale("log")
+    ax.legend(fontsize=16, ncol=2)
+
+    plot_hists = [h["Train", sample, :] / h["Test", sample, :].values() for sample in training_keys]
+    err = [
+        np.sqrt(
+            np.sum(
+                [
+                    h[data, sample, :].variances() / (h[data, sample, :].values() ** 2)
+                    for data in ["Train", "Test"]
+                ],
+                axis=0,
+            )
+        )
+        for sample in training_keys
+    ]
+
+    hep.histplot(
+        plot_hists,
+        ax=rax,
+        histtype="errorbar",
+        label=training_keys,
+        color=[colours[bg_colours[sample]] for sample in training_keys],
+        yerr=np.abs([err[i] * plot_hists[i].values() for i in range(len(plot_hists))]),
+    )
+
+    rax.set_ylim([0, 2])
+    rax.set_xlabel(shape_var.label)
+    rax.set_ylabel("Train / Test")
+    rax.legend(fontsize=16, loc="upper left")
+    rax.grid()
+
+    hep.cms.label(data=False, year=year, ax=ax, lumi=f"{LUMI[year] / 1e3:.0f}")
+
+    if len(name):
+        plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
 
     if show:
         plt.show()
