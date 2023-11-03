@@ -817,7 +817,7 @@ def ratioTestTrain(
         )
 
     ax.set_yscale("log")
-    ax.legend(fontsize=16, ncol=2)
+    ax.legend(fontsize=16, ncol=2, loc="center left")
 
     plot_hists = [h["Train", sample, :] / h["Test", sample, :].values() for sample in training_keys]
     err = [
