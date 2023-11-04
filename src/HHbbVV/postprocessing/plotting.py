@@ -813,8 +813,9 @@ def ratioTestTrain(
             **style[data],
         )
 
+    ax.set_xlim([shape_var.axis.edges[0], shape_var.axis.edges[-1]])
     ax.set_yscale("log")
-    ax.legend(fontsize=16, ncol=2, loc="center left")
+    ax.legend(fontsize=20, ncol=2, loc="center left")
 
     plot_hists = [h["Train", sample, :] / h["Test", sample, :].values() for sample in training_keys]
     err = [
@@ -842,7 +843,7 @@ def ratioTestTrain(
     rax.set_ylim([0, 2])
     rax.set_xlabel(shape_var.label)
     rax.set_ylabel("Train / Test")
-    rax.legend(fontsize=16, loc="upper left", ncol=2)
+    rax.legend(fontsize=20, loc="upper left", ncol=3)
     rax.grid()
 
     hep.cms.label(data=False, year=year, ax=ax, lumi=f"{LUMI[year] / 1e3:.0f}")
