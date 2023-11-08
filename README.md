@@ -29,12 +29,14 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [BDT Trainings](#bdt-trainings)
     - [Post-Processing](#post-processing-1)
       - [Control plots with resonant and nonresonant samples](#control-plots-with-resonant-and-nonresonant-samples)
+      - [BDT sculpting plots](#bdt-sculpting-plots)
       - [Making separate background and signal templates for scan and bias tests (resonant)](#making-separate-background-and-signal-templates-for-scan-and-bias-tests-resonant)
     - [Create Datacard](#create-datacard)
     - [PlotFits](#plotfits)
   - [Combine](#combine)
     - [CMSSW + Combine Quickstart](#cmssw--combine-quickstart)
     - [Run fits and diagnostics locally](#run-fits-and-diagnostics-locally)
+      - [F-tests locally for non-resonant](#f-tests-locally-for-non-resonant)
     - [Run fits on condor](#run-fits-on-condor)
       - [Making datacards](#making-datacards)
       - [F-tests](#f-tests)
@@ -276,6 +278,9 @@ for year in 2016 2016APV 2017 2018; do python -u postprocessing.py --templates -
 
 Run `postprocessing/bash_scripts/ControlPlots.sh` from inside `postprocessing folder`.
 
+#### BDT sculpting plots
+
+Run `postprocessing/bash_scripts/BDTPlots.sh` from inside `postprocessing folder`.
 
 #### Making separate background and signal templates for scan and bias tests (resonant)
 
@@ -366,6 +371,20 @@ All via the below script, with a bunch of options (see script):
 ```bash
 run_blinded.sh --workspace --bfit --limits
 ```
+
+#### F-tests locally for non-resonant
+
+This will take 5-10 minutes.
+
+```bash
+# automatically make workspaces and do the background-only fit for orders 0 - 3
+run_ftest_nonres.sh --cardstag 23May14 --templatestag $templatestag  # -dl for saving shapes and limits
+# run f-test for desired order
+run_ftest_nonres.sh --cardstag 23May14 --goftoys --ffits --numtoys 100 --seed 444 --order 0
+```
+
+Condor is needed for resonant, see [below](#f-tests).
+
 
 ### Run fits on condor
 
