@@ -416,17 +416,13 @@ def main(args):
         pt_labels = ["JES", "JER"]
         m_labels = ["JMS", "JMR"]
         for key, df in events_dict.items():
-            # for each JES,JER, and JMS JMR correction
-            ptlabel = "_JES_up"
-            mlabel = "_JMS_down"
-
             bb_mask = (
                 df[("ak8FatJetParticleNetMD_Txbb", 0)] > df[("ak8FatJetParticleNetMD_Txbb", 1)]
             )
-
+            _add_vbf_columns(df, bb_mask, ptlabel="", mlabel="")
+            
             if key == "Data":
-                _add_vbf_columns(df, bb_mask, ptlabel="", mlabel="")
-                break
+                continue
 
             for var in pt_labels:
                 for direction in ["down", "up"]:
