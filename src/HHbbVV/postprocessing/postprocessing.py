@@ -349,8 +349,8 @@ nonres_sig_keys_ggf = [
 # TODO: check which of these applies to resonant as well
 weight_shifts = {
     "pileup": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup"),
-    #"PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
-    #"QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"),
+    # "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
+    # "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"),
     "ISRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="ISR Parton Shower"),
     "FSRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="FSR Parton Shower"),
     "L1EcalPrefiring": Syst(
@@ -403,7 +403,7 @@ def main(args):
             jec_jmsr_shifts=True,
         )
         print("Loaded BDT preds\n")
-        
+
     # Load VBF Variables (edits events_dict so that all of the events have the appropriate variables and stuff) TODO:
     if args.vbf:
         pt_labels = ["JES", "JER"]
@@ -562,6 +562,7 @@ def _init(args):
 
     return shape_vars, scan, scan_cuts, scan_wps
 
+
 # adds all necessary columns to dataframes from events_dict
 def _add_vbf_columns(df, bb_mask, ptlabel, mlabel):
     import vector
@@ -673,6 +674,7 @@ def _add_vbf_columns(df, bb_mask, ptlabel, mlabel):
             - np.power((bbJet.eta - avg_eta) / delta_eta, 2)
         )
         df[f"vbf_prod_centrality"] = prod_centrality
+
 
 def _process_samples(args, BDT_sample_order: List[str] = None):
     sig_samples = res_samples if args.resonant else nonres_samples
