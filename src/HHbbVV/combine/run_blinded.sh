@@ -32,6 +32,7 @@ bfit=0
 limits=0
 significance=0
 dfit=0
+dfit_asimov=0
 resonant=0
 gofdata=0
 goftoys=0
@@ -44,7 +45,7 @@ bias=-1
 mintol=0.1  # --cminDefaultMinimizerTolerance
 # maxcalls=1000000000  # --X-rtd MINIMIZER_MaxCalls
 
-options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,resonant,gofdata,goftoys,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,dfitasimov,resonant,gofdata,goftoys,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -63,6 +64,9 @@ while true; do
             ;;
         -d|--dfit)
             dfit=1
+            ;;
+        --dfitasimov)
+            dfit_asimov=1
             ;;
         -r|--resonant)
             resonant=1
@@ -296,6 +300,22 @@ if [ $dfit = 1 ]; then
 fi
 
 
+if [ $dfit_asimov = 1 ]; then
+    echo "Fit Diagnostics on Asimov dataset"
+    combine -M FitDiagnostics -m 125 -d ${wsm_snapshot}.root --snapshotName MultiDimFit \
+    -t -1 --expectSignal=1 --toysFrequentist --bypassFrequentistFit --saveWorkspace --saveToys \
+    ${unblindedparams} --floatParameters ${freezeparamsblinded},r \
+    --cminDefaultMinimizerStrategy 1  --cminDefaultMinimizerTolerance $mintol --X-rtd MINIMIZER_MaxCalls=400000 \
+    -n Asimov --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnosticsAsimov.txt
+
+    combineTool.py -M ModifyDataSet ${wsm}.root:w ${wsm}_asimov.root:w:toy_asimov -d higgsCombineAsimov.FitDiagnostics.mH125.123456.root:toys/toy_asimov
+
+    echo "Fit Shapes"
+    PostFitShapesFromWorkspace --dataset toy_asimov -w ${wsm}_asimov.root --output FitShapesAsimov.root \
+    -m 125 -f fitDiagnosticsAsimov.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapesAsimov.txt
+fi
+
+
 if [ $gofdata = 1 ]; then
     echo "GoF on data"
     combine -M GoodnessOfFit -d ${wsm_snapshot}.root --algo saturated -m 125 \
@@ -334,7 +354,7 @@ fi
 
 
 if [ $impactsf != 0 ]; then
-    echo "Submitting jobs for impact scans"
+    echo "Impact scan for $impactsf"
     # Impacts module cannot access parameters which were frozen in MultiDimFit, so running impacts
     # for each parameter directly using its internal command 
     # (also need to do this for submitting to condor anywhere other than lxplus)
