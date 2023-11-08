@@ -132,7 +132,6 @@ cards_dir="./"
 ws=${cards_dir}/combined
 wsm=${ws}_withmasks
 wsm_snapshot=higgsCombineSnapshot.MultiDimFit.mH125
-CMS_PARAMS_LABEL="CMS_bbWW_hadronic"
 
 outsdir=${cards_dir}/outs
 mkdir -p $outsdir
@@ -141,6 +140,8 @@ if [ $resonant = 0 ]; then
     if [ -f "mXbin0pass.txt" ]; then
         echo -e "\nWARNING: This is doing nonresonant fits - did you mean to pass -r|--resonant?\n"
     fi
+
+    CMS_PARAMS_LABEL="CMS_bbWW_hadronic"
 
     # nonresonant args
     ccargs="fail=${cards_dir}/fail.txt failBlinded=${cards_dir}/failBlinded.txt pass=${cards_dir}/pass.txt passBlinded=${cards_dir}/passBlinded.txt"
@@ -158,7 +159,7 @@ if [ $resonant = 0 ]; then
 
     # remove last comma
     setparamsblinded=${setparamsblinded%,}
-    freezeparamsblinded="${freezeparamsblinded},var{.*lp_sf.*},CMS_XHYbbWW_boosted_PNetHbbScaleFactors_correlated"
+    freezeparamsblinded=${setparamsblinded%,}
 
 
     # floating parameters using var{} floats a bunch of parameters which shouldn't be floated,
@@ -170,6 +171,7 @@ if [ $resonant = 0 ]; then
     excludeimpactparams='rgx{.*tf_dataResidual_Bin.*}'
 else
     # resonant args
+    CMS_PARAMS_LABEL="CMS_XHYbbWW_boosted"
     ccargs=""
     maskunblindedargs=""
     maskblindedargs=""

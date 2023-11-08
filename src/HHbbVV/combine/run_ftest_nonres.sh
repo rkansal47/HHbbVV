@@ -10,9 +10,11 @@
 # Author: Raghav Kansal
 ####################################################################################################
 
+
 goftoys=0
 ffits=0
 dfit=0
+limits=0
 seed=42
 numtoys=100
 order=0
@@ -42,7 +44,7 @@ while true; do
             shift
             templates_tag=$1
             ;;
-        --o,order)
+        -o|--order)
             shift
             order=$1
             ;;
@@ -69,8 +71,8 @@ while true; do
     shift
 done
 
-echo "Arguments: cardstag=$cards_tag templatestag=$templates_tag sigsample=$sig_sample dfit=$dfit \
-goftoys=$goftoys ffits=$ffits seed=$seed numtoys=$numtoys"
+echo "Arguments: cardstag=$cards_tag templatestag=$templates_tag dfit=$dfit \
+goftoys=$goftoys ffits=$ffits order=$order seed=$seed numtoys=$numtoys"
 
 
 ####################################################################################################
@@ -113,15 +115,15 @@ freezeparamsblinded=${freezeparamsblinded%,}
 # Making cards and workspaces for each order polynomial
 ####################################################################################################
 
-for ord1 in {0..3}
+for ord in {0..3}
 do
-    model_name="nTF_${ord1}"
+    model_name="nTF_${ord}"
     
     # create datacards if they don't already exist
     if [ ! -f "${cards_dir}/${model_name}/pass.txt" ]; then
         echo "Making Datacard for $model_name"
         python3 -u postprocessing/CreateDatacard.py --templates-dir ${templates_dir} \
-        --model-name ${model_name} --nTF ${ord2} ${ord1} --cards-dir ${cards_dir}
+        --model-name ${model_name} --nTF ${ord} --cards-dir ${cards_dir}
     fi
 
     cd ${cards_dir}/${model_name}/
@@ -146,7 +148,7 @@ done
 
 
 ####################################################################################################
-# Generate toys for (0, 0) order
+# Generate toys for lower order
 ####################################################################################################
 
 model_name="nTF_$order"
@@ -172,13 +174,13 @@ fi
 
 
 ####################################################################################################
-# GoFs on generated toys for next order polynomials
+# GoFs on generated toys for low and next high order polynomials
 ####################################################################################################
 
 if [ $ffits = 1 ]; then
-    for ord1 in 0 1
+    for ord in $order $((order+1))
     do
-        model_name="nTF_${ord1}"
+        model_name="nTF_${ord}"
         echo "Fits for $model_name"
 
         cd ${cards_dir}/${model_name}/
