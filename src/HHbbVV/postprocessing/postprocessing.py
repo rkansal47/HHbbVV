@@ -420,7 +420,7 @@ def main(args):
                 df[("ak8FatJetParticleNetMD_Txbb", 0)] > df[("ak8FatJetParticleNetMD_Txbb", 1)]
             )
             _add_vbf_columns(df, bb_mask, ptlabel="", mlabel="")
-            
+
             if key == "Data":
                 continue
 
