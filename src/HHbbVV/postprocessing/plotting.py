@@ -6,6 +6,7 @@ Author(s): Raghav Kansal
 
 from collections import OrderedDict
 import numpy as np
+from pandas import DataFrame
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -16,7 +17,11 @@ plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
 formatter = mticker.ScalarFormatter(useMathText=True)
 formatter.set_powerlimits((-3, 3))
-plt.rcParams.update({"font.size": 20})
+
+# this is needed for some reason to update the font size for the first plot
+fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+plt.rcParams.update({"font.size": 24})
+plt.close()
 
 import hist
 from hist import Hist
@@ -27,6 +32,7 @@ from numpy.typing import ArrayLike
 
 from hh_vars import LUMI, data_key, hbb_bg_keys
 import utils
+from utils import CUT_MAX_VAL
 
 from copy import deepcopy
 
@@ -847,6 +853,54 @@ def ratioTestTrain(
     rax.grid()
 
     hep.cms.label(data=False, year=year, ax=ax, lumi=f"{LUMI[year] / 1e3:.0f}")
+
+    if len(name):
+        plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def cutsLinePlot(
+    events_dict: Dict[str, DataFrame],
+    bb_masks: Dict[str, DataFrame],
+    shape_var: utils.ShapeVar,
+    plot_key: str,
+    cut_var: str,
+    cuts: List[float],
+    year: str,
+    weight_key: str,
+    plotdir: str = "",
+    name: str = "",
+    show: bool = False,
+):
+    """Plot line plots of ``shape_var`` for different cuts on ``cut_var``."""
+    fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+    plt.rcParams.update({"font.size": 24})
+
+    for i, cut in enumerate(cuts):
+        sel, _ = utils.make_selection({cut_var: [cut, CUT_MAX_VAL]}, events_dict, bb_masks)
+        h = utils.singleVarHist(
+            events_dict, shape_var, bb_masks, weight_key=weight_key, selection=sel
+        )
+
+        hep.histplot(
+            h[plot_key, ...] / np.sum(h[plot_key, ...].values()),
+            yerr=True,
+            label=f"BDTScore >= {cut}",
+            # density=True,
+            ax=ax,
+            linewidth=2,
+            alpha=0.8,
+        )
+
+    ax.set_xlabel(shape_var.label)
+    ax.set_ylabel("Fraction of Events")
+    ax.legend()
+
+    hep.cms.label(ax=ax, data=False, year=year, lumi=round(LUMI[year] / 1e3))
 
     if len(name):
         plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")

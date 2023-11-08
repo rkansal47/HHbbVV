@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from collections import OrderedDict
 
 import os
+from pathlib import Path
 import sys
 import pickle, json
 import itertools
@@ -376,8 +377,9 @@ def main(args):
     # THWW score vs Top (if not already from processor)
     derive_variables(events_dict)
 
-    if args.plot_dir != "":
-        cutflow.to_csv(f"{args.plot_dir}/preselection_cutflow.csv")
+    # check if args has attribute
+    if hasattr(args, "control_plots_dir"):
+        cutflow.to_csv(f"{args.control_plots_dir}/preselection_cutflow.csv")
 
     print("\nCutflow", cutflow)
 
@@ -401,13 +403,20 @@ def main(args):
             bb_masks,
             sig_keys,
             control_plot_vars,
-            f"{args.plot_dir}/ControlPlots/",
+            args.control_plots_dir,
             args.year,
             bg_keys=args.bg_keys,
             sig_scale_dict={"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | {key: 2e4 for key in res_sig_keys},
             # sig_splits=sig_splits,
             hists_HEM2d=args.HEM2d,
             show=False,
+        )
+
+    if args.bdt_plots and not args.resonant and not args.vbf:
+        print("\nMaking BDT sculpting plots\n")
+
+        plot_bdt_sculpting(
+            events_dict, bb_masks, args.bdt_sculpting_plots_dir, args.year, show=False
         )
 
     if args.templates:
@@ -453,7 +462,7 @@ def main(args):
             for jshift in jshifts:
                 print(jshift)
                 plot_dir = (
-                    f"{args.plot_dir}/templates/{cutstr}/" f"{'jshifts/' if jshift != '' else ''}"
+                    f"{args.templates_plots_dir}/{cutstr}/" f"{'jshifts/' if jshift != '' else ''}"
                     if args.plot_dir != ""
                     else ""
                 )
@@ -489,8 +498,8 @@ def main(args):
 
 
 def _init(args):
-    if not (args.control_plots or args.templates or args.scan):
-        print("You need to pass at least one of --control-plots, --templates, or --scan")
+    if not (args.control_plots or args.bdt_plots or args.templates):
+        print("You need to pass at least one of --control-plots, --bdt-plots, or --templates")
         return
 
     if args.resonant:
@@ -600,36 +609,54 @@ def _process_samples(args, BDT_sample_order: List[str] = None):
 
 def _make_dirs(args, scan, scan_cuts, scan_wps):
     if args.plot_dir != "":
-        args.plot_dir = f"{args.plot_dir}/{args.year}/"
-        os.system(f"mkdir -p {args.plot_dir}")
+        args.plot_dir = Path(args.plot_dir)
+        args.plot_dir.mkdir(parents=True, exist_ok=True)
 
         if args.control_plots:
-            os.system(f"mkdir -p {args.plot_dir}/ControlPlots/")
+            args.control_plots_dir = args.plot_dir / "ControlPlots" / args.year
+            args.control_plots_dir.mkdir(parents=True, exist_ok=True)
 
-        os.system(f"mkdir -p {args.plot_dir}/templates/")
+        if args.bdt_plots and not args.resonant and not args.vbf:
+            args.bdt_sculpting_plots_dir = args.plot_dir / "BDTSculpting"
+            args.bdt_sculpting_plots_dir.mkdir(parents=True, exist_ok=True)
 
-        if scan:
-            for wps in scan_wps:
-                cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
-                os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/")
-                os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/wshifts")
-                os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/jshifts")
-        else:
-            os.system(f"mkdir -p {args.plot_dir}/templates/wshifts")
-            os.system(f"mkdir -p {args.plot_dir}/templates/jshifts")
+        if args.templates:
+            args.templates_plots_dir = args.plot_dir / "Templates" / args.year
+            args.templates_plots_dir.mkdir(parents=True, exist_ok=True)
 
-            if args.resonant:
-                os.system(f"mkdir -p {args.plot_dir}/templates/hists2d")
+            if scan:
+                for wps in scan_wps:
+                    cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
+                    (args.templates_plots_dir / f"{cutstr}/wshifts").mkdir(
+                        parents=True, exist_ok=True
+                    )
+                    (args.templates_plots_dir / f"{cutstr}/jshifts").mkdir(
+                        parents=True, exist_ok=True
+                    )
+            else:
+                (args.templates_plots_dir / "wshifts").mkdir(parents=True, exist_ok=True)
+                (args.templates_plots_dir / "jshifts").mkdir(parents=True, exist_ok=True)
+                if args.resonant:
+                    (args.templates_plots_dir / "hists2d").mkdir(parents=True, exist_ok=True)
+
+    elif args.control_plots or args.bdt_plots:
+        print(
+            "You need to pass --plot-dir if you want to make control plots or BDT plots. Exiting."
+        )
+        sys.exit()
 
     if args.template_dir != "":
+        args.template_dir = Path(args.template_dir)
         if scan:
             for wps in scan_wps:
                 cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
-                os.system(
-                    f"mkdir -p {args.template_dir}/{cutstr}/{args.templates_name}/cutflows/{args.year}/"
+                (args.template_dir / f"{cutstr}/{args.templates_name}/cutflows/{args.year}").mkdir(
+                    parents=True, exist_ok=True
                 )
         else:
-            os.system(f"mkdir -p {args.template_dir}/{args.templates_name}/cutflows/{args.year}/")
+            (args.template_dir / f"{args.templates_name}/cutflows/{args.year}").mkdir(
+                parents=True, exist_ok=True
+            )
 
 
 def _check_load_systematics(systs_file: str, year: str):
@@ -652,12 +679,19 @@ def _load_samples(args, samples, sig_samples, cutflow, filters=None):
 
     events_dict = {}
     for d in args.signal_data_dirs:
-        events_dict = {**events_dict, **utils.load_samples(d, sig_samples, args.year, filters)}
+        events_dict = {
+            **events_dict,
+            **utils.load_samples(
+                d, sig_samples, args.year, filters, hem_cleaning=args.hem_cleaning
+            ),
+        }
 
     if args.data_dir:
         events_dict = {
             **events_dict,
-            **utils.load_samples(args.data_dir, samples, args.year, filters),
+            **utils.load_samples(
+                args.data_dir, samples, args.year, filters, hem_cleaning=args.hem_cleaning
+            ),
         }
 
     print("Samples: ", list(events_dict.keys()))
@@ -1167,6 +1201,44 @@ def control_plots(
     return hists
 
 
+def plot_bdt_sculpting(
+    events_dict: Dict[str, pd.DataFrame],
+    bb_masks: Dict[str, pd.DataFrame],
+    plot_dir: str,
+    year: str,
+    weight_key: str = "finalWeight",
+    show: bool = False,
+):
+    """Plot bb jet mass for different BDT score cuts."""
+    cuts = [0, 0.1, 0.5, 0.9, 0.95]
+    # bdtvars = ["", "TT", "VJets"]
+    bdtvars = [""]
+    plot_keys = ["QCD", "HHbbVV"]
+
+    shape_var = ShapeVar(
+        var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[20, 50, 250]
+    )
+
+    for var in bdtvars:
+        for key in plot_keys:
+            ed_key = {key: events_dict[key]}
+            bbm_key = {key: bb_masks[key]}
+
+            plotting.cutsLinePlot(
+                ed_key,
+                bbm_key,
+                shape_var,
+                key,
+                f"BDTScore{var}",
+                cuts,
+                year,
+                weight_key,
+                plot_dir,
+                f"{year}_BDT{var}Cuts_{shape_var.var}_{key}",
+                show=show,
+            )
+
+
 def check_weights(events_dict):
     # Check for 0 weights - would be an issue for weight shifts
     print(
@@ -1525,6 +1597,7 @@ if __name__ == "__main__":
     utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
     utils.add_bool_arg(parser, "vbf", "non-resonant VBF or inclusive", default=False)
     utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
+    utils.add_bool_arg(parser, "bdt-plots", "make bdt sculpting plots", default=False)
     utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
     utils.add_bool_arg(
         parser, "overwrite-template", "if template file already exists, overwrite it", default=False
@@ -1554,6 +1627,7 @@ if __name__ == "__main__":
     )
 
     utils.add_bool_arg(parser, "data", "include data", default=True)
+    utils.add_bool_arg(parser, "hem-cleaning", "perform hem cleaning for 2018", default=None)
     utils.add_bool_arg(
         parser, "HEM2d", "fatjet phi v eta plots to check HEM cleaning", default=False
     )
@@ -1640,5 +1714,9 @@ if __name__ == "__main__":
         args.bdt_preds_dir = f"{args.data_dir}/inferences/"
     elif args.resonant:
         args.bdt_preds_dir = None
+
+    if args.hem_cleaning is None:
+        # can't do HEM cleaning for non-resonant until BDT is re-inferenced
+        args.hem_cleaning = True if (args.resonant or args.vbf) else False
 
     main(args)
