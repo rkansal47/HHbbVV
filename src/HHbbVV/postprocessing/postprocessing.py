@@ -184,7 +184,12 @@ def get_nonres_vbf_selection_regions(
                 "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
                 "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
-                # add more
+                "vbf_Mass_jj": [500, 10000],
+                "vbf_dEta_jj": [4, 10000],
+                "ak8FatJetEta0": [-2.4, 2.4],
+                "ak8FatJetEta1": [-2.4, 2.4],
+                "DijetdEta": [0, 2.0],
+                "DijetdPhi": [2.6, 10000],
             },
             label="Pass",
         ),
@@ -194,7 +199,12 @@ def get_nonres_vbf_selection_regions(
                 "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
                 "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
-                # add more
+                "vbf_Mass_jj": [500, 10000],
+                "vbf_dEta_jj": [4, 10000],
+                "ak8FatJetEta0": [-2.4, 2.4],
+                "ak8FatJetEta1": [-2.4, 2.4],
+                "DijetdEta": [0, 2.0],
+                "DijetdPhi": [2.6, 10000],
             },
             label="Fail",
         ),
@@ -339,8 +349,8 @@ nonres_sig_keys_ggf = [
 # TODO: check which of these applies to resonant as well
 weight_shifts = {
     "pileup": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup"),
-    "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
-    "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"),
+    #"PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
+    #"QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"),
     "ISRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="ISR Parton Shower"),
     "FSRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="FSR Parton Shower"),
     "L1EcalPrefiring": Syst(
@@ -393,6 +403,27 @@ def main(args):
             jec_jmsr_shifts=True,
         )
         print("Loaded BDT preds\n")
+        
+    # Load VBF Variables (edits events_dict so that all of the events have the appropriate variables and stuff) TODO:
+    if args.vbf:
+        pt_labels = ["JES", "JER"]
+        m_labels = ["JMS", "JMR"]
+        for key, df in events_dict.items():
+            bb_mask = (
+                df[("ak8FatJetParticleNetMD_Txbb", 0)] > df[("ak8FatJetParticleNetMD_Txbb", 1)]
+            )
+            _add_vbf_columns(df, bb_mask, ptlabel="", mlabel="")
+
+            if key == "Data":
+                continue
+
+            for var in pt_labels:
+                for direction in ["down", "up"]:
+                    _add_vbf_columns(df, bb_mask, ptlabel=f"_{var}_{direction}", mlabel="")
+
+            for var in m_labels:
+                for direction in ["down", "up"]:
+                    _add_vbf_columns(df, bb_mask, ptlabel="", mlabel=f"_{var}_{direction}")
 
     # Control plots
     if args.control_plots:
@@ -531,11 +562,122 @@ def _init(args):
 
     return shape_vars, scan, scan_cuts, scan_wps
 
+# adds all necessary columns to dataframes from events_dict
+def _add_vbf_columns(df, bb_mask, ptlabel, mlabel):
+    import vector
+
+    bbJet = vector.array(
+        {
+            "pt": np.where(bb_mask, df[f"ak8FatJetPt{ptlabel}"][0], df[f"ak8FatJetPt{ptlabel}"][1]),
+            "phi": np.where(bb_mask, df["ak8FatJetPhi"][0], df["ak8FatJetPhi"][1]),
+            "eta": np.where(bb_mask, df["ak8FatJetEta"][0], df["ak8FatJetEta"][1]),
+            "M": np.where(
+                bb_mask,
+                df[f"ak8FatJetParticleNetMass{mlabel}"][0],
+                df[f"ak8FatJetParticleNetMass{mlabel}"][1],
+            ),
+        }
+    )
+
+    VVJet = vector.array(
+        {
+            "pt": np.where(
+                ~bb_mask, df[f"ak8FatJetPt{ptlabel}"][0], df[f"ak8FatJetPt{ptlabel}"][1]
+            ),
+            "phi": np.where(~bb_mask, df["ak8FatJetPhi"][0], df["ak8FatJetPhi"][1]),
+            "eta": np.where(~bb_mask, df["ak8FatJetEta"][0], df["ak8FatJetEta"][1]),
+            "M": np.where(
+                ~bb_mask,
+                df[f"ak8FatJetParticleNetMass{mlabel}"][0],
+                df[f"ak8FatJetParticleNetMass{mlabel}"][1],
+            ),
+        }
+    )
+
+    vbf1 = vector.array(
+        {
+            "pt": df[(f"VBFJetPt{ptlabel}", 0)],
+            "phi": df[("VBFJetPhi", 0)],
+            "eta": df[("VBFJetEta", 0)],
+            "M": df[("VBFJetMass", 0)],
+        }
+    )
+
+    vbf2 = vector.array(
+        {
+            "pt": df[(f"VBFJetPt{ptlabel}", 1)],
+            "phi": df[("VBFJetPhi", 1)],
+            "eta": df[("VBFJetEta", 1)],
+            "M": df[("VBFJetMass", 1)],
+        }
+    )
+
+    jj = vbf1 + vbf2
+
+    mass_jj_cut_sorted_pt = jj.mass > 500
+    eta_jj_cut_sorted_pt = np.abs(vbf1.eta - vbf2.eta) > 4.0
+
+    # Adapted from HIG-20-005 ggF_Killer 6.2.2
+    # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.PtEtaPhiMLorentzVector.html
+    # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.LorentzVector.html
+    # Adding variables defined in HIG-20-005 that show strong differentiation for VBF signal events and background
+
+    # seperation between both ak8 higgs jets
+    if "vbf_dR_HH" not in df.columns:
+        df[f"vbf_dR_HH"] = VVJet.deltaR(bbJet)
+    if "vbf_dR_j0_HVV" not in df.columns:
+        df[f"vbf_dR_j0_HVV"] = vbf1.deltaR(VVJet)
+    if "vbf_dR_j1_HVV" not in df.columns:
+        df[f"vbf_dR_j1_HVV"] = vbf2.deltaR(VVJet)
+    if "vbf_dR_j0_Hbb" not in df.columns:
+        df[f"vbf_dR_j0_Hbb"] = vbf1.deltaR(bbJet)
+    if "vbf_dR_j1_Hbb" not in df.columns:
+        df[f"vbf_dR_j1_Hbb"] = vbf2.deltaR(bbJet)
+    if "vbf_dR_jj" not in df.columns:
+        df[f"vbf_dR_jj"] = vbf1.deltaR(vbf2)
+    if "vbf_Mass_jj{ptlabel}" not in df.columns:
+        df[f"vbf_Mass_jj{ptlabel}"] = jj.M
+    if "vbf_dEta_jj" not in df.columns:
+        df[f"vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
+
+    if "DijetdEta" not in df.columns:
+        df[f"DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
+    if "DijetdPhi" not in df.columns:
+        df[f"DijetdPhi"] = np.abs(bbJet.phi - VVJet.phi)
+
+    # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
+    # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
+    system_4vec = vbf1 + vbf2 + VVJet + bbJet
+    j1_CMF = vbf1.boostCM_of_p4(system_4vec)
+
+    # Leading VBF-jet cos(θ) in the HH+2j center of mass frame:
+    thetab1 = 2 * np.arctan(np.exp(-j1_CMF.eta))
+    thetab1 = np.cos(thetab1)  # 12
+
+    if f"vbf_cos_j1{ptlabel}{mlabel}" not in df.columns:
+        df[f"vbf_cos_j1{ptlabel}{mlabel}"] = np.abs(thetab1)
+
+    # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
+    j2_CMF = vbf2.boostCM_of_p4(system_4vec)
+    thetab2 = 2 * np.arctan(np.exp(-j2_CMF.eta))
+    thetab2 = np.cos(thetab2)
+    if f"vbf_cos_j2{ptlabel}{mlabel}" not in df.columns:
+        df[f"vbf_cos_j2{ptlabel}{mlabel}"] = np.abs(thetab2)
+
+    if "vbf_prod_centrality" not in df.columns:
+        # H1-centrality * H2-centrality:
+        delta_eta = vbf1.eta - vbf2.eta
+        avg_eta = (vbf1.eta + vbf2.eta) / 2
+        prod_centrality = np.exp(
+            -np.power((VVJet.eta - avg_eta) / delta_eta, 2)
+            - np.power((bbJet.eta - avg_eta) / delta_eta, 2)
+        )
+        df[f"vbf_prod_centrality"] = prod_centrality
 
 def _process_samples(args, BDT_sample_order: List[str] = None):
     sig_samples = res_samples if args.resonant else nonres_samples
 
-    if not args.resonant and BDT_sample_order is None:
+    if not args.resonant and BDT_sample_order is None and not args.vbf:
         with open(f"{args.bdt_preds_dir}/{args.year}/sample_order.txt", "r") as f:
             BDT_sample_order = list(eval(f.read()).keys())
 
@@ -580,7 +722,7 @@ def _process_samples(args, BDT_sample_order: List[str] = None):
         if bg_key not in args.bg_keys and bg_key != data_key:
             del bg_samples[bg_key]
 
-    if not args.resonant:
+    if not args.resonant and not args.vbf:
         for key in sig_samples.copy():
             if key not in BDT_sample_order:
                 del sig_samples[key]
