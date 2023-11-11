@@ -631,6 +631,9 @@ class bbVVSkimmer(processor.ProcessorABC):
             if self._systematics:
                 systematics += list(weights.variations)
 
+            single_weight_pileup = weights.partial_weight(["single_weight_pileup"])
+            add_selection("single_weight_pileup", (single_weight_pileup <= 4), *selection_args)
+
             # TODO: need to be careful about the sum of gen weights used for the LHE/QCDScale uncertainties
             logger.debug("weights ", weights._weights.keys())
 

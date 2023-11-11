@@ -190,7 +190,6 @@ def get_nonres_vbf_selection_regions(
                 "ak8FatJetEta1": [-2.4, 2.4],
                 "DijetdEta": [0, 2.0],
                 "DijetdPhi": [2.6, 10000],
-                # add more
             },
             label="Pass",
         ),
@@ -206,7 +205,6 @@ def get_nonres_vbf_selection_regions(
                 "ak8FatJetEta1": [-2.4, 2.4],
                 "DijetdEta": [0, 2.0],
                 "DijetdPhi": [2.6, 10000],
-                # add more
             },
             label="Fail",
         ),
@@ -352,7 +350,7 @@ nonres_sig_keys_ggf = [
 weight_shifts = {
     "pileup": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup"),
     # "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
-    # "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"), # commented out
+    # "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"),
     "ISRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="ISR Parton Shower"),
     "FSRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="FSR Parton Shower"),
     "L1EcalPrefiring": Syst(
@@ -410,14 +408,9 @@ def main(args):
         pt_labels = ["JES", "JER"]
         m_labels = ["JMS", "JMR"]
         for key, df in events_dict.items():
-            # for each JES,JER, and JMS JMR correction
-            ptlabel = "_JES_up"
-            mlabel = "_JMS_down"
-
             bb_mask = (
                 df[("ak8FatJetParticleNetMD_Txbb", 0)] > df[("ak8FatJetParticleNetMD_Txbb", 1)]
             )
-
             _add_vbf_columns(df, bb_mask, ptlabel="", mlabel="")
 
             if key == "Data":
