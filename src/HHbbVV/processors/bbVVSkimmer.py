@@ -892,7 +892,6 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Apply base masks, sort, and calculate vbf dijet (jj) cuts
         vbfJets_mask = ak4_jet_mask  # & electron_muon_overlap_mask & fatjet_overlap_mask
         vbfJets = jets[vbfJets_mask]
-        print()
 
         vbfJets_sorted_pt = vbfJets[ak.argsort(vbfJets.pt, ascending=False)]
         # this is the only which does not guarantee two guys. in the other sorts, the entries are specifically None.
@@ -1025,7 +1024,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # int list representing the number of passing vbf jets per event
         vbfVars[f"nGoodVBFJets"] = n_good_vbf_jets_sorted_pt.to_numpy()
 
-        adding_bdt_vars = True
+        adding_bdt_vars = False
         if adding_bdt_vars == True:
             # Adapted from HIG-20-005 ggF_Killer 6.2.2
             # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.PtEtaPhiMLorentzVector.html

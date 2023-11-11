@@ -339,6 +339,7 @@ nonres_scan_cuts = ["txbb", "bdt"]
 nonres_vbf_scan_cuts = ["txbb", "thww"]  # TODO: add more cuts being scanned over
 res_scan_cuts = ["txbb", "thww", "leadingpt", "subleadingpt"]
 
+
 nonres_sig_keys_ggf = [
     "HHbbVV",
     "ggHH_kl_2p45_kt_1_HHbbVV",
@@ -1540,7 +1541,6 @@ def get_templates(
                     if sample in wsyst.samples and year in wsyst.years:
                         # print(wshift)
                         for skey, shift in [("Down", "down"), ("Up", "up")]:
-                            print(sample, shift, "debugging on line 1319")
                             if "QCDscale" in wshift:
                                 # QCDscale7pt/QCDscale4
                                 # https://github.com/LPC-HH/HHLooper/blob/master/python/prepare_card_SR_final.py#L263-L288
@@ -1602,7 +1602,7 @@ def get_templates(
 
             if sig_splits is None:
                 sig_splits = [plot_sig_keys]
-            print(sig_splits, plot_sig_keys)
+
             for i, shape_var in enumerate(shape_vars):
                 for j, p_sig_keys in enumerate(sig_splits):
                     split_str = "" if len(sig_splits) == 1 else f"sigs{j}_"

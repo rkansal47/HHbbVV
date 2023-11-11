@@ -1178,7 +1178,6 @@ def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
         if args.model_name is not None
         else args.cards_dir
     )
-    print(out_dir)
     with open(f"{out_dir}/datacard.txt", "w") as f:
         f.write(helpers.abcd_datacard_template.substitute(datacard_dict))
 
