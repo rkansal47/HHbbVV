@@ -551,6 +551,19 @@ class bbVVSkimmer(processor.ProcessorABC):
             & (events.Electron.miniPFRelIso_all < 0.4)
             & (events.Electron.cutBased >= events.Electron.LOOSE)
         )
+        
+        # if using HH4b lepton vetoes:
+        # https://cms.cern.ch/iCMS/user/noteinfo?cmsnoteid=CMS%20AN-2020/231 Section 7.1.2
+        # In order to be considered in the lepton veto step, a muon (electron) is required to to pass the selections described in Section 5.2, and to have pT > 15 GeV (pT > 20 GeV), and |η| < 2.4 (2.5).
+        # A muon is also required to pass loose identification criteria as detailed in [35] and mini-isolation
+        # (miniPFRelIso all < 0.4). An electron is required to pass mvaFall17V2noIso WP90 identification as well as mini-isolation (miniPFRelIso all < 0.4).
+
+        goodelectron = (
+            (events.Electron.pt > 20)
+            & (abs(events.Electron.eta) < 2.5)
+            & (events.Electron.miniPFRelIso_all < 0.4)
+            & (events.Electron.mvaFall17V2noIso_WP90)
+        )
         nelectrons = ak.sum(goodelectron, axis=1)
 
         goodmuon = (
