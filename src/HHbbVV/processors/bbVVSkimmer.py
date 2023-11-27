@@ -481,6 +481,18 @@ class bbVVSkimmer(processor.ProcessorABC):
             >= self.preselection["bbFatJetParticleNetMD_Txbb"]
         )
         add_selection("ak8bb_txbb", txbb_cut, *selection_args)
+        
+        # XHY->bbWW Semi-resolved Channel Veto
+        Wqq_excess = ak.count(fatjets["particleNet_H4qvsQCD"][fatjets["particleNet_H4qvsQCD"] >= 0.8],axis=-1 )  
+        
+        #if Wqq_excess for an event is == 2 then we need to make sure that the Hbb is included in these two
+        Wqq_cut = (
+            (Wqq_excess < 3) 
+            & ((Wqq_excess == 2 & ak8FatJetVars["ak8FatJetParticleNet_Th4q"][bb_mask] >= 0.8) 
+            | (Wqq_excess < 2))
+        ) 
+        
+        add_selection("ak8_semi_resolved_Wqq", Wqq_cut, *selection_args)
 
         # 2018 HEM cleaning
         # https://indico.cern.ch/event/1249623/contributions/5250491/attachments/2594272/4477699/HWW_0228_Draft.pdf
