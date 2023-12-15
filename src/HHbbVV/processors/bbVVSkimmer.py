@@ -130,7 +130,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         "MET_pt",
         "MET_phi",
         "nGoodElectrons",
-        "nGoodMuons",
+        "nGoodMuons", 
     ]
 
     for shift in jec_shifts:
@@ -272,7 +272,6 @@ class bbVVSkimmer(processor.ProcessorABC):
                 vars_dict, (genbb, genq) = gen_selection_dict[d](
                     events, fatjets, selection, cutflow, gen_weights, P4
                 )
-                skimmed_events = {**skimmed_events, **vars_dict}
 
         # FatJet vars
 
@@ -486,12 +485,12 @@ class bbVVSkimmer(processor.ProcessorABC):
         Wqq_excess = ak.count(fatjets["particleNet_H4qvsQCD"][fatjets["particleNet_H4qvsQCD"] >= 0.8],axis=-1 )  
         
         #if Wqq_excess for an event is == 2 then we need to make sure that the Hbb is included in these two
-        Wqq_cut = (
-            (Wqq_excess < 3) 
-            & ((Wqq_excess == 2 & ak8FatJetVars["ak8FatJetParticleNet_Th4q"][bb_mask] >= 0.8) 
+        Wqq_cut = ((Wqq_excess < 3) & (
+            ((Wqq_excess == 2) & (ak8FatJetVars["ak8FatJetParticleNet_Th4q"][bb_mask] >= 0.8)) 
             | (Wqq_excess < 2))
         ) 
         
+        #skimmed_events["ak8_semi_resolved_Wqq"] = Wqq_cut.to_numpy() # For testing/plotting
         add_selection("ak8_semi_resolved_Wqq", Wqq_cut, *selection_args)
 
         # 2018 HEM cleaning
