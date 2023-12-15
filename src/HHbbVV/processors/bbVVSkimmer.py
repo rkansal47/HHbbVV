@@ -488,9 +488,9 @@ class bbVVSkimmer(processor.ProcessorABC):
         )
 
         # if Wqq_excess for an event is == 2 then we need to make sure that the Hbb is included in these two
-        Wqq_cut = ((Wqq_excess < 3) & (
+        Wqq_cut = (Wqq_excess < 3) & (
             ((Wqq_excess == 2) & (ak8FatJetVars["ak8FatJetParticleNet_Th4q"][bb_mask] >= 0.8))
-            | (Wqq_excess < 2))
+            | (Wqq_excess < 2)
         )
 
         # skimmed_events["ak8_semi_resolved_Wqq"] = Wqq_cut.to_numpy() # For testing/plotting
