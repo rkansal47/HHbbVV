@@ -281,9 +281,6 @@ class bbVVSkimmer(processor.ProcessorABC):
                     skimmed_events["genZZ"] = np.any(data == 23, axis=1) # maybe we can make this one mask since the two are disjoint
                 skimmed_events = {**skimmed_events, **vars_dict}
 
-        print('dataset',dataset)
-
-
         # FatJet vars
 
         ak8FatJetVars = {
