@@ -480,7 +480,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             >= self.preselection["bbFatJetParticleNetMD_Txbb"]
         )
         add_selection("ak8bb_txbb", txbb_cut, *selection_args)
-        
+
         # XHY->bbWW Semi-resolved Channel Veto
         Wqq_excess = ak.count(fatjets["particleNet_H4qvsQCD"][fatjets["particleNet_H4qvsQCD"] >= 0.8],axis=-1 )  
         
