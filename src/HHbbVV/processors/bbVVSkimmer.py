@@ -274,7 +274,6 @@ class bbVVSkimmer(processor.ProcessorABC):
                 vars_dict, (genbb, genq) = gen_selection_dict[d](
                     events, fatjets, selection, cutflow, gen_weights, P4
                 )
-                print(type(vars_dict), vars_dict.keys())
                 if (
                     "GenHiggsChildren" in vars_dict.keys()
                 ):  # Only HY samples which are WW by default will not have this
