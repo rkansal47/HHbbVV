@@ -272,6 +272,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 vars_dict, (genbb, genq) = gen_selection_dict[d](
                     events, fatjets, selection, cutflow, gen_weights, P4
                 )
+                skimmed_events = {**skimmed_events, **vars_dict}
 
         # FatJet vars
 
