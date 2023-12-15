@@ -279,8 +279,12 @@ class bbVVSkimmer(processor.ProcessorABC):
                     "GenHiggsChildren" in vars_dict.keys()
                 ):  # Only HY samples which are WW by default will not have this
                     data = vars_dict["GenHiggsChildren"]
-                    skimmed_events["genWW"] = np.any(data == 24, axis=1) # true if WW false if ZZ (It must be one of the two.)
-                    skimmed_events["genZZ"] = np.any(data == 23, axis=1) # maybe we can make this one mask since the two are disjoint
+                    skimmed_events["genWW"] = np.any(
+                        data == 24, axis=1
+                    )  # true if WW false if ZZ (It must be one of the two.)
+                    skimmed_events["genZZ"] = np.any(
+                        data == 23, axis=1
+                    )  # maybe we can make this one mask since the two are disjoint
                 skimmed_events = {**skimmed_events, **vars_dict}
 
         # FatJet vars
