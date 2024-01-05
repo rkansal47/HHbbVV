@@ -493,8 +493,8 @@ class bbVVSkimmer(processor.ProcessorABC):
             | (Wqq_excess < 2)
         )
 
-        # skimmed_events["ak8_semi_resolved_Wqq"] = Wqq_cut.to_numpy() # For testing/plotting
-        add_selection("ak8_semi_resolved_Wqq", Wqq_cut, *selection_args)
+        # add_selection("ak8_semi_resolved_Wqq", Wqq_cut, *selection_args)
+        skimmed_events["ak8_semi_resolved_Wqq"] = Wqq_cut.to_numpy()
 
         # 2018 HEM cleaning
         # https://indico.cern.ch/event/1249623/contributions/5250491/attachments/2594272/4477699/HWW_0228_Draft.pdf
