@@ -129,7 +129,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         "VVFatJetParTMD_THWWvsT",
         "MET_pt",
         "MET_phi",
-        "nGoodElectrons",
+        "nGoodElectronsHH",
+        "nGoodElectronsHbb",
         "nGoodMuons",
     ]
 
@@ -545,13 +546,26 @@ class bbVVSkimmer(processor.ProcessorABC):
         # selection from https://github.com/jennetd/hbb-coffea/blob/85bc3692be9e0e0a0c82ae3c78e22cdf5b3e4d68/boostedhiggs/vhbbprocessor.py#L283-L307
         # https://indico.cern.ch/event/1154430/#b-471403-higgs-meeting-special
 
-        goodelectron = (
+        goodelectronHbb = (
             (events.Electron.pt > 20)
             & (abs(events.Electron.eta) < 2.5)
             & (events.Electron.miniPFRelIso_all < 0.4)
             & (events.Electron.cutBased >= events.Electron.LOOSE)
         )
-        nelectrons = ak.sum(goodelectron, axis=1)
+        nelectronsHbb = ak.sum(goodelectronHbb, axis=1)
+        # if using HH4b lepton vetoes:
+        # https://cms.cern.ch/iCMS/user/noteinfo?cmsnoteid=CMS%20AN-2020/231 Section 7.1.2
+        # In order to be considered in the lepton veto step, a muon (electron) is required to to pass the selections described in Section 5.2, and to have pT > 15 GeV (pT > 20 GeV), and |η| < 2.4 (2.5).
+        # A muon is also required to pass loose identification criteria as detailed in [35] and mini-isolation
+        # (miniPFRelIso all < 0.4). An electron is required to pass mvaFall17V2noIso WP90 identification as well as mini-isolation (miniPFRelIso all < 0.4).
+
+        goodelectronHH = (
+            (events.Electron.pt > 20)
+            & (abs(events.Electron.eta) < 2.5)
+            & (events.Electron.miniPFRelIso_all < 0.4)
+            & (events.Electron.mvaFall17V2noIso_WP90)
+        )
+        nelectronsHH = ak.sum(goodelectronHH, axis=1)
 
         goodmuon = (
             (events.Muon.pt > 15)
@@ -562,7 +576,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         nmuons = ak.sum(goodmuon, axis=1)
 
         skimmed_events["nGoodMuons"] = nmuons.to_numpy()
-        skimmed_events["nGoodElectrons"] = nelectrons.to_numpy()
+        skimmed_events["nGoodElectronsHH"] = nelectronsHH.to_numpy()
+        skimmed_events["nGoodElectronsHbb"] = nelectronsHbb.to_numpy()
 
         ######################
         # Remove branches
