@@ -70,10 +70,10 @@ colours = {
     "dutchwhite": "#F5E5B8",
 }
 
-bg_colours = {
-    "QCD": "lightblue",
+BG_COLOURS = {
+    "QCD": "green",
     "TT": "darkblue",
-    "V+Jets": "green",
+    "V+Jets": "lightblue",
     "ST": "orange",
     "Diboson": "canary",
     "Hbb": "lightred",
@@ -84,8 +84,8 @@ bg_colours = {
 
 sig_colour = "red"
 
-sig_colours = [
-    "#23CE6B",
+SIG_COLOURS = [
+    "#A95648",
     "#7F2CCB",
     "#ffbaba",
     "#ff7b7b",
@@ -211,8 +211,8 @@ def ratioHistPlot(
     year: str,
     sig_keys: List[str],
     bg_keys: List[str],
-    sig_colours: List[str] = sig_colours,
-    bg_colours: Dict[str, str] = bg_colours,
+    sig_colours: List[str] = None,
+    bg_colours: Dict[str, str] = None,
     sig_err: Union[ArrayLike, str] = None,
     data_err: Union[ArrayLike, bool, None] = None,
     title: str = None,
@@ -266,6 +266,13 @@ def ratioHistPlot(
         significance_dir (str): "Direction" for significance. i.e. a > cut ("right"), a < cut ("left"), or per-bin ("bin").
         axrax (Tuple): optionally input ax and rax instead of creating new ones
     """
+
+    if bg_colours is None:
+        bg_colours = BG_COLOURS
+
+    if sig_colours is None:
+        sig_colours = SIG_COLOURS
+
     # copy hists and bg_keys so input objects are not changed
     hists, bg_keys = deepcopy(hists), deepcopy(bg_keys)
     hists, bg_keys = _combine_hbb_bgs(hists, bg_keys)
@@ -452,7 +459,7 @@ def ratioLinePlot(
     hists: Hist,
     bg_keys: List[str],
     year: str,
-    bg_colours: Dict[str, str] = bg_colours,
+    bg_colours: Dict[str, str] = None,
     sig_colour: str = sig_colour,
     bg_err: Union[np.ndarray, str] = None,
     data_err: Union[ArrayLike, bool, None] = None,
@@ -467,6 +474,9 @@ def ratioLinePlot(
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
     scaled) with a data/mc ratio plot below
     """
+    if bg_colours is None:
+        bg_colours = BG_COLOURS
+
     plt.rcParams.update({"font.size": 24})
 
     fig, (ax, rax) = plt.subplots(
@@ -814,7 +824,7 @@ def ratioTestTrain(
             ax=ax,
             histtype="step",
             label=[data + " " + key for key in training_keys],
-            color=[colours[bg_colours[sample]] for sample in training_keys],
+            color=[colours[BG_COLOURS[sample]] for sample in training_keys],
             yerr=True,
             **style[data],
         )
@@ -842,7 +852,7 @@ def ratioTestTrain(
         ax=rax,
         histtype="errorbar",
         label=training_keys,
-        color=[colours[bg_colours[sample]] for sample in training_keys],
+        color=[colours[BG_COLOURS[sample]] for sample in training_keys],
         yerr=np.abs([err[i] * plot_hists[i].values() for i in range(len(plot_hists))]),
     )
 
