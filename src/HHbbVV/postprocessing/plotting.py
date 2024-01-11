@@ -42,6 +42,7 @@ bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "V+Jets", "TT", "QCD"]
 sample_label_map = {
     "HHbbVV": "ggF HHbbVV",
     "VBFHHbbVV": "VBF HHbbVV",
+    "qqHH_CV_1_C2V_1_kl_1_HHbbVV": "VBF HHbbVV",
     "qqHH_CV_1_C2V_0_kl_1_HHbbVV": r"VBF HHbbVV ($\kappa_{2V} = 0$)",
     "qqHH_CV_1_C2V_2_kl_1_HHbbVV": r"VBF HHbbVV ($\kappa_{2V} = 2$)",
 }

@@ -96,37 +96,38 @@ old_filters = [
 
 # {var: (bins, label)}
 control_plot_vars = [
-    ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[50, 0, 300]),
-    ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[30, -8, 8]),
-    ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[30, 0, 750]),
-    ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[30, 600, 4000]),
-    ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[30, -2.4, 2.4]),
-    ShapeVar(
-        var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[30, 300, 1500], significance_dir="right"
-    ),
-    ShapeVar(
-        var="bbFatJetParticleNetMass",
-        label=r"$m^{bb}_{reg}$ (GeV)",
-        bins=[20, 50, 250],
-        significance_dir="bin",
-    ),
-    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[50, 0, 300]),
+    # ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[50, 0, 300]),
+    # ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[30, -8, 8]),
+    # ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[30, 0, 750]),
+    # ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[30, 600, 4000]),
+    # ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[30, -2.4, 2.4]),
+    # ShapeVar(
+    #     var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[30, 300, 1500], significance_dir="right"
+    # ),
+    # ShapeVar(
+    #     var="bbFatJetParticleNetMass",
+    #     label=r"$m^{bb}_{reg}$ (GeV)",
+    #     bins=[20, 50, 250],
+    #     significance_dir="bin",
+    # ),
+    # ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[50, 0, 300]),
     ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[50, 0.8, 1]),
-    ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[30, -2.4, 2.4]),
-    ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[30, 300, 1500]),
-    ShapeVar(var="VVParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
-    ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[40, 50, 250]),
+    # ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[30, -2.4, 2.4]),
+    # ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[30, 300, 1500]),
+    # ShapeVar(var="VVParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[40, 50, 250]),
     # ShapeVar(var="VVFatJetParticleNet_Th4q", label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)", bins=[50, 0, 1]),
     # ShapeVar(var="VVFatJetParTMD_THWW4q", label=r"Prob($H \to VV \to 4q$) vs Prob(QCD) (Mass-Decorrelated)", bins=[50, 0, 1]),
     # ShapeVar(var="VVFatJetParTMD_probT", label=r"Prob(Top) (Mass-Decorrelated)", bins=[50, 0, 1]),
     ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[50, 0, 1]),
-    ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[50, 0, 40]),
-    ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[50, 0, 40]),
-    ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[50, 0.4, 2.0]),
+    # ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[50, 0, 40]),
+    # ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[50, 0, 40]),
+    # ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[50, 0.4, 2.0]),
     # ShapeVar(var="nGoodMuons", label=r"# of Muons", bins=[3, 0, 3]),
     # ShapeVar(var="nGoodElectrons", label=r"# of Electrons", bins=[3, 0, 3]),
     # ShapeVar(var="nGoodJets", label=r"# of AK4 B-Jets", bins=[5, 0, 5]),
-    # ShapeVar(var="BDTScore", label=r"BDT Score", bins=[50, 0, 1]),
+    # removed if not ggF nonresonant - needs to be the last variable!
+    ShapeVar(var="BDTScore", label=r"BDT Score", bins=[50, 0, 1]),
 ]
 
 
@@ -371,6 +372,8 @@ plot_sig_keys_nonres = [
 
 
 def main(args):
+    global control_plot_vars
+
     shape_vars, scan, scan_cuts, scan_wps = _init(args)
     sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args)
     all_samples = sig_keys + bg_keys
@@ -403,6 +406,9 @@ def main(args):
             jec_jmsr_shifts=True,
         )
         print("Loaded BDT preds\n")
+    else:
+        if control_plot_vars[-1].var == "BDTScore":
+            control_plot_vars = control_plot_vars[:-1]
 
     # Load VBF Variables (edits events_dict so that all of the events have the appropriate variables and stuff) TODO:
     if args.vbf:
@@ -439,7 +445,7 @@ def main(args):
             bg_keys=args.bg_keys,
             sig_scale_dict={"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | {key: 2e4 for key in res_sig_keys},
             # sig_splits=sig_splits,
-            hists_HEM2d=args.HEM2d,
+            HEM2d=args.HEM2d,
             show=False,
         )
 
@@ -1284,6 +1290,7 @@ def control_plots(
 
     print(control_plot_vars)
     print(selection)
+    print(list(events_dict.keys()))
 
     for shape_var in control_plot_vars:
         if shape_var.var not in hists:

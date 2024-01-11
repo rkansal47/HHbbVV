@@ -431,7 +431,9 @@ def singleVarHist(
     var = shape_var.var
 
     for sample in samples:
+        print(sample)
         events = events_dict[sample]
+        print(list(events.columns))
         if sample == data_key and (var.endswith("_up") or var.endswith("_down")):
             fill_var = "_".join(var.split("_")[:-2])
         else:
