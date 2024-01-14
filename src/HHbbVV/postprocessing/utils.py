@@ -141,7 +141,7 @@ def get_cutflow(pickles_path, year, sample_name):
     """Accumulates cutflow over all pickles in ``pickles_path`` directory"""
     from coffea.processor.accumulator import accumulate
 
-    out_pickles = listdir(pickles_path)
+    out_pickles = [f for f in listdir(pickles_path) if f != ".DS_Store"]
 
     file_name = out_pickles[0]
     with open(f"{pickles_path}/{file_name}", "rb") as file:
@@ -431,9 +431,7 @@ def singleVarHist(
     var = shape_var.var
 
     for sample in samples:
-        print(sample)
         events = events_dict[sample]
-        print(list(events.columns))
         if sample == data_key and (var.endswith("_up") or var.endswith("_down")):
             fill_var = "_".join(var.split("_")[:-2])
         else:

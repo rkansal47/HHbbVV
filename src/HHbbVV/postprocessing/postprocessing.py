@@ -111,7 +111,7 @@ control_plot_vars = [
     #     significance_dir="bin",
     # ),
     # ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[50, 0, 300]),
-    ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[50, 0.8, 1]),
+    # ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[50, 0.8, 1]),
     # ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[30, -2.4, 2.4]),
     # ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[30, 300, 1500]),
     # ShapeVar(var="VVParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
@@ -119,7 +119,7 @@ control_plot_vars = [
     # ShapeVar(var="VVFatJetParticleNet_Th4q", label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)", bins=[50, 0, 1]),
     # ShapeVar(var="VVFatJetParTMD_THWW4q", label=r"Prob($H \to VV \to 4q$) vs Prob(QCD) (Mass-Decorrelated)", bins=[50, 0, 1]),
     # ShapeVar(var="VVFatJetParTMD_probT", label=r"Prob(Top) (Mass-Decorrelated)", bins=[50, 0, 1]),
-    ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[50, 0, 1]),
+    # ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[50, 0, 1]),
     # ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[50, 0, 40]),
     # ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[50, 0, 40]),
     # ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[50, 0.4, 2.0]),
@@ -684,6 +684,7 @@ def _add_vbf_columns(df, bb_mask, ptlabel, mlabel):
 
 def _process_samples(args, BDT_sample_order: List[str] = None):
     sig_samples = res_samples if args.resonant else nonres_samples
+    sig_samples = deepcopy(sig_samples)
 
     if not args.resonant and BDT_sample_order is None and not args.vbf:
         with open(f"{args.bdt_preds_dir}/{args.year}/sample_order.txt", "r") as f:
@@ -707,9 +708,9 @@ def _process_samples(args, BDT_sample_order: List[str] = None):
                 del sig_samples[sig_key]
 
         # can load in nonres samples for control plots
-        for sample in args.sig_samples:
-            if sample in nonres_samples:
-                sig_samples[sample] = nonres_samples[sample]
+        for sig_key in args.sig_samples:
+            if sig_key in nonres_samples:
+                sig_samples[sig_key] = nonres_samples[sig_key]
 
         if len(sig_samples):
             # re-order acording to input ordering

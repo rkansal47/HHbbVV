@@ -43,6 +43,7 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
       - [Impacts](#impacts)
       - [Signal injection tests](#signal-injection-tests)
   - [Misc](#misc)
+    - [getopt for Mac](#getopt-for-mac)
     - [Command for copying directories to PRP in background](#command-for-copying-directories-to-prp-in-background)
     - [Command for copying res samples to my laptop](#command-for-copying-res-samples-to-my-laptop)
     - [Get all running condor job names:](#get-all-running-condor-job-names)
@@ -278,6 +279,8 @@ for year in 2016 2016APV 2017 2018; do python -u postprocessing.py --templates -
 
 Run `postprocessing/bash_scripts/ControlPlots.sh` from inside `postprocessing folder`.
 
+**Important:** If running on a Mac, make sure to install `gnu-getopt` first, see [here.](#getopt-for-mac)
+
 #### BDT sculpting plots
 
 Run `postprocessing/bash_scripts/BDTPlots.sh` from inside `postprocessing folder`.
@@ -435,6 +438,19 @@ mv_bias_outputs.sh [last-digit-of-seed] $TAG
 ```
 
 ## Misc
+
+### getopt for Mac
+
+To run bash scripts with the `getopt` command (e.g. `run_blinded.sh`, `ControlPlots.sh`) on Macs:
+
+```bash
+# install gnu-getopt with Homebrew
+brew install gnu-getopt
+# add to path
+sudo echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zsh_profile
+source ~/.zsh_profile
+```
+From https://stackoverflow.com/questions/12152077/how-can-i-make-bash-deal-with-long-param-using-getopt-command-in-mac.
 
 ### Command for copying directories to PRP in background 
 

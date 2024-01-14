@@ -72,9 +72,9 @@ colours = {
 }
 
 BG_COLOURS = {
-    "QCD": "green",
+    "QCD": "lightblue",
     "TT": "darkblue",
-    "V+Jets": "lightblue",
+    "V+Jets": "green",
     "ST": "orange",
     "Diboson": "canary",
     "Hbb": "lightred",
@@ -302,6 +302,8 @@ def ratioHistPlot(
             2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
         )
 
+    plt.rcParams.update({"font.size": 24})
+
     # plot histograms
     y_label = r"Events / Bin Width (GeV$^{-1}$)" if divide_bin_width else "Events"
     ax.set_ylabel(y_label)
@@ -366,9 +368,9 @@ def ratioHistPlot(
     if log:
         ax.set_yscale("log")
 
-    ax.legend()
+    ax.legend(fontsize=16)
 
-    y_lowlim = 0 if not log else 1e-3
+    y_lowlim = 0 if not log else 1e-5
     if ylim is not None:
         ax.set_ylim([y_lowlim, ylim])
     else:
