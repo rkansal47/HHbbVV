@@ -1618,9 +1618,11 @@ def get_templates(
                         "hists": h.project(0, i + 1),
                         "sig_keys": p_sig_keys,
                         "bg_keys": bg_keys,
-                        "sig_scale_dict": {key: sig_scale_dict[key] for key in p_sig_keys}
-                        if pass_region
-                        else None,
+                        "sig_scale_dict": (
+                            {key: sig_scale_dict[key] for key in p_sig_keys}
+                            if pass_region
+                            else None
+                        ),
                         "show": show,
                         "year": year,
                         "ylim": pass_ylim if pass_region else fail_ylim,

@@ -731,9 +731,11 @@ class bbVVSkimmer(processor.ProcessorABC):
                             sel_events = events[sel_all][selector]
                             selected_sfs[key] = get_lund_SFs(
                                 sel_events,
-                                i
-                                if self._save_all
-                                else skimmed_events["ak8FatJetHVV"][selector][:, 1],
+                                (
+                                    i
+                                    if self._save_all
+                                    else skimmed_events["ak8FatJetHVV"][selector][:, 1]
+                                ),
                                 num_prongs,
                                 gen_quarks[selector],
                                 trunc_gauss=False,

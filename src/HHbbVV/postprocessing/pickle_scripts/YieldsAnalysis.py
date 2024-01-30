@@ -4,7 +4,6 @@ Takes the skimmed pickles (output of bbVVSkimmer) and trains a BDT using xgboost
 Author(s): Raghav Kansal
 """
 
-
 import utils
 import plotting
 import matplotlib.pyplot as plt

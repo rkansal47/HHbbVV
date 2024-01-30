@@ -4,7 +4,6 @@ Collection of variables useful for the nonresonant analysis.
 Author: Raghav Kansal
 """
 
-
 from collections import OrderedDict
 
 
