@@ -360,9 +360,11 @@ def make_vector(events: dict, name: str, bb_mask: pd.DataFrame = None, mask=None
                 "pt": get_feat(events, f"{name}Pt", bb_mask),
                 "phi": get_feat(events, f"{name}Phi", bb_mask),
                 "eta": get_feat(events, f"{name}Eta", bb_mask),
-                "M": get_feat(events, f"{name}Msd", bb_mask)
-                if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
-                else get_feat(events, f"{name}Mass", bb_mask),
+                "M": (
+                    get_feat(events, f"{name}Msd", bb_mask)
+                    if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
+                    else get_feat(events, f"{name}Mass", bb_mask)
+                ),
             }
         )
     else:
@@ -371,9 +373,11 @@ def make_vector(events: dict, name: str, bb_mask: pd.DataFrame = None, mask=None
                 "pt": get_feat(events, f"{name}Pt", bb_mask)[mask],
                 "phi": get_feat(events, f"{name}Phi", bb_mask)[mask],
                 "eta": get_feat(events, f"{name}Eta", bb_mask)[mask],
-                "M": get_feat(events, f"{name}Msd", bb_mask)[mask]
-                if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
-                else get_feat(events, f"{name}Mass", bb_mask)[mask],
+                "M": (
+                    get_feat(events, f"{name}Msd", bb_mask)[mask]
+                    if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
+                    else get_feat(events, f"{name}Mass", bb_mask)[mask]
+                ),
             }
         )
 

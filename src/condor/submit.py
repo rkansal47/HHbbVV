@@ -109,9 +109,9 @@ def main(args):
                     "save_ak15": "--save-ak15" if args.save_ak15 else "--no-save-ak15",
                     "save_all": "--save-all" if args.save_all else "--no-save-all",
                     "vbf_search": "--vbf-search" if args.vbf_search else "--no-vbf-search",
-                    "save_systematics": "--save-systematics"
-                    if args.save_systematics
-                    else "--no-save-systematics",
+                    "save_systematics": (
+                        "--save-systematics" if args.save_systematics else "--no-save-systematics"
+                    ),
                     "inference": "--inference" if args.inference else "--no-inference",
                 }
                 write_template(sh_templ, localsh, sh_args)

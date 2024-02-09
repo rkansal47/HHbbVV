@@ -93,9 +93,11 @@ def multiHistCutsPlot(
         plt.hist(
             data[cuts[i]].reshape(-1) if cuts[i] is not None else data.reshape(-1),
             bins=bins,
-            weights=weights[cuts[i]].reshape(-1)
-            if cuts[i] is not None and weights is not None
-            else (weights.reshape(-1) if weights is not None else None),
+            weights=(
+                weights[cuts[i]].reshape(-1)
+                if cuts[i] is not None and weights is not None
+                else (weights.reshape(-1) if weights is not None else None)
+            ),
             histtype="step",
             label=labels[i],
         )

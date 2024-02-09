@@ -8,7 +8,6 @@ Based on https://github.com/LPC-HH/combine-hh/blob/master/create_datacard.py
 Authors: Raghav Kansal, Andres Nava
 """
 
-
 import os, sys
 from typing import Dict, List, Tuple, Union
 
