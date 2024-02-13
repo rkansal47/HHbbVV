@@ -35,6 +35,7 @@ from .corrections import (
     get_jec_jets,
     get_jmsr,
     get_lund_SFs,
+    add_lepton_id_weights,
 )
 from .common import LUMI, HLTs, btagWPs, jec_shifts, jmsr_shifts
 from . import common
@@ -667,6 +668,16 @@ class bbVVSkimmer(processor.ProcessorABC):
                 if systematic == "":
                     # to check in postprocessing for xsec & lumi normalisation
                     skimmed_events["weight_noxsec"] = weight
+
+            # separate lepton ID weights for now TODO: incorporate above if lepton vetoes are useful
+            lepton_weights = Weights(len(events), storeIndividual=True)
+            add_lepton_id_weights(lepton_weights, year, goodelectronHbb, "electron", "Loose")
+            add_lepton_id_weights(lepton_weights, year, goodelectronHH, "electron", "wp90noiso")
+            add_lepton_id_weights(lepton_weights, year, goodmuon, "muon", "Loose")
+
+            for systematic in lepton_weights.variations:
+                var_name = f"single_weight_{systematic}"
+                skimmed_events[var_name] = lepton_weights.partial_weight([var_name])
 
         # reshape and apply selections
         sel_all = selection.all(*selection.names)

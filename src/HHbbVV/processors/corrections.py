@@ -432,6 +432,7 @@ def _get_lepton_clipped(lep_pt, lep_eta, lepton_type, corr=None):
     return lepton_pt, lepton_eta
 
 
+# Used only for validation region right now
 def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_type: str = "muon"):
     ul_year = get_UL_year(year)
 
@@ -453,6 +454,44 @@ def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_ty
 
         # add weights (for now only the nominal weight)
         weights.add(f"{lepton_type}_{corr}", values["nominal"], values["up"], values["down"])
+
+
+# For analysis region
+def add_lepton_id_weights(
+    weights: Weights, year: str, lepton: NanoEventsArray, lepton_type: str, wp: str
+):
+    ul_year = get_UL_year(year)
+
+    cset = correctionlib.CorrectionSet.from_file(get_pog_json(lepton_type, year))
+
+    lep_pt = np.array(ak.fill_none(lepton.pt, 0.0))
+    lep_eta = np.abs(np.array(ak.fill_none(lepton.eta, 0.0)))
+
+    # some voodoo from cristina
+    lepton_pt, lepton_eta = _get_lepton_clipped(lep_pt, lep_eta, lepton_type)
+    values = {}
+
+    if lepton_type == "electron":
+        # https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/EGM_2018_UL_electron.html
+        cset_map = cset["UL-Electron-ID-SF"]
+
+        values["nominal"] = cset_map.evaluate(ul_year, "sf", wp, lepton_eta, lepton_pt)
+        values["up"] = cset_map.evaluate(ul_year, "systup", wp, lepton_eta, lepton_pt)
+        values["down"] = cset_map.evaluate(ul_year, "systdown", wp, lepton_eta, lepton_pt)
+    else:
+        cset_map = cset[f"NUM_{wp}ID_DEN_TrackerMuons"]
+
+        values["nominal"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "sf")
+        values["up"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "systup")
+        values["down"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "systdown")
+
+    for key, value in values.items():
+        # efficiency for a single lepton passing is 1 - (1 - eff1) * (1 - eff2) * ...
+        val = 1 - np.prod(1 - value, axis=1)
+        values[key] = np.nan_to_num(val, nan=1)
+
+    # add weights (for now only the nominal weight)
+    weights.add(f"{lepton_type}_id_{wp}", values["nominal"], values["up"], values["down"])
 
 
 TOP_PDGID = 6
