@@ -141,7 +141,7 @@ def get_cutflow(pickles_path, year, sample_name):
     """Accumulates cutflow over all pickles in ``pickles_path`` directory"""
     from coffea.processor.accumulator import accumulate
 
-    out_pickles = listdir(pickles_path)
+    out_pickles = [f for f in listdir(pickles_path) if f != ".DS_Store"]
 
     file_name = out_pickles[0]
     with open(f"{pickles_path}/{file_name}", "rb") as file:
@@ -360,9 +360,11 @@ def make_vector(events: dict, name: str, bb_mask: pd.DataFrame = None, mask=None
                 "pt": get_feat(events, f"{name}Pt", bb_mask),
                 "phi": get_feat(events, f"{name}Phi", bb_mask),
                 "eta": get_feat(events, f"{name}Eta", bb_mask),
-                "M": get_feat(events, f"{name}Msd", bb_mask)
-                if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
-                else get_feat(events, f"{name}Mass", bb_mask),
+                "M": (
+                    get_feat(events, f"{name}Msd", bb_mask)
+                    if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
+                    else get_feat(events, f"{name}Mass", bb_mask)
+                ),
             }
         )
     else:
@@ -371,9 +373,11 @@ def make_vector(events: dict, name: str, bb_mask: pd.DataFrame = None, mask=None
                 "pt": get_feat(events, f"{name}Pt", bb_mask)[mask],
                 "phi": get_feat(events, f"{name}Phi", bb_mask)[mask],
                 "eta": get_feat(events, f"{name}Eta", bb_mask)[mask],
-                "M": get_feat(events, f"{name}Msd", bb_mask)[mask]
-                if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
-                else get_feat(events, f"{name}Mass", bb_mask)[mask],
+                "M": (
+                    get_feat(events, f"{name}Msd", bb_mask)[mask]
+                    if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
+                    else get_feat(events, f"{name}Mass", bb_mask)[mask]
+                ),
             }
         )
 
@@ -431,9 +435,7 @@ def singleVarHist(
     var = shape_var.var
 
     for sample in samples:
-        print(sample)
         events = events_dict[sample]
-        print(list(events.columns))
         if sample == data_key and (var.endswith("_up") or var.endswith("_down")):
             fill_var = "_".join(var.split("_")[:-2])
         else:

@@ -71,9 +71,11 @@ def ratioHistPlot(
         hists[sig_key, :] * sig_scale,
         ax=ax,
         histtype="step",
-        label=f"{sample_names[sig_key]} $\\times$ ${formatter.format_data(float(f'{sig_scale:.3g}'))}$"
-        if sig_scale != 1
-        else sig_key,
+        label=(
+            f"{sample_names[sig_key]} $\\times$ ${formatter.format_data(float(f'{sig_scale:.3g}'))}$"
+            if sig_scale != 1
+            else sig_key
+        ),
         color=colours[sig_colour],
     )
     hep.histplot(

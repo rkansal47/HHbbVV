@@ -138,9 +138,11 @@ def make_vector(
                 "pt": get_key(events, f"{name}Pt"),
                 "phi": get_key(events, f"{name}Phi"),
                 "eta": get_key(events, f"{name}Eta"),
-                "M": get_key(events, f"{name}Msd")
-                if f"{name}Msd" in events
-                else get_key(events, f"{name}Mass"),
+                "M": (
+                    get_key(events, f"{name}Msd")
+                    if f"{name}Msd" in events
+                    else get_key(events, f"{name}Mass")
+                ),
             }
         )
     else:
@@ -149,9 +151,11 @@ def make_vector(
                 "pt": get_key(events, f"{name}Pt")[mask],
                 "phi": get_key(events, f"{name}Phi")[mask],
                 "eta": get_key(events, f"{name}Eta")[mask],
-                "M": get_key(events, f"{name}Msd")[mask]
-                if f"{name}Msd" in events
-                else get_key(events, f"{name}Mass")[mask],
+                "M": (
+                    get_key(events, f"{name}Msd")[mask]
+                    if f"{name}Msd" in events
+                    else get_key(events, f"{name}Mass")[mask]
+                ),
             }
         )
 
