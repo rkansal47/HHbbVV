@@ -553,6 +553,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             & (events.Electron.cutBased >= events.Electron.LOOSE)
         )
         nelectronsHbb = ak.sum(goodelectronHbb, axis=1)
+
         # if using HH4b lepton vetoes:
         # https://cms.cern.ch/iCMS/user/noteinfo?cmsnoteid=CMS%20AN-2020/231 Section 7.1.2
         # In order to be considered in the lepton veto step, a muon (electron) is required to to pass the selections described in Section 5.2, and to have pT > 15 GeV (pT > 20 GeV), and |η| < 2.4 (2.5).
