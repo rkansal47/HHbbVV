@@ -262,9 +262,9 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         skimmed_events = {}
 
-        ######################### 
+        #########################
         # Save / derive variables
-        ######################### 
+        #########################
 
         # TODO: resonant selection gets rid of events where Ws decay into Ws first
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
