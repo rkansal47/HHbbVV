@@ -634,7 +634,6 @@ class bbVVSkimmer(processor.ProcessorABC):
             if dataset in self.XSECS or "XToYHTo2W2BTo4Q2B" in dataset:
                 # 1 fb xsec for now for resonant signal
                 xsec = self.XSECS[dataset] if dataset in self.XSECS else 1e-3  # in pb
-
                 weight_norm = xsec * LUMI[year]
             else:
                 logger.warning("Weight not normalized to cross section")
