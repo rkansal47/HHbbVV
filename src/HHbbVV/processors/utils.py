@@ -98,3 +98,12 @@ def select_dicts(dicts_list: List[Dict[str, np.ndarray]], sel: np.ndarray):
         )[sel]
         for key in dicts_list[0]
     }
+
+
+def remove_variation_suffix(var: str):
+    """removes the variation suffix from the variable name"""
+    if var.endswith("_down"):
+        return var.split("_down")[0]
+    elif var.endswith("_up"):
+        return var.split("_up")[0]
+    return var

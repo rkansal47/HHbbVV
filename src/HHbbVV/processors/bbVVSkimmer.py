@@ -37,7 +37,7 @@ from .corrections import (
     get_lund_SFs,
 )
 from .common import LUMI, HLTs, btagWPs, jec_shifts, jmsr_shifts
-from . import common
+from . import corrections, common, utils
 
 
 # mapping samples to the appropriate function for doing gen-level selections
@@ -602,11 +602,6 @@ class bbVVSkimmer(processor.ProcessorABC):
             add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
             add_pileupid_weights(weights, year, vbf_jets, events.GenJet, wp="M")  # this gives error
             add_VJets_kFactors(weights, events.GenPart, dataset)
-
-            # if dataset.startswith("TTTo"):
-            #     # TODO: need to add uncertainties and rescale yields (?)
-            #     add_top_pt_weight(weights, events)
-
             add_ps_weight(weights, events.PSWeight)
 
             if "GluGluToHHTobbVV" in dataset:
@@ -639,20 +634,28 @@ class bbVVSkimmer(processor.ProcessorABC):
                 logger.warning("Weight not normalized to cross section")
                 weight_norm = 1
 
+            # save nominal weight + without trigger efficiencies (in case they need to be revised later)
             systematics = ["", "notrigeffs"]
-
+            # save all variations
             if self._systematics:
                 systematics += list(weights.variations)
 
             single_weight_pileup = weights.partial_weight(["single_weight_pileup"])
             add_selection("single_weight_pileup", (single_weight_pileup <= 4), *selection_args)
 
-            # TODO: need to be careful about the sum of gen weights used for the LHE/QCDScale uncertainties
+            # these weights should not change the overall normalization, so are saved separately
+            norm_preserving_weights = ["genweight", "pileup", "ISRPartonShower", "FSRPartonShower"]
+
             logger.debug("weights ", weights._weights.keys())
             for systematic in systematics:
                 if systematic in weights.variations:
                     weight = weights.weight(modifier=systematic)
                     weight_name = f"weight_{systematic}"
+
+                    weights.weight
+                    if utils.remove_variation_suffix(systematic) in norm_preserving_weights:
+                        weight_name = "weight_" + systematic
+
                 elif systematic == "":
                     weight = weights.weight()
                     weight_name = "weight"

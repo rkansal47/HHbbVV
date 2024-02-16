@@ -1549,25 +1549,13 @@ def get_templates(
                     if sample in wsyst.samples and year in wsyst.years:
                         # print(wshift)
                         for skey, shift in [("Down", "down"), ("Up", "up")]:
-                            if "QCDscale" in wshift:
-                                # QCDscale7pt/QCDscale4
-                                # https://github.com/LPC-HH/HHLooper/blob/master/python/prepare_card_SR_final.py#L263-L288
-                                sweight = (
-                                    weight
-                                    * (
-                                        events[f"weight_QCDscale7pt{skey}"][0]
-                                        / events["weight_QCDscale4"]
-                                    ).values.squeeze()
-                                )
-                            else:
-                                # reweight based on diff between up/down and nominal weights
-                                sweight = (
-                                    weight
-                                    * (
-                                        events[f"weight_{wshift}{skey}"][0]
-                                        / events["weight_nonorm"]
-                                    ).values.squeeze()
-                                )
+                            # reweight based on diff between up/down and nominal weights
+                            sweight = (
+                                weight
+                                * (
+                                    events[f"weight_{wshift}{skey}"][0] / events["weight_nonorm"]
+                                ).values.squeeze()
+                            )
                             h.fill(Sample=f"{sample}_{wshift}_{shift}", **fill_data, weight=sweight)
 
         if pass_region:

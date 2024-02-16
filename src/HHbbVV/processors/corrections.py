@@ -105,25 +105,25 @@ def add_pileup_weight(weights: Weights, year: str, nPU: np.ndarray):
     weights.add("pileup", values["nominal"], values["up"], values["down"])
 
 
-def get_vpt(genpart, check_offshell=False):
-    """Only the leptonic samples have no resonance in the decay tree, and only
-    when M is beyond the configured Breit-Wigner cutoff (usually 15*width)
-    """
-    boson = ak.firsts(
-        genpart[
-            ((genpart.pdgId == 23) | (abs(genpart.pdgId) == 24))
-            & genpart.hasFlags(["fromHardProcess", "isLastCopy"])
-        ]
-    )
-    if check_offshell:
-        offshell = genpart[
-            genpart.hasFlags(["fromHardProcess", "isLastCopy"])
-            & ak.is_none(boson)
-            & (abs(genpart.pdgId) >= 11)
-            & (abs(genpart.pdgId) <= 16)
-        ].sum()
-        return ak.where(ak.is_none(boson.pt), offshell.pt, boson.pt)
-    return np.array(ak.fill_none(boson.pt, 0.0))
+kfactor_common_systs = [
+    "d1K_NLO",
+    "d2K_NLO",
+    "d3K_NLO",
+    "d1kappa_EW",
+]
+zsysts = kfactor_common_systs + [
+    "Z_d2kappa_EW",
+    "Z_d3kappa_EW",
+]
+znlosysts = [
+    "d1kappa_EW",
+    "Z_d2kappa_EW",
+    "Z_d3kappa_EW",
+]
+wsysts = kfactor_common_systs + [
+    "W_d2kappa_EW",
+    "W_d3kappa_EW",
+]
 
 
 def add_VJets_kFactors(weights, genpart, dataset):
@@ -133,25 +133,25 @@ def add_VJets_kFactors(weights, genpart, dataset):
         package_path + "/corrections/ULvjets_corrections.json"
     )
 
-    common_systs = [
-        "d1K_NLO",
-        "d2K_NLO",
-        "d3K_NLO",
-        "d1kappa_EW",
-    ]
-    zsysts = common_systs + [
-        "Z_d2kappa_EW",
-        "Z_d3kappa_EW",
-    ]
-    znlosysts = [
-        "d1kappa_EW",
-        "Z_d2kappa_EW",
-        "Z_d3kappa_EW",
-    ]
-    wsysts = common_systs + [
-        "W_d2kappa_EW",
-        "W_d3kappa_EW",
-    ]
+    def get_vpt(genpart, check_offshell=False):
+        """Only the leptonic samples have no resonance in the decay tree, and only
+        when M is beyond the configured Breit-Wigner cutoff (usually 15*width)
+        """
+        boson = ak.firsts(
+            genpart[
+                ((genpart.pdgId == 23) | (abs(genpart.pdgId) == 24))
+                & genpart.hasFlags(["fromHardProcess", "isLastCopy"])
+            ]
+        )
+        if check_offshell:
+            offshell = genpart[
+                genpart.hasFlags(["fromHardProcess", "isLastCopy"])
+                & ak.is_none(boson)
+                & (abs(genpart.pdgId) >= 11)
+                & (abs(genpart.pdgId) <= 16)
+            ].sum()
+            return ak.where(ak.is_none(boson.pt), offshell.pt, boson.pt)
+        return np.array(ak.fill_none(boson.pt, 0.0))
 
     def add_systs(systlist, qcdcorr, ewkcorr, vpt):
         ewknom = ewkcorr.evaluate("nominal", vpt)
@@ -295,25 +295,6 @@ def add_scalevar_7pt(weights, var_weights):
     # NOTE: I think we should take the envelope of these weights w.r.t to [4]
     weights.add("QCDscale7pt", nom, up, down)
     weights.add("QCDscale4", var_weights[:, 4])
-
-
-def add_scalevar_3pt(weights, var_weights):
-    docstring = var_weights.__doc__
-
-    nweights = len(weights.weight())
-
-    nom = np.ones(nweights)
-    up = np.ones(nweights)
-    down = np.ones(nweights)
-
-    if len(var_weights) > 0:
-        if len(var_weights[0]) == 9:
-            up = np.maximum(var_weights[:, 0], var_weights[:, 8])
-            down = np.minimum(var_weights[:, 0], var_weights[:, 8])
-        elif len(var_weights[0]) > 1:
-            print("Scale variation vector has length ", len(var_weights[0]))
-
-    weights.add("QCDscale3pt", nom, up, down)
 
 
 def _btagSF(cset, jets, flavour, wp="M", algo="deepJet", syst="central"):
