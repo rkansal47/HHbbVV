@@ -538,6 +538,7 @@ def evaluate_model(
         utils.ShapeVar("BDTScore", "BDT Score", [20, 0.4, 1]),
         utils.ShapeVar("BDTScore", "BDT Score", [20, 0.8, 1]),
         utils.ShapeVar("BDTScore", "BDT Score", [20, 0.9, 1]),
+        utils.ShapeVar("BDTScore", "BDT Score", [20, 0.98, 1]),
     ]
 
     save_model_dir = f"{model_dir}/hists/"
