@@ -574,7 +574,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             & events.Muon.looseId
         )
         nmuonsHH = ak.sum(goodmuonHH, axis=1)
-        
+
         skimmed_events["nGoodElectronsHbb"] = nelectronsHbb.to_numpy()
         skimmed_events["nGoodElectronsHH"] = nelectronsHH.to_numpy()
         skimmed_events["nGoodMuonsHbb"] = nmuonsHbb.to_numpy()
