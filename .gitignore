@@ -58,6 +58,9 @@ src/HHbbVV/postprocessing/outs
 !src/HHbbVV/VBF_binder
 !src/HHbbVV/VBF_binder/**
 
+!src/HHbbVV/bash
+!src/HHbbVV/bash/**
+
 !data
 !data/*
 !data/*/**

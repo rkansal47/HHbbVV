@@ -131,7 +131,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         "MET_phi",
         "nGoodElectronsHH",
         "nGoodElectronsHbb",
-        "nGoodMuons",
+        "nGoodMuonsHH",
+        "nGoodMuonsHbb",
     ]
 
     for shift in jec_shifts:

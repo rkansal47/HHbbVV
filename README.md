@@ -137,6 +137,8 @@ To test locally:
 python -W ignore src/run.py --processor skimmer --year 2017 --samples HH --subsamples GluGluToHHTobbVV_node_cHHH1 --save-systematics --starti 0 --endi 1
 ```
 
+or use the `src/HHbbVV/bash/run_local.sh` to run over files from different processes.
+
 Or on a specific file(s):
 
 ```bash
