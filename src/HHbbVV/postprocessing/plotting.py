@@ -75,6 +75,8 @@ BG_COLOURS = {
     "QCD": "lightblue",
     "TT": "darkblue",
     "V+Jets": "green",
+    "WJets": "green",
+    "ZJets": "flax",
     "ST": "orange",
     "Diboson": "canary",
     "Hbb": "lightred",
