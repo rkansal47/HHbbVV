@@ -122,6 +122,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         "VBFJetPt",
         "VBFJetPhi",
         "VBFJetMass",
+        "nGoodVBFJets",
         "ak8FatJetHbb",
         "ak8FatJetHVV",
         "ak8FatJetHVVNumProngs",
@@ -133,6 +134,10 @@ class bbVVSkimmer(processor.ProcessorABC):
         "nGoodElectronsHbb",
         "nGoodMuonsHH",
         "nGoodMuonsHbb",
+        "ak8FatJetNumWTagged",
+        "ak8FatJetLowestWTaggedTxbb",
+        "ak8FatJetWTaggedMsd",
+        "ak8FatJetWTaggedParticleNetMass",
     ]
 
     for shift in jec_shifts:
@@ -580,6 +585,30 @@ class bbVVSkimmer(processor.ProcessorABC):
         skimmed_events["nGoodElectronsHH"] = nelectronsHH.to_numpy()
         skimmed_events["nGoodMuonsHbb"] = nmuonsHbb.to_numpy()
         skimmed_events["nGoodMuonsHH"] = nmuonsHH.to_numpy()
+
+        # XHY->bbWW semi-resolved channel veto
+        Wqq_score = (fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc) / (
+            fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc + fatjets.particleNetMD_QCD
+        )
+
+        skimmed_events["ak8FatJetNumWTagged"] = ak.sum(Wqq_score[:, :3] >= 0.8, axis=1).to_numpy()
+
+        sorted_wqq_score = np.argsort(pad_val(Wqq_score, 3, 0, 1), axis=1)
+
+        # get TXbb score of the lowest-Wqq-tagged jet
+        skimmed_events["ak8FatJetLowestWTaggedTxbb"] = pad_val(fatjets["Txbb"], 3, 0, 1)[
+            np.arange(len(fatjets)), sorted_wqq_score[:, 0]
+        ]
+
+        # save both SD and regressed masses of the two W-tagged AK8 jets
+        # Amitav will optimize mass cut soon
+
+        mass_dict = {"particleNet_mass": "ParticleNetMass", "msoftdrop": "Msd"}
+        for mkey, mlabel in mass_dict.items():
+            mass_vals = pad_val(fatjets[mkey], 3, 0, 1)
+            mv_fj1 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 2]]
+            mv_fj2 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 1]]
+            skimmed_events[f"ak8FatJetWTagged{mlabel}"] = np.stack([mv_fj1, mv_fj2]).T
 
         ######################
         # Remove branches
