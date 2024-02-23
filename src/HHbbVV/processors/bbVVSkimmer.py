@@ -35,6 +35,7 @@ from .corrections import (
     get_jec_jets,
     get_jmsr,
     get_lund_SFs,
+    add_lepton_id_weights,
 )
 from .common import LUMI, HLTs, btagWPs, jec_shifts, jmsr_shifts
 from . import common
@@ -544,20 +545,19 @@ class bbVVSkimmer(processor.ProcessorABC):
         # https://indico.cern.ch/event/1154430/#b-471403-higgs-meeting-special
 
         goodelectronHbb = (
-            (events.Electron.pt > 20)
-            & (abs(events.Electron.eta) < 2.5)
-            & (events.Electron.miniPFRelIso_all < 0.4)
-            & (events.Electron.cutBased >= events.Electron.LOOSE)
+            (electrons.pt > 20)
+            & (abs(electrons.eta) < 2.5)
+            & (electrons.miniPFRelIso_all < 0.4)
+            & (electrons.cutBased >= electrons.LOOSE)
         )
         nelectronsHbb = ak.sum(goodelectronHbb, axis=1)
+        goodelectronsHbb = electrons[goodelectronHbb]
 
         goodmuonHbb = (
-            (events.Muon.pt > 10)
-            & (abs(events.Muon.eta) < 2.4)
-            & (events.Muon.pfRelIso04_all < 0.25)
-            & events.Muon.looseId
+            (muons.pt > 10) & (abs(muons.eta) < 2.4) & (muons.pfRelIso04_all < 0.25) & muons.looseId
         )
         nmuonsHbb = ak.sum(goodmuonHbb, axis=1)
+        goodmuonsHbb = muons[goodmuonHbb]
 
         # HH4b lepton vetoes:
         # https://cms.cern.ch/iCMS/user/noteinfo?cmsnoteid=CMS%20AN-2020/231 Section 7.1.2
@@ -566,20 +566,22 @@ class bbVVSkimmer(processor.ProcessorABC):
         # (miniPFRelIso all < 0.4). An electron is required to pass mvaFall17V2noIso WP90 identification as well as mini-isolation (miniPFRelIso all < 0.4).
 
         goodelectronHH = (
-            (events.Electron.pt > 20)
-            & (abs(events.Electron.eta) < 2.5)
-            & (events.Electron.miniPFRelIso_all < 0.4)
-            & (events.Electron.mvaFall17V2noIso_WP90)
+            (electrons.pt > 20)
+            & (abs(electrons.eta) < 2.5)
+            & (electrons.miniPFRelIso_all < 0.4)
+            & (electrons.mvaFall17V2noIso_WP90)
         )
         nelectronsHH = ak.sum(goodelectronHH, axis=1)
+        goodelectronsHH = electrons[goodelectronHH]
 
         goodmuonHH = (
-            (events.Muon.pt > 15)
-            & (abs(events.Muon.eta) < 2.4)
-            & (events.Muon.miniPFRelIso_all < 0.4)
-            & events.Muon.looseId
+            (muons.pt > 15)
+            & (abs(muons.eta) < 2.4)
+            & (muons.miniPFRelIso_all < 0.4)
+            & muons.looseId
         )
         nmuonsHH = ak.sum(goodmuonHH, axis=1)
+        goodmuonsHH = muons[goodmuonHH]
 
         skimmed_events["nGoodElectronsHbb"] = nelectronsHbb.to_numpy()
         skimmed_events["nGoodElectronsHH"] = nelectronsHH.to_numpy()
@@ -696,6 +698,40 @@ class bbVVSkimmer(processor.ProcessorABC):
                 if systematic == "":
                     # to check in postprocessing for xsec & lumi normalisation
                     skimmed_events["weight_noxsec"] = weight
+
+            # separate lepton ID weights for now TODO: incorporate above next time if lepton vetoes are useful
+            lepton_weights = Weights(len(events), storeIndividual=True)
+            add_lepton_id_weights(
+                lepton_weights, year, goodelectronsHbb, "electron", "Loose", label="_hbb"
+            )
+            add_lepton_id_weights(
+                lepton_weights, year, goodelectronsHH, "electron", "wp90noiso", label="_hh"
+            )
+            add_lepton_id_weights(lepton_weights, year, goodmuonsHbb, "muon", "Loose", label="_hbb")
+            add_lepton_id_weights(lepton_weights, year, goodmuonsHH, "muon", "Loose", label="_hh")
+            print("lepton weights")
+            print(lepton_weights)
+
+            lepton_weights_dict = {
+                f"single_weight_{key}": val
+                for key, val in list(lepton_weights._weights.items())
+                + list(lepton_weights._modifiers.items())
+            }
+
+            print(lepton_weights_dict)
+            skimmed_events = {**skimmed_events, **lepton_weights_dict}
+
+            # for systematic in lepton_weights._weights:
+            #     var_name = f"single_weight_{systematic}"
+            #     skimmed_events[var_name] = lepton_weights.partial_weight([var_name])
+            #     print(var_name)
+            #     print(skimmed_events[var_name])
+
+            # for systematic in lepton_weights._modifiers:
+            #     var_name = f"single_weight_{systematic}"
+            #     skimmed_events[var_name] = lepton_weights._modifiers[var_name]
+            #     print(var_name)
+            # print(skimmed_events[var_name])
 
         # reshape and apply selections
         sel_all = selection.all(*selection.names)

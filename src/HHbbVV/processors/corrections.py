@@ -29,7 +29,7 @@ ak.behavior.update(vector.behavior)
 import pathlib
 
 from . import utils
-from .utils import P4, pad_val
+from .utils import P4, pad_val, PAD_VAL
 
 
 package_path = str(pathlib.Path(__file__).parent.parent.resolve())
@@ -41,7 +41,7 @@ See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/
 """
 pog_correction_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/"
 pog_jsons = {
-    "muon": ["MUO", "muon_Z.json.gz"],
+    "muon": ["MUO", "muon_Z_v2.json.gz"],
     "electron": ["EGM", "electron.json.gz"],
     "pileup": ["LUM", "puWeights.json.gz"],
     "btagging": ["BTV", "btagging.json.gz"],
@@ -432,6 +432,7 @@ def _get_lepton_clipped(lep_pt, lep_eta, lepton_type, corr=None):
     return lepton_pt, lepton_eta
 
 
+# Used only for validation region right now
 def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_type: str = "muon"):
     ul_year = get_UL_year(year)
 
@@ -453,6 +454,59 @@ def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_ty
 
         # add weights (for now only the nominal weight)
         weights.add(f"{lepton_type}_{corr}", values["nominal"], values["up"], values["down"])
+
+
+# For analysis region
+def add_lepton_id_weights(
+    weights: Weights,
+    year: str,
+    lepton: NanoEventsArray,
+    lepton_type: str,
+    wp: str,
+    label: str = "",
+    max_num_leptons: int = 3,
+):
+    year = get_vfp_year(year)
+    ul_year = get_UL_year(year)
+
+    cset = correctionlib.CorrectionSet.from_file(get_pog_json(lepton_type, year))
+
+    lep_exists = ak.count(lepton.pt, axis=1) > 0
+    lep_pt = pad_val(lepton.pt, max_num_leptons, axis=1)
+    lep_eta = pad_val(lepton.eta, max_num_leptons, axis=1)
+
+    # some voodoo from cristina
+    lepton_pt, lepton_eta = _get_lepton_clipped(lep_pt, lep_eta, lepton_type)
+    values = {}
+
+    if lepton_type == "electron":
+        # https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/EGM_2018_UL_electron.html
+        cset_map = cset["UL-Electron-ID-SF"]
+
+        values["nominal"] = cset_map.evaluate(year, "sf", wp, lepton_eta, lepton_pt)
+        values["up"] = cset_map.evaluate(year, "sfup", wp, lepton_eta, lepton_pt)
+        values["down"] = cset_map.evaluate(year, "sfdown", wp, lepton_eta, lepton_pt)
+    else:
+        # https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/MUO_2018_UL_muon_Z_v2.html
+        cset_map = cset[f"NUM_{wp}ID_DEN_TrackerMuons"]
+
+        values["nominal"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "sf")
+        values["up"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "systup")
+        values["down"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "systdown")
+
+    for key, value in values.items():
+        # efficiency for a single lepton passing is 1 - (1 - eff1) * (1 - eff2) * ...
+        value[lepton_pt == PAD_VAL] = 0  # if lep didn't exist, ignore efficiency
+        val = 1 - np.prod(1 - value, axis=1)
+        val[~lep_exists] = 1  # if no leps in event, SF = 1
+        values[key] = np.nan_to_num(val, nan=1)
+
+    print(lepton_type, label)
+    print(values)
+
+    # add weights (for now only the nominal weight)
+    weights.add(f"{lepton_type}{label}_id_{wp}", values["nominal"], values["up"], values["down"])
+    # breakpoint()
 
 
 TOP_PDGID = 6
