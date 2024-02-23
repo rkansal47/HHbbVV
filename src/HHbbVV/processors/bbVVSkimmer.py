@@ -35,6 +35,7 @@ from .corrections import (
     get_jec_jets,
     get_jmsr,
     get_lund_SFs,
+    add_lepton_id_weights,
 )
 from .common import LUMI, HLTs, btagWPs, jec_shifts, jmsr_shifts
 from . import corrections, common, utils
@@ -122,6 +123,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         "VBFJetPt",
         "VBFJetPhi",
         "VBFJetMass",
+        "nGoodVBFJets",
         "ak8FatJetHbb",
         "ak8FatJetHVV",
         "ak8FatJetHVVNumProngs",
@@ -131,7 +133,12 @@ class bbVVSkimmer(processor.ProcessorABC):
         "MET_phi",
         "nGoodElectronsHH",
         "nGoodElectronsHbb",
-        "nGoodMuons",
+        "nGoodMuonsHH",
+        "nGoodMuonsHbb",
+        "ak8FatJetNumWTagged",
+        "ak8FatJetLowestWTaggedTxbb",
+        "ak8FatJetWTaggedMsd",
+        "ak8FatJetWTaggedParticleNetMass",
     ]
 
     for shift in jec_shifts:
@@ -542,42 +549,76 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         electrons, muons = events.Electron, events.Muon
 
-        # selection from https://github.com/jennetd/hbb-coffea/blob/85bc3692be9e0e0a0c82ae3c78e22cdf5b3e4d68/boostedhiggs/vhbbprocessor.py#L283-L307
+        # VBF Hbb selection from https://github.com/jennetd/hbb-coffea/blob/85bc3692be9e0e0a0c82ae3c78e22cdf5b3e4d68/boostedhiggs/vhbbprocessor.py#L283-L307
         # https://indico.cern.ch/event/1154430/#b-471403-higgs-meeting-special
 
         goodelectronHbb = (
-            (events.Electron.pt > 20)
-            & (abs(events.Electron.eta) < 2.5)
-            & (events.Electron.miniPFRelIso_all < 0.4)
-            & (events.Electron.cutBased >= events.Electron.LOOSE)
+            (electrons.pt > 20)
+            & (abs(electrons.eta) < 2.5)
+            & (electrons.miniPFRelIso_all < 0.4)
+            & (electrons.cutBased >= electrons.LOOSE)
         )
         nelectronsHbb = ak.sum(goodelectronHbb, axis=1)
+        goodelectronsHbb = electrons[goodelectronHbb]
 
-        # if using HH4b lepton vetoes:
+        goodmuonHbb = (
+            (muons.pt > 10) & (abs(muons.eta) < 2.4) & (muons.pfRelIso04_all < 0.25) & muons.looseId
+        )
+        nmuonsHbb = ak.sum(goodmuonHbb, axis=1)
+        goodmuonsHbb = muons[goodmuonHbb]
+
+        # HH4b lepton vetoes:
         # https://cms.cern.ch/iCMS/user/noteinfo?cmsnoteid=CMS%20AN-2020/231 Section 7.1.2
         # In order to be considered in the lepton veto step, a muon (electron) is required to to pass the selections described in Section 5.2, and to have pT > 15 GeV (pT > 20 GeV), and |η| < 2.4 (2.5).
         # A muon is also required to pass loose identification criteria as detailed in [35] and mini-isolation
         # (miniPFRelIso all < 0.4). An electron is required to pass mvaFall17V2noIso WP90 identification as well as mini-isolation (miniPFRelIso all < 0.4).
 
         goodelectronHH = (
-            (events.Electron.pt > 20)
-            & (abs(events.Electron.eta) < 2.5)
-            & (events.Electron.miniPFRelIso_all < 0.4)
-            & (events.Electron.mvaFall17V2noIso_WP90)
+            (electrons.pt > 20)
+            & (abs(electrons.eta) < 2.5)
+            & (electrons.miniPFRelIso_all < 0.4)
+            & (electrons.mvaFall17V2noIso_WP90)
         )
         nelectronsHH = ak.sum(goodelectronHH, axis=1)
+        goodelectronsHH = electrons[goodelectronHH]
 
-        goodmuon = (
-            (events.Muon.pt > 15)
-            & (abs(events.Muon.eta) < 2.4)
-            & (events.Muon.miniPFRelIso_all < 0.4)
-            & events.Muon.looseId
+        goodmuonHH = (
+            (muons.pt > 15)
+            & (abs(muons.eta) < 2.4)
+            & (muons.miniPFRelIso_all < 0.4)
+            & muons.looseId
         )
-        nmuons = ak.sum(goodmuon, axis=1)
+        nmuonsHH = ak.sum(goodmuonHH, axis=1)
+        goodmuonsHH = muons[goodmuonHH]
 
-        skimmed_events["nGoodMuons"] = nmuons.to_numpy()
-        skimmed_events["nGoodElectronsHH"] = nelectronsHH.to_numpy()
         skimmed_events["nGoodElectronsHbb"] = nelectronsHbb.to_numpy()
+        skimmed_events["nGoodElectronsHH"] = nelectronsHH.to_numpy()
+        skimmed_events["nGoodMuonsHbb"] = nmuonsHbb.to_numpy()
+        skimmed_events["nGoodMuonsHH"] = nmuonsHH.to_numpy()
+
+        # XHY->bbWW semi-resolved channel veto
+        Wqq_score = (fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc) / (
+            fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc + fatjets.particleNetMD_QCD
+        )
+
+        skimmed_events["ak8FatJetNumWTagged"] = ak.sum(Wqq_score[:, :3] >= 0.8, axis=1).to_numpy()
+
+        sorted_wqq_score = np.argsort(pad_val(Wqq_score, 3, 0, 1), axis=1)
+
+        # get TXbb score of the lowest-Wqq-tagged jet
+        skimmed_events["ak8FatJetLowestWTaggedTxbb"] = pad_val(fatjets["Txbb"], 3, 0, 1)[
+            np.arange(len(fatjets)), sorted_wqq_score[:, 0]
+        ]
+
+        # save both SD and regressed masses of the two W-tagged AK8 jets
+        # Amitav will optimize mass cut soon
+
+        mass_dict = {"particleNet_mass": "ParticleNetMass", "msoftdrop": "Msd"}
+        for mkey, mlabel in mass_dict.items():
+            mass_vals = pad_val(fatjets[mkey], 3, 0, 1)
+            mv_fj1 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 2]]
+            mv_fj2 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 1]]
+            skimmed_events[f"ak8FatJetWTagged{mlabel}"] = np.stack([mv_fj1, mv_fj2]).T
 
         ######################
         # Remove branches
@@ -596,10 +637,22 @@ class bbVVSkimmer(processor.ProcessorABC):
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
         else:
-            weights, weights_dict = self.add_weights(
-                events, year, dataset, gen_weights, fatjets, num_jets, vbf_jets
-            )
-            skimmed_events = {**skimmed_events, **weights_dict}
+            skimmed_events = {
+                **skimmed_events,
+                **self.add_weights(
+                    events,
+                    year,
+                    dataset,
+                    gen_weights,
+                    fatjets,
+                    num_jets,
+                    vbf_jets,
+                    goodelectronsHbb,
+                    goodelectronsHH,
+                    goodmuonsHbb,
+                    goodmuonsHH,
+                ),
+            }
 
         ##############################
         # Reshape and apply selections
@@ -774,7 +827,19 @@ class bbVVSkimmer(processor.ProcessorABC):
         return weight_norm
 
     def add_weights(
-        self, events, year, dataset, gen_weights, fatjets, num_jets, vbf_jets, gen_selected
+        self,
+        events,
+        year,
+        dataset,
+        gen_weights,
+        fatjets,
+        num_jets,
+        vbf_jets,
+        gen_selected,
+        goodelectronsHbb,
+        goodelectronsHH,
+        goodmuonsHbb,
+        goodmuonsHH,
     ):
         weights = Weights(len(events), storeIndividual=True)
         weights.add("genweight", gen_weights)
@@ -858,7 +923,29 @@ class bbVVSkimmer(processor.ProcessorABC):
         # save pileup weight for debugging
         weights_dict["single_weight_pileup"] = weights.partial_weight(include=["pileup"])
 
-        return weights, weights_dict
+        ###################### Separate Lepton ID Scale Factors ######################
+
+        # saved separately for now TODO: incorporate above next time if lepton vetoes are useful
+        lepton_weights = Weights(len(events), storeIndividual=True)
+        add_lepton_id_weights(
+            lepton_weights, year, goodelectronsHbb, "electron", "Loose", label="_hbb"
+        )
+        add_lepton_id_weights(
+            lepton_weights, year, goodelectronsHH, "electron", "wp90noiso", label="_hh"
+        )
+        add_lepton_id_weights(lepton_weights, year, goodmuonsHbb, "muon", "Loose", label="_hbb")
+        add_lepton_id_weights(lepton_weights, year, goodmuonsHH, "muon", "Loose", label="_hh")
+
+        lepton_weights_dict = {
+            f"single_weight_{key}": val
+            for key, val in list(lepton_weights._weights.items())
+            + list(lepton_weights._modifiers.items())
+        }
+
+        print("lepton weights", lepton_weights_dict)
+        weights_dict = {**weights_dict, **lepton_weights_dict}
+
+        return weights_dict
 
     def getDijetVars(
         self, ak8FatJetVars: Dict, bb_mask: np.ndarray, pt_shift: str = None, mass_shift: str = None
