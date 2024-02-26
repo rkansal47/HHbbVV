@@ -29,7 +29,7 @@ ak.behavior.update(vector.behavior)
 import pathlib
 
 from . import utils
-from .utils import P4, pad_val
+from .utils import P4, pad_val, PAD_VAL
 
 
 package_path = str(pathlib.Path(__file__).parent.parent.resolve())
@@ -37,14 +37,15 @@ package_path = str(pathlib.Path(__file__).parent.parent.resolve())
 
 """
 CorrectionLib files are available from: /cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration - synced daily
+See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/
 """
 pog_correction_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/"
 pog_jsons = {
-    "muon": ["MUO", "muon_Z.json.gz"],
+    "muon": ["MUO", "muon_Z_v2.json.gz"],
     "electron": ["EGM", "electron.json.gz"],
     "pileup": ["LUM", "puWeights.json.gz"],
-    "jec": ["JME", "fatJet_jerc.json.gz"],
     "btagging": ["BTV", "btagging.json.gz"],
+    "jmar": ["JME", "jmar.json.gz"],
 }
 
 
@@ -80,7 +81,7 @@ def get_pog_json(obj: str, year: str) -> str:
     return f"{pog_correction_path}/POG/{pog_json[0]}/{year}/{pog_json[1]}"
 
 
-def add_pileup_weight(weights: Weights, year: str, nPU: np.ndarray):
+def get_pileup_weight(year: str, nPU: np.ndarray):
     """
     Should be able to do something similar to lepton weight but w pileup
     e.g. see here: https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/LUMI_puWeights_Run2_UL/
@@ -100,29 +101,34 @@ def add_pileup_weight(weights: Weights, year: str, nPU: np.ndarray):
     values["up"] = cset[year_to_corr[year]].evaluate(nPU, "up")
     values["down"] = cset[year_to_corr[year]].evaluate(nPU, "down")
 
-    # add weights (for now only the nominal weight)
+    return values
+
+
+def add_pileup_weight(weights: Weights, year: str, nPU: np.ndarray):
+    """Separate wrapper function in case we just want the values separately."""
+    values = get_pileup_weight(year, nPU)
     weights.add("pileup", values["nominal"], values["up"], values["down"])
 
 
-def get_vpt(genpart, check_offshell=False):
-    """Only the leptonic samples have no resonance in the decay tree, and only
-    when M is beyond the configured Breit-Wigner cutoff (usually 15*width)
-    """
-    boson = ak.firsts(
-        genpart[
-            ((genpart.pdgId == 23) | (abs(genpart.pdgId) == 24))
-            & genpart.hasFlags(["fromHardProcess", "isLastCopy"])
-        ]
-    )
-    if check_offshell:
-        offshell = genpart[
-            genpart.hasFlags(["fromHardProcess", "isLastCopy"])
-            & ak.is_none(boson)
-            & (abs(genpart.pdgId) >= 11)
-            & (abs(genpart.pdgId) <= 16)
-        ].sum()
-        return ak.where(ak.is_none(boson.pt), offshell.pt, boson.pt)
-    return np.array(ak.fill_none(boson.pt, 0.0))
+kfactor_common_systs = [
+    "d1K_NLO",
+    "d2K_NLO",
+    "d3K_NLO",
+    "d1kappa_EW",
+]
+zsysts = kfactor_common_systs + [
+    "Z_d2kappa_EW",
+    "Z_d3kappa_EW",
+]
+znlosysts = [
+    "d1kappa_EW",
+    "Z_d2kappa_EW",
+    "Z_d3kappa_EW",
+]
+wsysts = kfactor_common_systs + [
+    "W_d2kappa_EW",
+    "W_d3kappa_EW",
+]
 
 
 def add_VJets_kFactors(weights, genpart, dataset):
@@ -132,25 +138,25 @@ def add_VJets_kFactors(weights, genpart, dataset):
         package_path + "/corrections/ULvjets_corrections.json"
     )
 
-    common_systs = [
-        "d1K_NLO",
-        "d2K_NLO",
-        "d3K_NLO",
-        "d1kappa_EW",
-    ]
-    zsysts = common_systs + [
-        "Z_d2kappa_EW",
-        "Z_d3kappa_EW",
-    ]
-    znlosysts = [
-        "d1kappa_EW",
-        "Z_d2kappa_EW",
-        "Z_d3kappa_EW",
-    ]
-    wsysts = common_systs + [
-        "W_d2kappa_EW",
-        "W_d3kappa_EW",
-    ]
+    def get_vpt(genpart, check_offshell=False):
+        """Only the leptonic samples have no resonance in the decay tree, and only
+        when M is beyond the configured Breit-Wigner cutoff (usually 15*width)
+        """
+        boson = ak.firsts(
+            genpart[
+                ((genpart.pdgId == 23) | (abs(genpart.pdgId) == 24))
+                & genpart.hasFlags(["fromHardProcess", "isLastCopy"])
+            ]
+        )
+        if check_offshell:
+            offshell = genpart[
+                genpart.hasFlags(["fromHardProcess", "isLastCopy"])
+                & ak.is_none(boson)
+                & (abs(genpart.pdgId) >= 11)
+                & (abs(genpart.pdgId) <= 16)
+            ].sum()
+            return ak.where(ak.is_none(boson.pt), offshell.pt, boson.pt)
+        return np.array(ak.fill_none(boson.pt, 0.0))
 
     def add_systs(systlist, qcdcorr, ewkcorr, vpt):
         ewknom = ewkcorr.evaluate("nominal", vpt)
@@ -184,6 +190,8 @@ def add_VJets_kFactors(weights, genpart, dataset):
 def add_ps_weight(weights, ps_weights):
     """
     Parton Shower Weights (FSR and ISR)
+    "Default" variation: https://twiki.cern.ch/twiki/bin/view/CMS/HowToPDF#Which_set_of_weights_to_use
+    i.e. scaling ISR up and down
     """
 
     nweights = len(weights.weight())
@@ -211,106 +219,47 @@ def add_ps_weight(weights, ps_weights):
     # e.g. as in https://git.rwth-aachen.de/3pia/cms_analyses/common/-/blob/11e0c5225416a580d27718997a11dc3f1ec1e8d1/processor/generator.py#L74
 
 
-def add_pdf_weight(weights, pdf_weights):
+def get_pdf_weights(events):
     """
-    LHEPDF Weights
+    For the PDF acceptance uncertainty:
+        - store 103 variations. 0-100 PDF values
+        - The last two values: alpha_s variations.
+        - you just sum the yield difference from the nominal in quadrature to get the total uncertainty.
+        e.g. https://github.com/LPC-HH/HHLooper/blob/master/python/prepare_card_SR_final.py#L258
+        and https://github.com/LPC-HH/HHLooper/blob/master/app/HHLooper.cc#L1488
+
+    Some references:
+    Scale/PDF weights in MC https://twiki.cern.ch/twiki/bin/view/CMS/HowToPDF
+    https://twiki.cern.ch/twiki/bin/viewauth/CMS/TopSystematics#PDF
     """
-    nweights = len(weights.weight())
-    nom = np.ones(nweights)
-    up = np.ones(nweights)
-    down = np.ones(nweights)
-
-    # NNPDF31_nnlo_hessian_pdfas
-    # https://lhapdfsets.web.cern.ch/current/NNPDF31_nnlo_hessian_pdfas/NNPDF31_nnlo_hessian_pdfas.info
-
-    # Hessian PDF weights
-    # Eq. 21 of https://arxiv.org/pdf/1510.03865v1.pdf
-    arg = pdf_weights[:, 1:-2] - np.ones((nweights, 100))
-    summed = ak.sum(np.square(arg), axis=1)
-    pdf_unc = np.sqrt((1.0 / 99.0) * summed)
-    # weights.add("PDF", nom, pdf_unc + nom)
-
-    # alpha_S weights
-    # Eq. 27 of same ref
-    as_unc = 0.5 * (pdf_weights[:, 102] - pdf_weights[:, 101])
-    # weights.add('alphaS', nom, as_unc + nom)
-
-    # PDF + alpha_S weights
-    # Eq. 28 of same ref
-    pdfas_unc = np.sqrt(np.square(pdf_unc) + np.square(as_unc))
-    weights.add("PDFalphaS", nom, pdfas_unc + nom)
+    return events.LHEPdfWeight.to_numpy()
 
 
-def add_scalevar_7pt(weights, var_weights):
+def get_scale_weights(events):
     """
-    QCD Scale variations:
-    7 point is where the renorm. and factorization scale are varied separately
-    docstring:
-    LHE scale variation weights (w_var / w_nominal);
-    [0] is renscfact=0.5d0 facscfact=0.5d0 ;
+    QCD Scale variations, best explanation I found is here:
+    https://twiki.cern.ch/twiki/bin/viewauth/CMS/TopSystematics#Factorization_and_renormalizatio
+
+    TLDR: we want to vary the renormalization and factorization scales by a factor of 0.5 and 2,
+    and then take the envelope of the variations on our final observation as the up/down uncertainties.
+
+    Importantly, we need to keep track of the normalization for each variation,
+    so that this uncertainty takes into account the acceptance effects of our selections.
+
+    LHE scale variation weights (w_var / w_nominal) (from https://cms-nanoaod-integration.web.cern.ch/autoDoc/NanoAODv9/2018UL/doc_TTToSemiLeptonic_TuneCP5_13TeV-powheg-pythia8_RunIISummer20UL18NanoAODv9-106X_upgrade2018_realistic_v16_L1v1-v1.html#LHEScaleWeight)
+    [0] is renscfact=0.5d0 facscfact=0.5d0 ; <=
     [1] is renscfact=0.5d0 facscfact=1d0 ; <=
     [2] is renscfact=0.5d0 facscfact=2d0 ;
     [3] is renscfact=1d0 facscfact=0.5d0 ; <=
-    [4] is renscfact=1d0 facscfact=1d0 ;
+    [4] is renscfact=1d0 facscfact=1d0 ; <= saving this one as a formality, empirically they seem to be all 1s as expected
     [5] is renscfact=1d0 facscfact=2d0 ; <=
     [6] is renscfact=2d0 facscfact=0.5d0 ;
     [7] is renscfact=2d0 facscfact=1d0 ; <=
     [8] is renscfact=2d0 facscfact=2d0 ; <=
+
+    See also https://git.rwth-aachen.de/3pia/cms_analyses/common/-/blob/11e0c5225416a580d27718997a11dc3f1ec1e8d1/processor/generator.py#L93 for an example.
     """
-    docstring = var_weights.__doc__
-
-    nweights = len(weights.weight())
-
-    nom = np.ones(nweights)
-    up = np.ones(nweights)
-    down = np.ones(nweights)
-
-    if len(var_weights) > 0:
-        if len(var_weights[0]) == 9:
-            up = np.maximum.reduce(
-                [
-                    var_weights[:, 0],
-                    var_weights[:, 1],
-                    var_weights[:, 3],
-                    var_weights[:, 5],
-                    var_weights[:, 7],
-                    var_weights[:, 8],
-                ]
-            )
-            down = np.minimum.reduce(
-                [
-                    var_weights[:, 0],
-                    var_weights[:, 1],
-                    var_weights[:, 3],
-                    var_weights[:, 5],
-                    var_weights[:, 7],
-                    var_weights[:, 8],
-                ]
-            )
-        elif len(var_weights[0]) > 1:
-            print("Scale variation vector has length ", len(var_weights[0]))
-    # NOTE: I think we should take the envelope of these weights w.r.t to [4]
-    weights.add("QCDscale7pt", nom, up, down)
-    weights.add("QCDscale4", var_weights[:, 4])
-
-
-def add_scalevar_3pt(weights, var_weights):
-    docstring = var_weights.__doc__
-
-    nweights = len(weights.weight())
-
-    nom = np.ones(nweights)
-    up = np.ones(nweights)
-    down = np.ones(nweights)
-
-    if len(var_weights) > 0:
-        if len(var_weights[0]) == 9:
-            up = np.maximum(var_weights[:, 0], var_weights[:, 8])
-            down = np.minimum(var_weights[:, 0], var_weights[:, 8])
-        elif len(var_weights[0]) > 1:
-            print("Scale variation vector has length ", len(var_weights[0]))
-
-    weights.add("QCDscale3pt", nom, up, down)
+    return events.LHEScaleWeight[:, [0, 1, 3, 5, 7, 8, 4]].to_numpy()
 
 
 def _btagSF(cset, jets, flavour, wp="M", algo="deepJet", syst="central"):
@@ -336,16 +285,16 @@ def add_btag_weights(
     weights: Weights,
     year: str,
     jets: JetArray,
-    jet_selector: ak.Array,
     wp: str = "M",
     algo: str = "deepJet",
 ):
+    """Method 1b from https://twiki.cern.ch/twiki/bin/viewauth/CMS/BTagSFMethods"""
     ul_year = get_UL_year(year)
     cset = correctionlib.CorrectionSet.from_file(get_pog_json("btagging", year))
     efflookup = cutil.load(package_path + f"/corrections/btag_effs/btageff_deepJet_M_{year}.coffea")
 
-    lightJets = jets[jet_selector & (jets.hadronFlavour == 0)]
-    bcJets = jets[jet_selector & (jets.hadronFlavour > 0)]
+    lightJets = jets[jets.hadronFlavour == 0]
+    bcJets = jets[jets.hadronFlavour > 0]
 
     lightEff = efflookup(lightJets.pt, abs(lightJets.eta), lightJets.hadronFlavour)
     bcEff = efflookup(bcJets.pt, abs(bcJets.eta), bcJets.hadronFlavour)
@@ -358,6 +307,36 @@ def add_btag_weights(
 
     weight = np.nan_to_num((1 - lightnum * bcnum) / (1 - lightden * bcden), nan=1)
     weights.add("btagSF", weight)
+
+
+def add_pileupid_weights(weights: Weights, year: str, jets: JetArray, genjets, wp: str = "L"):
+    """Pileup ID scale factors
+    https://twiki.cern.ch/twiki/bin/view/CMS/PileupJetIDUL#Data_MC_Efficiency_Scale_Factors
+
+    Takes ak4 jets which already passed the pileup ID WP.
+    Only applies to jets with pT < 50 GeV and those geometrically matched to a gen jet.
+    """
+
+    # pileup ID should only be used for jets with pT < 50
+    jets = jets[jets.pt < 50]
+    # check that there's a geometrically matched genjet (99.9% are, so not really necessary...)
+    jets = jets[ak.any(jets.metric_table(genjets) < 0.4, axis=-1)]
+
+    sf_cset = correctionlib.CorrectionSet.from_file(get_pog_json("jmar", year))["PUJetID_eff"]
+
+    # save offsets to reconstruct jagged shape
+    offsets = jets.pt.layout.offsets
+
+    sfs_var = []
+    for var in ["nom", "up", "down"]:
+        # correctionlib < 2.3 doesn't accept jagged arrays (but >= 2.3 needs awkard v2)
+        sfs = sf_cset.evaluate(ak.flatten(jets.eta), ak.flatten(jets.pt), var, "L")
+        # reshape flat effs
+        sfs = ak.Array(ak.layout.ListOffsetArray64(offsets, ak.layout.NumpyArray(sfs)))
+        # product of SFs across arrays, automatically defaults empty lists to 1
+        sfs_var.append(ak.prod(sfs, axis=1))
+
+    weights.add("pileupID", *sfs_var)
 
 
 # for scale factor validation region selection
@@ -400,6 +379,7 @@ def _get_lepton_clipped(lep_pt, lep_eta, lepton_type, corr=None):
     return lepton_pt, lepton_eta
 
 
+# Used only for validation region right now
 def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_type: str = "muon"):
     ul_year = get_UL_year(year)
 
@@ -421,6 +401,56 @@ def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_ty
 
         # add weights (for now only the nominal weight)
         weights.add(f"{lepton_type}_{corr}", values["nominal"], values["up"], values["down"])
+
+
+# For analysis region
+def add_lepton_id_weights(
+    weights: Weights,
+    year: str,
+    lepton: NanoEventsArray,
+    lepton_type: str,
+    wp: str,
+    label: str = "",
+    max_num_leptons: int = 3,
+):
+    year = get_vfp_year(year)
+    ul_year = get_UL_year(year)
+
+    cset = correctionlib.CorrectionSet.from_file(get_pog_json(lepton_type, year))
+
+    lep_exists = ak.count(lepton.pt, axis=1) > 0
+    lep_pt = pad_val(lepton.pt, max_num_leptons, axis=1)
+    lep_eta = pad_val(lepton.eta, max_num_leptons, axis=1)
+
+    # some voodoo from cristina
+    lepton_pt, lepton_eta = _get_lepton_clipped(lep_pt, lep_eta, lepton_type)
+    values = {}
+
+    if lepton_type == "electron":
+        # https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/EGM_2018_UL_electron.html
+        cset_map = cset["UL-Electron-ID-SF"]
+
+        values["nominal"] = cset_map.evaluate(year, "sf", wp, lepton_eta, lepton_pt)
+        values["up"] = cset_map.evaluate(year, "sfup", wp, lepton_eta, lepton_pt)
+        values["down"] = cset_map.evaluate(year, "sfdown", wp, lepton_eta, lepton_pt)
+    else:
+        # https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/MUO_2018_UL_muon_Z_v2.html
+        cset_map = cset[f"NUM_{wp}ID_DEN_TrackerMuons"]
+
+        values["nominal"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "sf")
+        values["up"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "systup")
+        values["down"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "systdown")
+
+    for key, value in values.items():
+        # efficiency for a single lepton passing is 1 - (1 - eff1) * (1 - eff2) * ...
+        value[lepton_pt == PAD_VAL] = 0  # if lep didn't exist, ignore efficiency
+        val = 1 - np.prod(1 - value, axis=1)
+        val[~lep_exists] = 1  # if no leps in event, SF = 1
+        values[key] = np.nan_to_num(val, nan=1)
+
+    # add weights (for now only the nominal weight)
+    weights.add(f"{lepton_type}{label}_id_{wp}", values["nominal"], values["up"], values["down"])
+    # breakpoint()
 
 
 TOP_PDGID = 6
@@ -472,7 +502,6 @@ def get_jec_jets(
 ) -> FatJetArray:
     """
     Based on https://github.com/nsmith-/boostedhiggs/blob/master/boostedhiggs/hbbprocessor.py
-    Eventually update to V5 JECs once I figure out what's going on with the 2017 UL V5 JER scale factors
 
     See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/
 
@@ -487,6 +516,7 @@ def get_jec_jets(
         jets = events.Jet
         jet_factory = ak4jet_factory
 
+    # don't apply if data
     apply_jecs = not (not ak.any(jets.pt) or isData)
 
     import cachetools
@@ -578,7 +608,7 @@ def get_jmsr(
             smearing = np.random.normal(size=mass.shape)
             # scale to JMR nom, down, up (minimum at 0)
             jmr_nom, jmr_down, jmr_up = [
-                (smearing * max(jmrValues[mkey][year][i] - 1, 0) + 1) for i in range(3)
+                ((smearing * max(jmrValues[mkey][year][i] - 1, 0)) + 1) for i in range(3)
             ]
             jms_nom, jms_down, jms_up = jmsValues[mkey][year]
 

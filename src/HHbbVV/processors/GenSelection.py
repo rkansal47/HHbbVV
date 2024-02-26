@@ -513,6 +513,7 @@ def tagger_gen_H_matching(
         genVars = {**genVars, **genVVars, **genVstarVars, **genLabelVars}
 
     elif "qq" in decays:
+        print("qq")
         children_mask = get_pid_mask(
             matched_higgs_children,
             [g_PDGID, b_PDGID, c_PDGID, s_PDGID, d_PDGID, u_PDGID],
@@ -535,19 +536,31 @@ def tagger_gen_H_matching(
             + ((ak.sum(daughters_pdgId == g_PDGID, axis=1) == 2)) * 7
         )
 
+        bs_decay = (ak.sum(daughters_pdgId == b_PDGID, axis=1) == 1) * (
+            ak.sum(daughters_pdgId == s_PDGID, axis=1) == 1
+        )
+
+        print(bs_decay)
+        print(np.sum(bs_decay))
+
         genLabelVars = {
             "fj_nprongs": nprongs,
             "fj_H_bb": to_label(decay == 1),
             "fj_H_cc": to_label(decay == 3),
             "fj_H_qq": to_label(decay == 5),
             "fj_H_gg": to_label(decay == 7),
+            "fj_H_bs": to_label(bs_decay),
         }
+
+        print(genLabelVars)
 
         genVars = {**genVars, **genLabelVars}
 
         # select event only if any of the q/g decays are within jet radius
         matched_qs_mask = ak.any(fatjets.delta_r(daughters) < jet_dR, axis=1)
         matched_mask = matched_higgs_mask & matched_qs_mask
+
+        breakpoint()
 
     return matched_mask, genVars
 

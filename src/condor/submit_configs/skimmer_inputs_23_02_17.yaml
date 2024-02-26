@@ -41,8 +41,9 @@
                         [
                             "ST_tW_antitop_5f_inclusiveDecays",
                             "ST_tW_top_5f_inclusiveDecays",
-                            "ST_s-channel_4f_hadronicDecays",
+                            # "ST_s-channel_4f_hadronicDecays",
                             "ST_t-channel_antitop_4f_InclusiveDecays",
+                            "ST_t-channel_top_4f_InclusiveDecays",
                         ],
                     "files_per_job": 20,
                     "chunksize": 100000,

@@ -19,16 +19,8 @@ import run_utils
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--processor",
-    default="trigger",
-    help="which processor",
-    type=str,
-    choices=["trigger", "skimmer", "input", "ttsfs"],
-)
+run_utils.parse_common_args(parser)
 
-parser.add_argument("--tag", default="", help="tag for jobs", type=str)
-parser.add_argument("--year", default="2017", help="year", type=str)
 parser.add_argument("--user", default="rkansal", help="user", type=str)
 run_utils.add_bool_arg(parser, "submit-missing", default=False, help="submit missing files")
 run_utils.add_bool_arg(
@@ -40,6 +32,7 @@ run_utils.add_bool_arg(
 
 args = parser.parse_args()
 
+trigger_processor = args.processor.startswith("trigger")
 
 eosdir = f"/eos/uscms/store/user/{args.user}/bbVV/{args.processor}/{args.tag}/{args.year}/"
 
@@ -85,7 +78,7 @@ err_files = []
 for sample in samples:
     print(f"Checking {sample}")
 
-    if args.processor != "trigger":
+    if not trigger_processor:
         if not exists(f"{eosdir}/{sample}/parquet"):
             print_red(f"No parquet directory for {sample}!")
 
@@ -117,7 +110,7 @@ for sample in samples:
         int(out.split(".")[0].split("_")[-1]) for out in listdir(f"{eosdir}/{sample}/pickles")
     ]
 
-    if args.processor == "trigger":
+    if trigger_processor:
         print(f"Out pickles: {outs_pickles}")
 
     for i in range(jdl_dict[sample]):
@@ -134,7 +127,7 @@ for sample in samples:
             if args.submit_missing:
                 os.system(f"condor_submit {jdl_file}")
 
-        if args.processor != "trigger":
+        if not trigger_processor:
             if i not in outs_parquet:
                 print_red(f"Missing output parquet #{i} for sample {sample}")
 
