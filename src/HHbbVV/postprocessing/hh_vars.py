@@ -197,6 +197,7 @@ txbb_wps = {
     "2018": {"HP": 0.988, "MP": 0.9734, "LP": 0.9172},
 }
 
+norm_preserving_weights = ["genweight", "pileup", "ISRPartonShower", "FSRPartonShower"]
 
 jecs = {
     "JES": "JES_jes",

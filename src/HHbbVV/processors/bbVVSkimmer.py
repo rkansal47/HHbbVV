@@ -16,7 +16,7 @@ import pathlib
 import pickle, json, gzip
 import os
 
-from typing import Dict
+from typing import Dict, Tuple
 from collections import OrderedDict
 
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV, G_PDGID
@@ -56,8 +56,9 @@ gen_selection_dict = {
 
 import logging
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger("bbVVSkimmer")
+# logger.setLevel(logging.INFO)
 
 
 class bbVVSkimmer(processor.ProcessorABC):
@@ -155,9 +156,9 @@ class bbVVSkimmer(processor.ProcessorABC):
         xsecs={},
         save_ak15=False,
         save_systematics=True,
+        lp_sfs=True,
         inference=True,
         save_all=False,
-        vbf_search=True,
     ):
         super(bbVVSkimmer, self).__init__()
 
@@ -167,14 +168,14 @@ class bbVVSkimmer(processor.ProcessorABC):
         # save systematic variations
         self._systematics = save_systematics
 
+        # save LP SFs
+        self._lp_sfs = lp_sfs
+
         # run inference
         self._inference = inference
 
         # save all branches or only necessary ones
         self._save_all = save_all
-
-        # search for VBF production events
-        self._vbf_search = vbf_search
 
         # for tagger model and preprocessing dict
         self.tagger_resources_path = (
@@ -189,8 +190,8 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         self._accumulator = processor.dict_accumulator({})
 
-        logger.info(
-            f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all} and VBF search {self._vbf_search}"
+        logging.info(
+            f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all}."
         )
 
     def to_pandas(self, events: Dict[str, np.array]):
@@ -286,9 +287,12 @@ class bbVVSkimmer(processor.ProcessorABC):
                 skimmed_events = {**skimmed_events, **vars_dict}
 
         # used for normalization to cross section below
-        gen_selected = selection.all(*selection.names)
-        print("gen selected", gen_selected)
-        print(f"num gen selected {np.sum(gen_selected)} / {len(events)}")
+        gen_selected = (
+            selection.all(*selection.names)
+            if len(selection.names)
+            else np.ones(len(events)).astype(bool)
+        )
+        logging.info(f"Passing gen selection: {np.sum(gen_selected)} / {len(events)}")
 
         # FatJet vars
 
@@ -418,7 +422,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         if isData:
             for trigger in HLTs[year_nosuffix]:
                 if trigger not in events.HLT.fields:
-                    logger.warning(f"Missing HLT {trigger}!")
+                    logging.warning(f"Missing HLT {trigger}!")
 
             HLT_triggered = np.any(
                 np.array(
@@ -634,25 +638,27 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Weights
         ######################
 
+        totals_dict = {"nevents": n_events}
+
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
         else:
-            skimmed_events = {
-                **skimmed_events,
-                **self.add_weights(
-                    events,
-                    year,
-                    dataset,
-                    gen_weights,
-                    fatjets,
-                    num_jets,
-                    vbf_jets,
-                    goodelectronsHbb,
-                    goodelectronsHH,
-                    goodmuonsHbb,
-                    goodmuonsHH,
-                ),
-            }
+            weights_dict, totals_temp = self.add_weights(
+                events,
+                year,
+                dataset,
+                gen_weights,
+                fatjets,
+                num_jets,
+                vbf_jets,
+                gen_selected,
+                goodelectronsHbb,
+                goodelectronsHH,
+                goodmuonsHbb,
+                goodmuonsHH,
+            )
+            skimmed_events = {**skimmed_events, **weights_dict}
+            totals_dict = {**totals_dict, **totals_temp}
 
         ##############################
         # Reshape and apply selections
@@ -671,7 +677,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Lund plane SFs
         ################
 
-        if isSignal and self._systematics:
+        if isSignal and self._systematics and self._lp_sfs:
             # TODO: remember to add new LP variables
             items = [
                 ("lp_sf_lnN", 101),
@@ -749,7 +755,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 sf_dicts = concatenate_dicts(sf_dicts)
 
             else:
-                print("No signal events selected")
+                logging.info("No signal events selected")
                 sf_dicts = {}
                 for key, shape in items:
                     arr = np.ones((np.sum(sel_all), shape))
@@ -794,7 +800,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
         self.dump_table(df, fname)
 
-        return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
+        return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
 
     def postprocess(self, accumulator):
         return accumulator
@@ -821,7 +827,7 @@ class bbVVSkimmer(processor.ProcessorABC):
             xsec = self.XSECS[dataset] if dataset in self.XSECS else 1e-3  # in pb
             weight_norm = xsec * LUMI[year]
         else:
-            logger.warning("Weight not normalized to cross section")
+            logging.warning("Weight not normalized to cross section")
             weight_norm = 1
 
         return weight_norm
@@ -840,7 +846,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         goodelectronsHH,
         goodmuonsHbb,
         goodmuonsHH,
-    ):
+    ) -> Tuple[Dict, Dict]:
+        """Adds weights and variations, saves totals for all norm preserving weights and variations"""
         weights = Weights(len(events), storeIndividual=True)
         weights.add("genweight", gen_weights)
 
@@ -858,7 +865,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 events.L1PreFiringWeight.Dn,
             )
 
-        logger.debug("weights ", weights._weights.keys())
+        logging.debug("weights ", weights._weights.keys())
 
         ###################### Save all the weights and variations ######################
 
@@ -877,8 +884,8 @@ class bbVVSkimmer(processor.ProcessorABC):
         weights_dict["weight_noTrigEffs"] = weights.partial_weight(exclude=["trig_effs"])
 
         # norm preserving weights, used to do normalization in post-processing
-        weights_dict["weight_np"] = weights.weight(include=norm_preserving_weights)
-        totals_dict["np_nominal"] = np.sum(weights_dict["weight_np"][gen_selected])
+        weight_np = weights.partial_weight(include=norm_preserving_weights)
+        totals_dict["np_nominal"] = np.sum(weight_np[gen_selected])
 
         # variations
         if self._systematics:
@@ -886,30 +893,28 @@ class bbVVSkimmer(processor.ProcessorABC):
                 weights_dict[f"weight_{systematic}"] = weights.weight(modifier=systematic)
 
                 if utils.remove_variation_suffix(systematic) in norm_preserving_weights:
-                    weights_dict[f"weight_np_{systematic}"] = weights.partial_weight(
+                    var_weight = weights.partial_weight(
                         include=norm_preserving_weights, modifier=systematic
                     )
 
                     # need to save total # events for each variation for normalization in post-processing
-                    totals_dict[f"np_{systematic}"] = weights_dict[f"weight_np_{systematic}"][
-                        gen_selected
-                    ]
+                    totals_dict[f"np_{systematic}"] = np.sum(var_weight[gen_selected])
 
         ###################### alpha_S and PDF variations ######################
 
         # alpha_s variations, only for HH and ttbar
         if "GluGluToHHTobbVV" in dataset or "VBF_HHTobbVV" in dataset or dataset.startswith("TTTo"):
             scale_weights = get_scale_weights(events)
-            weights_dict["scale_weights"] = scale_weights * weights_dict["weight"]
+            weights_dict["scale_weights"] = scale_weights * weights_dict["weight"][:, np.newaxis]
             totals_dict["np_scale_weights"] = np.sum(
-                (scale_weights * weights_dict["weight_np"])[gen_selected]
+                (scale_weights * weight_np[:, np.newaxis])[gen_selected], axis=0
             )
 
         if "GluGluToHHTobbVV" in dataset or "VBF_HHTobbVV" in dataset:
             pdf_weights = get_pdf_weights(events)
-            weights_dict["pdf_weights"] = pdf_weights * weights_dict["weight"]
+            weights_dict["pdf_weights"] = pdf_weights * weights_dict["weight"][:, np.newaxis]
             totals_dict["np_pdf_weights"] = np.sum(
-                (pdf_weights * weights_dict["weight_np"])[gen_selected]
+                (pdf_weights * weight_np[:, np.newaxis])[gen_selected], axis=0
             )
 
         ###################### Normalization (Step 1) ######################
@@ -942,10 +947,9 @@ class bbVVSkimmer(processor.ProcessorABC):
             + list(lepton_weights._modifiers.items())
         }
 
-        print("lepton weights", lepton_weights_dict)
         weights_dict = {**weights_dict, **lepton_weights_dict}
 
-        return weights_dict
+        return weights_dict, totals_dict
 
     def getDijetVars(
         self, ak8FatJetVars: Dict, bb_mask: np.ndarray, pt_shift: str = None, mass_shift: str = None

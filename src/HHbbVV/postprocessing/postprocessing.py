@@ -46,6 +46,7 @@ from hh_vars import (
     samples,
     nonres_samples,
     res_samples,
+    norm_preserving_weights,
     txbb_wps,
     jec_shifts,
     jmsr_shifts,
@@ -350,6 +351,7 @@ nonres_sig_keys_ggf = [
 # TODO: check which of these applies to resonant as well
 weight_shifts = {
     "pileup": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup"),
+    "pileupID": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup ID"),
     # "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
     # "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"),
     "ISRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="ISR Parton Shower"),
@@ -810,6 +812,120 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
             )
 
 
+def normalize_weights(events: pd.DataFrame, totals: Dict, sample: str, isData: bool):
+    """Normalize weights and all the variations"""
+
+    # don't need any reweighting for data
+    if isData:
+        events["finalWeight"] = events["weight"]
+        return
+
+    # check weights are scaled
+    if "weight_noxsec" in events:
+        if np.all(events["weight"] == events["weight_noxsec"]):
+            warnings.warn(f"{sample} has not been scaled by its xsec and lumi!")
+
+    # checking that trigger efficiencies have been applied
+    if "weight_noTrigEffs" in events and not np.all(
+        np.isclose(events["weight"], events["weight_noTrigEffs"], rtol=1e-5)
+    ):
+        # normalize weights with and without trigger efficiencies
+        events["finalWeight"] = events["weight"] / totals["np_nominal"]
+        events["weight_noTrigEffs"] /= totals["np_nominal"]
+    else:
+        events["weight"] /= totals["np_nominal"]
+
+    # normalize all the variations
+    for wvar in weight_shifts:
+        if f"weight_{wvar}Up" not in events:
+            continue
+
+        for shift in ["Up", "Down"]:
+            wlabel = wvar + shift
+            if wvar in norm_preserving_weights:
+                # normalize by their totals
+                events[f"weight_{wlabel}"] /= totals[f"np_{wlabel}"]
+            else:
+                # normalize by the nominal
+                events[f"weight_{wlabel}"] /= totals[f"np_nominal"]
+
+    # normalize scale and PDF weights
+    for wkey in ["scale_weights", "pdf_weights"]:
+        if wkey in events:
+            events[wkey] /= totals[f"np_{wkey}"]
+
+
+def load_samples(
+    data_dir: str,
+    samples: Dict[str, str],
+    year: str,
+    filters: List = None,
+    columns: List = None,
+    hem_cleaning: bool = True,
+) -> Dict[str, pd.DataFrame]:
+    """
+    Loads events with an optional filter.
+    Divides MC samples by the total pre-skimming, to take the acceptance into account.
+
+    Args:
+        data_dir (str): path to data directory.
+        samples (Dict[str, str]): dictionary of samples and selectors to load.
+        year (str): year.
+        filters (List): Optional filters when loading data.
+        columns (List): Optional columns to load.
+        hem_cleaning (bool): Whether to apply HEM cleaning to 2018 data.
+
+    Returns:
+        Dict[str, pd.DataFrame]: ``events_dict`` dictionary of events dataframe for each sample.
+
+    """
+    data_dir = Path(data_dir) / year
+    full_samples_list = os.listdir(data_dir)  # get all directories in data_dir
+    events_dict = {}
+
+    # label - key of sample in events_dict
+    # selector - string used to select directories to load in for this sample
+    for label, selector in samples.items():
+        events_dict[label] = []  # list of directories we load in for this sample
+        for sample in full_samples_list:
+            # check if this directory passes our selector string
+            if not utils.check_selector(sample, selector):
+                continue
+
+            sample_path = data_dir / sample
+            parquet_path, pickles_path = sample_path / "parquet", sample_path / "pickles"
+
+            # no parquet directory?
+            if not parquet_path.exists():
+                warnings.warn(f"No parquet directory for {sample}!")
+                continue
+
+            # print(f"Loading {sample}")
+            events = pd.read_parquet(parquet_path, filters=filters, columns=columns)
+
+            # no events?
+            if not len(events):
+                warnings.warn(f"No events for {sample}!")
+                continue
+
+            # normalize by total events
+            totals = utils.get_pickles(pickles_path, year, sample)["totals"]
+            normalize_weights(events, totals, sample, isData=label == data_key)
+
+            if year == "2018" and hem_cleaning:
+                events = utils._hem_cleaning(sample, events)
+
+            events_dict[label].append(events)
+            print(f"Loaded {sample: <50}: {len(events)} entries")
+
+        if len(events_dict[label]):
+            events_dict[label] = pd.concat(events_dict[label])
+        else:
+            del events_dict[label]
+
+    return events_dict
+
+
 def _check_load_systematics(systs_file: str, year: str):
     if os.path.exists(systs_file):
         print("Loading systematics")
@@ -832,15 +948,13 @@ def _load_samples(args, samples, sig_samples, cutflow, filters=None):
     for d in args.signal_data_dirs:
         events_dict = {
             **events_dict,
-            **utils.load_samples(
-                d, sig_samples, args.year, filters, hem_cleaning=args.hem_cleaning
-            ),
+            **load_samples(d, sig_samples, args.year, filters, hem_cleaning=args.hem_cleaning),
         }
 
     if args.data_dir:
         events_dict = {
             **events_dict,
-            **utils.load_samples(
+            **load_samples(
                 args.data_dir, samples, args.year, filters, hem_cleaning=args.hem_cleaning
             ),
         }

@@ -251,7 +251,7 @@ def get_scale_weights(events):
     [1] is renscfact=0.5d0 facscfact=1d0 ; <=
     [2] is renscfact=0.5d0 facscfact=2d0 ;
     [3] is renscfact=1d0 facscfact=0.5d0 ; <=
-    [4] is renscfact=1d0 facscfact=1d0 ;
+    [4] is renscfact=1d0 facscfact=1d0 ; <= saving this one as a formality, empirically they seem to be all 1s as expected
     [5] is renscfact=1d0 facscfact=2d0 ; <=
     [6] is renscfact=2d0 facscfact=0.5d0 ;
     [7] is renscfact=2d0 facscfact=1d0 ; <=
@@ -259,11 +259,7 @@ def get_scale_weights(events):
 
     See also https://git.rwth-aachen.de/3pia/cms_analyses/common/-/blob/11e0c5225416a580d27718997a11dc3f1ec1e8d1/processor/generator.py#L93 for an example.
     """
-    print("Scale weights: ")
-    print(events.LHEScaleWeight[:, [0, 1, 3, 5, 7, 8, 4]])
-    print("TODO: double check, last column should be 1s!!")
-
-    return events.LHEScaleWeight[:, [0, 1, 3, 5, 7, 8]].to_numpy()
+    return events.LHEScaleWeight[:, [0, 1, 3, 5, 7, 8, 4]].to_numpy()
 
 
 def _btagSF(cset, jets, flavour, wp="M", algo="deepJet", syst="central"):
@@ -339,7 +335,7 @@ def add_pileupid_weights(weights: Weights, year: str, jets: JetArray, genjets, w
         # product of SFs across arrays, automatically defaults empty lists to 1
         sfs_var.append(ak.prod(sfs, axis=1))
 
-    weights.add("pileupIDSF", *sfs_var)
+    weights.add("pileupID", *sfs_var)
 
 
 # for scale factor validation region selection
@@ -450,9 +446,6 @@ def add_lepton_id_weights(
         val = 1 - np.prod(1 - value, axis=1)
         val[~lep_exists] = 1  # if no leps in event, SF = 1
         values[key] = np.nan_to_num(val, nan=1)
-
-    print(lepton_type, label)
-    print(values)
 
     # add weights (for now only the nominal weight)
     weights.add(f"{lepton_type}{label}_id_{wp}", values["nominal"], values["up"], values["down"])

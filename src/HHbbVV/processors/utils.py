@@ -204,7 +204,7 @@ class Weights:
             return self._weight / self._modifiers[modifier.replace("Down", "Up")]
         return self._weight * self._modifiers[modifier]
 
-    def partial_weight(self, include=[], exclude=[]):
+    def partial_weight(self, include=[], exclude=[], modifier=None):
         """Partial event weight vector
 
         Return a partial weight by multiplying a subset of all weights.
@@ -219,9 +219,12 @@ class Weights:
                 Weight names to include, defaults to []
             exclude : list
                 Weight names to exclude, defaults to []
+            modifier : str, optional
+                if supplied, provide event weight corresponding to a particular
+                systematic uncertainty shift, of form ``str(name + 'Up')`` or (Down)
         Returns
         -------
-            weight : np.ndarray
+            weight : numpy.ndarray
                 The weight vector, corresponding to only the effect of the
                 corrections specified.
         """
@@ -231,10 +234,6 @@ class Weights:
             )
         if (include and exclude) or not (include or exclude):
             raise ValueError("Need to specify exactly one of the 'exclude' or 'include' arguments.")
-        if include and not isinstance(include, list):
-            raise ValueError("'include' should be a list of weight names")
-        if exclude and not isinstance(exclude, list):
-            raise ValueError("'exclude' should be a list of weight names")
 
         names = set(self._weights.keys())
         if include:
@@ -246,7 +245,13 @@ class Weights:
         for name in names:
             w = w * self._weights[name]
 
-        return w
+        if modifier is None:
+            return w
+        elif modifier.replace("Down", "").replace("Up", "") not in names:
+            raise ValueError(f"Modifier {modifier} is not in the list of included weights")
+        elif "Down" in modifier and modifier not in self._modifiers:
+            return w / self._modifiers[modifier.replace("Down", "Up")]
+        return w * self._modifiers[modifier]
 
     @property
     def variations(self):
