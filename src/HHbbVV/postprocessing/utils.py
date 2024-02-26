@@ -106,18 +106,13 @@ def remove_empty_parquets(samples_dir, year):
                 remove(file_path)
 
 
-def get_xsecs():
-    """Load cross sections json file and evaluate if necessary"""
-    import json
-
-    with open(f"{MAIN_DIR}/data/xsecs.json") as f:
-        xsecs = json.load(f)
-
-    for key, value in xsecs.items():
-        if type(value) == str:
-            xsecs[key] = eval(value)
-
-    return xsecs
+def remove_variation_suffix(var: str):
+    """removes the variation suffix from the variable name"""
+    if var.endswith("Down"):
+        return var.split("Down")[0]
+    elif var.endswith("Up"):
+        return var.split("Up")[0]
+    return var
 
 
 def get_nevents(pickles_path, year, sample_name):
@@ -154,6 +149,27 @@ def get_cutflow(pickles_path, year, sample_name):
             cutflow = accumulate([cutflow, out_dict[year][sample_name]["cutflow"]])
 
     return cutflow
+
+
+def get_pickles(pickles_path, year, sample_name):
+    """Accumulates all pickles in ``pickles_path`` directory"""
+    from coffea.processor.accumulator import accumulate
+
+    out_pickles = [f for f in listdir(pickles_path) if f != ".DS_Store"]
+
+    file_name = out_pickles[0]
+    with open(f"{pickles_path}/{file_name}", "rb") as file:
+        # out = pickle.load(file)[year][sample_name]  # TODO: uncomment and delete below
+        out = pickle.load(file)[year]
+        sample_name = list(out.keys())[0]
+        out = out[sample_name]
+
+    for file_name in out_pickles[1:]:
+        with open(f"{pickles_path}/{file_name}", "rb") as file:
+            out_dict = pickle.load(file)[year][sample_name]
+            out = accumulate([out, out_dict])
+
+    return out
 
 
 def check_selector(sample: str, selector: Union[str, List[str]]):

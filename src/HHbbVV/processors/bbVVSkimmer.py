@@ -8,7 +8,7 @@ import awkward as ak
 import pandas as pd
 
 from coffea import processor
-from coffea.analysis_tools import Weights, PackedSelection
+from coffea.analysis_tools import PackedSelection
 from coffea.nanoevents.methods.nanoaod import JetArray
 import vector
 
@@ -16,28 +16,29 @@ import pathlib
 import pickle, json, gzip
 import os
 
-from typing import Dict
+from typing import Dict, Tuple
 from collections import OrderedDict
 
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV, G_PDGID
 from .TaggerInference import runInferenceTriton
-from .utils import pad_val, add_selection, concatenate_dicts, select_dicts, P4
+from .utils import pad_val, add_selection, concatenate_dicts, select_dicts, P4, Weights
 from .corrections import (
     add_pileup_weight,
     add_pileupid_weights,
     add_VJets_kFactors,
     add_top_pt_weight,
     add_ps_weight,
-    add_pdf_weight,
-    add_scalevar_7pt,
+    get_scale_weights,
+    get_pdf_weights,
     add_trig_effs,
     get_jec_key,
     get_jec_jets,
     get_jmsr,
     get_lund_SFs,
+    add_lepton_id_weights,
 )
 from .common import LUMI, HLTs, btagWPs, jec_shifts, jmsr_shifts
-from . import common
+from . import corrections, common, utils
 
 
 # mapping samples to the appropriate function for doing gen-level selections
@@ -55,8 +56,9 @@ gen_selection_dict = {
 
 import logging
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger("bbVVSkimmer")
+# logger.setLevel(logging.INFO)
 
 
 class bbVVSkimmer(processor.ProcessorABC):
@@ -122,6 +124,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         "VBFJetPt",
         "VBFJetPhi",
         "VBFJetMass",
+        "nGoodVBFJets",
         "ak8FatJetHbb",
         "ak8FatJetHVV",
         "ak8FatJetHVVNumProngs",
@@ -131,7 +134,12 @@ class bbVVSkimmer(processor.ProcessorABC):
         "MET_phi",
         "nGoodElectronsHH",
         "nGoodElectronsHbb",
-        "nGoodMuons",
+        "nGoodMuonsHH",
+        "nGoodMuonsHbb",
+        "ak8FatJetNumWTagged",
+        "ak8FatJetLowestWTaggedTxbb",
+        "ak8FatJetWTaggedMsd",
+        "ak8FatJetWTaggedParticleNetMass",
     ]
 
     for shift in jec_shifts:
@@ -148,9 +156,9 @@ class bbVVSkimmer(processor.ProcessorABC):
         xsecs={},
         save_ak15=False,
         save_systematics=True,
+        lp_sfs=True,
         inference=True,
         save_all=False,
-        vbf_search=True,
     ):
         super(bbVVSkimmer, self).__init__()
 
@@ -160,14 +168,14 @@ class bbVVSkimmer(processor.ProcessorABC):
         # save systematic variations
         self._systematics = save_systematics
 
+        # save LP SFs
+        self._lp_sfs = lp_sfs
+
         # run inference
         self._inference = inference
 
         # save all branches or only necessary ones
         self._save_all = save_all
-
-        # search for VBF production events
-        self._vbf_search = vbf_search
 
         # for tagger model and preprocessing dict
         self.tagger_resources_path = (
@@ -182,8 +190,8 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         self._accumulator = processor.dict_accumulator({})
 
-        logger.info(
-            f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all} and VBF search {self._vbf_search}"
+        logging.info(
+            f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all}."
         )
 
     def to_pandas(self, events: Dict[str, np.array]):
@@ -235,6 +243,10 @@ class bbVVSkimmer(processor.ProcessorABC):
             or "VBF_HHTobbVV" in dataset
         )
 
+        if not isData:
+            # remove events with pileup weights un-physically large
+            events = self.pileup_cutoff(events, year, cutoff=4)
+
         if isSignal:
             # only signs for HH
             # TODO: check if this is also the case for HY
@@ -246,14 +258,13 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         n_events = len(events) if isData else np.sum(gen_weights)
         selection = PackedSelection()
-        weights = Weights(len(events), storeIndividual=True)
 
         cutflow = OrderedDict()
         cutflow["all"] = n_events
 
         selection_args = (selection, cutflow, isData, gen_weights)
 
-        num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
+        num_jets = 2
         num_ak4_jets = 2
         fatjets, jec_shifted_vars = get_jec_jets(events, year, isData, self.jecs, fatjets=True)
 
@@ -274,6 +285,14 @@ class bbVVSkimmer(processor.ProcessorABC):
                     events, fatjets, selection, cutflow, gen_weights, P4
                 )
                 skimmed_events = {**skimmed_events, **vars_dict}
+
+        # used for normalization to cross section below
+        gen_selected = (
+            selection.all(*selection.names)
+            if len(selection.names)
+            else np.ones(len(events)).astype(bool)
+        )
+        logging.info(f"Passing gen selection: {np.sum(gen_selected)} / {len(events)}")
 
         # FatJet vars
 
@@ -403,7 +422,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         if isData:
             for trigger in HLTs[year_nosuffix]:
                 if trigger not in events.HLT.fields:
-                    logger.warning(f"Missing HLT {trigger}!")
+                    logging.warning(f"Missing HLT {trigger}!")
 
             HLT_triggered = np.any(
                 np.array(
@@ -534,42 +553,76 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         electrons, muons = events.Electron, events.Muon
 
-        # selection from https://github.com/jennetd/hbb-coffea/blob/85bc3692be9e0e0a0c82ae3c78e22cdf5b3e4d68/boostedhiggs/vhbbprocessor.py#L283-L307
+        # VBF Hbb selection from https://github.com/jennetd/hbb-coffea/blob/85bc3692be9e0e0a0c82ae3c78e22cdf5b3e4d68/boostedhiggs/vhbbprocessor.py#L283-L307
         # https://indico.cern.ch/event/1154430/#b-471403-higgs-meeting-special
 
         goodelectronHbb = (
-            (events.Electron.pt > 20)
-            & (abs(events.Electron.eta) < 2.5)
-            & (events.Electron.miniPFRelIso_all < 0.4)
-            & (events.Electron.cutBased >= events.Electron.LOOSE)
+            (electrons.pt > 20)
+            & (abs(electrons.eta) < 2.5)
+            & (electrons.miniPFRelIso_all < 0.4)
+            & (electrons.cutBased >= electrons.LOOSE)
         )
         nelectronsHbb = ak.sum(goodelectronHbb, axis=1)
+        goodelectronsHbb = electrons[goodelectronHbb]
 
-        # if using HH4b lepton vetoes:
+        goodmuonHbb = (
+            (muons.pt > 10) & (abs(muons.eta) < 2.4) & (muons.pfRelIso04_all < 0.25) & muons.looseId
+        )
+        nmuonsHbb = ak.sum(goodmuonHbb, axis=1)
+        goodmuonsHbb = muons[goodmuonHbb]
+
+        # HH4b lepton vetoes:
         # https://cms.cern.ch/iCMS/user/noteinfo?cmsnoteid=CMS%20AN-2020/231 Section 7.1.2
         # In order to be considered in the lepton veto step, a muon (electron) is required to to pass the selections described in Section 5.2, and to have pT > 15 GeV (pT > 20 GeV), and |η| < 2.4 (2.5).
         # A muon is also required to pass loose identification criteria as detailed in [35] and mini-isolation
         # (miniPFRelIso all < 0.4). An electron is required to pass mvaFall17V2noIso WP90 identification as well as mini-isolation (miniPFRelIso all < 0.4).
 
         goodelectronHH = (
-            (events.Electron.pt > 20)
-            & (abs(events.Electron.eta) < 2.5)
-            & (events.Electron.miniPFRelIso_all < 0.4)
-            & (events.Electron.mvaFall17V2noIso_WP90)
+            (electrons.pt > 20)
+            & (abs(electrons.eta) < 2.5)
+            & (electrons.miniPFRelIso_all < 0.4)
+            & (electrons.mvaFall17V2noIso_WP90)
         )
         nelectronsHH = ak.sum(goodelectronHH, axis=1)
+        goodelectronsHH = electrons[goodelectronHH]
 
-        goodmuon = (
-            (events.Muon.pt > 15)
-            & (abs(events.Muon.eta) < 2.4)
-            & (events.Muon.miniPFRelIso_all < 0.4)
-            & events.Muon.looseId
+        goodmuonHH = (
+            (muons.pt > 15)
+            & (abs(muons.eta) < 2.4)
+            & (muons.miniPFRelIso_all < 0.4)
+            & muons.looseId
         )
-        nmuons = ak.sum(goodmuon, axis=1)
+        nmuonsHH = ak.sum(goodmuonHH, axis=1)
+        goodmuonsHH = muons[goodmuonHH]
 
-        skimmed_events["nGoodMuons"] = nmuons.to_numpy()
-        skimmed_events["nGoodElectronsHH"] = nelectronsHH.to_numpy()
         skimmed_events["nGoodElectronsHbb"] = nelectronsHbb.to_numpy()
+        skimmed_events["nGoodElectronsHH"] = nelectronsHH.to_numpy()
+        skimmed_events["nGoodMuonsHbb"] = nmuonsHbb.to_numpy()
+        skimmed_events["nGoodMuonsHH"] = nmuonsHH.to_numpy()
+
+        # XHY->bbWW semi-resolved channel veto
+        Wqq_score = (fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc) / (
+            fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc + fatjets.particleNetMD_QCD
+        )
+
+        skimmed_events["ak8FatJetNumWTagged"] = ak.sum(Wqq_score[:, :3] >= 0.8, axis=1).to_numpy()
+
+        sorted_wqq_score = np.argsort(pad_val(Wqq_score, 3, 0, 1), axis=1)
+
+        # get TXbb score of the lowest-Wqq-tagged jet
+        skimmed_events["ak8FatJetLowestWTaggedTxbb"] = pad_val(fatjets["Txbb"], 3, 0, 1)[
+            np.arange(len(fatjets)), sorted_wqq_score[:, 0]
+        ]
+
+        # save both SD and regressed masses of the two W-tagged AK8 jets
+        # Amitav will optimize mass cut soon
+
+        mass_dict = {"particleNet_mass": "ParticleNetMass", "msoftdrop": "Msd"}
+        for mkey, mlabel in mass_dict.items():
+            mass_vals = pad_val(fatjets[mkey], 3, 0, 1)
+            mv_fj1 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 2]]
+            mv_fj2 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 1]]
+            skimmed_events[f"ak8FatJetWTagged{mlabel}"] = np.stack([mv_fj1, mv_fj2]).T
 
         ######################
         # Remove branches
@@ -585,80 +638,32 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Weights
         ######################
 
+        totals_dict = {"nevents": n_events}
+
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
         else:
-            weights.add("genweight", gen_weights)
+            weights_dict, totals_temp = self.add_weights(
+                events,
+                year,
+                dataset,
+                gen_weights,
+                fatjets,
+                num_jets,
+                vbf_jets,
+                gen_selected,
+                goodelectronsHbb,
+                goodelectronsHH,
+                goodmuonsHbb,
+                goodmuonsHH,
+            )
+            skimmed_events = {**skimmed_events, **weights_dict}
+            totals_dict = {**totals_dict, **totals_temp}
 
-            add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
-            add_pileupid_weights(weights, year, vbf_jets, events.GenJet, wp="M")  # this gives error
-            add_VJets_kFactors(weights, events.GenPart, dataset)
+        ##############################
+        # Reshape and apply selections
+        ##############################
 
-            # if dataset.startswith("TTTo"):
-            #     # TODO: need to add uncertainties and rescale yields (?)
-            #     add_top_pt_weight(weights, events)
-
-            add_ps_weight(weights, events.PSWeight)
-
-            if "GluGluToHHTobbVV" in dataset:
-                if "LHEPdfWeight" in events.fields:
-                    add_pdf_weight(weights, events.LHEPdfWeight)
-                else:
-                    add_pdf_weight(weights, [])
-                if "LHEScaleWeight" in events.fields:
-                    add_scalevar_7pt(weights, events.LHEScaleWeight)
-                else:
-                    add_scalevar_7pt(weights, [])
-
-            if year in ("2016APV", "2016", "2017"):
-                weights.add(
-                    "L1EcalPrefiring",
-                    events.L1PreFiringWeight.Nom,
-                    events.L1PreFiringWeight.Up,
-                    events.L1PreFiringWeight.Dn,
-                )
-
-            add_trig_effs(weights, fatjets, year, num_jets)
-
-            # xsec and luminosity and normalization
-            # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)
-            if dataset in self.XSECS or "XToYHTo2W2BTo4Q2B" in dataset:
-                # 1 fb xsec for now for resonant signal
-                xsec = self.XSECS[dataset] if dataset in self.XSECS else 1e-3  # in pb
-                weight_norm = xsec * LUMI[year]
-            else:
-                logger.warning("Weight not normalized to cross section")
-                weight_norm = 1
-
-            systematics = ["", "notrigeffs"]
-
-            if self._systematics:
-                systematics += list(weights.variations)
-
-            single_weight_pileup = weights.partial_weight(["single_weight_pileup"])
-            add_selection("single_weight_pileup", (single_weight_pileup <= 4), *selection_args)
-
-            # TODO: need to be careful about the sum of gen weights used for the LHE/QCDScale uncertainties
-            logger.debug("weights ", weights._weights.keys())
-            for systematic in systematics:
-                if systematic in weights.variations:
-                    weight = weights.weight(modifier=systematic)
-                    weight_name = f"weight_{systematic}"
-                elif systematic == "":
-                    weight = weights.weight()
-                    weight_name = "weight"
-                elif systematic == "notrigeffs":
-                    weight = weights.partial_weight(exclude=["trig_effs"])
-                    weight_name = "weight_noTrigEffs"
-
-                # includes genWeight (or signed genWeight)
-                skimmed_events[weight_name] = weight * weight_norm
-
-                if systematic == "":
-                    # to check in postprocessing for xsec & lumi normalisation
-                    skimmed_events["weight_noxsec"] = weight
-
-        # reshape and apply selections
         sel_all = selection.all(*selection.names)
 
         skimmed_events = {
@@ -672,7 +677,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Lund plane SFs
         ################
 
-        if isSignal and self._systematics:
+        if isSignal and self._systematics and self._lp_sfs:
             # TODO: remember to add new LP variables
             items = [
                 ("lp_sf_lnN", 101),
@@ -750,7 +755,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                 sf_dicts = concatenate_dicts(sf_dicts)
 
             else:
-                print("No signal events selected")
+                logging.info("No signal events selected")
                 sf_dicts = {}
                 for key, shape in items:
                     arr = np.ones((np.sum(sel_all), shape))
@@ -795,10 +800,156 @@ class bbVVSkimmer(processor.ProcessorABC):
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
         self.dump_table(df, fname)
 
-        return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
+        return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
 
     def postprocess(self, accumulator):
         return accumulator
+
+    def pileup_cutoff(self, events, year, cutoff: float = 4):
+        pweights = corrections.get_pileup_weight(year, events.Pileup.nPU.to_numpy())
+        pw_pass = (
+            (pweights["nominal"] <= cutoff)
+            * (pweights["up"] <= cutoff)
+            * (pweights["down"] <= cutoff)
+        )
+        logging.info(f"Passing pileup weight cut: {np.sum(pw_pass)} out of {len(events)} events")
+        events = events[pw_pass]
+        return events
+
+    def get_dataset_norm(self, year, dataset):
+        """
+        Cross section * luminosity normalization for a given dataset and year.
+        This still needs to be normalized with the acceptance of the pre-selection in post-processing.
+        (Done in postprocessing/utils.py:load_samples())
+        """
+        if dataset in self.XSECS or "XToYHTo2W2BTo4Q2B" in dataset:
+            # 1 fb xsec for resonant signal
+            xsec = self.XSECS[dataset] if dataset in self.XSECS else 1e-3  # in pb
+            weight_norm = xsec * LUMI[year]
+        else:
+            logging.warning("Weight not normalized to cross section")
+            weight_norm = 1
+
+        return weight_norm
+
+    def add_weights(
+        self,
+        events,
+        year,
+        dataset,
+        gen_weights,
+        fatjets,
+        num_jets,
+        vbf_jets,
+        gen_selected,
+        goodelectronsHbb,
+        goodelectronsHH,
+        goodmuonsHbb,
+        goodmuonsHH,
+    ) -> Tuple[Dict, Dict]:
+        """Adds weights and variations, saves totals for all norm preserving weights and variations"""
+        weights = Weights(len(events), storeIndividual=True)
+        weights.add("genweight", gen_weights)
+
+        add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
+        add_pileupid_weights(weights, year, vbf_jets, events.GenJet, wp="M")  # this gives error
+        add_VJets_kFactors(weights, events.GenPart, dataset)
+        add_ps_weight(weights, events.PSWeight)
+        add_trig_effs(weights, fatjets, year, num_jets)
+
+        if year in ("2016APV", "2016", "2017"):
+            weights.add(
+                "L1EcalPrefiring",
+                events.L1PreFiringWeight.Nom,
+                events.L1PreFiringWeight.Up,
+                events.L1PreFiringWeight.Dn,
+            )
+
+        logging.debug("weights ", weights._weights.keys())
+
+        ###################### Save all the weights and variations ######################
+
+        # these weights should not change the overall normalization, so are saved separately
+        norm_preserving_weights = ["genweight", "pileup", "ISRPartonShower", "FSRPartonShower"]
+
+        # dictionary of all weights and variations
+        weights_dict = {}
+        # dictionary of total # events for norm preserving variations for normalization in postprocessing
+        totals_dict = {}
+
+        # nominal
+        weights_dict["weight"] = weights.weight()
+
+        # without trigger efficiencies (in case they need to be revised later)
+        weights_dict["weight_noTrigEffs"] = weights.partial_weight(exclude=["trig_effs"])
+
+        # norm preserving weights, used to do normalization in post-processing
+        weight_np = weights.partial_weight(include=norm_preserving_weights)
+        totals_dict["np_nominal"] = np.sum(weight_np[gen_selected])
+
+        # variations
+        if self._systematics:
+            for systematic in list(weights.variations):
+                weights_dict[f"weight_{systematic}"] = weights.weight(modifier=systematic)
+
+                if utils.remove_variation_suffix(systematic) in norm_preserving_weights:
+                    var_weight = weights.partial_weight(
+                        include=norm_preserving_weights, modifier=systematic
+                    )
+
+                    # need to save total # events for each variation for normalization in post-processing
+                    totals_dict[f"np_{systematic}"] = np.sum(var_weight[gen_selected])
+
+        ###################### alpha_S and PDF variations ######################
+
+        # alpha_s variations, only for HH and ttbar
+        if "GluGluToHHTobbVV" in dataset or "VBF_HHTobbVV" in dataset or dataset.startswith("TTTo"):
+            scale_weights = get_scale_weights(events)
+            weights_dict["scale_weights"] = scale_weights * weights_dict["weight"][:, np.newaxis]
+            totals_dict["np_scale_weights"] = np.sum(
+                (scale_weights * weight_np[:, np.newaxis])[gen_selected], axis=0
+            )
+
+        if "GluGluToHHTobbVV" in dataset or "VBF_HHTobbVV" in dataset:
+            pdf_weights = get_pdf_weights(events)
+            weights_dict["pdf_weights"] = pdf_weights * weights_dict["weight"][:, np.newaxis]
+            totals_dict["np_pdf_weights"] = np.sum(
+                (pdf_weights * weight_np[:, np.newaxis])[gen_selected], axis=0
+            )
+
+        ###################### Normalization (Step 1) ######################
+
+        # normalize all the weights to xsec, needs to be divided by totals in Step 2 in post-processing
+        for key, val in weights_dict.items():
+            weights_dict[key] = val * self.get_dataset_norm(year, dataset)
+
+        # save the unnormalized weight, to confirm that it's been normalized in post-processing
+        weights_dict["weight_noxsec"] = weights.weight()
+        # save pileup weight for debugging
+        weights_dict["single_weight_pileup"] = weights.partial_weight(include=["pileup"])
+
+        ###################### Separate Lepton ID Scale Factors ######################
+
+        # saved separately for now TODO: incorporate above next time if lepton vetoes are useful
+        lepton_weights = Weights(len(events), storeIndividual=True)
+        add_lepton_id_weights(
+            lepton_weights, year, goodelectronsHbb, "electron", "Loose", label="_hbb"
+        )
+        add_lepton_id_weights(
+            lepton_weights, year, goodelectronsHH, "electron", "wp90noiso", label="_hh"
+        )
+        add_lepton_id_weights(lepton_weights, year, goodmuonsHbb, "muon", "Loose", label="_hbb")
+        add_lepton_id_weights(lepton_weights, year, goodmuonsHH, "muon", "Loose", label="_hh")
+
+        lepton_weights_dict = {
+            f"single_weight_{key}": val
+            for key, val in list(lepton_weights._weights.items())
+            + list(lepton_weights._modifiers.items())
+        }
+
+        weights_dict = {**weights_dict, **lepton_weights_dict}
+
+        return weights_dict, totals_dict
 
     def getDijetVars(
         self, ak8FatJetVars: Dict, bb_mask: np.ndarray, pt_shift: str = None, mass_shift: str = None
