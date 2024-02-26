@@ -1,98 +1,99 @@
 { "Skimmer": {
             # submit script will append year to this
             "JetHT": { "files_per_job": 20, "chunksize": 80000 },
-            "HH":
-                {
-                    "subsamples":
-                        [
-                            "GluGluToHHTobbVV_node_cHHH0",
-                            "GluGluToHHTobbVV_node_cHHH1",
-                            "GluGluToHHTobbVV_node_cHHH2p45",
-                            "GluGluToHHTobbVV_node_cHHH5",
-                            "VBF_HHTobbVV_CV_1_C2V_1_C3_1",
-                            "VBF_HHTobbVV_CV_0_5_C2V_1_C3_1",
-                            "VBF_HHTobbVV_CV_1_C2V_0_C3_1",
-                            "VBF_HHTobbVV_CV_1_C2V_2_C3_1",
-                            "VBF_HHTobbVV_CV_1_5_C2V_1_C3_1",
-                            "VBF_HHTobbVV_CV_1_C2V_1_C3_0",
-                            "VBF_HHTobbVV_CV_1_C2V_1_C3_2",
-                        ],
-                    "files_per_job": 8,
-                    "chunksize": 10000,
-                },
-            "XHY":
-                {
-                    "subsamples":
-                        [
-                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80",
-                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190",
-                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125",
-                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250",
-                            "NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150",
-                        ],
-                    "files_per_job": 20,
-                },
-            "QCD":
-                {
-                    "files_per_job": 20,
-                    "subsamples":
-                        [
-                            "QCD_HT300to500",
-                            "QCD_HT500to700",
-                            "QCD_HT700to1000",
-                            "QCD_HT1000to1500",
-                            "QCD_HT1500to2000",
-                            "QCD_HT2000toInf",
-                        ],
-                    "chunksize": 30000,
-                },
-            "WJetsToQQ": { "files_per_job": 20, "chunksize": 50000 },
-            "ZJetsToQQ": { "files_per_job": 20, "chunksize": 50000 },
-            "Diboson": { "files_per_job": 20, "chunksize": 100000 },
-            "TTbar":
-                {
-                    "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
-                    "files_per_job": 20,
-                    "chunksize": 30000,
-                },
-            "SingleTop":
-                {
-                    "subsamples":
-                        [
-                            "ST_tW_antitop_5f_inclusiveDecays",
-                            "ST_tW_top_5f_inclusiveDecays",
-                            "ST_t-channel_antitop_4f_InclusiveDecays",
-                            "ST_t-channel_top_4f_InclusiveDecays",
-                        ],
-                    "files_per_job": 20,
-                    "chunksize": 100000,
-                },
-            "HWW":
-                {
-                    "subsamples":
-                        [
-                            "GluGluHToWW_Pt-200ToInf_M-125",
-                            "VBFHToWWToAny_M-125_TuneCP5_withDipoleRecoil",
-                            "HWminusJ_HToWW_M-125",
-                            "HWplusJ_HToWW_M-125",
-                            "HZJ_HToWW_M-125",
-                            "ttHToNonbb_M125",
-                        ],
-                    "files_per_job": 20,
-                },
-            "GluGluHToBB":
-                { "subsamples": ["GluGluHToBB"], "files_per_job": 20 },
-            "HToBB":
-                {
-                    "subsamples":
-                        [
-                            "VBFHToBB",
-                            "WminusH_HToBB_WToQQ",
-                            "WplusH_HToBB_WToQQ",
-                            "ZH_HToBB_ZToQQ",
-                            "ggZH_HToBB_ZToQQ",
-                            "ttHToBB",
-                        ],
-                    "files_per_job": 20,
-                },
-        } }
+            # "HH":
+            #     {
+            #         "subsamples":
+            #             [
+            #                 "GluGluToHHTobbVV_node_cHHH0",
+            #                 "GluGluToHHTobbVV_node_cHHH1",
+            #                 "GluGluToHHTobbVV_node_cHHH2p45",
+            #                 "GluGluToHHTobbVV_node_cHHH5",
+            #                 "VBF_HHTobbVV_CV_1_C2V_1_C3_1",
+            #                 "VBF_HHTobbVV_CV_0_5_C2V_1_C3_1",
+            #                 "VBF_HHTobbVV_CV_1_C2V_0_C3_1",
+            #                 "VBF_HHTobbVV_CV_1_C2V_2_C3_1",
+            #                 "VBF_HHTobbVV_CV_1_5_C2V_1_C3_1",
+            #                 "VBF_HHTobbVV_CV_1_C2V_1_C3_0",
+            #                 "VBF_HHTobbVV_CV_1_C2V_1_C3_2",
+            #             ],
+            #         "files_per_job": 8,
+            #         "chunksize": 10000,
+            #     },
+            # "XHY":
+            #     {
+            #         "subsamples":
+            #             [
+            #                 "NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80",
+            #                 "NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190",
+            #                 "NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125",
+            #                 "NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250",
+            #                 "NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150",
+            #             ],
+            #         "files_per_job": 20,
+            #     },
+            # "QCD":
+            #     {
+            #         "files_per_job": 20,
+            #         "subsamples":
+            #             [
+            #                 "QCD_HT300to500",
+            #                 "QCD_HT500to700",
+            #                 "QCD_HT700to1000",
+            #                 "QCD_HT1000to1500",
+            #                 "QCD_HT1500to2000",
+            #                 "QCD_HT2000toInf",
+            #             ],
+            #         "chunksize": 30000,
+            #     },
+            # "WJetsToQQ": { "files_per_job": 20, "chunksize": 50000 },
+            # "ZJetsToQQ": { "files_per_job": 20, "chunksize": 50000 },
+            # "Diboson": { "files_per_job": 20, "chunksize": 100000 },
+            # "TTbar":
+            #     {
+            #         "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
+            #         "files_per_job": 20,
+            #         "chunksize": 30000,
+            #     },
+            # "SingleTop":
+            #     {
+            #         "subsamples":
+            #             [
+            #                 "ST_tW_antitop_5f_inclusiveDecays",
+            #                 "ST_tW_top_5f_inclusiveDecays",
+            #                 "ST_t-channel_antitop_4f_InclusiveDecays",
+            #                 "ST_t-channel_top_4f_InclusiveDecays",
+            #             ],
+            #         "files_per_job": 20,
+            #         "chunksize": 100000,
+            #     },
+            # "HWW":
+            #     {
+            #         "subsamples":
+            #             [
+            #                 "GluGluHToWW_Pt-200ToInf_M-125",
+            #                 "VBFHToWWToAny_M-125_TuneCP5_withDipoleRecoil",
+            #                 "HWminusJ_HToWW_M-125",
+            #                 "HWplusJ_HToWW_M-125",
+            #                 "HZJ_HToWW_M-125",
+            #                 "ttHToNonbb_M125",
+            #             ],
+            #         "files_per_job": 20,
+            #     },
+            # "GluGluHToBB":
+            #     { "subsamples": ["GluGluHToBB"], "files_per_job": 20 },
+            # "HToBB":
+            #     {
+            #         "subsamples":
+            #             [
+            #                 "VBFHToBB",
+            #                 "WminusH_HToBB_WToQQ",
+            #                 "WplusH_HToBB_WToQQ",
+            #                 "ZH_HToBB_ZToQQ",
+            #                 "ggZH_HToBB_ZToQQ",
+            #                 "ttHToBB",
+            #             ],
+            #         "files_per_job": 20,
+            #     },
+        } 
+}

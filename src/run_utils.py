@@ -187,6 +187,6 @@ def parse_common_args(parser):
     add_bool_arg(parser, "inference", default=True, help="run inference for ak8 jets")
     # bbVVSkimmer-only args
     add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
-    add_bool_arg(parser, "save-systematics", default=False, help="save systematic variations")
+    add_bool_arg(parser, "save-systematics", default=True, help="save systematic variations")
     add_bool_arg(parser, "save-all", default=False, help="save all branches")
     add_bool_arg(parser, "lp-sfs", default=True, help="run LP SFs for signals")

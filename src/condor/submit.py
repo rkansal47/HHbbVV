@@ -108,7 +108,7 @@ def main(args):
                     "eosoutroot": f"{eosoutput_dir}/root/nano_skim_{j}.root",
                     "save_ak15": "--save-ak15" if args.save_ak15 else "--no-save-ak15",
                     "save_all": "--save-all" if args.save_all else "--no-save-all",
-                    "vbf_search": "--vbf-search" if args.vbf_search else "--no-vbf-search",
+                    "lp_sfs": "--lp-sfs" if args.lp_sfs else "--no-lp-sfs",
                     "save_systematics": (
                         "--save-systematics" if args.save_systematics else "--no-save-systematics"
                     ),
