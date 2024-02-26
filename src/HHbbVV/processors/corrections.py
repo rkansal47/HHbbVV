@@ -288,6 +288,7 @@ def add_btag_weights(
     wp: str = "M",
     algo: str = "deepJet",
 ):
+    """Method 1b from https://twiki.cern.ch/twiki/bin/viewauth/CMS/BTagSFMethods"""
     ul_year = get_UL_year(year)
     cset = correctionlib.CorrectionSet.from_file(get_pog_json("btagging", year))
     efflookup = cutil.load(package_path + f"/corrections/btag_effs/btageff_deepJet_M_{year}.coffea")
