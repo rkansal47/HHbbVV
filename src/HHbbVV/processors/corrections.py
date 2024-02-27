@@ -251,7 +251,7 @@ def get_scale_weights(events):
     [1] is renscfact=0.5d0 facscfact=1d0 ; <=
     [2] is renscfact=0.5d0 facscfact=2d0 ;
     [3] is renscfact=1d0 facscfact=0.5d0 ; <=
-    [4] is renscfact=1d0 facscfact=1d0 ; <= saving this one as a formality, empirically they seem to be all 1s as expected
+    [4] is renscfact=1d0 facscfact=1d0 ;
     [5] is renscfact=1d0 facscfact=2d0 ; <=
     [6] is renscfact=2d0 facscfact=0.5d0 ;
     [7] is renscfact=2d0 facscfact=1d0 ; <=
@@ -259,7 +259,15 @@ def get_scale_weights(events):
 
     See also https://git.rwth-aachen.de/3pia/cms_analyses/common/-/blob/11e0c5225416a580d27718997a11dc3f1ec1e8d1/processor/generator.py#L93 for an example.
     """
-    return events.LHEScaleWeight[:, [0, 1, 3, 5, 7, 8, 4]].to_numpy()
+    if len(events[0].LHEScaleWeight) == 9:
+        variations = events.LHEScaleWeight[:, [0, 1, 3, 5, 7, 8]].to_numpy()
+        nominal = events.LHEScaleWeight[:, 4].to_numpy()[:, np.newaxis]
+        variations /= nominal
+    else:
+        variations = events.LHEScaleWeight[:, [0, 1, 3, 4, 6, 7]].to_numpy()
+
+    # clipping to avoid negative / too large weights
+    return np.clip(variations, 0.0, 4.0)
 
 
 def _btagSF(cset, jets, flavour, wp="M", algo="deepJet", syst="central"):
