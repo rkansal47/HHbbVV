@@ -34,7 +34,7 @@ class SkimmerABC(processor.ProcessorABC):
           if sample not included no lumi and xsec will not be applied to weights
         save_ak15 (bool, optional): save ak15 jets as well, for HVV candidate
     """
-    
+
     XSECS = None
 
     def to_pandas(self, events: Dict[str, np.array]):
