@@ -811,11 +811,11 @@ def _get_lund_arrays(
 
     # jet definitions for LP SFs
     import fastjet
-    
+
     # get post-JEC / pre-JEC pT ratios, to apply to subjets
     nojec_fatjets_pt = events.FatJet.pt[np.arange(len(jec_fatjets)), fatjet_idx]
     jec_correction = (jec_fatjets.pt / nojec_fatjets_pt)[:, np.newaxis]
-    
+
     print("nojec fatjet pt", nojec_fatjets_pt)
     print("jec fatjet pt", jec_fatjets.pt)
     print("jec correction", jec_correction)
@@ -988,14 +988,14 @@ def get_lund_SFs(
     ratio_nominal = ratio_lnN_smeared_lookups[0] if lnN else ratio_smeared_lookups[0]
 
     jec_fatjet = jec_fatjets[np.arange(len(jec_fatjet)), fatjet_idx]
-    
+
     lds, kt_subjets_vec, kt_subjets_pt = _get_lund_arrays(
         events, jec_fatjet, fatjet_idx, num_prongs
     )
 
     lds_flat = ak.flatten(lds, axis=1)
     ld_offsets, flat_logD, flat_logkt, flat_subjet_pt = _get_flat_lp_vars(lds_flat, kt_subjets_pt)
-    
+
     sfs = {}
 
     # ---- get scale factors per jet + smearings for stat unc. + syst. variations + pt extrap unc. ---- #
@@ -1051,11 +1051,13 @@ def get_lund_SFs(
         [ratio_lnN_smeared_lookups[0]],
         pt_extrap_lookups_dict["smeared_params"],
     )
-    
+
     # ---- b-quark related uncertainties ---- #
-    
+
     if gen_bs is not None:
-        assert ak.all(ak.count(gen_bs.pt, axis=1) == 1), "b-quark uncertainties only implemented for exactly 1 b-quark per jet!"
+        assert ak.all(
+            ak.count(gen_bs.pt, axis=1) == 1
+        ), "b-quark uncertainties only implemented for exactly 1 b-quark per jet!"
         # find closest subjet to the b-quark
         subjet_bs_dr = ak.flatten(gen_bs).delta_r(kt_subjets_vec)
         closest_sjidx = np.argmin(subjet_bs_dr, axis=1).to_numpy()
@@ -1064,7 +1066,7 @@ def get_lund_SFs(
         closest_sjidx += np.arange(len(subjet_bs_dr)) * num_prongs
         bsj_lds = ak.flatten(lds[closest_sjidx], axis=1)
         bld_offsets, bflat_logD, bflat_logkt, bflat_subjet_pt = _get_flat_lp_vars(bsj_lds, bsj_pts)
-        
+
         light_lp_sfs = _calc_lund_SFs(
             flat_logD,
             flat_logkt,
@@ -1074,7 +1076,7 @@ def get_lund_SFs(
             [ratio_nominal],
             [pt_extrap_lookups_dict["params"]],
         )
-        
+
         b_lp_sfs = _calc_lund_SFs(
             flat_logD,
             flat_logkt,
@@ -1084,14 +1086,13 @@ def get_lund_SFs(
             [bratio],
             [pt_extrap_lookups_dict["params"]],
         )
-        
+
         print("light lp sfs", light_lp_sfs.shape, light_lp_sfs)
         print("b lp sfs", b_lp_sfs.shape, b_lp_sfs)
-        
+
         sfs["lp_sfs_bl_ratio"] = b_lp_sfs / light_lp_sfs
-        
+
         print("bl ratio", sfs["lp_sfs_bl_ratio"])
-        
 
     # ---- subjet matching uncertainties ---- #
 
