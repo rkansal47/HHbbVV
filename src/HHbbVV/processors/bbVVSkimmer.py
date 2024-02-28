@@ -919,9 +919,10 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         ###################### Normalization (Step 1) ######################
 
+        weight_norm = self.get_dataset_norm(year, dataset)
         # normalize all the weights to xsec, needs to be divided by totals in Step 2 in post-processing
         for key, val in weights_dict.items():
-            weights_dict[key] = val * self.get_dataset_norm(year, dataset)
+            weights_dict[key] = val * weight_norm
 
         # save the unnormalized weight, to confirm that it's been normalized in post-processing
         weights_dict["weight_noxsec"] = weights.weight()
