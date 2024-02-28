@@ -177,11 +177,11 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         dataset = events.metadata["dataset"][5:]
 
         isData = ("JetHT" in dataset) or ("SingleMuon" in dataset)
-        
+
         if not isData:
             # remove events with pileup weights un-physically large
             events = self.pileup_cutoff(events, year, cutoff=4)
-        
+
         gen_weights = events["genWeight"].to_numpy() if not isData else None
         n_events = len(events) if isData else np.sum(gen_weights)
         selection = PackedSelection()
@@ -192,11 +192,11 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         selection_args = (selection, cutflow, isData, gen_weights)
 
         skimmed_events = {}
-        
+
         ######################
         # Selection
         ######################
-        
+
         # Following https://indico.cern.ch/event/1101433/contributions/4775247/
 
         # triggers
@@ -350,7 +350,6 @@ class TTScaleFactorsSkimmer(SkimmerABC):
 
         skimmed_events = {**skimmed_events, **ak4JetVars, **ak8FatJetVars, **otherVars}
 
-
         ####################################
         # Particlenet h4q vs qcd, xbb vs qcd
         ####################################
@@ -401,7 +400,9 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             skimmed_events["weight"] = np.ones(n_events)
         else:
             ak4_jets_no_btag = ak4_jets[ak4_jet_selector_no_btag]
-            weights_dict, totals_temp = self.add_weights(events, dataset, year, gen_weights, muon, ak4_jets_no_btag)
+            weights_dict, totals_temp = self.add_weights(
+                events, dataset, year, gen_weights, muon, ak4_jets_no_btag
+            )
             skimmed_events = {**skimmed_events, **weights_dict}
             totals_dict = {**totals_dict, **totals_temp}
 
@@ -448,7 +449,7 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         ######################
         # HWW Tagger Inference
         ######################
-        
+
         if self._inference:
             print("pre-inference")
 
@@ -477,16 +478,16 @@ class TTScaleFactorsSkimmer(SkimmerABC):
 
         return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
 
-    
     def postprocess(self, accumulator):
         return accumulator
 
-
-    def add_weights(self, events, dataset, year, gen_weights, muon, ak4_jets_no_btag) -> Tuple[Dict, Dict]:
+    def add_weights(
+        self, events, dataset, year, gen_weights, muon, ak4_jets_no_btag
+    ) -> Tuple[Dict, Dict]:
         """Adds weights and variations, saves totals for all norm preserving weights and variations"""
         weights = Weights(len(events), storeIndividual=True)
         weights.add("genweight", gen_weights)
-        
+
         add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
         add_lepton_weights(weights, year, muon)  # includes both ID and trigger SFs
         add_btag_weights(weights, year, ak4_jets_no_btag)
@@ -527,10 +528,10 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         # normalize all the weights to xsec, needs to be divided by totals in Step 2 in post-processing
         for key, val in weights_dict.items():
             weights_dict[key] = val * weight_norm
-    
+
         # save the unnormalized weight, to confirm that it's been normalized in post-processing
         weights_dict["weight_noxsec"] = weights.weight()
-            
+
         weights_dict["genWeight"] = gen_weights
-        
+
         return weights_dict, totals_dict
