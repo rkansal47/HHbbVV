@@ -6,16 +6,9 @@ import click
 @click.argument("filename")
 @click.option("-b", "--branches", multiple=True, default=[])
 def print_parquet(filename, branches):
-    # At least one jet with Txbb > 0.8
-    filters = [
-        [
-            ("('ak8FatJetParticleNetMD_Txbb', '0')", ">=", 0.8),
-        ],
-        [
-            ("('ak8FatJetParticleNetMD_Txbb', '1')", ">=", 0.8),
-        ],
-    ]
-    events = pd.read_parquet(filename, filters=filters)
+    events = pd.read_parquet(filename)
+    print(events)
+    print("columns")
     print(events.columns.to_numpy())
     if len(branches) > 0:
         for b in branches:

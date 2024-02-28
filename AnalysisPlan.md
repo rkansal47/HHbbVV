@@ -12,8 +12,8 @@
     - [Statistical tests of fits](#statistical-tests-of-fits)
     - [Resonant X-\>HY](#resonant-x-hy)
     - [Semi-leptonic ttbar selection skimmer](#semi-leptonic-ttbar-selection-skimmer)
+    - [Resolved WW veto](#resolved-ww-veto)
     - [TTbar corrections](#ttbar-corrections)
-    - [Samplers](#samplers)
   - [Plan](#plan)
     - [Feb 13 - 17](#feb-13---17)
     - [Feb 20 - 24](#feb-20---24)
@@ -87,7 +87,12 @@
  - [x] JMS/R
  - [ ] Top pT
  - Theory
-   - [x] pdf uncertainties
+   - [x] BR
+   - [ ] pdf uncertainties
+     - [x] rate
+     - [ ] shape?
+   - [x] QCD scale
+   - [ ] alpha_s (for single Higgs)
    - [x] parton shower weights
    - [ ] scale variation?
    - [ ] W k factor??
@@ -109,16 +114,16 @@
 
 ### Nonresonant
 
-- [ ] BDT ROC
+- [x] BDT ROC
   - [x] Try multi-class BDT
   - [x] Try equalizing background weights
   - [x] Optimize hyperparams
   - [x] Trim features
-  - [ ] Compare to cut-based WP
-  - [ ] Check sculpting
+  - [x] Check sculpting
 - [x] Scan Txbb, BDT WPs
-- [ ] Run over all kL and k_2V
-  - [ ] Re-run VBF with gen selection
+- [x] Run over all kL and k_2V
+  - [x] Re-run VBF with gen selection
+- [x] HH inference
 - [ ] Theory uncertainties
 
 
@@ -151,6 +156,12 @@
  - [x] muon ID SFs
  - [x] Save regressed mass
  - [x] Jet ID SFs (not required) https://twiki.cern.ch/twiki/bin/view/CMS/JetID13TeVUL
+ - [ ] PFNano on SingleMuon to get regressed mass
+
+
+### Resolved WW veto
+
+ - [ ] Test veto on 2 AK8 W-tagged jets
 
 
 ### TTbar corrections
@@ -163,11 +174,6 @@ May not be necessary given low yield
 - Regressed mass
 - BDT
 - Check VBF?
-
-
-### Samplers
-
- - [ ] Verify sample distributions
 
 
 ## Plan

@@ -14,6 +14,7 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
   - [Instructions for running coffea processors](#instructions-for-running-coffea-processors)
     - [Coffea-Casa](#coffea-casa)
     - [Condor](#condor)
+      - [Setup](#setup)
       - [TODO: instructions for lpcjobqueue (currently quite buggy)](#todo-instructions-for-lpcjobqueue-currently-quite-buggy)
   - [Processors](#processors)
     - [JetHTTriggerEfficiencies](#jethttriggerefficiencies)
@@ -27,16 +28,26 @@ Search for two boosted (high transverse momentum) Higgs bosons (H) decaying to t
     - [BDT Pre-Processing](#bdt-pre-processing)
     - [BDT Trainings](#bdt-trainings)
     - [Post-Processing](#post-processing-1)
-      - [Making separate background and signal templates for scan (resonant)](#making-separate-background-and-signal-templates-for-scan-resonant)
+      - [Control plots with resonant and nonresonant samples](#control-plots-with-resonant-and-nonresonant-samples)
+      - [BDT sculpting plots](#bdt-sculpting-plots)
+      - [Making separate background and signal templates for scan and bias tests (resonant)](#making-separate-background-and-signal-templates-for-scan-and-bias-tests-resonant)
     - [Create Datacard](#create-datacard)
     - [PlotFits](#plotfits)
   - [Combine](#combine)
     - [CMSSW + Combine Quickstart](#cmssw--combine-quickstart)
     - [Run fits and diagnostics locally](#run-fits-and-diagnostics-locally)
+      - [F-tests locally for non-resonant](#f-tests-locally-for-non-resonant)
     - [Run fits on condor](#run-fits-on-condor)
+      - [Making datacards](#making-datacards)
+      - [F-tests](#f-tests)
+      - [Impacts](#impacts)
+      - [Signal injection tests](#signal-injection-tests)
   - [Misc](#misc)
+    - [getopt for Mac](#getopt-for-mac)
     - [Command for copying directories to PRP in background](#command-for-copying-directories-to-prp-in-background)
+    - [Command for copying res samples to my laptop](#command-for-copying-res-samples-to-my-laptop)
     - [Get all running condor job names:](#get-all-running-condor-job-names)
+    - [Crab data jobs recovery](#crab-data-jobs-recovery)
 
 
 ## Instructions for running coffea processors
@@ -51,6 +62,24 @@ General note: Coffea-casa is faster and more convenient, however still somewhat 
 
 
 ### Condor
+
+#### Setup
+
+To submit to condor, all you need is python >= 3.7.
+
+For testing locally, it is recommended to use miniconda/mamba (**mamba is way faster!**):
+
+```bash
+# Download the setup bash file from here https://github.com/conda-forge/miniforge#mambaforge
+# e.g. wget https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
+# Install: (the mamba directory can end up taking O(1-10GB) so make sure the directory you're using allows that quota)
+./Mambaforge-Linux-x86_64.sh  # follow instructions in the installation
+mamba create -n bbVV python=3.9
+mamba activate bbVV
+pip install coffea "tritonclient[all]" pyyaml
+mamba install -c conda-forge xrootd=5.4.0  # need openssl v1.1 for lxplus and UCSD t2, hence pinning xrootd version.
+```
+
 
 Manually splits up the files into condor jobs.
 
@@ -87,7 +116,7 @@ Applies a muon pre-selection and accumulates 4D ([Txbb, Th4q, pT, mSD]) yields b
 To test locally:
 
 ```bash
-python -W ignore src/run.py --year 2018 --processor trigger --sample SingleMu2017 --subsamples SingleMuon_Run2018B --starti 0 --endi 1
+python -W ignore src/run.py --year 2018 --processor trigger --sample SingleMu2018 --subsamples SingleMuon_Run2018B --starti 0 --endi 1
 ```
 
 And to submit all:
@@ -107,6 +136,8 @@ To test locally:
 ```bash
 python -W ignore src/run.py --processor skimmer --year 2017 --samples HH --subsamples GluGluToHHTobbVV_node_cHHH1 --save-systematics --starti 0 --endi 1
 ```
+
+or use the `src/HHbbVV/bash/run_local.sh` to run over files from different processes.
 
 Or on a specific file(s):
 
@@ -163,8 +194,6 @@ Applies cuts for a semi-leptonic ttbar control region, as defined for the [JMAR 
 
 Lund plane scale factors are calculated for top-matched jets in semi-leptonic ttbar events.
 
-Local testing:
-
 To test locally:
 ```bash
 python -W ignore src/run.py --year 2018 --processor ttsfs --sample TTbar --subsamples TTToSemiLeptonic --starti 0 --endi 1
@@ -217,16 +246,20 @@ In `src/HHbbVV/postprocessing':
 ### BDT Pre-Processing
 
 ```bash
-python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --plot-dir "../../../plots/BDTPreProcessing/$TAG/" --year "2017" --bdt-data (--control-plots)
+python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --signal-data-dir "../../../../data/skimmer/Jun10/" --plot-dir "../../../plots/BDTPreProcessing/$TAG/" --year "2017" --bdt-data (--control-plots)
 ```
 
 
 ### BDT Trainings
 
 ```bash
-python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb24/" --year "all" (--test)
+python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb24/bdt_data" --year "all" (--test)
 ```
 
+Inference-only:
+```bash
+python TrainBDT.py  --data-path "../../../../data/skimmer/Feb24/bdt_data" --year "all" --inference-only --model-dir "../../../../data/skimmer/Feb24/23_05_12_multiclass_rem_feats_3"
+```
 
 ### Post-Processing
 
@@ -234,9 +267,9 @@ python TrainBDT.py --model-dir testBDT --data-path "../../../../data/skimmer/Feb
 python postprocessing.py --templates --year "2017" --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" (--resonant --signal-data-dir "" --control-plots)
 ```
 
-All years:
+All years (non-resonant):
 ```bash
-for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/"; done 
+for year in 2016 2016APV 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/Jun14" --data-dir "../../../../data/skimmer/Feb24" --signal-data-dir "../../../../data/skimmer/Jun10" --bdt-preds-dir "../../../../data/skimmer/Feb24/23_05_12_multiclass_rem_feats_3/inferences"; done
 ```
 
 Scan (non-resonant):
@@ -244,29 +277,35 @@ Scan (non-resonant):
 for year in 2016 2016APV 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" --old-processor --nonres-txbb-wp "LP" "MP" "HP" --nonres-bdt-wp 0.995 0.998 0.999 --no-do-jshifts; done
 ```
 
-#### Making separate background and signal templates for scan (resonant)
+#### Control plots with resonant and nonresonant samples
 
-Background and data:
+Run `postprocessing/bash_scripts/ControlPlots.sh` from inside `postprocessing folder`.
+
+**Important:** If running on a Mac, make sure to install `gnu-getopt` first, see [here.](#getopt-for-mac)
+
+#### BDT sculpting plots
+
+Run `postprocessing/bash_scripts/BDTPlots.sh` from inside `postprocessing folder`.
+
+#### Making separate background and signal templates for scan and bias tests (resonant)
 
 ```bash
-nohup bash -c 'for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/$TAG/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --resonant --sig-samples "" --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name backgrounds --old-processor; done' &> outs/bgout.txt & 
+nohup bash_scripts/res_tagger_scan.sh $TAG &> scan.txt &
+nohup bash_scripts/res_pt_scan.sh $TAG &> scan.txt &
+nohup bash_scripts/res_bias_templates.sh $TAG &> bias.txt &
 ```
 
-Signal:
-
-```bash
-nohup bash -c 'for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250; do for year in 2016APV 2016 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "/eos/uscms/store/user/rkansal/bbVV/templates/$TAG/" --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Feb24" --signal-data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Apr11" --resonant --sig-samples $sample --bg-keys "" --res-txbb-wp LP MP HP --res-thww-wp 0.4 0.6 0.8 0.9 0.94 0.96 0.98 --no-do-jshifts --templates-name $sample --no-data; done; done' &> outs/sigout.txt & 
-```
+**Remember to check output to make sure all years' templates are made!!**
 
 ### Create Datacard
 
-Need `root==6.22.6`, and `square_coef` branch of https://github.com/rkansal47/rhalphalib installed (`pip install -e . --user` after checking out the branch). `CMSSW_11_2_0` recommended.
+Need `root==6.22.6` and https://github.com/rkansal47/rhalphalib installed (`pip install -e . --user` after cloning the repo).
 
 ```bash
 python3 postprocessing/CreateDatacard.py --templates-dir templates/$TAG --model-name $TAG (--resonant)
 ```
 
-Or with separate templates for background and signal:
+Or from separate templates for background and signal:
 
 ```bash
 python3 -u postprocessing/CreateDatacard.py --templates-dir "/eos/uscms/store/user/rkansal/bbVV/templates/23Apr30Scan/txbb_HP_thww_0.96" \
@@ -281,6 +320,11 @@ for txbb_wp in "LP" "MP" "HP"; do for bdt_wp in 0.994 0.99 0.96 0.9 0.8 0.6 0.4;
 Datacards with different orders of TFs for F-tests:
 
 Use the `src/HHbbVV/combine/F_test_res.sh` script.
+
+
+Datacards (and background-only fits) for bias tests:
+
+`src/HHbbVV/combine/biastests.sh --cardstag $cardstag --templatestag $templatestag`
 
 
 ### PlotFits
@@ -301,29 +345,114 @@ git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git Combine
 scramv1 b clean; scramv1 b
 ```
 
+New version:
+
+```bash
+cmsrel CMSSW_11_3_4
+cd CMSSW_11_3_4/src
+cmsenv
+# need my fork until regex for float parameters is merged into the main repo
+git clone -b regex-float-parameters https://github.com/rkansal47/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
+git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
+# Important: this scram has to be run from src dir
+scramv1 b clean; scramv1 b
+```
+
+I also add this to my .bashrc for convenience:
+
+```
+export PATH="$PATH:/uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine"
+
+csubmit() {
+    local file=$1; shift;
+    python3 "/uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine/submit/submit_${file}.py" "$@"
+}
+```
+
 ### Run fits and diagnostics locally
 
 All via the below script, with a bunch of options (see script):
 
 ```bash
-/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh --workspace --bfit --limits
+run_blinded.sh --workspace --bfit --limits
 ```
 
+#### F-tests locally for non-resonant
+
+This will take 5-10 minutes.
+
+```bash
+# automatically make workspaces and do the background-only fit for orders 0 - 3
+run_ftest_nonres.sh --cardstag 23May14 --templatestag $templatestag  # -dl for saving shapes and limits
+# run f-test for desired order
+run_ftest_nonres.sh --cardstag 23May14 --goftoys --ffits --numtoys 100 --seed 444 --order 0
+```
+
+Condor is needed for resonant, see [below](#f-tests).
+
+
 ### Run fits on condor
+
+#### Making datacards
 
 Can run over all the resonant signals (default) or scan working points for a subset of signals (`--scan`)
 
 ```bash
-python src/HHbbVV/combine/submit.py --test --scan --resonant --templates-dir 23Apr30Scan
+csubmit cards --test --scan --resonant --templates-dir 23Apr30Scan
 ```
 
-Generate toys and fits for F-tests (after making cards and b-only fits)
+#### F-tests
+
+Generate toys and fits for F-tests (after making cards and b-only fits for the testing order AND testing order + 1!)
 
 ```bash
-python src/HHbbVV/combine/submit_ftest.py --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
+csubmit f_test --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
+```
+
+#### Impacts
+
+```bash
+csubmit impacts --tag 23May2 (--local [if you want to run them locally])
+```
+
+This was also output a script to collect all the impacts after the jobs finish.
+
+#### Signal injection tests
+
+For resonant, use scripts inside the `src/HHbbVV/combine/` directory and run from one level above the sample datacard folders (e.g. `/uscms/home/rkansal/hhcombine/cards/biastests/23Jul17ResClipTFScale1`).
+
+Setting up the datacards, assuming templates have already been made (see [templates section](#making-separate)), e.g.:
+
+```bash
+setup_bias.sh -r --scale 1 --cardstag 23Sep14_hww0.6_pt_400_350 --templatestag 23Sep14_thww0.6_pt_400_350
+```
+
+Submitting 1000 toys for each sample and `r` value + more toys for samples with high fit failure rates:
+
+```bash
+submit_bias_res_loop.sh $seed $TAG
+```
+
+Moving the outputs to a `bias/$TAG` dir after (uses the last digit of the seed - so make sure different runs use different last digits!):
+
+```bash
+mv_bias_outputs.sh [last-digit-of-seed] $TAG
 ```
 
 ## Misc
+
+### getopt for Mac
+
+To run bash scripts with the `getopt` command (e.g. `run_blinded.sh`, `ControlPlots.sh`) on Macs:
+
+```bash
+# install gnu-getopt with Homebrew
+brew install gnu-getopt
+# add to path
+sudo echo 'export PATH="/usr/local/opt/gnu-getopt/bin:$PATH"' >> ~/.zsh_profile
+source ~/.zsh_profile
+```
+From https://stackoverflow.com/questions/12152077/how-can-i-make-bash-deal-with-long-param-using-getopt-command-in-mac.
 
 ### Command for copying directories to PRP in background 
 
@@ -336,9 +465,49 @@ mkdir ../copy_logs
 for i in *; do echo $i && sleep 3 && (nohup sh -c "krsync -av --progress --stats $i/root/ $HWWTAGGERDEP_POD:/hwwtaggervol/training/$FOLDER/$i" &> ../copy_logs/$i.txt &) done
 ```
 
+### Command for copying res samples to my laptop
+
+```bash
+for sample in 'NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80' 'NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190' 'NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125' 'NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250' 'NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150'; do for year in 2016APV 2016 2017 2018; do rsync -avP rkansal@cmslpc-sl7.fnal.gov:eos/bbVV/skimmer/Apr11/$year/$sample data/skimmer/Apr11/$year/; done; done
+```
+
 
 ### Get all running condor job names:
 
 ```bash
 condor_q | awk '{ print $9}' | grep -o '[^ ]*\.sh'
 ```
+
+
+### Crab data jobs recovery
+
+Kill each task:
+
+```bash
+dataset=SingleMuon
+
+for i in {B..F}; do crab kill -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016${i}*HIPM; done
+for i in {F..H}; do crab kill -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016$i; done
+for i in {B..F}; do crab kill -d crab/pfnano_v2_3/crab_pfnano_v2_3_2017_${dataset}_Run2017$i; done
+for i in {A..D}; do crab kill -d crab/pfnano_v2_3/crab_pfnano_v2_3_2018_${dataset}_Run2018$i; done
+```
+
+Get a crab report for each task:
+
+```bash
+for i in {B..F}; do crab report -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016${i}*HIPM; done
+for i in {F..H}; do crab report -d crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_Run2016$i; done
+for i in {B..F}; do crab report -d crab/pfnano_v2_3/crab_pfnano_v2_3_2017_${dataset}_Run2017$i; done
+for i in {A..D}; do crab report -d crab/pfnano_v2_3/crab_pfnano_v2_3_2018_${dataset}_Run2018$i; done
+```
+
+Combine the lumis to process:
+
+```bash
+mkdir -p recovery/$dataset/
+# shopt extglob
+# jq -s 'reduce .[] as $item ({}; . * $item)' crab/pfnano_v2_3/crab_pfnano_v2_3_2016_${dataset}_*HIPM/results/notFinishedLumis.json > recovery/$dataset/2016APVNotFinishedLumis.json
+for year in 2016 2017 2018; do jq -s 'reduce .[] as $item ({}; . * $item)' crab/pfnano_v2_3/crab_pfnano_v2_3_${year}_${dataset}_*/results/notFinishedLumis.json > recovery/$dataset/${year}NotFinishedLumis.json; done
+```
+
+Finally, add these as a lumimask for the recovery task.

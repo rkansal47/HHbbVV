@@ -115,9 +115,11 @@ def make_vector(events: dict, name: str, mask=None):
                 "pt": events[f"{name}Pt"][mask],
                 "phi": events[f"{name}Phi"][mask],
                 "eta": events[f"{name}Eta"][mask],
-                "M": events[f"{name}Msd"][mask]
-                if f"{name}Msd" in events
-                else events[f"{name}Mass"][mask],
+                "M": (
+                    events[f"{name}Msd"][mask]
+                    if f"{name}Msd" in events
+                    else events[f"{name}Mass"][mask]
+                ),
             }
         )
 

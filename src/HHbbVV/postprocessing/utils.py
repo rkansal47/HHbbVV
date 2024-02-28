@@ -4,6 +4,7 @@ General utilities for postprocessing.
 Author: Raghav Kansal
 """
 
+from dataclasses import dataclass
 import time
 import contextlib
 from os import listdir
@@ -16,7 +17,7 @@ import pandas as pd
 
 from typing import Dict, List, Union
 
-from coffea.analysis_tools import PackedSelection
+import hist
 from hist import Hist
 
 from hh_vars import (
@@ -29,8 +30,39 @@ from hh_vars import (
     jmsr_vars,
 )
 
+import warnings
+
 MAIN_DIR = "./"
 CUT_MAX_VAL = 9999.0
+
+
+@dataclass
+class ShapeVar:
+    """Class to store attributes of a variable to make a histogram of.
+
+    Args:
+        var (str): variable name
+        label (str): variable label
+        bins (List[int]): [# num bins, min, max] if ``reg`` is False, else list of bin edges
+        reg (bool, optional): Use a regular axis or variable binning. Defaults to True.
+        blind_window (List[int], optional): if blinding, set min and max values to set 0. Defaults to None.
+        significance_dir (str, optional): if plotting significance, which direction to plot it in.
+          See more in plotting.py:ratioHistPlot(). Options are ["left", "right", "bin"]. Defaults to "right".
+    """
+
+    var: str = None
+    label: str = None
+    bins: List[int] = None
+    reg: bool = True
+    blind_window: List[int] = None
+    significance_dir: str = "right"
+
+    def __post_init__(self):
+        # create axis used for histogramming
+        if self.reg:
+            self.axis = hist.axis.Regular(*self.bins, name=self.var, label=self.label)
+        else:
+            self.axis = hist.axis.Variable(self.bins, name=self.var, label=self.label)
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
@@ -74,18 +106,13 @@ def remove_empty_parquets(samples_dir, year):
                 remove(file_path)
 
 
-def get_xsecs():
-    """Load cross sections json file and evaluate if necessary"""
-    import json
-
-    with open(f"{MAIN_DIR}/data/xsecs.json") as f:
-        xsecs = json.load(f)
-
-    for key, value in xsecs.items():
-        if type(value) == str:
-            xsecs[key] = eval(value)
-
-    return xsecs
+def remove_variation_suffix(var: str):
+    """removes the variation suffix from the variable name"""
+    if var.endswith("Down"):
+        return var.split("Down")[0]
+    elif var.endswith("Up"):
+        return var.split("Up")[0]
+    return var
 
 
 def get_nevents(pickles_path, year, sample_name):
@@ -109,7 +136,7 @@ def get_cutflow(pickles_path, year, sample_name):
     """Accumulates cutflow over all pickles in ``pickles_path`` directory"""
     from coffea.processor.accumulator import accumulate
 
-    out_pickles = listdir(pickles_path)
+    out_pickles = [f for f in listdir(pickles_path) if f != ".DS_Store"]
 
     file_name = out_pickles[0]
     with open(f"{pickles_path}/{file_name}", "rb") as file:
@@ -124,24 +151,70 @@ def get_cutflow(pickles_path, year, sample_name):
     return cutflow
 
 
+def get_pickles(pickles_path, year, sample_name):
+    """Accumulates all pickles in ``pickles_path`` directory"""
+    from coffea.processor.accumulator import accumulate
+
+    out_pickles = [f for f in listdir(pickles_path) if f != ".DS_Store"]
+
+    file_name = out_pickles[0]
+    with open(f"{pickles_path}/{file_name}", "rb") as file:
+        # out = pickle.load(file)[year][sample_name]  # TODO: uncomment and delete below
+        out = pickle.load(file)[year]
+        sample_name = list(out.keys())[0]
+        out = out[sample_name]
+
+    for file_name in out_pickles[1:]:
+        with open(f"{pickles_path}/{file_name}", "rb") as file:
+            out_dict = pickle.load(file)[year][sample_name]
+            out = accumulate([out, out_dict])
+
+    return out
+
+
 def check_selector(sample: str, selector: Union[str, List[str]]):
-    if isinstance(selector, list) or isinstance(selector, tuple):
-        for s in selector:
-            if s.startswith("*"):
-                if s[1:] in sample:
-                    return True
-            else:
-                if sample.startswith(s):
-                    return True
-    else:
-        if selector.startswith("*"):
-            if selector[1:] in sample:
+    if not (isinstance(selector, list) or isinstance(selector, tuple)):
+        selector = [selector]
+
+    for s in selector:
+        if s.startswith("*"):
+            if s[1:] in sample:
                 return True
         else:
-            if sample.startswith(selector):
+            if sample.startswith(s):
                 return True
 
     return False
+
+
+def _hem_cleaning(sample, events):
+    if "ak8FatJetEta" not in events:
+        warnings.warn("Can't do HEM cleaning!")
+        return events
+
+    if sample.startswith("JetHT") or sample.startswith("SingleMuon"):
+        if sample.endswith("2018C") or sample.endswith("2018D"):
+            hem_cut = np.any(
+                (events["ak8FatJetEta"] > -3.2)
+                & (events["ak8FatJetEta"] < -1.3)
+                & (events["ak8FatJetPhi"] > -1.57)
+                & (events["ak8FatJetPhi"] < -0.87),
+                axis=1,
+            )
+            print(f"Removing {np.sum(hem_cut)} events")
+            return events[~hem_cut]
+        else:
+            return events
+    else:
+        hem_cut = np.any(
+            (events["ak8FatJetEta"] > -3.2)
+            & (events["ak8FatJetEta"] < -1.3)
+            & (events["ak8FatJetPhi"] > -1.57)
+            & (events["ak8FatJetPhi"] < -0.87),
+            axis=1,
+        ) & (np.random.rand(len(events)) < 0.632)
+        print(f"Removing {np.sum(hem_cut)} events")
+        return events[~hem_cut]
 
 
 def load_samples(
@@ -150,6 +223,7 @@ def load_samples(
     year: str,
     filters: List = None,
     columns: List = None,
+    hem_cleaning: bool = True,
 ) -> Dict[str, pd.DataFrame]:
     """
     Loads events with an optional filter.
@@ -160,6 +234,8 @@ def load_samples(
         samples (Dict[str, str]): dictionary of samples and selectors to load.
         year (str): year.
         filters (List): Optional filters when loading data.
+        columns (List): Optional columns to load.
+        hem_cleaning (bool): Whether to apply HEM cleaning to 2018 data.
 
     Returns:
         Dict[str, pd.DataFrame]: ``events_dict`` dictionary of events dataframe for each sample.
@@ -212,6 +288,11 @@ def load_samples(
                         events["finalWeight_noTrigEffs"] = events["weight_noTrigEffs"] / n_events
                     else:
                         events["weight"] /= n_events
+            else:
+                events["finalWeight"] = events["weight"]
+
+            if year == "2018" and hem_cleaning:
+                events = _hem_cleaning(sample, events)
 
             if not_empty:
                 events_dict[label].append(events)
@@ -253,12 +334,27 @@ def getParticles(particle_list, particle_type):
         return (abs(particle_list) == W_PDGID) + (abs(particle_list) == Z_PDGID)
 
 
+# check if string is an int
+def _is_int(s: str) -> bool:
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
 def get_feat(events: pd.DataFrame, feat: str, bb_mask: pd.DataFrame = None):
     if feat in events:
         return events[feat].values.squeeze()
     elif feat.startswith("bb") or feat.startswith("VV"):
         assert bb_mask is not None, "No bb mask given!"
         return events["ak8" + feat[2:]].values[bb_mask ^ feat.startswith("VV")].squeeze()
+    elif _is_int(feat[-1]):
+        return events[feat[:-1]].values[:, int(feat[-1])].squeeze()
+
+
+def get_feat_first(events: pd.DataFrame, feat: str):
+    return events[feat][0].values.squeeze()
 
 
 def make_vector(events: dict, name: str, bb_mask: pd.DataFrame = None, mask=None):
@@ -280,9 +376,11 @@ def make_vector(events: dict, name: str, bb_mask: pd.DataFrame = None, mask=None
                 "pt": get_feat(events, f"{name}Pt", bb_mask),
                 "phi": get_feat(events, f"{name}Phi", bb_mask),
                 "eta": get_feat(events, f"{name}Eta", bb_mask),
-                "M": get_feat(events, f"{name}Msd", bb_mask)
-                if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
-                else get_feat(events, f"{name}Mass", bb_mask),
+                "M": (
+                    get_feat(events, f"{name}Msd", bb_mask)
+                    if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
+                    else get_feat(events, f"{name}Mass", bb_mask)
+                ),
             }
         )
     else:
@@ -291,9 +389,11 @@ def make_vector(events: dict, name: str, bb_mask: pd.DataFrame = None, mask=None
                 "pt": get_feat(events, f"{name}Pt", bb_mask)[mask],
                 "phi": get_feat(events, f"{name}Phi", bb_mask)[mask],
                 "eta": get_feat(events, f"{name}Eta", bb_mask)[mask],
-                "M": get_feat(events, f"{name}Msd", bb_mask)[mask]
-                if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
-                else get_feat(events, f"{name}Mass", bb_mask)[mask],
+                "M": (
+                    get_feat(events, f"{name}Msd", bb_mask)[mask]
+                    if f"{name}Msd" in events or f"ak8{name[2:]}Msd" in events
+                    else get_feat(events, f"{name}Mass", bb_mask)[mask]
+                ),
             }
         )
 
@@ -322,10 +422,63 @@ def blindBins(h: Hist, blind_region: List, blind_sample: str = None, axis=0):
 
 def singleVarHist(
     events_dict: Dict[str, pd.DataFrame],
+    shape_var: ShapeVar,
+    bb_masks: Dict[str, pd.DataFrame],
+    weight_key: str = "finalWeight",
+    selection: Dict = None,
+) -> Hist:
+    """
+    Makes and fills a histogram for variable `var` using data in the `events` dict.
+
+    Args:
+        events (dict): a dict of events of format
+          {sample1: {var1: np.array, var2: np.array, ...}, sample2: ...}
+        shape_var (ShapeVar): ShapeVar object specifying the variable, label, binning, and (optionally) a blinding window.
+        weight_key (str, optional): which weight to use from events, if different from 'weight'
+        blind_region (list, optional): region to blind for data, in format [low_cut, high_cut].
+          Bins in this region will be set to 0 for data.
+        selection (dict, optional): if performing a selection first, dict of boolean arrays for
+          each sample
+    """
+    samples = list(events_dict.keys())
+
+    h = Hist(
+        hist.axis.StrCategory(samples, name="Sample"),
+        shape_var.axis,
+        storage="weight",
+    )
+
+    var = shape_var.var
+
+    for sample in samples:
+        events = events_dict[sample]
+        if sample == data_key and (var.endswith("_up") or var.endswith("_down")):
+            fill_var = "_".join(var.split("_")[:-2])
+        else:
+            fill_var = var
+
+        fill_data = {var: get_feat(events, fill_var, bb_masks[sample])}
+        weight = events[weight_key].values.squeeze()
+
+        if selection is not None:
+            sel = selection[sample]
+            fill_data[var] = fill_data[var][sel]
+            weight = weight[sel]
+
+        if len(fill_data[var]):
+            h.fill(Sample=sample, **fill_data, weight=weight)
+
+    if shape_var.blind_window is not None:
+        blindBins(h, shape_var.blind_window, data_key)
+
+    return h
+
+
+def singleVarHistNoMask(
+    events_dict: Dict[str, pd.DataFrame],
     var: str,
     bins: list,
     label: str,
-    bb_masks: Dict[str, pd.DataFrame],
     weight_key: str = "finalWeight",
     blind_region: List = None,
     selection: Dict = None,
@@ -347,19 +500,11 @@ def singleVarHist(
     """
     samples = list(events_dict.keys())
 
-    if len(bins) == 3:
-        h = Hist.new.StrCat(samples, name="Sample").Reg(*bins, name=var, label=label).Weight()
-    else:
-        h = Hist.new.StrCat(samples, name="Sample").Var(bins, name=var, label=label).Weight()
+    h = Hist.new.StrCat(samples, name="Sample").Reg(*bins, name=var, label=label).Weight()
 
     for sample in samples:
         events = events_dict[sample]
-        if sample == data_key and (var.endswith("_up") or var.endswith("_down")):
-            fill_var = "_".join(var.split("_")[:-2])
-        else:
-            fill_var = var
-
-        fill_data = {var: get_feat(events, fill_var, bb_masks[sample])}
+        fill_data = {var: get_feat_first(events, var)}
         weight = events[weight_key].values.squeeze()
 
         if selection is not None:
@@ -367,8 +512,7 @@ def singleVarHist(
             fill_data[var] = fill_data[var][sel]
             weight = weight[sel]
 
-        if len(fill_data[var]):
-            h.fill(Sample=sample, **fill_data, weight=weight)
+        h.fill(Sample=sample, **fill_data, weight=weight)
 
     if blind_region is not None:
         blindBins(h, blind_region, data_key)
@@ -394,6 +538,40 @@ def check_get_jec_var(var, jshift):
     return var
 
 
+def _var_selection(
+    events: pd.DataFrame,
+    bb_mask: pd.DataFrame,
+    var: str,
+    brange: List[float],
+    MAX_VAL: float = CUT_MAX_VAL,
+):
+    """get selection for a single cut, including logic for OR-ing cut on two vars"""
+    rmin, rmax = brange
+    cut_vars = var.split("+")
+
+    sels = []
+    selstrs = []
+
+    # OR the different vars
+    for var in cut_vars:
+        vals = get_feat(events, var, bb_mask)
+
+        if rmin == -CUT_MAX_VAL:
+            sels.append(vals < rmax)
+            selstrs.append(f"{var} < {rmax}")
+        elif rmax == CUT_MAX_VAL:
+            sels.append(vals >= rmin)
+            selstrs.append(f"{var} >= {rmin}")
+        else:
+            sels.append((vals >= rmin) & (vals < rmax))
+            selstrs.append(f"{rmin} ≤ {var} < {rmax}")
+
+    sel = np.sum(sels, axis=0).astype(bool)
+    selstr = " or ".join(selstrs)
+
+    return sel, selstr
+
+
 def make_selection(
     var_cuts: Dict[str, List[float]],
     events_dict: Dict[str, pd.DataFrame],
@@ -407,8 +585,21 @@ def make_selection(
     """
     Makes cuts defined in `var_cuts` for each sample in `events`.
 
+    Selection syntax:
+
+    Simple cut:
+    "var": [lower cut value, upper cut value]
+
+    OR cut on `var`:
+    "var": [[lower cut1 value, upper cut1 value], [lower cut2 value, upper cut2 value]] ...
+
+    OR same cut(s) on multiple vars:
+    "var1+var2": [lower cut value, upper cut value]
+
+    TODO: OR more general cuts
+
     Args:
-        var_cuts (dict): a dict of cuts, with each (key, value) pair = (var, [lower cut value, upper cut value]).
+        var_cuts (dict): a dict of cuts, with each (key, value) pair = {var: [lower cut value, upper cut value], ...}.
         events (dict): a dict of events of format {sample1: {var1: np.array, var2: np.array, ...}, sample2: ...}
         weight_key (str): key to use for weights. Defaults to 'finalWeight'.
         prev_cutflow (dict): cutflow from previous cuts, if any. Defaults to None.
@@ -419,6 +610,7 @@ def make_selection(
         selection (dict): dict of each sample's cut boolean arrays.
         cutflow (dict): dict of each sample's yields after each cut.
     """
+    from coffea.analysis_tools import PackedSelection
 
     if selection is None:
         selection = {}
@@ -448,11 +640,10 @@ def make_selection(
                 sels = []
                 selstrs = []
                 for brange in branges:
-                    sels.append(
-                        (get_feat(events, var, bb_mask) >= brange[0])
-                        * (get_feat(events, var, bb_mask) < brange[1])
-                    )
-                    selstrs.append(f"{brange[0]} ≤ {var} < {brange[1]}")
+                    sel, selstr = _var_selection(events, bb_mask, var, brange, MAX_VAL)
+                    sels.append(sel)
+                    selstrs.append(selstr)
+
                 sel = np.sum(sels, axis=0).astype(bool)
                 selstr = " or ".join(selstrs)
 
@@ -465,25 +656,15 @@ def make_selection(
                     weight_key,
                 )
             else:
-                brange = branges
-                if brange[0] > -MAX_VAL:
-                    add_selection(
-                        f"{var} ≥ {brange[0]}",
-                        get_feat(events, var, bb_mask) >= brange[0],
-                        selection[sample],
-                        cutflow[sample],
-                        events,
-                        weight_key,
-                    )
-                if brange[1] < MAX_VAL:
-                    add_selection(
-                        f"{var} < {brange[1]}",
-                        get_feat(events, var, bb_mask) < brange[1],
-                        selection[sample],
-                        cutflow[sample],
-                        events,
-                        weight_key,
-                    )
+                sel, selstr = _var_selection(events, bb_mask, var, branges, MAX_VAL)
+                add_selection(
+                    selstr,
+                    sel,
+                    selection[sample],
+                    cutflow[sample],
+                    events,
+                    weight_key,
+                )
 
         selection[sample] = selection[sample].all(*selection[sample].names)
 
@@ -571,3 +752,63 @@ def mxmy(sample):
     mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
 
     return (mX, mY)
+
+
+def merge_dictionaries(dict1, dict2):
+    merged_dict = dict1.copy()
+    merged_dict.update(dict2)
+    return merged_dict
+
+
+# from https://gist.github.com/kdlong/d697ee691c696724fc656186c25f8814
+def rebin_hist(h, axis_name, edges):
+    if type(edges) == int:
+        return h[{axis_name: hist.rebin(edges)}]
+
+    ax = h.axes[axis_name]
+    ax_idx = [a.name for a in h.axes].index(axis_name)
+    if not all([np.isclose(x, ax.edges).any() for x in edges]):
+        raise ValueError(
+            f"Cannot rebin histogram due to incompatible edges for axis '{ax.name}'\n"
+            f"Edges of histogram are {ax.edges}, requested rebinning to {edges}"
+        )
+
+    # If you rebin to a subset of initial range, keep the overflow and underflow
+    overflow = ax.traits.overflow or (
+        edges[-1] < ax.edges[-1] and not np.isclose(edges[-1], ax.edges[-1])
+    )
+    underflow = ax.traits.underflow or (
+        edges[0] > ax.edges[0] and not np.isclose(edges[0], ax.edges[0])
+    )
+    flow = overflow or underflow
+    new_ax = hist.axis.Variable(edges, name=ax.name, overflow=overflow, underflow=underflow)
+    axes = list(h.axes)
+    axes[ax_idx] = new_ax
+
+    hnew = hist.Hist(*axes, name=h.name, storage=h._storage_type())
+
+    # Offset from bin edge to avoid numeric issues
+    offset = 0.5 * np.min(ax.edges[1:] - ax.edges[:-1])
+    edges_eval = edges + offset
+    edge_idx = ax.index(edges_eval)
+    # Avoid going outside the range, reduceat will add the last index anyway
+    if edge_idx[-1] == ax.size + ax.traits.overflow:
+        edge_idx = edge_idx[:-1]
+
+    if underflow:
+        # Only if the original axis had an underflow should you offset
+        if ax.traits.underflow:
+            edge_idx += 1
+        edge_idx = np.insert(edge_idx, 0, 0)
+
+    # Take is used because reduceat sums i:len(array) for the last entry, in the case
+    # where the final bin isn't the same between the initial and rebinned histogram, you
+    # want to drop this value. Add tolerance of 1/2 min bin width to avoid numeric issues
+    hnew.values(flow=flow)[...] = np.add.reduceat(h.values(flow=flow), edge_idx, axis=ax_idx).take(
+        indices=range(new_ax.size + underflow + overflow), axis=ax_idx
+    )
+    if hnew._storage_type() == hist.storage.Weight():
+        hnew.variances(flow=flow)[...] = np.add.reduceat(
+            h.variances(flow=flow), edge_idx, axis=ax_idx
+        ).take(indices=range(new_ax.size + underflow + overflow), axis=ax_idx)
+    return hnew

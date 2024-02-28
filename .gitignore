@@ -4,6 +4,7 @@
 !*.ipynb
 !figure.png
 !requirements.txt
+!environment.yml
 
 !src
 src/*
@@ -33,9 +34,9 @@ src/*
 !src/HHbbVV/postprocessing/**
 src/HHbbVV/postprocessing/data/*
 src/HHbbVV/postprocessing/*.pkl
+src/HHbbVV/postprocessing/*.txt
 src/HHbbVV/postprocessing/cards
 src/HHbbVV/postprocessing/templates_old
-src/HHbbVV/postprocessing/*.txt
 src/HHbbVV/postprocessing/condor_templates
 src/HHbbVV/postprocessing/outs
 
@@ -54,6 +55,12 @@ src/HHbbVV/postprocessing/outs
 !src/HHbbVV/tagger
 !src/HHbbVV/tagger/**
 
+!src/HHbbVV/VBF_binder
+!src/HHbbVV/VBF_binder/**
+
+!src/HHbbVV/bash
+!src/HHbbVV/bash/**
+
 !data
 !data/*
 !data/*/**
@@ -61,6 +68,8 @@ src/HHbbVV/postprocessing/outs
 !paper
 !paper/**
 
+!inference_scans
+!inference_scans/**
 
 !.gitignore
 !.github
@@ -77,3 +86,4 @@ src/HHbbVV/postprocessing/outs
 **/__pycache__
 **/.DS_Store
 .DS_Store
+tau_check.ipynb

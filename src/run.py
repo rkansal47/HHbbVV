@@ -99,6 +99,8 @@ def run(p: processor, fileset: dict, args):
     pickle.dump(out, filehandler)
     filehandler.close()
 
+    print(out)
+
     # need to combine all the files from these processors before transferring to EOS
     # otherwise it will complain about too many small files
     if args.processor in ["skimmer", "input", "ttsfs"]:
@@ -138,6 +140,7 @@ def main(args):
         args.save_systematics,
         args.inference,
         args.save_all,
+        args.lp_sfs,
     )
 
     if len(args.files):

@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from collections import OrderedDict
 
 import os
+from pathlib import Path
 import sys
 import pickle, json
 import itertools
@@ -45,12 +46,12 @@ from hh_vars import (
     samples,
     nonres_samples,
     res_samples,
-    BDT_sample_order,
+    norm_preserving_weights,
     txbb_wps,
     jec_shifts,
     jmsr_shifts,
 )
-from utils import CUT_MAX_VAL
+from utils import CUT_MAX_VAL, ShapeVar
 
 from pprint import pprint
 from copy import deepcopy
@@ -61,36 +62,6 @@ import argparse
 
 # ignore these because they don't seem to apply
 # warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
-
-
-class ShapeVar:
-    """Class to store attributes of the variable to be fit on.
-
-    Args:
-        var (str): variable name
-        label (str): variable label
-        bins (List[int]): bins
-        reg (bool, optional): Use a regular axis or variable binning. Defaults to True.
-        blind_window (List[int], optional): if blinding . Defaults to None.
-    """
-
-    def __init__(
-        self,
-        var: str,
-        label: str,
-        bins: List[int],
-        reg: bool = True,
-        blind_window: List[int] = None,
-    ):
-        self.var = var
-        self.label = label
-        self.blind_window = blind_window
-
-        # create axis used for histogramming
-        if reg:
-            self.axis = hist.axis.Regular(*bins, name=var, label=label)
-        else:
-            self.axis = hist.axis.Variable(bins, name=var, label=label)
 
 
 @dataclass
@@ -107,6 +78,7 @@ class Region:
 
 
 # Both Jet's Regressed Mass above 50, electron veto included in new samples
+# TODO: JMSR shifts!
 new_filters = [
     [
         ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
@@ -124,40 +96,46 @@ old_filters = [
 ]
 
 # {var: (bins, label)}
-control_plot_vars = {
-    "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
-    "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
-    "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
-    "DijetMass": ([50, 500, 3000], r"$m^{jj}$ (GeV)"),
-    "bbFatJetEta": ([50, -2.4, 2.4], r"$\eta^{bb}$"),
-    "bbFatJetPt": ([50, 300, 1300], r"$p^{bb}_T$ (GeV)"),
-    "bbFatJetParticleNetMass": ([50, 0, 300], r"$m^{bb}_{reg}$ (GeV)"),
-    "bbFatJetMsd": ([50, 0, 300], r"$m^{bb}_{msd}$ (GeV)"),
-    "bbFatJetParticleNetMD_Txbb": ([50, 0.8, 1], r"$p^{bb}_{Txbb}$"),
-    "VVFatJetEta": ([50, -2.4, 2.4], r"$\eta^{VV}$"),
-    "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$ (GeV)"),
-    "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$ (GeV)"),
-    "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$ (GeV)"),
-    "VVFatJetParticleNet_Th4q": ([50, 0, 1], r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)"),
-    "VVFatJetParTMD_THWW4q": (
-        [50, 0, 1],
-        r"Prob($H \to VV \to 4q$) vs Prob(QCD) (Mass-Decorrelated)",
-    ),
-    "VVFatJetParTMD_probT": ([50, 0, 1], r"Prob(Top) (Mass-Decorrelated)"),
-    "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
-    "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
-    "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.0], r"$p^{VV}_T / p^{bb}_T$"),
-    "nGoodMuons": ([3, 0, 3], r"# of Muons"),
-    "nGoodElectrons": ([3, 0, 3], r"# of Electrons"),
-    "nGoodJets": ([5, 0, 5], r"# of AK4 B-Jets"),
-    "BDTScore": ([50, 0, 1], r"BDT Score"),
-}
+control_plot_vars = [
+    # ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[50, 0, 300]),
+    # ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[30, -8, 8]),
+    # ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[30, 0, 750]),
+    # ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[30, 600, 4000]),
+    # ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[30, -2.4, 2.4]),
+    # ShapeVar(
+    #     var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[30, 300, 1500], significance_dir="right"
+    # ),
+    # ShapeVar(
+    #     var="bbFatJetParticleNetMass",
+    #     label=r"$m^{bb}_{reg}$ (GeV)",
+    #     bins=[20, 50, 250],
+    #     significance_dir="bin",
+    # ),
+    # ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[50, 0, 300]),
+    # ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[50, 0.8, 1]),
+    # ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[30, -2.4, 2.4]),
+    # ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[30, 300, 1500]),
+    # ShapeVar(var="VVParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[40, 50, 250]),
+    # ShapeVar(var="VVFatJetParticleNet_Th4q", label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)", bins=[50, 0, 1]),
+    # ShapeVar(var="VVFatJetParTMD_THWW4q", label=r"Prob($H \to VV \to 4q$) vs Prob(QCD) (Mass-Decorrelated)", bins=[50, 0, 1]),
+    # ShapeVar(var="VVFatJetParTMD_probT", label=r"Prob(Top) (Mass-Decorrelated)", bins=[50, 0, 1]),
+    # ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[50, 0, 1]),
+    # ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[50, 0, 40]),
+    # ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[50, 0, 40]),
+    # ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[50, 0.4, 2.0]),
+    # ShapeVar(var="nGoodMuons", label=r"# of Muons", bins=[3, 0, 3]),
+    # ShapeVar(var="nGoodElectrons", label=r"# of Electrons", bins=[3, 0, 3]),
+    # ShapeVar(var="nGoodJets", label=r"# of AK4 B-Jets", bins=[5, 0, 5]),
+    # removed if not ggF nonresonant - needs to be the last variable!
+    ShapeVar(var="BDTScore", label=r"BDT Score", bins=[50, 0, 1]),
+]
 
 
 def get_nonres_selection_regions(
     year: str,
-    txbb_wp: str = "HP",
-    bdt_wp: float = 0.99,
+    txbb_wp: str = "MP",
+    bdt_wp: float = 0.998,
 ):
     pt_cuts = [300, CUT_MAX_VAL]
     txbb_cut = txbb_wps[year][txbb_wp]
@@ -190,10 +168,67 @@ def get_nonres_selection_regions(
     }
 
 
-def get_res_selection_regions(
-    year: str, mass_window: List[float] = [110, 145], txbb_wp: str = "HP", thww_wp: float = 0.96
+# TODO: fill out VBF selection
+def get_nonres_vbf_selection_regions(
+    year: str,
+    txbb_wp: str = "HP",
+    thww_wp: float = 0.6,
 ):
+    # edit
     pt_cuts = [300, CUT_MAX_VAL]
+    txbb_cut = txbb_wps[year][txbb_wp]
+
+    return {
+        # {label: {cutvar: [min, max], ...}, ...}
+        "pass": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
+                "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+                "vbf_Mass_jj": [500, 10000],
+                "vbf_dEta_jj": [4, 10000],
+                "ak8FatJetEta0": [-2.4, 2.4],
+                "ak8FatJetEta1": [-2.4, 2.4],
+                "DijetdEta": [0, 2.0],
+                "DijetdPhi": [2.6, 10000],
+            },
+            label="Pass",
+        ),
+        "fail": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
+                "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+                "vbf_Mass_jj": [500, 10000],
+                "vbf_dEta_jj": [4, 10000],
+                "ak8FatJetEta0": [-2.4, 2.4],
+                "ak8FatJetEta1": [-2.4, 2.4],
+                "DijetdEta": [0, 2.0],
+                "DijetdPhi": [2.6, 10000],
+            },
+            label="Fail",
+        ),
+        "lpsf": Region(
+            cuts={  # cut for which LP SF is calculated
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+            },
+            label="LP SF Cut",
+        ),
+    }
+
+
+def get_res_selection_regions(
+    year: str,
+    mass_window: List[float] = [110, 145],
+    txbb_wp: str = "HP",
+    thww_wp: float = 0.96,
+    leadingpt_wp: float = 300,
+    subleadingpt_wp: float = 300,
+):
     mwsize = mass_window[1] - mass_window[0]
     mw_sidebands = [
         [mass_window[0] - mwsize / 2, mass_window[0]],
@@ -201,12 +236,11 @@ def get_res_selection_regions(
     ]
     txbb_cut = txbb_wps[year][txbb_wp]
 
-    return {
+    # first define without pT cuts
+    regions = {
         # "unblinded" regions:
         "pass": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mass_window,
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
                 "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
@@ -215,8 +249,6 @@ def get_res_selection_regions(
         ),
         "fail": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mass_window,
                 "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
                 "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, thww_wp],
@@ -226,8 +258,6 @@ def get_res_selection_regions(
         # "blinded" validation regions:
         "passBlinded": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mw_sidebands,
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
                 "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
@@ -236,8 +266,6 @@ def get_res_selection_regions(
         ),
         "failBlinded": Region(
             cuts={
-                "bbFatJetPt": pt_cuts,
-                "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMass": mw_sidebands,
                 "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
                 "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, thww_wp],
@@ -251,12 +279,41 @@ def get_res_selection_regions(
         ),
     }
 
+    # add pT cuts
+    leading_pt_cut = [leadingpt_wp, CUT_MAX_VAL]
+    subleading_pt_cut = [subleadingpt_wp, CUT_MAX_VAL]
+
+    for key, region in regions.items():
+        cuts = {
+            "bbFatJetPt": subleading_pt_cut,
+            "VVFatJetPt": subleading_pt_cut,
+            # '+' means OR
+            "bbFatJetPt+VVFatJetPt": leading_pt_cut,
+            **region.cuts,
+        }
+        region.cuts = cuts
+
+    return regions
+
 
 # fitting on bb regressed mass for nonresonant
 nonres_shape_vars = [
     ShapeVar(
         "bbFatJetParticleNetMass",
-        r"$m^{bb}_{Reg}$ (GeV)",
+        r"$m^{bb}_\mathrm{Reg}$ (GeV)",
+        [20, 50, 250],
+        reg=True,
+        blind_window=[100, 150],
+    )
+]
+
+
+# templates saved in bb regressed mass for nonresonant VBF
+# TODO: edit as needed
+nonres_vbf_shape_vars = [
+    ShapeVar(
+        "bbFatJetParticleNetMass",
+        r"$m^{bb}_\mathrm{Reg}$ (GeV)",
         [20, 50, 250],
         reg=True,
         blind_window=[100, 150],
@@ -268,7 +325,7 @@ nonres_shape_vars = [
 res_shape_vars = [
     ShapeVar(
         "VVFatJetParticleNetMass",
-        r"$m^{VV}_{Reg}$ (GeV)",
+        r"$m^{VV}_\mathrm{Reg}$ (GeV)",
         list(range(50, 110, 10)) + list(range(110, 200, 15)) + [200, 220, 250],
         reg=False,
     ),
@@ -281,15 +338,24 @@ res_shape_vars = [
 ]
 
 nonres_scan_cuts = ["txbb", "bdt"]
-res_scan_cuts = ["txbb", "thww"]
+nonres_vbf_scan_cuts = ["txbb", "thww"]  # TODO: add more cuts being scanned over
+res_scan_cuts = ["txbb", "thww", "leadingpt", "subleadingpt"]
 
+nonres_sig_keys_ggf = [
+    "HHbbVV",
+    "ggHH_kl_2p45_kt_1_HHbbVV",
+    "ggHH_kl_5_kt_1_HHbbVV",
+    "ggHH_kl_0_kt_1_HHbbVV",
+]
 
 # TODO: check which of these applies to resonant as well
 weight_shifts = {
     "pileup": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup"),
-    "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
-    "ISRPartonShower": Syst(samples=nonres_sig_keys + ["V+Jets"], label="ISR Parton Shower"),
-    "FSRPartonShower": Syst(samples=nonres_sig_keys + ["V+Jets"], label="FSR Parton Shower"),
+    "pileupID": Syst(samples=nonres_sig_keys + res_sig_keys + bg_keys, label="Pileup ID"),
+    # "PDFalphaS": Syst(samples=nonres_sig_keys, label="PDF"),
+    # "QCDscale": Syst(samples=nonres_sig_keys, label="QCDscale"),
+    "ISRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="ISR Parton Shower"),
+    "FSRPartonShower": Syst(samples=nonres_sig_keys_ggf + ["V+Jets"], label="FSR Parton Shower"),
     "L1EcalPrefiring": Syst(
         samples=nonres_sig_keys + res_sig_keys + bg_keys,
         years=["2016APV", "2016", "2017"],
@@ -299,55 +365,97 @@ weight_shifts = {
 }
 
 
+plot_sig_keys_nonres = [
+    "HHbbVV",
+    "VBFHHbbVV",
+    "qqHH_CV_1_C2V_0_kl_1_HHbbVV",
+    "qqHH_CV_1_C2V_2_kl_1_HHbbVV",
+]
+
+
 def main(args):
+    global control_plot_vars
+
     shape_vars, scan, scan_cuts, scan_wps = _init(args)
     sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args)
-    all_samples = sig_samples | bg_samples
+    all_samples = sig_keys + bg_keys
     _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
-    cutflow = pd.DataFrame(index=list(all_samples.keys()))  # save cutflow as pandas table
+    cutflow = pd.DataFrame(index=all_samples)  # save cutflow as pandas table
 
     # utils.remove_empty_parquets(samples_dir, year)
     events_dict = _load_samples(args, bg_samples, sig_samples, cutflow)
     bb_masks = bb_VV_assignment(events_dict)
 
-    if "finalWeight_noTrigEffs" not in events_dict[list(events_dict.keys())[0]]:
-        # trigger effs (if not already from processor)
-        apply_weights(events_dict, args.year, cutflow)
-        print("\nCutflow\n", cutflow)
-        # THWW score vs Top (if not already from processor)
-        derive_variables(events_dict)
+    # trigger effs and QCD scale (if not already from processor)
+    apply_weights(events_dict, args.year, cutflow)
 
-    if args.plot_dir != "":
-        cutflow.to_csv(f"{args.plot_dir}/preselection_cutflow.csv")
+    # THWW score vs Top (if not already from processor)
+    derive_variables(events_dict)
 
-    print("\nCutflow\n", cutflow)
+    # check if args has attribute
+    if hasattr(args, "control_plots_dir"):
+        cutflow.to_csv(f"{args.control_plots_dir}/preselection_cutflow.csv")
+
+    print("\nCutflow", cutflow)
 
     # Load BDT Scores
-    bdt_preds_dir = None
-    if not args.resonant:
+    if not args.resonant and not args.vbf:
         print("\nLoading BDT predictions")
-        bdt_preds_dir = f"{args.data_dir}/inferences/" if args.bdt_preds == "" else args.bdt_preds
         load_bdt_preds(
             events_dict,
             args.year,
-            bdt_preds_dir,
-            list(all_samples.keys()),
+            args.bdt_preds_dir,
             jec_jmsr_shifts=True,
         )
         print("Loaded BDT preds\n")
+    else:
+        if control_plot_vars[-1].var == "BDTScore":
+            control_plot_vars = control_plot_vars[:-1]
+
+    # Load VBF Variables (edits events_dict so that all of the events have the appropriate variables and stuff) TODO:
+    if args.vbf:
+        pt_labels = ["JES", "JER"]
+        m_labels = ["JMS", "JMR"]
+        for key, df in events_dict.items():
+            bb_mask = (
+                df[("ak8FatJetParticleNetMD_Txbb", 0)] > df[("ak8FatJetParticleNetMD_Txbb", 1)]
+            )
+            _add_vbf_columns(df, bb_mask, ptlabel="", mlabel="")
+
+            if key == "Data":
+                continue
+
+            for var in pt_labels:
+                for direction in ["down", "up"]:
+                    _add_vbf_columns(df, bb_mask, ptlabel=f"_{var}_{direction}", mlabel="")
+
+            for var in m_labels:
+                for direction in ["down", "up"]:
+                    _add_vbf_columns(df, bb_mask, ptlabel="", mlabel=f"_{var}_{direction}")
 
     # Control plots
     if args.control_plots:
         print("\nMaking control plots\n")
+
         control_plots(
             events_dict,
             bb_masks,
             sig_keys,
             control_plot_vars,
-            f"{args.plot_dir}/ControlPlots/{args.year}/",
+            args.control_plots_dir,
             args.year,
+            bg_keys=args.bg_keys,
+            sig_scale_dict={"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | {key: 2e4 for key in res_sig_keys},
             # sig_splits=sig_splits,
+            HEM2d=args.HEM2d,
             show=False,
+        )
+
+    if args.bdt_plots and not args.resonant and not args.vbf:
+        print("\nMaking BDT sculpting plots\n")
+
+        plot_bdt_sculpting(
+            events_dict, bb_masks, args.bdt_sculpting_plots_dir, args.year, show=False
         )
 
     if args.templates:
@@ -356,13 +464,13 @@ def main(args):
             template_dir = f"{args.template_dir}/{cutstr}/{args.templates_name}/"
 
             cutargs = {f"{cut}_wp": wp for cut, wp in zip(scan_cuts, wps)}
-            selection_regions = (
-                get_nonres_selection_regions(args.year, **cutargs)
-                if not args.resonant
-                else get_res_selection_regions(args.year, **cutargs)
-            )
+            if args.resonant:
+                selection_regions = get_res_selection_regions(args.year, **cutargs)
+            elif args.vbf:
+                selection_regions = get_nonres_vbf_selection_regions(args.year, **cutargs)
+            else:
+                selection_regions = get_nonres_selection_regions(args.year, **cutargs)
 
-            print(cutstr)
             # load pre-calculated systematics and those for different years if saved already
             systs_file = f"{template_dir}/systematics.json"
             systematics = _check_load_systematics(systs_file, args.year)
@@ -377,11 +485,10 @@ def main(args):
                 selection_regions["lpsf"],
                 systematics,
                 args.lp_sf_all_years,
-                BDT_sample_order,
-                bdt_preds_dir,
+                args.bdt_preds_dir,
                 template_dir,
                 systs_file,
-                args.signal_data_dir,
+                args.signal_data_dirs[0],
             )
 
             # Check for 0 weights - would be an issue for weight shifts
@@ -394,7 +501,7 @@ def main(args):
             for jshift in jshifts:
                 print(jshift)
                 plot_dir = (
-                    f"{args.plot_dir}/templates/{cutstr}/" f"{'jshifts/' if jshift != '' else ''}"
+                    f"{args.templates_plots_dir}/{cutstr}/" f"{'jshifts/' if jshift != '' else ''}"
                     if args.plot_dir != ""
                     else ""
                 )
@@ -408,6 +515,7 @@ def main(args):
                     systematics,
                     template_dir,
                     bg_keys=bg_keys,
+                    plot_sig_keys=plot_sig_keys_nonres if not args.resonant else sig_keys,
                     plot_dir=plot_dir,
                     prev_cutflow=cutflow,
                     # sig_splits=sig_splits,
@@ -429,31 +537,165 @@ def main(args):
 
 
 def _init(args):
-    if not (args.control_plots or args.templates or args.scan):
-        print("You need to pass at least one of --control-plots, --templates, or --scan")
+    if not (args.control_plots or args.bdt_plots or args.templates):
+        print("You need to pass at least one of --control-plots, --bdt-plots, or --templates")
         return
 
-    if not args.resonant:
+    if args.resonant:
+        scan = (
+            len(args.res_txbb_wp) > 1
+            or len(args.res_thww_wp) > 1
+            or len(args.res_leading_pt) > 1
+            or len(args.res_subleading_pt) > 1
+        )
+        scan_wps = list(
+            itertools.product(
+                args.res_txbb_wp, args.res_thww_wp, args.res_leading_pt, args.res_subleading_pt
+            )
+        )
+        # remove WPs where subleading pT > leading pT
+        scan_wps = [wp for wp in scan_wps if wp[3] <= wp[2]]
+        scan_cuts = res_scan_cuts
+        shape_vars = res_shape_vars
+    elif not args.vbf:
         scan = len(args.nonres_txbb_wp) > 1 or len(args.nonres_bdt_wp) > 1
         scan_wps = list(itertools.product(args.nonres_txbb_wp, args.nonres_bdt_wp))
         scan_cuts = nonres_scan_cuts
         shape_vars = nonres_shape_vars
     else:
-        scan = len(args.res_txbb_wp) > 1 or len(args.res_thww_wp) > 1
-        scan_wps = list(itertools.product(args.res_txbb_wp, args.res_thww_wp))
-        scan_cuts = res_scan_cuts
-        shape_vars = res_shape_vars
+        scan = len(args.nonres_vbf_txbb_wp) > 1 or len(args.nonres_vbf_thww_wp) > 1
+        scan_wps = list(itertools.product(args.nonres_vbf_txbb_wp, args.nonres_vbf_thww_wp))
+        scan_cuts = nonres_vbf_scan_cuts
+        shape_vars = nonres_vbf_shape_vars
 
     return shape_vars, scan, scan_cuts, scan_wps
 
 
-def _process_samples(args):
+# adds all necessary columns to dataframes from events_dict
+def _add_vbf_columns(df, bb_mask, ptlabel, mlabel):
+    import vector
+
+    bbJet = vector.array(
+        {
+            "pt": np.where(bb_mask, df[f"ak8FatJetPt{ptlabel}"][0], df[f"ak8FatJetPt{ptlabel}"][1]),
+            "phi": np.where(bb_mask, df["ak8FatJetPhi"][0], df["ak8FatJetPhi"][1]),
+            "eta": np.where(bb_mask, df["ak8FatJetEta"][0], df["ak8FatJetEta"][1]),
+            "M": np.where(
+                bb_mask,
+                df[f"ak8FatJetParticleNetMass{mlabel}"][0],
+                df[f"ak8FatJetParticleNetMass{mlabel}"][1],
+            ),
+        }
+    )
+
+    VVJet = vector.array(
+        {
+            "pt": np.where(
+                ~bb_mask, df[f"ak8FatJetPt{ptlabel}"][0], df[f"ak8FatJetPt{ptlabel}"][1]
+            ),
+            "phi": np.where(~bb_mask, df["ak8FatJetPhi"][0], df["ak8FatJetPhi"][1]),
+            "eta": np.where(~bb_mask, df["ak8FatJetEta"][0], df["ak8FatJetEta"][1]),
+            "M": np.where(
+                ~bb_mask,
+                df[f"ak8FatJetParticleNetMass{mlabel}"][0],
+                df[f"ak8FatJetParticleNetMass{mlabel}"][1],
+            ),
+        }
+    )
+
+    vbf1 = vector.array(
+        {
+            "pt": df[(f"VBFJetPt{ptlabel}", 0)],
+            "phi": df[("VBFJetPhi", 0)],
+            "eta": df[("VBFJetEta", 0)],
+            "M": df[("VBFJetMass", 0)],
+        }
+    )
+
+    vbf2 = vector.array(
+        {
+            "pt": df[(f"VBFJetPt{ptlabel}", 1)],
+            "phi": df[("VBFJetPhi", 1)],
+            "eta": df[("VBFJetEta", 1)],
+            "M": df[("VBFJetMass", 1)],
+        }
+    )
+
+    jj = vbf1 + vbf2
+
+    mass_jj_cut_sorted_pt = jj.mass > 500
+    eta_jj_cut_sorted_pt = np.abs(vbf1.eta - vbf2.eta) > 4.0
+
+    # Adapted from HIG-20-005 ggF_Killer 6.2.2
+    # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.PtEtaPhiMLorentzVector.html
+    # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.LorentzVector.html
+    # Adding variables defined in HIG-20-005 that show strong differentiation for VBF signal events and background
+
+    # seperation between both ak8 higgs jets
+    if "vbf_dR_HH" not in df.columns:
+        df[f"vbf_dR_HH"] = VVJet.deltaR(bbJet)
+    if "vbf_dR_j0_HVV" not in df.columns:
+        df[f"vbf_dR_j0_HVV"] = vbf1.deltaR(VVJet)
+    if "vbf_dR_j1_HVV" not in df.columns:
+        df[f"vbf_dR_j1_HVV"] = vbf2.deltaR(VVJet)
+    if "vbf_dR_j0_Hbb" not in df.columns:
+        df[f"vbf_dR_j0_Hbb"] = vbf1.deltaR(bbJet)
+    if "vbf_dR_j1_Hbb" not in df.columns:
+        df[f"vbf_dR_j1_Hbb"] = vbf2.deltaR(bbJet)
+    if "vbf_dR_jj" not in df.columns:
+        df[f"vbf_dR_jj"] = vbf1.deltaR(vbf2)
+    if "vbf_Mass_jj{ptlabel}" not in df.columns:
+        df[f"vbf_Mass_jj{ptlabel}"] = jj.M
+    if "vbf_dEta_jj" not in df.columns:
+        df[f"vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
+
+    if "DijetdEta" not in df.columns:
+        df[f"DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
+    if "DijetdPhi" not in df.columns:
+        df[f"DijetdPhi"] = np.abs(bbJet.phi - VVJet.phi)
+
+    # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
+    # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
+    system_4vec = vbf1 + vbf2 + VVJet + bbJet
+    j1_CMF = vbf1.boostCM_of_p4(system_4vec)
+
+    # Leading VBF-jet cos(θ) in the HH+2j center of mass frame:
+    thetab1 = 2 * np.arctan(np.exp(-j1_CMF.eta))
+    thetab1 = np.cos(thetab1)  # 12
+
+    if f"vbf_cos_j1{ptlabel}{mlabel}" not in df.columns:
+        df[f"vbf_cos_j1{ptlabel}{mlabel}"] = np.abs(thetab1)
+
+    # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
+    j2_CMF = vbf2.boostCM_of_p4(system_4vec)
+    thetab2 = 2 * np.arctan(np.exp(-j2_CMF.eta))
+    thetab2 = np.cos(thetab2)
+    if f"vbf_cos_j2{ptlabel}{mlabel}" not in df.columns:
+        df[f"vbf_cos_j2{ptlabel}{mlabel}"] = np.abs(thetab2)
+
+    if "vbf_prod_centrality" not in df.columns:
+        # H1-centrality * H2-centrality:
+        delta_eta = vbf1.eta - vbf2.eta
+        avg_eta = (vbf1.eta + vbf2.eta) / 2
+        prod_centrality = np.exp(
+            -np.power((VVJet.eta - avg_eta) / delta_eta, 2)
+            - np.power((bbJet.eta - avg_eta) / delta_eta, 2)
+        )
+        df[f"vbf_prod_centrality"] = prod_centrality
+
+
+def _process_samples(args, BDT_sample_order: List[str] = None):
     sig_samples = res_samples if args.resonant else nonres_samples
+    sig_samples = deepcopy(sig_samples)
+
+    if not args.resonant and BDT_sample_order is None and not args.vbf:
+        with open(f"{args.bdt_preds_dir}/{args.year}/sample_order.txt", "r") as f:
+            BDT_sample_order = list(eval(f.read()).keys())
 
     if args.read_sig_samples:
         # read all signal samples in directory
         read_year = args.year if args.year != "all" else "2017"
-        read_samples = os.listdir(f"{args.signal_data_dir}/{args.year}")
+        read_samples = os.listdir(f"{args.signal_data_dirs[0]}/{args.year}")
         sig_samples = OrderedDict()
         for sample in read_samples:
             if sample.startswith("NMSSM_XToYHTo2W2BTo4Q2B_MX-"):
@@ -467,12 +709,31 @@ def _process_samples(args):
             if sample not in args.sig_samples:
                 del sig_samples[sig_key]
 
+        # can load in nonres samples for control plots
+        for sig_key in args.sig_samples:
+            if sig_key in nonres_samples:
+                sig_samples[sig_key] = nonres_samples[sig_key]
+
+        if len(sig_samples):
+            # re-order acording to input ordering
+            tsig_samples = OrderedDict()
+            for sample in args.sig_samples:
+                if sample in sig_samples:
+                    # if sample is a key, get it directly
+                    tsig_samples[sample] = sig_samples[sample]
+                else:
+                    # else if it is a value, have to find corresponding key
+                    key = [key for key, value in sig_samples.items() if value == sample][0]
+                    tsig_samples[key] = sample
+
+            sig_samples = tsig_samples
+
     bg_samples = deepcopy(samples)
     for bg_key, sample in list(bg_samples.items()):
         if bg_key not in args.bg_keys and bg_key != data_key:
             del bg_samples[bg_key]
 
-    if not args.resonant:
+    if not args.resonant and not args.vbf:
         for key in sig_samples.copy():
             if key not in BDT_sample_order:
                 del sig_samples[key]
@@ -482,49 +743,187 @@ def _process_samples(args):
                 del bg_samples[key]
 
     if not args.data:
-        del bg_samples[data_key]
+        try:
+            del bg_samples[data_key]
+        except:
+            print(f"no key {data_key}")
 
     sig_keys = list(sig_samples.keys())
     bg_keys = list(bg_samples.keys())
 
+    print("BDT Sample Order: ", BDT_sample_order)
     print("Sig keys: ", sig_keys)
-    print("Sig samples: ", sig_samples)
+    # print("Sig samples: ", sig_samples)
     print("BG keys: ", bg_keys)
-    print("BG Samples: ", bg_samples)
+    # print("BG Samples: ", bg_samples)
 
     return sig_keys, sig_samples, bg_keys, bg_samples
 
 
 def _make_dirs(args, scan, scan_cuts, scan_wps):
     if args.plot_dir != "":
-        args.plot_dir = f"{args.plot_dir}/{args.year}/"
-        os.system(f"mkdir -p {args.plot_dir}")
+        args.plot_dir = Path(args.plot_dir)
+        args.plot_dir.mkdir(parents=True, exist_ok=True)
 
         if args.control_plots:
-            os.system(f"mkdir -p {args.plot_dir}/control_plots/")
+            args.control_plots_dir = args.plot_dir / "ControlPlots" / args.year
+            args.control_plots_dir.mkdir(parents=True, exist_ok=True)
 
-        os.system(f"mkdir -p {args.plot_dir}/templates/")
+        if args.bdt_plots and not args.resonant and not args.vbf:
+            args.bdt_sculpting_plots_dir = args.plot_dir / "BDTSculpting"
+            args.bdt_sculpting_plots_dir.mkdir(parents=True, exist_ok=True)
 
-        if scan:
-            for wps in scan_wps:
-                cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
-                os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/")
-                os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/wshifts")
-                os.system(f"mkdir -p {args.plot_dir}/templates/{cutstr}/jshifts")
-        else:
-            os.system(f"mkdir -p {args.plot_dir}/templates/wshifts")
-            os.system(f"mkdir -p {args.plot_dir}/templates/jshifts")
+        if args.templates:
+            args.templates_plots_dir = args.plot_dir / "Templates" / args.year
+            args.templates_plots_dir.mkdir(parents=True, exist_ok=True)
 
-            if args.resonant:
-                os.system(f"mkdir -p {args.plot_dir}/templates/hists2d")
+            if scan:
+                for wps in scan_wps:
+                    cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
+                    (args.templates_plots_dir / f"{cutstr}/wshifts").mkdir(
+                        parents=True, exist_ok=True
+                    )
+                    (args.templates_plots_dir / f"{cutstr}/jshifts").mkdir(
+                        parents=True, exist_ok=True
+                    )
+            else:
+                (args.templates_plots_dir / "wshifts").mkdir(parents=True, exist_ok=True)
+                (args.templates_plots_dir / "jshifts").mkdir(parents=True, exist_ok=True)
+                if args.resonant:
+                    (args.templates_plots_dir / "hists2d").mkdir(parents=True, exist_ok=True)
+
+    elif args.control_plots or args.bdt_plots:
+        print(
+            "You need to pass --plot-dir if you want to make control plots or BDT plots. Exiting."
+        )
+        sys.exit()
 
     if args.template_dir != "":
+        args.template_dir = Path(args.template_dir)
         if scan:
             for wps in scan_wps:
                 cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
-                os.system(f"mkdir -p {args.template_dir}/{cutstr}/{args.templates_name}/")
+                (args.template_dir / f"{cutstr}/{args.templates_name}/cutflows/{args.year}").mkdir(
+                    parents=True, exist_ok=True
+                )
         else:
-            os.system(f"mkdir -p {args.template_dir}/{args.templates_name}/")
+            (args.template_dir / f"{args.templates_name}/cutflows/{args.year}").mkdir(
+                parents=True, exist_ok=True
+            )
+
+
+def normalize_weights(events: pd.DataFrame, totals: Dict, sample: str, isData: bool):
+    """Normalize weights and all the variations"""
+
+    # don't need any reweighting for data
+    if isData:
+        events["finalWeight"] = events["weight"]
+        return
+
+    # check weights are scaled
+    if "weight_noxsec" in events:
+        if np.all(events["weight"] == events["weight_noxsec"]):
+            warnings.warn(f"{sample} has not been scaled by its xsec and lumi!")
+
+    # checking that trigger efficiencies have been applied
+    if "weight_noTrigEffs" in events and not np.all(
+        np.isclose(events["weight"], events["weight_noTrigEffs"], rtol=1e-5)
+    ):
+        # normalize weights with and without trigger efficiencies
+        events["finalWeight"] = events["weight"] / totals["np_nominal"]
+        events["weight_noTrigEffs"] /= totals["np_nominal"]
+    else:
+        events["weight"] /= totals["np_nominal"]
+
+    # normalize all the variations
+    for wvar in weight_shifts:
+        if f"weight_{wvar}Up" not in events:
+            continue
+
+        for shift in ["Up", "Down"]:
+            wlabel = wvar + shift
+            if wvar in norm_preserving_weights:
+                # normalize by their totals
+                events[f"weight_{wlabel}"] /= totals[f"np_{wlabel}"]
+            else:
+                # normalize by the nominal
+                events[f"weight_{wlabel}"] /= totals[f"np_nominal"]
+
+    # normalize scale and PDF weights
+    for wkey in ["scale_weights", "pdf_weights"]:
+        if wkey in events:
+            events[wkey] /= totals[f"np_{wkey}"]
+
+
+def load_samples(
+    data_dir: str,
+    samples: Dict[str, str],
+    year: str,
+    filters: List = None,
+    columns: List = None,
+    hem_cleaning: bool = True,
+) -> Dict[str, pd.DataFrame]:
+    """
+    Loads events with an optional filter.
+    Divides MC samples by the total pre-skimming, to take the acceptance into account.
+
+    Args:
+        data_dir (str): path to data directory.
+        samples (Dict[str, str]): dictionary of samples and selectors to load.
+        year (str): year.
+        filters (List): Optional filters when loading data.
+        columns (List): Optional columns to load.
+        hem_cleaning (bool): Whether to apply HEM cleaning to 2018 data.
+
+    Returns:
+        Dict[str, pd.DataFrame]: ``events_dict`` dictionary of events dataframe for each sample.
+
+    """
+    data_dir = Path(data_dir) / year
+    full_samples_list = os.listdir(data_dir)  # get all directories in data_dir
+    events_dict = {}
+
+    # label - key of sample in events_dict
+    # selector - string used to select directories to load in for this sample
+    for label, selector in samples.items():
+        events_dict[label] = []  # list of directories we load in for this sample
+        for sample in full_samples_list:
+            # check if this directory passes our selector string
+            if not utils.check_selector(sample, selector):
+                continue
+
+            sample_path = data_dir / sample
+            parquet_path, pickles_path = sample_path / "parquet", sample_path / "pickles"
+
+            # no parquet directory?
+            if not parquet_path.exists():
+                warnings.warn(f"No parquet directory for {sample}!")
+                continue
+
+            # print(f"Loading {sample}")
+            events = pd.read_parquet(parquet_path, filters=filters, columns=columns)
+
+            # no events?
+            if not len(events):
+                warnings.warn(f"No events for {sample}!")
+                continue
+
+            # normalize by total events
+            totals = utils.get_pickles(pickles_path, year, sample)["totals"]
+            normalize_weights(events, totals, sample, isData=label == data_key)
+
+            if year == "2018" and hem_cleaning:
+                events = utils._hem_cleaning(sample, events)
+
+            events_dict[label].append(events)
+            print(f"Loaded {sample: <50}: {len(events)} entries")
+
+        if len(events_dict[label]):
+            events_dict[label] = pd.concat(events_dict[label])
+        else:
+            del events_dict[label]
+
+    return events_dict
 
 
 def _check_load_systematics(systs_file: str, year: str):
@@ -541,10 +940,27 @@ def _check_load_systematics(systs_file: str, year: str):
     return systematics
 
 
-def _load_samples(args, samples, sig_samples, cutflow):
-    filters = old_filters if args.old_processor else new_filters
-    events_dict = utils.load_samples(args.signal_data_dir, sig_samples, args.year, filters)
-    events_dict |= utils.load_samples(args.data_dir, samples, args.year, filters)
+def _load_samples(args, samples, sig_samples, cutflow, filters=None):
+    if filters is None:
+        filters = old_filters if args.old_processor else new_filters
+
+    events_dict = {}
+    for d in args.signal_data_dirs:
+        events_dict = {
+            **events_dict,
+            **load_samples(d, sig_samples, args.year, filters, hem_cleaning=args.hem_cleaning),
+        }
+
+    if args.data_dir:
+        events_dict = {
+            **events_dict,
+            **load_samples(
+                args.data_dir, samples, args.year, filters, hem_cleaning=args.hem_cleaning
+            ),
+        }
+
+    print("Samples: ", list(events_dict.keys()))
+
     utils.add_to_cutflow(events_dict, "Pre-selection", "weight", cutflow)
 
     print("")
@@ -561,7 +977,7 @@ def apply_weights(
     events_dict: Dict[str, pd.DataFrame],
     year: str,
     cutflow: pd.DataFrame = None,
-    weight_key: str = "finalWeight",
+    qcd_sf: bool = True,
 ):
     """
     Applies (1) 2D trigger scale factors, (2) QCD scale facotr.
@@ -583,11 +999,14 @@ def apply_weights(
         np.nan_to_num(effs_txbb.view(flow=False), 0), np.squeeze(effs_txbb.axes.edges)
     )
 
+    weight_key = "finalWeight"
+
     for sample in events_dict:
         events = events_dict[sample]
         if sample == data_key:
-            events[weight_key] = events["weight"]
-        else:
+            if weight_key not in events:
+                events[weight_key] = events["weight"]
+        elif f"{weight_key}_noTrigEffs" not in events:
             fj_trigeffs = ak8TrigEffsLookup(
                 events["ak8FatJetParticleNetMD_Txbb"].values,
                 events["ak8FatJetPt"].values,
@@ -602,7 +1021,7 @@ def apply_weights(
         utils.add_to_cutflow(events_dict, "TriggerEffs", weight_key, cutflow)
 
     # calculate QCD scale factor
-    if qcd_key in events_dict:
+    if qcd_sf and qcd_key in events_dict:
         trig_yields = cutflow["TriggerEffs"]
         non_qcd_bgs_yield = np.sum(
             [
@@ -643,7 +1062,11 @@ def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataF
 def derive_variables(events_dict: Dict[str, pd.DataFrame]):
     """Add HWW vs (QCD + Top) discriminant"""
     for sample, events in events_dict.items():
-        if "VVFatJetParTMD_THWWvsT" in events:
+        if "VVFatJetParTMD_THWWvsT" in events or "ak8FatJetParTMD_THWWvsT" in events:
+            continue
+
+        if "ak8FatJetParTMD_probT" not in events:
+            warnings.warn(f"ParT variables missing in {sample}!")
             continue
 
         h4qvst = (events["ak8FatJetParTMD_probHWW3q"] + events["ak8FatJetParTMD_probHWW4q"]) / (
@@ -662,7 +1085,6 @@ def load_bdt_preds(
     events_dict: Dict[str, pd.DataFrame],
     year: str,
     bdt_preds_dir: str,
-    bdt_sample_order: List[str],
     jec_jmsr_shifts: bool = False,
 ):
     """
@@ -674,7 +1096,11 @@ def load_bdt_preds(
         bdt_sample_order (List[str]): Order of samples in the predictions file.
 
     """
+    with open(f"{bdt_preds_dir}/{year}/sample_order.txt", "r") as f:
+        sample_order_dict = eval(f.read())
+
     bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
+
     multiclass = len(bdt_preds.shape) > 1
 
     if jec_jmsr_shifts:
@@ -684,29 +1110,32 @@ def load_bdt_preds(
         }
 
     i = 0
-    for sample in bdt_sample_order:
-        events = events_dict[sample]
-        num_events = len(events)
+    for sample, num_events in sample_order_dict.items():
+        if sample in events_dict:
+            events = events_dict[sample]
+            assert num_events == len(
+                events
+            ), f"# of BDT predictions does not match # of events for sample {sample}"
 
-        if not multiclass:
-            events["BDTScore"] = bdt_preds[i : i + num_events]
-        else:
-            events["BDTScore"] = bdt_preds[i : i + num_events, 0]
-            events["BDTScoreQCD"] = bdt_preds[i : i + num_events, 1]
-            events["BDTScoreTT"] = bdt_preds[i : i + num_events, 2]
-            events["BDTScoreVJets"] = 1 - np.sum(bdt_preds[i : i + num_events], axis=1)
+            if not multiclass:
+                events["BDTScore"] = bdt_preds[i : i + num_events]
+            else:
+                events["BDTScore"] = bdt_preds[i : i + num_events, 0]
+                events["BDTScoreQCD"] = bdt_preds[i : i + num_events, 1]
+                events["BDTScoreTT"] = bdt_preds[i : i + num_events, 2]
+                events["BDTScoreVJets"] = 1 - np.sum(bdt_preds[i : i + num_events], axis=1)
 
-        if jec_jmsr_shifts and sample != data_key:
-            for jshift in jec_shifts + jmsr_shifts:
-                if not multiclass:
-                    events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events]
-                else:
-                    events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events, 0]
-                    events["BDTScoreQCD_" + jshift] = shift_preds[jshift][i : i + num_events, 1]
-                    events["BDTScoreTT_" + jshift] = shift_preds[jshift][i : i + num_events, 2]
-                    events["BDTScoreVJets_" + jshift] = 1 - np.sum(
-                        shift_preds[jshift][i : i + num_events], axis=1
-                    )
+            if jec_jmsr_shifts and sample != data_key:
+                for jshift in jec_shifts + jmsr_shifts:
+                    if not multiclass:
+                        events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events]
+                    else:
+                        events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events, 0]
+                        events["BDTScoreQCD_" + jshift] = shift_preds[jshift][i : i + num_events, 1]
+                        events["BDTScoreTT_" + jshift] = shift_preds[jshift][i : i + num_events, 2]
+                        events["BDTScoreVJets_" + jshift] = 1 - np.sum(
+                            shift_preds[jshift][i : i + num_events], axis=1
+                        )
 
         i += num_events
 
@@ -714,13 +1143,11 @@ def load_bdt_preds(
 
 
 def get_lpsf_all_years(
-    full_events_dict: Dict[str, pd.DataFrame],
     sig_key: str,
     data_dir: str,
     samples: Dict,
     lp_region: Region,
     bdt_preds_dir: str = None,
-    bdt_sample_order: List[str] = None,
 ):
     print("Getting LP SF for all years combined")
     events_all = []
@@ -780,17 +1207,22 @@ def get_lpsf_all_years(
         events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
 
         if bdt_preds_dir is not None:
+            with open(f"{bdt_preds_dir}/{year}/sample_order.txt", "r") as f:
+                sample_order_dict = eval(f.read())
+
             # load bdt preds for sig only
             bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
             multiclass = len(bdt_preds.shape) > 1
             i = 0
-            for sample in bdt_sample_order:
+            for sample, num_events in sample_order_dict.items():
                 if sample != sig_key:
-                    i += len(full_events_dict[sample])
+                    i += num_events
                     continue
                 else:
                     events = events_dict[sample]
-                    num_events = len(events)
+                    assert num_events == len(
+                        events
+                    ), f"# of BDT predictions does not match # of events for sample {sample}"
                     if not multiclass:
                         events["BDTScore"] = bdt_preds[i : i + num_events]
                     else:
@@ -817,7 +1249,6 @@ def lpsfs(
     lp_selection_region: Region,
     systematics: Dict,
     all_years: bool = False,
-    bdt_sample_order: List[str] = None,
     bdt_preds_dir: str = None,
     template_dir: str = None,
     systs_file: str = None,
@@ -828,27 +1259,27 @@ def lpsfs(
         - Does it for all years once if args.lp_sf_all_years or just for the given year
     2) Saves them to ``systs_file`` and CSV for posterity
     """
+    if not all_years:
+        warnings.warn(f"LP SF only calculated from single year's samples", RuntimeWarning)
+
     for sig_key in sig_keys:
-        sf_table = OrderedDict()  # format SFs for each sig key in a table
         if sig_key not in systematics or "lp_sf" not in systematics[sig_key]:
             print(f"\nGetting LP SFs for {sig_key}")
 
-            systematics[sig_key] = {}
+            if sig_key not in systematics:
+                systematics[sig_key] = {}
 
             # SFs are correlated across all years so needs to be calculated with full dataset
             if all_years:
                 lp_sf, unc, uncs = get_lpsf_all_years(
-                    events_dict,
                     sig_key,
                     data_dir,
                     sig_samples,
                     lp_selection_region,
                     bdt_preds_dir,
-                    bdt_sample_order,
                 )
             # Only for testing, can do just for a single year
             else:
-                warnings.warn(f"LP SF only calculated from single year's samples", RuntimeWarning)
                 # calculate only for current year
                 events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
                 sel, cf = utils.make_selection(
@@ -863,28 +1294,81 @@ def lpsfs(
 
             systematics[sig_key]["lp_sf"] = lp_sf
             systematics[sig_key]["lp_sf_unc"] = unc / lp_sf
-            sf_table[sig_key] = {"SF": f"{lp_sf:.2f} ± {unc:.2f}", **uncs}
+            systematics[sig_key]["lp_sf_uncs"] = uncs
 
-        if template_dir is not None:
-            if len(sf_table):
-                sf_df = pd.DataFrame(index=sig_keys)
-                for key in sf_table[sig_key]:
-                    sf_df[key] = [sf_table[skey][key] for skey in sig_keys]
+            if systs_file is not None:
+                with open(systs_file, "w") as f:
+                    json.dump(systematics, f)
 
-                sf_df.to_csv(f"{template_dir}/lpsfs.csv")
+    if template_dir is not None:
+        sf_table = OrderedDict()  # format SFs for each sig key in a table
+        for sig_key in sig_keys:
+            systs = systematics[sig_key]
+            sf_table[sig_key] = {
+                "SF": f"{systs['lp_sf']:.2f} ± {systs['lp_sf'] * systs['lp_sf_unc']:.2f}",
+                **systs["lp_sf_uncs"],
+            }
 
-    if systs_file is not None:
-        with open(systs_file, "w") as f:
-            json.dump(systematics, f)
+        print("\nLP Scale Factors:\n", pd.DataFrame(sf_table).T)
+        pd.DataFrame(sf_table).T.to_csv(f"{template_dir}/lpsfs.csv")
 
     utils.add_to_cutflow(events_dict, "LP SF", "finalWeight", cutflow)
+
+
+def hists_HEM2d(
+    events_dict: Dict[str, pd.DataFrame],
+    bb_masks: Dict[str, pd.DataFrame],
+    weight_key: str = "finalWeight",
+    selection: Dict[str, np.ndarray] = None,
+):
+    """Create 2D hists of FatJet phi vs eta for bb and VV jets as a check for HEM cleaning."""
+    HEM2d_vars = [
+        {
+            f"{jet}FatJetPhi": ([40, -3.5, 3.5], rf"$\varphi^{{{jet}}}$"),
+            f"{jet}FatJetEta": ([40, -3, 3], rf"$\eta^{{{jet}}}$"),
+        }
+        for jet in ["bb", "VV"]
+    ]
+
+    samples = list(events_dict.keys())
+    hists2d = []
+
+    for vars2d in HEM2d_vars:
+        h = Hist(
+            hist.axis.StrCategory(samples, name="Sample"),
+            *[
+                hist.axis.Regular(*bins, name=var, label=label)
+                for var, (bins, label) in vars2d.items()
+            ],
+            storage=hist.storage.Weight(),
+        )
+
+        for sample in samples:
+            events = events_dict[sample]
+
+            fill_data = {var: utils.get_feat(events, var, bb_masks[sample]) for var in vars2d}
+            weight = events[weight_key].values.squeeze()
+
+            if selection is not None:
+                sel = selection[sample]
+                for var in fill_data:
+                    fill_data[var] = fill_data[var][sel]
+
+                weight = weight[sel]
+
+            if len(weight):
+                h.fill(Sample=sample, **fill_data, weight=weight)
+
+        hists2d.append(h)
+
+    return hists2d
 
 
 def control_plots(
     events_dict: Dict[str, pd.DataFrame],
     bb_masks: Dict[str, pd.DataFrame],
     sig_keys: List[str],
-    control_plot_vars: Dict[str, Tuple],
+    control_plot_vars: List[ShapeVar],
     plot_dir: str,
     year: str,
     weight_key: str = "finalWeight",
@@ -895,7 +1379,10 @@ def control_plots(
     selection: Dict[str, np.ndarray] = None,
     sig_scale_dict: Dict[str, float] = None,
     combine_pdf: bool = True,
+    HEM2d: bool = False,
+    plot_significance: bool = False,
     show: bool = False,
+    log: Tuple[bool, str] = "both",
 ):
     """
     Makes and plots histograms of each variable in ``control_plot_vars``.
@@ -904,7 +1391,7 @@ def control_plots(
         control_plot_vars (Dict[str, Tuple]): Dictionary of variables to plot, formatted as
           {var1: ([num bins, min, max], label), var2...}.
         sig_splits: split up signals into different plots (in case there are too many for one)
-
+        log: True or False if plot on log scale or not - or "both" if both.
     """
 
     from PyPDF2 import PdfMerger
@@ -914,19 +1401,20 @@ def control_plots(
     # sig_scale_dict["HHbbVV"] = 2e5
 
     if sig_scale_dict is None:
-        sig_scale_dict = {sig_key: 1 for sig_key in sig_keys}
-        sig_scale_dict["HHbbVV"] = 2e5
-
-    # print(f"{sig_scale_dict = }")
+        sig_scale_dict = {sig_key: 2e5 for sig_key in sig_keys}
 
     print(control_plot_vars)
     print(selection)
+    print(list(events_dict.keys()))
 
-    for var, (bins, label) in control_plot_vars.items():
-        if var not in hists:
-            hists[var] = utils.singleVarHist(
-                events_dict, var, bins, label, bb_masks, weight_key=weight_key, selection=selection
+    for shape_var in control_plot_vars:
+        if shape_var.var not in hists:
+            hists[shape_var.var] = utils.singleVarHist(
+                events_dict, shape_var, bb_masks, weight_key=weight_key, selection=selection
             )
+
+    if HEM2d and year == "2018":
+        hists["HEM2d"] = hists_HEM2d(events_dict, bb_masks, weight_key, selection)
 
     with open(f"{plot_dir}/hists.pkl", "wb") as f:
         pickle.dump(hists, f)
@@ -934,30 +1422,87 @@ def control_plots(
     if sig_splits is None:
         sig_splits = [sig_keys]
 
-    for i, plot_sig_keys in enumerate(sig_splits):
-        tplot_dir = plot_dir if len(sig_splits) == 1 else f"{plot_dir}/sigs{i}/"
-        tsig_scale_dict = {key: sig_scale_dict.get(key, 1) for key in plot_sig_keys}
+    do_log = [True, False] if log == "both" else [log]
 
-        merger_control_plots = PdfMerger()
+    for log, logstr in [(False, ""), (True, "_log")]:
+        if log not in do_log:
+            continue
 
-        for var, var_hist in hists.items():
-            name = f"{tplot_dir}/{cutstr}{var}.pdf"
-            plotting.ratioHistPlot(
-                var_hist,
-                year,
-                plot_sig_keys,
-                bg_keys,
-                name=name,
-                sig_scale_dict=tsig_scale_dict,
-                show=show,
-            )
-            merger_control_plots.append(name)
+        for i, plot_sig_keys in enumerate(sig_splits):
+            tplot_dir = plot_dir if len(sig_splits) == 1 else f"{plot_dir}/sigs{i}/"
+            tsig_scale_dict = {key: sig_scale_dict.get(key, 1) for key in plot_sig_keys}
 
-        if combine_pdf:
-            merger_control_plots.write(f"{tplot_dir}/{cutstr}{year}_ControlPlots.pdf")
-        merger_control_plots.close()
+            merger_control_plots = PdfMerger()
+
+            for shape_var in control_plot_vars:
+                name = f"{tplot_dir}/{cutstr}{shape_var.var}{logstr}.pdf"
+                plotting.ratioHistPlot(
+                    hists[shape_var.var],
+                    year,
+                    plot_sig_keys,
+                    bg_keys,
+                    name=name,
+                    sig_scale_dict=tsig_scale_dict if not log else None,
+                    plot_significance=plot_significance,
+                    significance_dir=shape_var.significance_dir,
+                    show=show,
+                    log=log,
+                    ylim=None if not log else 1e15,
+                )
+                merger_control_plots.append(name)
+
+            if combine_pdf:
+                merger_control_plots.write(f"{tplot_dir}/{cutstr}{year}{logstr}_ControlPlots.pdf")
+
+            merger_control_plots.close()
+
+    if HEM2d and year == "2018":
+        # TODO: change plot keys?
+        name = f"{plot_dir}/HEM2d.pdf"
+        # plot keys
+        plotting.plot_HEM2d(
+            hists["HEM2d"], ["Data", "QCD", "TT", "HHbbVV", "X[3000]->H(bb)Y[250](VV)"], year, name
+        )
 
     return hists
+
+
+def plot_bdt_sculpting(
+    events_dict: Dict[str, pd.DataFrame],
+    bb_masks: Dict[str, pd.DataFrame],
+    plot_dir: str,
+    year: str,
+    weight_key: str = "finalWeight",
+    show: bool = False,
+):
+    """Plot bb jet mass for different BDT score cuts."""
+    cuts = [0, 0.1, 0.5, 0.9, 0.95]
+    # bdtvars = ["", "TT", "VJets"]
+    bdtvars = [""]
+    plot_keys = ["QCD", "HHbbVV"]
+
+    shape_var = ShapeVar(
+        var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[20, 50, 250]
+    )
+
+    for var in bdtvars:
+        for key in plot_keys:
+            ed_key = {key: events_dict[key]}
+            bbm_key = {key: bb_masks[key]}
+
+            plotting.cutsLinePlot(
+                ed_key,
+                bbm_key,
+                shape_var,
+                key,
+                f"BDTScore{var}",
+                cuts,
+                year,
+                weight_key,
+                plot_dir,
+                f"{year}_BDT{var}Cuts_{shape_var.var}_{key}",
+                show=show,
+            )
 
 
 def check_weights(events_dict):
@@ -1000,9 +1545,12 @@ def get_templates(
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
+    plot_sig_keys: List[str] = None,
     sig_splits: List[List[str]] = None,
+    sig_scale_dict: Dict = None,
     weight_shifts: Dict = {},
     jshift: str = "",
+    lpsfs: bool = True,
     plot_shifts: bool = False,
     pass_ylim: int = None,
     fail_ylim: int = None,
@@ -1042,9 +1590,10 @@ def get_templates(
         sel, cf = utils.make_selection(
             region.cuts, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
         )
+        # print(cf)
 
         if template_dir != "":
-            cf.to_csv(f"{template_dir}/{rname}_cutflow{jlabel}.csv")
+            cf.to_csv(f"{template_dir}/cutflows/{year}/{rname}_cutflow{jlabel}.csv")
 
         # trigger uncertainties
         if not do_jshift:
@@ -1062,8 +1611,9 @@ def get_templates(
 
             if pass_region:
                 # scale signal by LP SF
-                for wkey in [weight_key, f"{weight_key}_noTrigEffs"]:
-                    sig_events[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
+                if lpsfs:
+                    for wkey in [weight_key, f"{weight_key}_noTrigEffs"]:
+                        sig_events[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
 
                 corrections.apply_txbb_sfs(sig_events[sig_key], sig_bb_mask, year, weight_key)
 
@@ -1148,8 +1698,11 @@ def get_templates(
 
         # plot templates incl variations
         if plot_dir != "" and (not do_jshift or plot_shifts):
-            if pass_region:
-                sig_scale_dict = {"HHbbVV": 1, **{skey: 1 for skey in res_sig_keys}}
+            if sig_scale_dict is None:
+                sig_scale_dict = {
+                    **{skey: 1 for skey in nonres_sig_keys},
+                    **{skey: 1 for skey in res_sig_keys},
+                }
 
             title = (
                 f"{region.label} Region Pre-Fit Shapes"
@@ -1158,18 +1711,20 @@ def get_templates(
             )
 
             if sig_splits is None:
-                sig_splits = [sig_keys]
+                sig_splits = [plot_sig_keys]
 
             for i, shape_var in enumerate(shape_vars):
-                for j, plot_sig_keys in enumerate(sig_splits):
+                for j, p_sig_keys in enumerate(sig_splits):
                     split_str = "" if len(sig_splits) == 1 else f"sigs{j}_"
                     plot_params = {
                         "hists": h.project(0, i + 1),
-                        "sig_keys": plot_sig_keys,
+                        "sig_keys": p_sig_keys,
                         "bg_keys": bg_keys,
-                        "sig_scale_dict": {key: sig_scale_dict[key] for key in plot_sig_keys}
-                        if pass_region
-                        else None,
+                        "sig_scale_dict": (
+                            {key: sig_scale_dict[key] for key in p_sig_keys}
+                            if pass_region
+                            else None
+                        ),
                         "show": show,
                         "year": year,
                         "ylim": pass_ylim if pass_region else fail_ylim,
@@ -1247,15 +1802,16 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--data-dir",
-        default="../../../../data/skimmer/Feb24/",
+        default=None,
         help="path to skimmed parquet",
         type=str,
     )
 
     parser.add_argument(
-        "--signal-data-dir",
-        default="",
+        "--signal-data-dirs",
+        default=[],
         help="path to skimmed signal parquets, if different from other data",
+        nargs="*",
         type=str,
     )
 
@@ -1267,7 +1823,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--bdt-preds",
+        "--bdt-preds-dir",
         help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
         default="",
         type=str,
@@ -1295,7 +1851,9 @@ if __name__ == "__main__":
     )
 
     utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
+    utils.add_bool_arg(parser, "vbf", "non-resonant VBF or inclusive", default=False)
     utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
+    utils.add_bool_arg(parser, "bdt-plots", "make bdt sculpting plots", default=False)
     utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
     utils.add_bool_arg(
         parser, "overwrite-template", "if template file already exists, overwrite it", default=False
@@ -1325,6 +1883,10 @@ if __name__ == "__main__":
     )
 
     utils.add_bool_arg(parser, "data", "include data", default=True)
+    utils.add_bool_arg(parser, "hem-cleaning", "perform hem cleaning for 2018", default=None)
+    utils.add_bool_arg(
+        parser, "HEM2d", "fatjet phi v eta plots to check HEM cleaning", default=False
+    )
 
     utils.add_bool_arg(parser, "old-processor", "temp arg for old processed samples", default=False)
 
@@ -1346,6 +1908,23 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--nonres-vbf-txbb-wp",
+        help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
+        default=["HP"],
+        choices=["LP", "MP", "HP"],
+        nargs="*",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--nonres-vbf-thww-wp",
+        help="THWWvsT WP for signal region. If multiple arguments, will make templates for each.",
+        default=[0.6],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
         "--res-txbb-wp",
         help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
         default=["HP"],
@@ -1357,18 +1936,43 @@ if __name__ == "__main__":
     parser.add_argument(
         "--res-thww-wp",
         help="Thww WP for signal region. If multiple arguments, will make templates for each.",
-        default=[0.96],
+        default=[0.8],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--res-leading-pt",
+        help="pT cut for leading AK8 jet (resonant only)",
+        default=[300],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--res-subleading-pt",
+        help="pT cut for sub-leading AK8 jet (resonant only)",
+        default=[300],
         nargs="*",
         type=float,
     )
 
     args = parser.parse_args()
 
-    if args.template_dir == "":
-        print("Need to set --template-dir. Exiting.")
+    if args.templates and args.template_dir == "":
+        print("Need to set --template-dir if making templates. Exiting.")
         sys.exit()
 
-    if args.signal_data_dir == "":
-        args.signal_data_dir = args.data_dir
+    if not args.signal_data_dirs:
+        args.signal_data_dirs = [args.data_dir]
+
+    if args.bdt_preds_dir == "" and not args.resonant:
+        args.bdt_preds_dir = f"{args.data_dir}/inferences/"
+    elif args.resonant:
+        args.bdt_preds_dir = None
+
+    if args.hem_cleaning is None:
+        # can't do HEM cleaning for non-resonant until BDT is re-inferenced
+        args.hem_cleaning = True if (args.resonant or args.vbf) else False
 
     main(args)

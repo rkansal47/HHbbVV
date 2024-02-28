@@ -1,0 +1,505 @@
+{
+  "output_names": [
+    "label_H_WqqWqq_0c",
+    "label_H_WqqWqq_1c",
+    "label_H_WqqWqq_2c",
+    "label_H_WqqWq_0c",
+    "label_H_WqqWq_1c",
+    "label_H_WqqWq_2c",
+    "label_H_WqqWev_0c",
+    "label_H_WqqWev_1c",
+    "label_H_WqqWmv_0c",
+    "label_H_WqqWmv_1c",
+    "label_H_WqqWtauev_0c",
+    "label_H_WqqWtauev_1c",
+    "label_H_WqqWtaumv_0c",
+    "label_H_WqqWtaumv_1c",
+    "label_H_WqqWtauhv_0c",
+    "label_H_WqqWtauhv_1c",
+    "label_H_bb",
+    "label_H_cc",
+    "label_H_ss",
+    "label_H_qq",
+    "label_H_tauhtaue",
+    "label_H_tauhtaum",
+    "label_H_tauhtauh",
+    "label_QCD_bb",
+    "label_QCD_cc",
+    "label_QCD_b",
+    "label_QCD_c",
+    "label_QCD_others",
+    "label_Top_bWqq_0c",
+    "label_Top_bWqq_1c",
+    "label_Top_bWq_0c",
+    "label_Top_bWq_1c",
+    "label_Top_bWev",
+    "label_Top_bWmv",
+    "label_Top_bWtauhv",
+    "label_Top_bWtauev",
+    "label_Top_bWtaumv"
+  ],
+  "input_names": [
+    "pf_features",
+    "pf_vectors",
+    "pf_mask",
+    "sv_features",
+    "sv_vectors",
+    "sv_mask"
+  ],
+  "pf_features": {
+    "var_names": [
+      "pfcand_pt_log_nopuppi",
+      "pfcand_e_log_nopuppi",
+      "pfcand_etarel",
+      "pfcand_phirel",
+      "pfcand_abseta",
+      "pfcand_charge",
+      "pfcand_isEl",
+      "pfcand_isMu",
+      "pfcand_isGamma",
+      "pfcand_isChargedHad",
+      "pfcand_isNeutralHad",
+      "pfcand_VTX_ass",
+      "pfcand_lostInnerHits",
+      "pfcand_normchi2",
+      "pfcand_quality",
+      "pfcand_dz",
+      "pfcand_dzsig",
+      "pfcand_dxy",
+      "pfcand_dxysig",
+      "pfcand_btagEtaRel",
+      "pfcand_btagPtRatio",
+      "pfcand_btagPParRatio",
+      "pfcand_btagSip3dVal",
+      "pfcand_btagSip3dSig",
+      "pfcand_btagJetDistVal"
+    ],
+    "var_infos": {
+      "pfcand_pt_log_nopuppi": {
+        "median": 1,
+        "norm_factor": 0.5,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_e_log_nopuppi": {
+        "median": 1.3,
+        "norm_factor": 0.5,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_etarel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_phirel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_abseta": {
+        "median": 0.6,
+        "norm_factor": 1.6,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_charge": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_isEl": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_isMu": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_isGamma": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_isChargedHad": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_isNeutralHad": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_VTX_ass": {
+        "median": 4,
+        "norm_factor": 0.3,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_lostInnerHits": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_normchi2": {
+        "median": 5,
+        "norm_factor": 0.2,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_quality": {
+        "median": 0,
+        "norm_factor": 0.2,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_dz": {
+        "median": 0,
+        "norm_factor": 180,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_dzsig": {
+        "median": 0,
+        "norm_factor": 0.9,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_dxy": {
+        "median": 0.0,
+        "norm_factor": 300,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_dxysig": {
+        "median": 0,
+        "norm_factor": 1.0,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_btagEtaRel": {
+        "median": 1.5,
+        "norm_factor": 0.5,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_btagPtRatio": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_btagPParRatio": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_btagSip3dVal": {
+        "median": 0,
+        "norm_factor": 100,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_btagSip3dSig": {
+        "median": 0,
+        "norm_factor": 0.5,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "pfcand_btagJetDistVal": {
+        "median": 0,
+        "norm_factor": 40,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      }
+    },
+    "var_length": 128
+  },
+  "pf_vectors": {
+    "var_names": [
+      "pfcand_px",
+      "pfcand_py",
+      "pfcand_pz",
+      "pfcand_energy"
+    ],
+    "var_infos": {
+      "pfcand_px": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_py": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_pz": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "pfcand_energy": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      }
+    },
+    "var_length": 128
+  },
+  "pf_mask": {
+    "var_names": [
+      "pfcand_mask"
+    ],
+    "var_infos": {
+      "pfcand_mask": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      }
+    },
+    "var_length": 128
+  },
+  "sv_features": {
+    "var_names": [
+      "sv_pt_log",
+      "sv_mass",
+      "sv_etarel",
+      "sv_phirel",
+      "sv_abseta",
+      "sv_ntracks",
+      "sv_normchi2",
+      "sv_dxy",
+      "sv_dxysig",
+      "sv_d3d",
+      "sv_d3dsig"
+    ],
+    "var_infos": {
+      "sv_pt_log": {
+        "median": 4,
+        "norm_factor": 0.6,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_mass": {
+        "median": 1.2,
+        "norm_factor": 0.3,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_etarel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "sv_phirel": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "sv_abseta": {
+        "median": 0.5,
+        "norm_factor": 1.6,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_ntracks": {
+        "median": 3,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_normchi2": {
+        "median": 0.8,
+        "norm_factor": 0.6,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_dxy": {
+        "median": 0.4,
+        "norm_factor": 0.25,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_dxysig": {
+        "median": 7,
+        "norm_factor": 0.02,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_d3d": {
+        "median": 0.5,
+        "norm_factor": 0.2,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      },
+      "sv_d3dsig": {
+        "median": 7,
+        "norm_factor": 0.02,
+        "replace_inf_value": 0,
+        "lower_bound": -5,
+        "upper_bound": 5,
+        "pad": 0
+      }
+    },
+    "var_length": 10
+  },
+  "sv_vectors": {
+    "var_names": [
+      "sv_px",
+      "sv_py",
+      "sv_pz",
+      "sv_energy"
+    ],
+    "var_infos": {
+      "sv_px": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "sv_py": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "sv_pz": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      },
+      "sv_energy": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      }
+    },
+    "var_length": 10
+  },
+  "sv_mask": {
+    "var_names": [
+      "sv_mask"
+    ],
+    "var_infos": {
+      "sv_mask": {
+        "median": 0,
+        "norm_factor": 1,
+        "replace_inf_value": 0,
+        "lower_bound": -1e+32,
+        "upper_bound": 1e+32,
+        "pad": 0
+      }
+    },
+    "var_length": 10
+  }
+}
