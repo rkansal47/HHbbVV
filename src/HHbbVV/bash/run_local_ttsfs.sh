@@ -8,12 +8,12 @@
 # done
 
 
-year=2017
+year=2018
 processor=ttsfs
 extraargs=""
-extraargs="--no-inference"
+# extraargs="--no-inference"
 
-OUTPUTDIR="tmp/test_outputs/$year"
+OUTPUTDIR="tmp/test_outputs_ttsfs/$year"
 mkdir -p $OUTPUTDIR
 
 # python -W ignore src/run.py --processor $processor --year $year --samples HH --subsamples GluGluToHHTobbVV_node_cHHH1 --save-systematics --starti 0 --endi 1 $extraargs
@@ -34,14 +34,20 @@ mkdir -p $OUTPUTDIR/$label/parquet $OUTPUTDIR/$label/pickles
 mv "0-1.parquet" $OUTPUTDIR/$label/parquet/
 mv "outfiles/0-1.pkl" $OUTPUTDIR/$label/pickles/
 
-# python -W ignore src/run.py --processor $processor --year $year --samples QCD --subsamples QCD_HT1000to1500 --save-systematics --starti 0 --endi 1 $extraargs
-# label="QCD_HT1000to1500"
-# mkdir -p $OUTPUTDIR/$label/parquet $OUTPUTDIR/$label/pickles
-# mv "0-1.parquet" $OUTPUTDIR/$label/parquet/
-# mv "outfiles/0-1.pkl" $OUTPUTDIR/$label/pickles/
+python -W ignore src/run.py --processor $processor --year $year --samples SingleTop --subsamples ST_t-channel_top_4f_InclusiveDecays --starti 0 --endi 1 $extraargs
+label="ST_t-channel_top_4f_InclusiveDecays"
+mkdir -p $OUTPUTDIR/$label/parquet $OUTPUTDIR/$label/pickles
+mv "0-1.parquet" $OUTPUTDIR/$label/parquet/
+mv "outfiles/0-1.pkl" $OUTPUTDIR/$label/pickles/
 
-# python -W ignore src/run.py --processor $processor --year $year --samples "JetHT$year" --subsamples "JetHT_Run${year}D" --save-systematics --starti 0 --endi 1 $extraargs
-# label="JetHT_Run${year}D"
-# mkdir -p $OUTPUTDIR/$label/parquet $OUTPUTDIR/$label/pickles
-# mv "0-1.parquet" $OUTPUTDIR/$label/parquet/
-# mv "outfiles/0-1.pkl" $OUTPUTDIR/$label/pickles/
+python -W ignore src/run.py --processor $processor --year $year --samples QCD --subsamples QCD_HT1000to1500 --save-systematics --starti 0 --endi 1 $extraargs
+label="QCD_HT1000to1500"
+mkdir -p $OUTPUTDIR/$label/parquet $OUTPUTDIR/$label/pickles
+mv "0-1.parquet" $OUTPUTDIR/$label/parquet/
+mv "outfiles/0-1.pkl" $OUTPUTDIR/$label/pickles/
+
+python -W ignore src/run.py --processor $processor --year $year --samples "SingleMu$year" --subsamples "SingleMuon_Run${year}D" --save-systematics --starti 0 --endi 1 $extraargs
+label="SingleMuon_Run${year}D"
+mkdir -p $OUTPUTDIR/$label/parquet $OUTPUTDIR/$label/pickles
+mv "0-1.parquet" $OUTPUTDIR/$label/parquet/
+mv "outfiles/0-1.pkl" $OUTPUTDIR/$label/pickles/

@@ -92,6 +92,8 @@ class SkimmerABC(processor.ProcessorABC):
             logging.warning("Weight not normalized to cross section")
             weight_norm = 1
 
+        print("weight_norm", weight_norm)
+
         return weight_norm
 
     @abstractmethod

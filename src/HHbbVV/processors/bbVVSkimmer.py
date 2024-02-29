@@ -724,14 +724,15 @@ class bbVVSkimmer(processor.ProcessorABC):
 
                     for key, (selector, gen_quarks, num_prongs) in selectors.items():
                         if np.sum(selector) > 0:
-                            sel_events = events[sel_all][selector]
                             selected_sfs[key] = get_lund_SFs(
-                                sel_events,
+                                year,
+                                events[sel_all][selector],
                                 (
                                     i
                                     if self._save_all
                                     else skimmed_events["ak8FatJetHVV"][selector][:, 1]
-                                ),
+                                ),  # giving HVV jet index if only doing LP SFs for HVV jet
+                                fatjets[sel_all][selector],
                                 num_prongs,
                                 gen_quarks[selector],
                                 trunc_gauss=False,
@@ -852,7 +853,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         weights.add("genweight", gen_weights)
 
         add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
-        add_pileupid_weights(weights, year, vbf_jets, events.GenJet, wp="M")  # this gives error
+        add_pileupid_weights(weights, year, vbf_jets, events.GenJet, wp="M")  # needs awkward 1.10
         add_VJets_kFactors(weights, events.GenPart, dataset)
         add_ps_weight(weights, events.PSWeight)
         add_trig_effs(weights, fatjets, year, num_jets)

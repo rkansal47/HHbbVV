@@ -128,8 +128,8 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         "btagWP": btagWPs,
         "ht": 250,
         "num": 2,
-        "closest_muon_dr": 0.4,
-        "closest_muon_ptrel": 25,
+        # "closest_muon_dr": 0.4,
+        # "closest_muon_ptrel": 25,
     }
 
     met_selection = {"pt": 50}
@@ -281,24 +281,30 @@ class TTScaleFactorsSkimmer(SkimmerABC):
 
         # ak4 jet
 
-        # save the selection without btag for applying btag SFs
-        ak4_jet_selector_no_btag = (
+        # kinematic / ID selection
+        ak4_jet_selector = (
             ak4_jets.isTight
             # pileup ID should only be applied for pT < 50 jets (https://twiki.cern.ch/twiki/bin/view/CMS/PileupJetIDUL)
             * ((ak4_jets.puId % 2 == 1) + (ak4_jets.pt >= 50))
             * (ak4_jets.pt > self.ak4_jet_selection["pt"])
             * (np.abs(ak4_jets.eta) < self.ak4_jet_selection["eta"])
+        )
+        ak4_jets_selected = ak.fill_none(ak4_jets[ak4_jet_selector], [], axis=0)
+
+        # b-tagged and dPhi from muon < 2
+        ak4_jet_selector_btag_muon = ak4_jet_selector * (
+            (ak4_jets.btagDeepFlavB > self.ak4_jet_selection["btagWP"][year])
             * (np.abs(ak4_jets.delta_phi(muon)) < self.ak4_jet_selection["delta_phi_muon"])
         )
-
-        ak4_jet_selector = ak4_jet_selector_no_btag * (
-            ak4_jets.btagDeepFlavB > self.ak4_jet_selection["btagWP"][year]
-        )
+        bjets_selected = ak.fill_none(ak4_jets[ak4_jet_selector_btag_muon], [], axis=0)
 
         ak4_selection = (
-            (ak.any(ak4_jet_selector, axis=1))
-            * (ak.sum(ak4_jet_selector_no_btag, axis=1) >= self.ak4_jet_selection["num"])
-            * (ak.sum(ak4_jets[ak4_jet_selector].pt, axis=1) >= 250)
+            # at least 1 b-tagged jet close to the muon
+            (ak.any(ak4_jet_selector_btag_muon, axis=1))
+            # at least 2 ak4 jets overall
+            * (ak.sum(ak4_jet_selector, axis=1) >= self.ak4_jet_selection["num"])
+            # ht > 250
+            * (ak.sum(ak4_jets_selected.pt, axis=1) >= self.ak4_jet_selection["ht"])
         )
 
         add_selection("ak4_jet", ak4_selection, *selection_args)
@@ -311,15 +317,18 @@ class TTScaleFactorsSkimmer(SkimmerABC):
                 # else for MC randomly cut based on lumi fraction of C&D
                 | ((np.random.rand(len(events)) < 0.632) & ~isData)
             ) & (
-                ak.any(
-                    (
-                        (leading_fatjets.pt > 30.0)
-                        & (leading_fatjets.eta > -3.2)
-                        & (leading_fatjets.eta < -1.3)
-                        & (leading_fatjets.phi > -1.57)
-                        & (leading_fatjets.phi < -0.87)
+                ak.fill_none(
+                    ak.any(
+                        (
+                            (leading_fatjets.pt > 30.0)
+                            & (leading_fatjets.eta > -3.2)
+                            & (leading_fatjets.eta < -1.3)
+                            & (leading_fatjets.phi > -1.57)
+                            & (leading_fatjets.phi < -0.87)
+                        ),
+                        -1,
                     ),
-                    -1,
+                    False,
                 )
                 | ((events.MET.phi > -1.62) & (events.MET.pt < 470.0) & (events.MET.phi < -0.62))
             )
@@ -327,8 +336,14 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             add_selection("hem_cleaning", ~np.array(hem_cleaning).astype(bool), *selection_args)
 
         # select vars
+        # AK4 jets just for plots for JME
         ak4JetVars = {
-            f"ak4Jet{key}": pad_val(ak4_jets[ak4_jet_selector], num_ak4_jets, axis=1)
+            f"ak4Jet{key}": pad_val(ak4_jets_selected[var], num_ak4_jets, axis=1)
+            for (var, key) in self.skim_vars["Jet"].items()
+        }
+
+        bJetVars = {
+            f"bJet{key}": pad_val(bjets_selected[var], 1, axis=1)
             for (var, key) in self.skim_vars["Jet"].items()
         }
 
@@ -399,9 +414,8 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
         else:
-            ak4_jets_no_btag = ak4_jets[ak4_jet_selector_no_btag]
             weights_dict, totals_temp = self.add_weights(
-                events, dataset, year, gen_weights, muon, ak4_jets_no_btag
+                events, dataset, year, gen_weights, muon, ak4_jets_selected
             )
             skimmed_events = {**skimmed_events, **weights_dict}
             totals_dict = {**totals_dict, **totals_temp}
@@ -414,19 +428,22 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             match_dict, gen_quarks, had_bs = ttbar_scale_factor_matching(
                 events, leading_fatjets[:, 0], selection_args
             )
+            print(cutflow)
             top_matched = match_dict["top_matched"].astype(bool) * selection.all(*selection.names)
 
             skimmed_events = {**skimmed_events, **match_dict}
 
             if np.any(top_matched):
                 sf_dict = get_lund_SFs(
+                    year,
                     events[top_matched],
-                    fatjet_idx[top_matched],
+                    fatjets[top_matched],
+                    fatjet_idx[top_matched].to_numpy(),
                     num_prongs,
                     gen_quarks[top_matched],
                     trunc_gauss=True,
                     lnN=True,
-                    gen_bs=had_bs,  # do b/l ratio uncertainty for tops as well
+                    gen_bs=had_bs[top_matched],  # do b/l ratio uncertainty for tops as well
                 )
 
                 # fill zeros for all non-top-matched events
@@ -481,17 +498,15 @@ class TTScaleFactorsSkimmer(SkimmerABC):
     def postprocess(self, accumulator):
         return accumulator
 
-    def add_weights(
-        self, events, dataset, year, gen_weights, muon, ak4_jets_no_btag
-    ) -> Tuple[Dict, Dict]:
+    def add_weights(self, events, dataset, year, gen_weights, muon, ak4_jets) -> Tuple[Dict, Dict]:
         """Adds weights and variations, saves totals for all norm preserving weights and variations"""
         weights = Weights(len(events), storeIndividual=True)
         weights.add("genweight", gen_weights)
 
         add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
         add_lepton_weights(weights, year, muon)  # includes both ID and trigger SFs
-        add_btag_weights(weights, year, ak4_jets_no_btag)
-        add_pileupid_weights(weights, year, ak4_jets_no_btag, events.GenJet)
+        add_btag_weights(weights, year, ak4_jets)
+        add_pileupid_weights(weights, year, ak4_jets, events.GenJet, wp="L")
 
         if year in ("2016APV", "2016", "2017"):
             weights.add(
