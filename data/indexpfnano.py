@@ -66,10 +66,16 @@ folders_to_index = [
     "/store/user/lpcpfnano/cmantill/v2_3/2017/SingleTop",
     "/store/user/lpcpfnano/cmantill/v2_3/2018/SingleTop",
     #
-    "/store/user/lpcpfnano/drankin/v2_2/2016/WJetsToLNu",
-    "/store/user/lpcpfnano/drankin/v2_2/2016APV/WJetsToLNu",
-    "/store/user/lpcpfnano/drankin/v2_2/2017/WJetsToLNu",
-    "/store/user/lpcpfnano/drankin/v2_2/2018/WJetsToLNu",
+    "/store/user/lpcpfnano/jdickins/v2_3/2016/WJetsToLNu",
+    "/store/user/lpcpfnano/jdickins/v2_3/2016APV/WJetsToLNu",
+    "/store/user/lpcpfnano/jdickins/v2_3/2017/WJetsToLNu",
+    "/store/user/lpcpfnano/jdickins/v2_3/2018/WJetsToLNu",
+    # "/store/user/lpcpfnano/jiyoo/v2_3/2016/WJetsToLNu",
+    # "/store/user/lpcpfnano/jiyoo/v2_3/2016APV/WJetsToLNu",
+    # "/store/user/lpcpfnano/jiyoo/v2_3/2017/WJetsToLNu",
+    # "/store/user/lpcpfnano/jiyoo/v2_3/2018/WJetsToLNu",
+    # WJets NLO (missing other years)
+    # "/store/user/lpcpfnano/jiyoo/v2_3/2018/WJetsToLNu_NLO",
     #
     "/store/user/lpcpfnano/cmantill/v2_2/2017/HWWPrivate",
     #
@@ -123,8 +129,8 @@ ignore_files = [
 ignore_subsamples = ["SingleMuon_Run2016B_ver1_HIPM"]
 
 for pyear in ["2016", "2016APV", "2017", "2018"]:
-    if pyear != "2018":
-        continue
+    # if pyear != "2018":
+    #     continue
     print(pyear)
     index = {}
     for f1 in folders_to_index:
