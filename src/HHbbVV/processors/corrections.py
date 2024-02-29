@@ -899,6 +899,7 @@ def _calc_lund_SFs(
     max_fparams: int = MAX_PT_FPARAMS,
     clip_max: float = 10,
     clip_min: float = 0.1,
+    set_breakpoint: bool = False,
 ) -> np.ndarray:
     """
     Calculates scale factors for jets based on splittings in the primary Lund Plane.
@@ -921,6 +922,8 @@ def _calc_lund_SFs(
         nd.ndarray: SF values per jet for ratio and pt extrap lookup, shape
           ``[n_jets, len(ratio_lookups) * len(pt_extrap_lookups)]``.
     """
+    if set_breakpoint:
+        breakpoint()
 
     # get high pT subjets for extrapolation
     high_pt_sel = flat_subjet_pt > max_pt_bin
@@ -1102,32 +1105,36 @@ def get_lund_SFs(
         bsj_lds = ak.flatten(lds[closest_sjidx], axis=1)
         bld_offsets, bflat_logD, bflat_logkt, bflat_subjet_pt = _get_flat_lp_vars(bsj_lds, bsj_pts)
 
-        light_lp_sfs = _calc_lund_SFs(
-            bflat_logD,
-            bflat_logkt,
-            bflat_subjet_pt,
-            bld_offsets,
-            1,  # 1 prong because 1 b quark
-            [ratio_nominal],
-            [pt_extrap_lookups_dict["params"]],
-        )
+        if len(bflat_logD):
+            light_lp_sfs = _calc_lund_SFs(
+                bflat_logD,
+                bflat_logkt,
+                bflat_subjet_pt,
+                bld_offsets,
+                1,  # 1 prong because 1 b quark
+                [ratio_nominal],
+                [pt_extrap_lookups_dict["params"]],
+            )
 
-        b_lp_sfs = _calc_lund_SFs(
-            bflat_logD,
-            bflat_logkt,
-            bflat_subjet_pt,
-            bld_offsets,
-            1,  # 1 prong because 1 b quark
-            [bratio],
-            [pt_extrap_lookups_dict["params"]],
-        )
+            b_lp_sfs = _calc_lund_SFs(
+                bflat_logD,
+                bflat_logkt,
+                bflat_subjet_pt,
+                bld_offsets,
+                1,  # 1 prong because 1 b quark
+                [bratio],
+                [pt_extrap_lookups_dict["params"]],
+            )
 
-        print("light lp sfs", light_lp_sfs.shape, light_lp_sfs)
-        print("b lp sfs", b_lp_sfs.shape, b_lp_sfs)
+            print("light lp sfs", light_lp_sfs.shape, light_lp_sfs)
+            print("b lp sfs", b_lp_sfs.shape, b_lp_sfs)
 
-        sfs["lp_sfs_bl_ratio"] = b_lp_sfs / light_lp_sfs
+            sfs["lp_sfs_bl_ratio"] = b_lp_sfs / light_lp_sfs
 
-        print("bl ratio", sfs["lp_sfs_bl_ratio"])
+            print("bl ratio", sfs["lp_sfs_bl_ratio"])
+        else:
+            # weird edge case where b-subjet has no splittings
+            sfs["lp_sfs_bl_ratio"] = 1.0
 
     # ---- subjet matching uncertainties ---- #
 

@@ -186,6 +186,10 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         n_events = len(events) if isData else np.sum(gen_weights)
         selection = PackedSelection()
 
+        # if n_events != 2915270.0:
+        #     print(n_events)
+        #     return {}
+
         cutflow = OrderedDict()
         cutflow["all"] = n_events
 
