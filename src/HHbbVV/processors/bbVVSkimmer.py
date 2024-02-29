@@ -19,6 +19,7 @@ import os
 from typing import Dict, Tuple
 from collections import OrderedDict
 
+from .SkimmerABC import SkimmerABC
 from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV, G_PDGID
 from .TaggerInference import runInferenceTriton
 from .utils import pad_val, add_selection, concatenate_dicts, select_dicts, P4, Weights
@@ -61,7 +62,7 @@ logging.basicConfig(level=logging.INFO)
 # logger.setLevel(logging.INFO)
 
 
-class bbVVSkimmer(processor.ProcessorABC):
+class bbVVSkimmer(SkimmerABC):
     """
     Skims nanoaod files, saving selected branches and events passing preselection cuts
     (and triggers for data), for preliminary cut-based analysis and BDT studies.
@@ -193,36 +194,6 @@ class bbVVSkimmer(processor.ProcessorABC):
         logging.info(
             f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all}."
         )
-
-    def to_pandas(self, events: Dict[str, np.array]):
-        """
-        Convert our dictionary of numpy arrays into a pandas data frame
-        Uses multi-index columns for numpy arrays with >1 dimension
-        (e.g. FatJet arrays with two columns)
-        """
-        return pd.concat(
-            # [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in events.items()],
-            [pd.DataFrame(v) for k, v in events.items()],
-            axis=1,
-            keys=list(events.keys()),
-        )
-
-    def dump_table(self, pddf: pd.DataFrame, fname: str, odir_str: str = None) -> None:
-        """
-        Saves pandas dataframe events to './outparquet'
-        """
-        import pyarrow.parquet as pq
-        import pyarrow as pa
-
-        local_dir = os.path.abspath(os.path.join(".", "outparquet"))
-        if odir_str:
-            local_dir += odir_str
-        os.system(f"mkdir -p {local_dir}")
-
-        # need to write with pyarrow as pd.to_parquet doesn't support different types in
-        # multi-index column names
-        table = pa.Table.from_pandas(pddf)
-        pq.write_table(table, f"{local_dir}/{fname}")
 
     @property
     def accumulator(self):
@@ -502,24 +473,30 @@ class bbVVSkimmer(processor.ProcessorABC):
                 # else for MC randomly cut based on lumi fraction of C&D
                 | ((np.random.rand(len(events)) < 0.632) & ~isData)
             ) & (
-                ak.any(
-                    (
-                        (check_fatjets.pt > 30.0)
-                        & (check_fatjets.eta > -3.2)
-                        & (check_fatjets.eta < -1.3)
-                        & (check_fatjets.phi > -1.57)
-                        & (check_fatjets.phi < -0.87)
+                ak.fill_none(
+                    ak.any(
+                        (
+                            (check_fatjets.pt > 30.0)
+                            & (check_fatjets.eta > -3.2)
+                            & (check_fatjets.eta < -1.3)
+                            & (check_fatjets.phi > -1.57)
+                            & (check_fatjets.phi < -0.87)
+                        ),
+                        -1,
                     ),
-                    -1,
+                    False,
                 )
-                | ak.any(
-                    (
-                        (vbf_jets.eta > -3.2)
-                        & (vbf_jets.eta < -1.3)
-                        & (vbf_jets.phi > -1.57)
-                        & (vbf_jets.phi < -0.87)
+                | ak.fill_none(
+                    ak.any(
+                        (
+                            (vbf_jets.eta > -3.2)
+                            & (vbf_jets.eta < -1.3)
+                            & (vbf_jets.phi > -1.57)
+                            & (vbf_jets.phi < -0.87)
+                        ),
+                        -1,
                     ),
-                    -1,
+                    False,
                 )
                 | ((events.MET.phi > -1.62) & (events.MET.pt < 470.0) & (events.MET.phi < -0.62))
             )
@@ -805,33 +782,6 @@ class bbVVSkimmer(processor.ProcessorABC):
 
     def postprocess(self, accumulator):
         return accumulator
-
-    def pileup_cutoff(self, events, year, cutoff: float = 4):
-        pweights = corrections.get_pileup_weight(year, events.Pileup.nPU.to_numpy())
-        pw_pass = (
-            (pweights["nominal"] <= cutoff)
-            * (pweights["up"] <= cutoff)
-            * (pweights["down"] <= cutoff)
-        )
-        logging.info(f"Passing pileup weight cut: {np.sum(pw_pass)} out of {len(events)} events")
-        events = events[pw_pass]
-        return events
-
-    def get_dataset_norm(self, year, dataset):
-        """
-        Cross section * luminosity normalization for a given dataset and year.
-        This still needs to be normalized with the acceptance of the pre-selection in post-processing.
-        (Done in postprocessing/utils.py:load_samples())
-        """
-        if dataset in self.XSECS or "XToYHTo2W2BTo4Q2B" in dataset:
-            # 1 fb xsec for resonant signal
-            xsec = self.XSECS[dataset] if dataset in self.XSECS else 1e-3  # in pb
-            weight_norm = xsec * LUMI[year]
-        else:
-            logging.warning("Weight not normalized to cross section")
-            weight_norm = 1
-
-        return weight_norm
 
     def add_weights(
         self,
