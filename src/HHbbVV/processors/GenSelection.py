@@ -924,6 +924,9 @@ def ttbar_scale_factor_matching(
         "unmatched": ~had_w_jet_match,
     }
 
+    for key, val in top_match_dict.items():
+        print(key, np.sum(val))
+
     top_match_dict = {key: val.to_numpy().astype(int) for key, val in top_match_dict.items()}
 
-    return top_match_dict, gen_quarks
+    return top_match_dict, gen_quarks, had_bs

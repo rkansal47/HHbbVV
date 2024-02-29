@@ -338,7 +338,7 @@ def add_pileupid_weights(weights: Weights, year: str, jets: JetArray, genjets, w
     sfs_var = []
     for var in ["nom", "up", "down"]:
         # correctionlib < 2.3 doesn't accept jagged arrays (but >= 2.3 needs awkard v2)
-        sfs = sf_cset.evaluate(ak.flatten(jets.eta), ak.flatten(jets.pt), var, "L")
+        sfs = sf_cset.evaluate(ak.flatten(jets.eta), ak.flatten(jets.pt), var, wp)
         # reshape flat effs
         sfs = ak.Array(ak.layout.ListOffsetArray64(offsets, ak.layout.NumpyArray(sfs)))
         # product of SFs across arrays, automatically defaults empty lists to 1
@@ -659,7 +659,165 @@ def add_trig_effs(weights: Weights, fatjets: FatJetArray, year: str, num_jets: i
     weights.add("trig_effs", combined_trigEffs)
 
 
-def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Union[int, ak.Array], num_prongs: int):
+# ------------------- Lund plane reweighting ------------------- #
+
+
+MAX_PT_FPARAMS = 3  # max order (+1) of pt extrapolation functions
+MAX_PT_BIN = 350  # have to use subjet pt extrapolation for subjet pT > this
+
+# caching these after loading once
+(
+    lp_year,
+    ratio_smeared_lookups,
+    ratio_lnN_smeared_lookups,
+    ratio_sys_up,
+    ratio_sys_down,
+    pt_extrap_lookups_dict,
+    bratio,
+) = (None, None, None, None, None, None, None)
+
+
+def _get_lund_lookups(year: str, seed: int = 42, lnN: bool = True, trunc_gauss: bool = False):
+    import fastjet
+
+    dR = 0.8
+    cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
+    ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
+    n_LP_sf_toys = 100
+
+    import uproot
+
+    # initialize lund plane scale factors lookups
+    f = uproot.open(package_path + f"/corrections/lp_ratios/ratio_{year[:4]}.root")
+
+    # 3D histogram: [subjet_pt, ln(0.8/Delta), ln(kT/GeV)]
+    ratio_nom = f["ratio_nom"].to_numpy()
+    ratio_nom_errs = f["ratio_nom"].errors()
+    ratio_edges = ratio_nom[1:]
+    ratio_nom = ratio_nom[0]
+
+    ratio_sys_up = dense_lookup(f["ratio_sys_tot_up"].to_numpy()[0], ratio_edges)
+    ratio_sys_down = dense_lookup(f["ratio_sys_tot_down"].to_numpy()[0], ratio_edges)
+    bratio = f["h_bl_ratio"].to_numpy()[0]
+
+    np.random.seed(seed)
+    rand_noise = np.random.normal(size=[n_LP_sf_toys, *ratio_nom.shape])
+
+    if trunc_gauss:
+        # produces array of shape ``[n_sf_toys, subjet_pt bins, ln(0.8/Delta) bins, ln(kT/GeV) bins]``
+        ratio_nom_smeared = ratio_nom + (ratio_nom_errs * rand_noise)
+        ratio_nom_smeared = np.maximum(ratio_nom_smeared, 0)
+        # save n_sf_toys lookups
+        ratio_smeared_lookups = [dense_lookup(ratio_nom, ratio_edges)] + [
+            dense_lookup(ratio_nom_smeared[i], ratio_edges) for i in range(n_LP_sf_toys)
+        ]
+    else:
+        ratio_smeared_lookups = None
+
+    if lnN:
+        # revised smearing (0s -> 1s, normal -> lnN)
+        zero_noms = ratio_nom == 0
+        ratio_nom[zero_noms] = 1
+        ratio_nom_errs[zero_noms] = 0
+
+        zero_bs = bratio == 0
+        bratio[zero_bs] = 1
+        bratio = dense_lookup(bratio, ratio_edges)
+
+        kappa = (ratio_nom + ratio_nom_errs) / ratio_nom
+        ratio_nom_smeared = ratio_nom * np.power(kappa, rand_noise)
+        ratio_lnN_smeared_lookups = [dense_lookup(ratio_nom, ratio_edges)] + [
+            dense_lookup(ratio_nom_smeared[i], ratio_edges) for i in range(n_LP_sf_toys)
+        ]
+    else:
+        ratio_lnN_smeared_lookups = None
+
+    # ------- pT extrapolation setup: creates lookups for all the parameters and errors ------ #
+
+    def _np_pad(arr: np.ndarray, target: int = MAX_PT_FPARAMS):
+        return np.pad(arr, ((0, target - len(arr))))
+
+    pt_extrap_lookups_dict = {"params": [], "errs": [], "sys_up_params": [], "sys_down_params": []}
+
+    for i in range(ratio_nom.shape[1]):
+        for key in pt_extrap_lookups_dict:
+            pt_extrap_lookups_dict[key].append([])
+
+        for j in range(ratio_nom.shape[2]):
+            func = f["pt_extrap"][f"func_{i + 1}_{j + 1}"]
+            pt_extrap_lookups_dict["params"][-1].append(
+                _np_pad(func._members["fFormula"]._members["fClingParameters"])
+            )
+            pt_extrap_lookups_dict["errs"][-1].append(_np_pad(func._members["fParErrors"]))
+            pt_extrap_lookups_dict["sys_up_params"][-1].append(
+                _np_pad(
+                    f["pt_extrap"][f"func_sys_tot_up_{i + 1}_{j + 1}"]
+                    ._members["fFormula"]
+                    ._members["fClingParameters"]
+                )
+            )
+            pt_extrap_lookups_dict["sys_down_params"][-1].append(
+                _np_pad(
+                    f["pt_extrap"][f"func_sys_tot_down_{i + 1}_{j + 1}"]
+                    ._members["fFormula"]
+                    ._members["fClingParameters"]
+                )
+            )
+
+    for key in pt_extrap_lookups_dict:
+        pt_extrap_lookups_dict[key] = np.array(pt_extrap_lookups_dict[key])
+
+    # smear parameters according to errors for pt extrap unc.
+    rand_noise = np.random.normal(size=[n_LP_sf_toys, *pt_extrap_lookups_dict["params"].shape])
+    smeared_pt_params = pt_extrap_lookups_dict["params"] + (
+        pt_extrap_lookups_dict["errs"] * rand_noise
+    )
+
+    for key in pt_extrap_lookups_dict:
+        pt_extrap_lookups_dict[key] = dense_lookup(pt_extrap_lookups_dict[key], ratio_edges[1:])
+
+    pt_extrap_lookups_dict["smeared_params"] = [
+        dense_lookup(smeared_pt_params[i], ratio_edges[1:]) for i in range(n_LP_sf_toys)
+    ]
+
+    return (
+        ratio_smeared_lookups,
+        ratio_lnN_smeared_lookups,
+        ratio_sys_up,
+        ratio_sys_down,
+        pt_extrap_lookups_dict,
+        bratio,
+    )
+
+
+def _get_flat_lp_vars(lds, kt_subjets_pt):
+    if len(lds) != 1:
+        # flatten and save offsets to unflatten afterwards
+        if type(lds.layout) == ak._ext.ListOffsetArray64:
+            ld_offsets = lds.kt.layout.offsets
+            flat_subjet_pt = ak.flatten(kt_subjets_pt)
+        elif type(lds.layout) == ak._ext.ListArray64:
+            ld_offsets = lds.layout.toListOffsetArray64(False).offsets
+            flat_subjet_pt = kt_subjets_pt
+    else:
+        # edge case of single subjet...
+        ld_offsets = [0]
+        flat_subjet_pt = kt_subjets_pt
+
+    # repeat subjet pt for each lund declustering
+    flat_subjet_pt = np.repeat(flat_subjet_pt, ak.count(lds.kt, axis=1)).to_numpy()
+    flat_logD = np.log(0.8 / ak.flatten(lds).Delta).to_numpy()
+    flat_logkt = np.log(ak.flatten(lds).kt).to_numpy()
+
+    return ld_offsets, flat_logD, flat_logkt, flat_subjet_pt
+
+
+def _get_lund_arrays(
+    events: NanoEventsArray,
+    jec_fatjets: FatJetArray,
+    fatjet_idx: Union[int, ak.Array],
+    num_prongs: int,
+):
     """
     Gets the ``num_prongs`` subjet pTs and Delta and kT per primary LP splitting of fatjets at
     ``fatjet_idx`` in each event.
@@ -669,6 +827,7 @@ def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Union[int, ak.Array], 
 
     Args:
         events (NanoEventsArray): nano events
+        jec_fatjets (FatJetArray): post-JEC fatjets, used to update subjet pTs.
         fatjet_idx (int | ak.Array): fatjet index
         num_prongs (int): number of prongs / subjets per jet to reweight
 
@@ -678,6 +837,14 @@ def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Union[int, ak.Array], 
 
     # jet definitions for LP SFs
     import fastjet
+
+    # get post-JEC / pre-JEC pT ratios, to apply to subjets
+    nojec_fatjets_pt = events.FatJet.pt[np.arange(len(jec_fatjets)), fatjet_idx]
+    jec_correction = (jec_fatjets.pt / nojec_fatjets_pt)[:, np.newaxis]
+
+    print("nojec fatjet pt", nojec_fatjets_pt)
+    print("jec fatjet pt", jec_fatjets.pt)
+    print("jec correction", jec_correction)
 
     dR = 0.8
     cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
@@ -707,24 +874,17 @@ def _get_lund_arrays(events: NanoEventsArray, fatjet_idx: Union[int, ak.Array], 
         with_name="LorentzVector",
     )
 
-    # save subjet pT
-    kt_subjets_pt = kt_subjets_vec.pt
+    # save subjet pT * JEC scaling
+    kt_subjets_pt = kt_subjets_vec.pt * jec_correction
     # get constituents
     kt_subjet_consts = kt_clustering.exclusive_jets_constituents(num_prongs)
 
     # then re-cluster with CA
     # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
     ca_clustering = fastjet.ClusterSequence(ak.flatten(kt_subjet_consts, axis=1), cadef)
-    lds = ak.flatten(ca_clustering.exclusive_jets_lund_declusterings(1), axis=1)
+    lds = ca_clustering.exclusive_jets_lund_declusterings(1)
 
-    # flatten and save offsets to unflatten afterwards
-    ld_offsets = lds.kt.layout.offsets
-    flat_logD = np.log(0.8 / ak.flatten(lds).Delta).to_numpy()
-    flat_logkt = np.log(ak.flatten(lds).kt).to_numpy()
-    # repeat subjet pt for each lund declustering
-    flat_subjet_pt = np.repeat(ak.flatten(kt_subjets_pt), ak.count(lds.kt, axis=1)).to_numpy()
-
-    return flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, kt_subjets_vec
+    return lds, kt_subjets_vec, kt_subjets_pt
 
 
 def _calc_lund_SFs(
@@ -734,118 +894,93 @@ def _calc_lund_SFs(
     ld_offsets: ak.Array,
     num_prongs: int,
     ratio_lookups: List[dense_lookup],
+    pt_extrap_lookups: List[dense_lookup],
+    max_pt_bin: int = MAX_PT_BIN,
+    max_fparams: int = MAX_PT_FPARAMS,
+    clip_max: float = 10,
+    clip_min: float = 0.1,
 ) -> np.ndarray:
     """
     Calculates scale factors for jets based on splittings in the primary Lund Plane.
 
-    Lookup tables should be binned in [subjet_pt, ln(0.8/Delta), ln(kT/GeV)].
+    Ratio lookup tables should be binned in [subjet_pt, ln(0.8/Delta), ln(kT/GeV)].
+    pT extrapolation lookup tables should be binned [ln(0.8/Delta), ln(kT/GeV)], and the values
+      are the parameters for each bin's polynomial function.
 
-    Returns nominal scale factors for each lookup table in the ``ratio_smeared_lookups`` list.
+    Returns nominal scale factors for each lookup table in the ``ratio_lookups`` and
+      ``pt_extrap_lookups`` lists.
 
     Args:
         flat_logD, flat_logkt, flat_subjet_pt, ld_offsets: numpy arrays from the ``lund_arrays`` fn
         num_prongs (int): number of prongs / subjets per jet to reweight
-        ratio_smeared_lookups (List[dense_lookup]): list of lookup tables with smeared values
+        ratio_lookups (List[dense_lookup]): list of lookup tables of ratios to use
+        pt_extrap_lookups (List[dense_lookup]): list of lookup tables of pt extrapolation function
+          parameters to use
 
     Returns:
-        nd.ndarray: SF values per jet for each smearing, shape ``[n_jets, len(ratio_lookups)]``.
+        nd.ndarray: SF values per jet for ratio and pt extrap lookup, shape
+          ``[n_jets, len(ratio_lookups) * len(pt_extrap_lookups)]``.
     """
+
+    # get high pT subjets for extrapolation
+    high_pt_sel = flat_subjet_pt > max_pt_bin
+    hpt_logD = flat_logD[high_pt_sel]
+    hpt_logkt = flat_logkt[high_pt_sel]
+    hpt_sjpt = 1 / flat_subjet_pt[high_pt_sel]
+    # store polynomial orders for pT extrapolation
+    sj_pt_orders = np.array([np.power(hpt_sjpt, i) for i in range(max_fparams)]).T
 
     sf_vals = []
     # could be parallelised but not sure if memory / time trade-off is worth it
     for i, ratio_lookup in enumerate(ratio_lookups):
-        ratio_vals = ratio_lookup(flat_subjet_pt, flat_logD, flat_logkt)
-        # recover jagged event structure
-        reshaped_ratio_vals = ak.Array(
-            ak.layout.ListOffsetArray64(ld_offsets, ak.layout.NumpyArray(ratio_vals))
-        )
-        # nominal values are product of all lund plane SFs
-        sf_vals.append(
-            # multiply subjet SFs per jet
-            np.prod(
-                # per-subjet SF
-                ak.prod(reshaped_ratio_vals, axis=1).to_numpy().reshape(-1, num_prongs),
-                axis=1,
+        for j, pt_extrap_lookup in enumerate(pt_extrap_lookups):
+            # only recalculate if there are multiple lookup tables
+            if i == 0 or len(ratio_lookups) > 1:
+                ratio_vals = ratio_lookup(flat_subjet_pt, flat_logD, flat_logkt)
+
+            # only recalculate if there are multiple pt param lookup tables
+            if j == 0 or len(pt_extrap_lookups) > 1:
+                params = pt_extrap_lookup(hpt_logD, hpt_logkt)
+                pt_extrap_vals = np.maximum(
+                    np.minimum(np.sum(params * sj_pt_orders, axis=1), clip_max), clip_min
+                )
+
+            ratio_vals[high_pt_sel] = pt_extrap_vals
+
+            if len(ld_offsets) != 1:
+                # recover jagged event structure
+                reshaped_ratio_vals = ak.Array(
+                    ak.layout.ListOffsetArray64(ld_offsets, ak.layout.NumpyArray(ratio_vals))
+                )
+            else:
+                # edge case where only one subjet
+                reshaped_ratio_vals = ratio_vals.reshape(1, -1)
+
+            # nominal values are product of all lund plane SFs
+            sf_vals.append(
+                # multiply subjet SFs per jet
+                np.prod(
+                    # per-subjet SF
+                    ak.prod(reshaped_ratio_vals, axis=1).to_numpy().reshape(-1, num_prongs),
+                    axis=1,
+                )
             )
-        )
 
-    return np.array(sf_vals).T  # output shape: ``[n_jets, len(ratio_lookups)]``
-
-
-def _get_lund_lookups(seed: int = 42, lnN: bool = True, trunc_gauss: bool = False):
-    import fastjet
-
-    dR = 0.8
-    cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
-    ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
-    n_LP_sf_toys = 100
-
-    import uproot
-
-    # initialize lund plane scale factors lookups
-    f = uproot.open(package_path + "/corrections/lp_ratio_jan20.root")
-
-    # 3D histogram: [subjet_pt, ln(0.8/Delta), ln(kT/GeV)]
-    ratio_nom = f["ratio_nom"].to_numpy()
-    ratio_nom_errs = f["ratio_nom"].errors()
-    ratio_edges = ratio_nom[1:]
-    ratio_nom = ratio_nom[0]
-
-    ratio_sys_up = dense_lookup(f["ratio_sys_tot_up"].to_numpy()[0], ratio_edges)
-    ratio_sys_down = dense_lookup(f["ratio_sys_tot_down"].to_numpy()[0], ratio_edges)
-
-    np.random.seed(seed)
-    rand_noise = np.random.normal(size=[n_LP_sf_toys, *ratio_nom.shape])
-
-    if trunc_gauss:
-        # produces array of shape ``[n_sf_toys, subjet_pt bins, ln(0.8/Delta) bins, ln(kT/GeV) bins]``
-        ratio_nom_smeared = ratio_nom + (ratio_nom_errs * rand_noise)
-        ratio_nom_smeared = np.maximum(ratio_nom_smeared, 0)
-        # save n_sf_toys lookups
-        ratio_smeared_lookups = [dense_lookup(ratio_nom, ratio_edges)] + [
-            dense_lookup(ratio_nom_smeared[i], ratio_edges) for i in range(n_LP_sf_toys)
-        ]
-    else:
-        ratio_smeared_lookups = None
-
-    if lnN:
-        # revised smearing (0s -> 1s, normal -> lnN)
-        zero_noms = ratio_nom == 0
-        ratio_nom[zero_noms] = 1
-        ratio_nom_errs[zero_noms] = 0
-
-        kappa = (ratio_nom + ratio_nom_errs) / ratio_nom
-        ratio_nom_smeared = ratio_nom * np.power(kappa, rand_noise)
-        ratio_lnN_smeared_lookups = [dense_lookup(ratio_nom, ratio_edges)] + [
-            dense_lookup(ratio_nom_smeared[i], ratio_edges) for i in range(n_LP_sf_toys)
-        ]
-    else:
-        ratio_lnN_smeared_lookups = None
-
-    return ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down
-
-
-(
-    ratio_smeared_lookups,
-    ratio_lnN_smeared_lookups,
-    ratio_sys_up,
-    ratio_sys_down,
-) = (
-    None,
-    None,
-    None,
-    None,
-)
+    # output shape: ``[n_jets, len(ratio_lookups) x len(pt_extrap_lookups)]``
+    return np.array(sf_vals).T
 
 
 def get_lund_SFs(
+    year: str,
     events: NanoEventsArray,
+    jec_fatjets: FatJetArray,
     fatjet_idx: Union[int, ak.Array],
     num_prongs: int,
     gen_quarks: GenParticleArray,
     seed: int = 42,
     trunc_gauss: bool = False,
     lnN: bool = True,
+    gen_bs: GenParticleArray = None,
 ) -> Dict[str, np.ndarray]:
     """
     Calculates scale factors for jets based on splittings in the primary Lund Plane.
@@ -854,56 +989,147 @@ def get_lund_SFs(
 
     Args:
         events (NanoEventsArray): nano events
+        jec_fatjets (FatJetArray): post-JEC fatjets, used to update subjet pTs.
         fatjet_idx (int | ak.Array): fatjet index
         num_prongs (int): number of prongs / subjets per jet to r
         seed (int, optional): seed for random smearings. Defaults to 42.
         trunc_gauss (bool, optional): use truncated gaussians for smearing. Defaults to False.
         lnN (bool, optional): use log normals for smearings. Defaults to True.
+        gen_bs (GenParticleArray, optional): gen b-quarks to calculate b-quark subjet uncertainties.
+          Assumes only one per event! Defaults to None i.e. don't calculate any.
 
     Returns:
         Dict[str, np.ndarray]: dictionary with nominal weights per jet, sys variations, and (optionally) random smearings.
     """
 
     # global variable to not have to load + smear LP ratios each time
-    global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down
+    global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down, pt_extrap_lookups_dict, bratio, lp_year
 
-    if (lnN and ratio_lnN_smeared_lookups is None) or (
-        trunc_gauss and ratio_smeared_lookups is None
+    if (
+        (lnN and ratio_lnN_smeared_lookups is None)
+        or (trunc_gauss and ratio_smeared_lookups is None)
+        or (lp_year != year)  # redo if different year (can change to cache every year if needed)
     ):
         (
             ratio_smeared_lookups,
             ratio_lnN_smeared_lookups,
             ratio_sys_up,
             ratio_sys_down,
-        ) = _get_lund_lookups(seed, lnN, trunc_gauss)
+            pt_extrap_lookups_dict,
+            bratio,
+        ) = _get_lund_lookups(year, seed, lnN, trunc_gauss)
+        lp_year = year
 
-    flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, kt_subjets_vec = _get_lund_arrays(
-        events, fatjet_idx, num_prongs
+    ratio_nominal = ratio_lnN_smeared_lookups[0] if lnN else ratio_smeared_lookups[0]
+
+    jec_fatjet = jec_fatjets[np.arange(len(jec_fatjets)), fatjet_idx]
+
+    lds, kt_subjets_vec, kt_subjets_pt = _get_lund_arrays(
+        events, jec_fatjet, fatjet_idx, num_prongs
     )
+
+    lds_flat = ak.flatten(lds, axis=1)
+    ld_offsets, flat_logD, flat_logkt, flat_subjet_pt = _get_flat_lp_vars(lds_flat, kt_subjets_pt)
 
     sfs = {}
 
-    ### get scale factors per jet + smearings for stat unc. + syst. variations
+    # ---- get scale factors per jet + smearings for stat unc. + syst. variations + pt extrap unc. ---- #
 
     if trunc_gauss:
         sfs["lp_sf"] = _calc_lund_SFs(
-            flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, num_prongs, ratio_smeared_lookups
+            flat_logD,
+            flat_logkt,
+            flat_subjet_pt,
+            ld_offsets,
+            num_prongs,
+            ratio_smeared_lookups,
+            [pt_extrap_lookups_dict["params"]],
         )
 
     if lnN:
         sfs["lp_sf_lnN"] = _calc_lund_SFs(
-            flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, num_prongs, ratio_lnN_smeared_lookups
+            flat_logD,
+            flat_logkt,
+            flat_subjet_pt,
+            ld_offsets,
+            num_prongs,
+            ratio_lnN_smeared_lookups,
+            [pt_extrap_lookups_dict["params"]],
         )
 
     sfs["lp_sf_sys_down"] = _calc_lund_SFs(
-        flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, num_prongs, [ratio_sys_down]
+        flat_logD,
+        flat_logkt,
+        flat_subjet_pt,
+        ld_offsets,
+        num_prongs,
+        [ratio_sys_down],
+        [pt_extrap_lookups_dict["sys_down_params"]],
     )
 
     sfs["lp_sf_sys_up"] = _calc_lund_SFs(
-        flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, num_prongs, [ratio_sys_up]
+        flat_logD,
+        flat_logkt,
+        flat_subjet_pt,
+        ld_offsets,
+        num_prongs,
+        [ratio_sys_up],
+        [pt_extrap_lookups_dict["sys_up_params"]],
     )
 
-    ### subjet matching and pT extrapolation uncertainties
+    sfs["lp_sf_pt_extrap_vars"] = _calc_lund_SFs(
+        flat_logD,
+        flat_logkt,
+        flat_subjet_pt,
+        ld_offsets,
+        num_prongs,
+        [ratio_lnN_smeared_lookups[0]],
+        pt_extrap_lookups_dict["smeared_params"],
+    )
+
+    # ---- b-quark related uncertainties ---- #
+
+    if gen_bs is not None:
+        assert ak.all(
+            ak.count(gen_bs.pt, axis=1) == 1
+        ), "b-quark uncertainties only implemented for exactly 1 b-quark per jet!"
+        # find closest subjet to the b-quark
+        subjet_bs_dr = ak.flatten(gen_bs).delta_r(kt_subjets_vec)
+        closest_sjidx = np.argmin(subjet_bs_dr, axis=1).to_numpy()
+        bsj_pts = kt_subjets_pt[np.arange(len(kt_subjets_pt)), closest_sjidx]
+        # add fatjet indices to get subjet for each corresponding fatjet from the flat lds
+        closest_sjidx += np.arange(len(subjet_bs_dr)) * num_prongs
+        bsj_lds = ak.flatten(lds[closest_sjidx], axis=1)
+        bld_offsets, bflat_logD, bflat_logkt, bflat_subjet_pt = _get_flat_lp_vars(bsj_lds, bsj_pts)
+
+        light_lp_sfs = _calc_lund_SFs(
+            bflat_logD,
+            bflat_logkt,
+            bflat_subjet_pt,
+            bld_offsets,
+            1,  # 1 prong because 1 b quark
+            [ratio_nominal],
+            [pt_extrap_lookups_dict["params"]],
+        )
+
+        b_lp_sfs = _calc_lund_SFs(
+            bflat_logD,
+            bflat_logkt,
+            bflat_subjet_pt,
+            bld_offsets,
+            1,  # 1 prong because 1 b quark
+            [bratio],
+            [pt_extrap_lookups_dict["params"]],
+        )
+
+        print("light lp sfs", light_lp_sfs.shape, light_lp_sfs)
+        print("b lp sfs", b_lp_sfs.shape, b_lp_sfs)
+
+        sfs["lp_sfs_bl_ratio"] = b_lp_sfs / light_lp_sfs
+
+        print("bl ratio", sfs["lp_sfs_bl_ratio"])
+
+    # ---- subjet matching uncertainties ---- #
 
     matching_dR = 0.2
     sj_matched = []
@@ -924,15 +1150,20 @@ def get_lund_SFs(
     sj_matched_idx_mask = np.copy(sj_matched_idx)
     sj_matched_idx_mask[~sj_matched] = -1
 
+    j_q_dr = gen_quarks.delta_r(jec_fatjet)
+    q_boundary = (j_q_dr > 0.7) * (j_q_dr < 0.9)
+    # events with quarks at the boundary of the jet
+    sfs["lp_sf_boundary_quarks"] = np.array(np.any(q_boundary, axis=1, keepdims=True))
+
     # events which have more than one quark matched to the same subjet
     sfs["lp_sf_double_matched_event"] = np.any(
-        [np.sum(sj_matched_idx_mask == i, axis=1) > 1 for i in range(3)], axis=0
+        [np.sum(sj_matched_idx_mask == i, axis=1) > 1 for i in range(num_prongs)], axis=0
     ).astype(int)[:, np.newaxis]
 
     # number of quarks per event which aren't matched
     sfs["lp_sf_unmatched_quarks"] = np.sum(~sj_matched, axis=1, keepdims=True)
 
-    # pT extrapolation uncertainty
+    # OLD pT extrapolation uncertainty
     sfs["lp_sf_num_sjpt_gt350"] = np.sum(kt_subjets_vec.pt > 350, axis=1, keepdims=True).to_numpy()
 
     return sfs
