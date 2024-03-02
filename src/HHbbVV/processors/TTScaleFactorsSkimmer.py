@@ -367,7 +367,7 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             for (var, key) in self.skim_vars["other"].items()
         }
 
-        skimmed_events = {**skimmed_events, **ak4JetVars, **ak8FatJetVars, **otherVars}
+        skimmed_events = {**skimmed_events, **ak4JetVars, **bJetVars, **ak8FatJetVars, **otherVars}
 
         ####################################
         # Particlenet h4q vs qcd, xbb vs qcd
