@@ -11,7 +11,7 @@ import os
 from math import ceil
 from string import Template
 import json
-
+from pathlib import Path
 import sys
 
 # needed to import run_utils from parent directory
@@ -23,10 +23,10 @@ import run_utils
 def write_template(templ_file: str, out_file: str, templ_args: dict):
     """Write to ``out_file`` based on template from ``templ_file`` using ``templ_args``"""
 
-    with open(templ_file, "r") as f:
+    with Path(templ_file).open() as f:
         templ = Template(f.read())
 
-    with open(out_file, "w") as f:
+    with Path(out_file).open("w") as f:
         f.write(templ.substitute(templ_args))
 
 
@@ -128,9 +128,7 @@ def main(args):
     print(f"Total {nsubmit} jobs")
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    run_utils.parse_common_args(parser)
+def parse_args(parser):
     parser.add_argument("--script", default="run.py", help="script to run", type=str)
     parser.add_argument(
         "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
@@ -154,6 +152,10 @@ if __name__ == "__main__":
         parser, "submit", default=False, help="submit files as well as create them"
     )
 
-    args = parser.parse_args()
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    run_utils.parse_common_args(parser)
+    parse_args(parser)
+    args = parser.parse_args()
     main(args)

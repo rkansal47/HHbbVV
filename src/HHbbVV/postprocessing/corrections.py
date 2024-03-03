@@ -187,12 +187,18 @@ def postprocess_lpsfs(
     num_jets: int = 2,
     num_lp_sf_toys: int = 100,
     save_all: bool = True,
-    weight_key: str = "finalWeight",
 ):
     """
     (1) Splits LP SFs into bb and VV based on gen matching.
     (2) Sets defaults for unmatched jets.
     (3) Cuts of SFs at 10 and normalises.
+
+    Args:
+        events (pd.DataFrame): The input DataFrame containing the events.
+        num_jets (int, optional): The number of jets. Defaults to 2.
+        num_lp_sf_toys (int, optional): The number of LP SF toys. Defaults to 100.
+        save_all (bool, optional): Whether to save all LP SFs or only the nominal values. Defaults to True.
+
     """
 
     # for jet in ["bb", "VV"]:
@@ -205,13 +211,22 @@ def postprocess_lpsfs(
             td[key] = np.ones(len(events))
 
         td["lp_sf_toys"] = np.ones((len(events), num_lp_sf_toys))
+        td["lp_sf_pt_extrap_vars"] = np.ones((len(events), num_lp_sf_toys))
 
         # defaults of 0 - i.e. don't contribute to unc.
-        for key in ["lp_sf_double_matched_event", "lp_sf_unmatched_quarks", "lp_sf_num_sjpt_gt350"]:
+        for key in [
+            "lp_sf_double_matched_event",
+            "lp_sf_unmatched_quarks",
+            "lp_sf_boundary_quarks",
+        ]:
             td[key] = np.zeros(len(events))
 
         # lp sfs saved for both jets
         if events["lp_sf_sys_up"].shape[1] == 2:
+            raise NotImplementedError(
+                "Updated LP SF post-processing not implemented yet for both jets with SFs"
+            )
+            # get events where we have a gen-matched fatjet
             # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
             events.loc[np.sum(events[f"ak8FatJetH{jet}"], axis=1) > 1, f"ak8FatJetH{jet}"] = 0
             jet_match = events[f"ak8FatJetH{jet}"].astype(bool)
@@ -229,32 +244,40 @@ def postprocess_lpsfs(
                     "lp_sf_sys_up",
                     "lp_sf_double_matched_event",
                     "lp_sf_unmatched_quarks",
-                    "lp_sf_num_sjpt_gt350",
+                    "lp_sf_boundary_quarks",
                 ]:
                     td[key][jet_match[j]] = events[key][jet_match[j]][j]
 
         # lp sfs saved only for hvv jet
         elif events["lp_sf_sys_up"].shape[1] == 1:
-            # ignore rare case (~0.002%) where two jets are matched to same gen Higgs
+            # get events where we have a gen-matched HVV fatjet
+            # ignoring rare case (~0.002%) where two jets are matched to same gen Higgs
             jet_match = np.sum(events[f"ak8FatJetH{jet}"], axis=1) == 1
 
             # fill values from matched jets
             td["lp_sf_nom"][jet_match] = events["lp_sf_lnN"][jet_match][0]
             td["lp_sf_toys"][jet_match] = events["lp_sf_lnN"][jet_match].loc[:, 1:]
+            td["lp_sf_pt_extrap_vars"][jet_match] = events["lp_sf_pt_extrap_vars"][jet_match].values
 
             for key in [
                 "lp_sf_sys_down",
                 "lp_sf_sys_up",
                 "lp_sf_double_matched_event",
                 "lp_sf_unmatched_quarks",
-                "lp_sf_num_sjpt_gt350",
+                "lp_sf_boundary_quarks",
             ]:
                 td[key][jet_match] = events[key][jet_match].squeeze()
 
         else:
             raise ValueError("LP SF shapes are invalid")
 
-        for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_sys_down", "lp_sf_sys_up"]:
+        for key in [
+            "lp_sf_nom",
+            "lp_sf_toys",
+            "lp_sf_sys_down",
+            "lp_sf_sys_up",
+            "lp_sf_pt_extrap_vars",
+        ]:
             # cut off at 10
             td[key] = np.minimum(td[key], 10)
             # normalise
@@ -313,20 +336,31 @@ def get_lpsf(
         / tot_post
     )
 
-    # fraction of subjets > 350 * 0.21 measured by CASE
-    uncs["sj_pt_unc"] = (np.sum(events[f"{jet}_lp_sf_num_sjpt_gt350"][0]) / tot_matched) * 0.21
-
-    # TODO: check double counting
+    # pt extrapolation uncertainty is the std of all pt param variations
+    uncs["sj_pt_unc"] = (
+        np.std(np.sum(weight[:, np.newaxis] * events[f"{jet}_lp_pt_extrap_vars"].values, axis=0))
+        / tot_post
+    )
 
     if VV:
-        num_prongs = events["ak8FatJetHVVNumProngs"][0]
+        # OR of double matched and boundary quarks
+        # >0.1 to avoid floating point errors
+        quark_unmatched = (
+            events[f"{jet}_lp_sf_double_matched_event"][0]
+            + events[f"{jet}_lp_sf_boundary_quarks"][0]
+        ) > 0.1
 
-        # TODO: re-write as an OR over double matched, unmatched, and near jet boundary
+        sj_matching_unc = np.sum(quark_unmatched)
 
-        sj_matching_unc = np.sum(events[f"{jet}_lp_sf_double_matched_event"][0])
+        # check quark <-> subjet matching for 2, 3, 4 prong-ed jets
+        # ignoring events which are already double matched / have boundary quarks to avoid double counting
+        num_prongs = events["ak8FatJetHVVNumProngs"][0][~quark_unmatched]
         for nump in range(2, 5):
             sj_matching_unc += (
-                np.sum(events[f"{jet}_lp_sf_unmatched_quarks"][0][num_prongs == nump]) / nump
+                np.sum(
+                    events[f"{jet}_lp_sf_unmatched_quarks"][0][~quark_unmatched][num_prongs == nump]
+                )
+                / nump
             )
 
         uncs["sj_matching_unc"] = sj_matching_unc / tot_matched

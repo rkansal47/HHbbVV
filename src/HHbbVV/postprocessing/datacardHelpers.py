@@ -33,6 +33,7 @@ class Syst:
     diff_samples: bool = False
 
     samples: List[str] = None  # samples affected by it
+    samples_corr: bool = True  # if it's correlated between samples
     # in case of uncorrelated unc., which years to split into
     uncorr_years: List[str] = field(default_factory=lambda: all_years)
     pass_only: bool = False  # is it applied only in the pass regions

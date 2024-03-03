@@ -398,6 +398,11 @@ def make_vector(events: dict, name: str, bb_mask: pd.DataFrame = None, mask=None
         )
 
 
+def get_key_index(h: Hist, axis_name: str):
+    """Get the index of a key in a Hist's first axis"""
+    return np.where(np.array(list(h.axes[0])) == axis_name)[0][0]
+
+
 # TODO: extend to multi axis using https://stackoverflow.com/a/47859801/3759946 for 2D blinding
 def blindBins(h: Hist, blind_region: List, blind_sample: str = None, axis=0):
     """
@@ -412,7 +417,7 @@ def blindBins(h: Hist, blind_region: List, blind_sample: str = None, axis=0):
     rv = int(np.searchsorted(bins, blind_region[1], "left") + 1)
 
     if blind_sample is not None:
-        data_key_index = np.where(np.array(list(h.axes[0])) == blind_sample)[0][0]
+        data_key_index = get_key_index(h, blind_sample)
         h.view(flow=True)[data_key_index][lv:rv].value = 0
         h.view(flow=True)[data_key_index][lv:rv].variance = 0
     else:

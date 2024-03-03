@@ -25,7 +25,8 @@ samples = OrderedDict(
         ("QCD", "QCD"),
         ("TT", "TT"),
         ("ST", "ST"),
-        ("V+Jets", ("WJets", "ZJets")),
+        ("W+Jets", "WJets"),
+        ("Z+Jets", "ZJets"),
         ("Diboson", ("WW", "WZ", "ZZ")),
         # break this down into production modes for combination
         # https://gitlab.cern.ch/hh/naming-conventions#single-h-backgrounds
@@ -35,7 +36,7 @@ samples = OrderedDict(
         ("WHbb", ("WminusH_HToBB", "WplusH_HToBB")),
         ("ggZHbb", "ggZH_HToBB"),
         ("ttHbb", "ttHToBB"),
-        # ("HWW", ("*HToWW", "*HToNonbb")),
+        ("HWW", ("*HToWW", "*HToNonbb")),
         # ("HH", ("GluGluToHHTo4B_node_cHHH1_preUL")),
         ("Data", "JetHT"),
     ]
@@ -188,6 +189,8 @@ for mX, mY in res_mps:
     res_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
 
 res_sig_keys = list(res_samples.keys())
+
+all_mc = nonres_sig_keys + res_sig_keys + bg_keys
 
 # from https://cms.cern.ch/iCMS/jsp/db_notes/noteInfo.jsp?cmsnoteid=CMS%20AN-2021/005
 txbb_wps = {

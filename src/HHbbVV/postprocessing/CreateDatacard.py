@@ -126,11 +126,14 @@ if args.nTF is None:
 mc_samples = OrderedDict(
     [
         ("TT", "ttbar"),
-        ("V+Jets", "vjets"),
+        ("W+Jets", "wjets"),
+        ("Z+Jets", "zjets"),
         # ("Diboson", "diboson"),
         ("ST", "singletop"),
     ]
 )
+
+# TODO: float VJets normalization!
 
 bg_keys = list(mc_samples.keys())
 nonres_sig_keys_ggf = [
@@ -269,18 +272,24 @@ nuisance_params_dict = {
     param: rl.NuisanceParameter(param, syst.prior) for param, syst in nuisance_params.items()
 }
 
+# TODO: pileupID, ECal firing, lepton IDs
+
 # dictionary of correlated shape systematics: name in templates -> name in cards, etc.
 corr_year_shape_systs = {
-    "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=nonres_sig_keys_ggf + ["V+Jets"]),
-    "ISRPartonShower": Syst(name="ps_isr", prior="shape", samples=nonres_sig_keys_ggf + ["V+Jets"]),
-    # TODO: should we be applying QCDscale for "others" process?
-    # https://github.com/LPC-HH/HHLooper/blob/master/python/prepare_card_SR_final.py#L290
-    # "QCDscale": Syst(
-    #     name=f"{CMS_PARAMS_LABEL}_ggHHQCDacc", prior="shape", samples=nonres_sig_keys_ggf
-    # ),
-    # "PDFalphaS": Syst(
-    #     name=f"{CMS_PARAMS_LABEL}_ggHHPDFacc", prior="shape", samples=nonres_sig_keys_ggf
-    # ),
+    "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=all_mc),
+    "ISRPartonShower": Syst(name="ps_isr", prior="shape", samples=all_mc),
+    "scaleacc": Syst(
+        name=f"{CMS_PARAMS_LABEL}_QCDScaleacc",
+        prior="shape",
+        samples=nonres_sig_keys,
+        samples_corr=False,
+    ),
+    "pdfacc": Syst(
+        name=f"{CMS_PARAMS_LABEL}_PDFacc",
+        prior="shape",
+        samples=nonres_sig_keys,
+        samples_corr=False,
+    ),
     # TODO: separate into individual
     "JES": Syst(name="CMS_scale_j", prior="shape", samples=all_mc),
     "txbb": Syst(
@@ -312,7 +321,14 @@ if not args.do_jshifts:
 
 shape_systs_dict = {}
 for skey, syst in corr_year_shape_systs.items():
-    shape_systs_dict[skey] = rl.NuisanceParameter(syst.name, "shape")
+    if not syst.samples_corr:
+        # separate nuisance param for each affected sample (TODO: propagate below)
+        for sample in syst.samples:
+            shape_systs_dict[f"{skey}_{sample}"] = rl.NuisanceParameter(
+                f"{syst.name}_{mc_samples[sample]}", "shape"
+            )
+    else:
+        shape_systs_dict[skey] = rl.NuisanceParameter(syst.name, "shape")
 for skey, syst in uncorr_year_shape_systs.items():
     for year in years:
         if year in syst.uncorr_years:
