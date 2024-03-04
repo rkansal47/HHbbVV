@@ -1,7 +1,8 @@
-import warnings
-
 # from distributed.diagnostics.plugin import WorkerPlugin
+from __future__ import annotations
+
 import json
+from pathlib import Path
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
@@ -55,10 +56,9 @@ def get_fileset(
     if processor.startswith("trigger"):
         samples = [f"SingleMu{year[:4]}"]
 
-    # redirector = "root://cmsxrootd.fnal.gov//" if not coffea_casa else "root://xcache//"
     redirector = "root://cmseos.fnal.gov//" if not coffea_casa else "root://xcache//"
 
-    with open(f"data/pfnanoindex_{year}.json", "r") as f:
+    with Path(f"data/pfnanoindex_{year}.json").open() as f:
         full_fileset_pfnano = json.load(f)
 
     fileset = {}
@@ -86,8 +86,8 @@ def get_fileset(
             sample_fileset = {}
 
             for subsample, fnames in sample_set.items():
-                fnames = fnames[starti:] if endi < 0 else fnames[starti:endi]
-                sample_fileset[f"{year}_{subsample}"] = [redirector + fname for fname in fnames]
+                run_fnames = fnames[starti:] if endi < 0 else fnames[starti:endi]
+                sample_fileset[f"{year}_{subsample}"] = [redirector + fname for fname in run_fnames]
 
             fileset = {**fileset, **sample_fileset}
 
@@ -95,11 +95,11 @@ def get_fileset(
 
 
 def get_xsecs():
-    with open("data/xsecs.json") as f:
+    with Path("data/xsecs.json").open() as f:
         xsecs = json.load(f)
 
     for key, value in xsecs.items():
-        if type(value) == str:
+        if isinstance(value, str):
             xsecs[key] = eval(value)
 
     return xsecs
