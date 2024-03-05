@@ -60,6 +60,21 @@ def check_branch(git_branch: str, allow_diff_local_repo: bool = False):
         )
     ), f"Branch {git_branch} does not exist"
 
+    print(f"Using branch {git_branch}")
+
+    # check if there are uncommitted changes
+    uncommited_files = int(subprocess.getoutput("git status -s | wc -l"))
+
+    if uncommited_files:
+        print_red("There are local changes that have not been committed!")
+        os.system("git status -s")
+        if allow_diff_local_repo:
+            print_red("Proceeding anyway...")
+        else:
+            print_red("Exiting! Use the --allow-diff-local-repo option to override this.")
+            sys.exit(1)
+
+    # check that the local repo's latest commit matches that on github
     remote_hash = subprocess.getoutput(f"git show origin/{git_branch} | head -n 1").split(" ")[1]
     local_hash = subprocess.getoutput("git rev-parse HEAD")
 
