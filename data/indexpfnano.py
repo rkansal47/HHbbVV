@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 
 
 def get_children(parent):
@@ -136,7 +137,7 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
     print(pyear)
     index = {}
     for f1 in folders_to_index:
-        f1 = f1.rstrip("/")
+        f1 = f1.rstrip("/")  # noqa: PLW2901
         year = f1.split("/")[-2]
         sample_short = f1.split("/")[-1]
         if year == "2017v1":
@@ -201,7 +202,7 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                     print(f3_subfolders)
 
                 for f4 in f3_subfolders:  # Timestamp
-                    if len(f3_subfolders) >= 2:
+                    if len(f3_subfolders) >= 2:  # noqa: SIM102
                         if f4 == "220801_140806/":  # ignoring repeat of 2016H
                             print(f"Ignoring {f4}")
                             continue
@@ -249,8 +250,8 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                             index[year][sample_short][subsample_short].extend(root_files)
 
     if pyear == "2016APV":
-        for sample_short in index_APV.keys():
-            for subsample_short in index_APV[sample_short].keys():
+        for sample_short in index_APV:
+            for subsample_short in index_APV[sample_short]:
                 if sample_short not in index[pyear]:
                     index[pyear][sample_short] = {}
                 if subsample_short not in index[pyear][sample_short]:
@@ -259,5 +260,5 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                     subsample_short
                 ]
 
-    with open(f"pfnanoindex_{pyear}.json", "w") as f:
+    with Path(f"pfnanoindex_{pyear}.json").open("w") as f:
         json.dump(index, f, sort_keys=True, indent=2)

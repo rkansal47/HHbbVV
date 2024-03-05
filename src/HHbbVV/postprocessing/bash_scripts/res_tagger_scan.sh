@@ -1,3 +1,5 @@
+#!/bin/bash
+
 TAG=$1
 
 # backgrounds and data

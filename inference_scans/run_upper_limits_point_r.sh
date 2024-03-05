@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2154
 
 # export DHI_CMS_POSTFIX="Supplementary"
 law run PlotUpperLimitsAtPoint \
@@ -12,7 +13,7 @@ law run PlotUpperLimitsAtPoint \
     --UpperLimits-tasks-per-job 1 \
     --x-log \
     --campaign run2 \
-    --unblinded $UNBLINDED \
+    --unblinded "$UNBLINDED" \
     --h-lines 1 \
     --save-hep-data True \
     --remove-output 0,a,y

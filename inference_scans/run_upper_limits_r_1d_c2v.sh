@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2154
 
 # export DHI_CMS_POSTFIX="Supplementary"
 law run PlotUpperLimits \
@@ -11,7 +12,7 @@ law run PlotUpperLimits \
     --UpperLimits-tasks-per-job 1 \
     --file-types "png,pdf" \
     --campaign run2 \
-    --unblinded $UNBLINDED \
+    --unblinded "$UNBLINDED" \
     --y-log \
     --show-parameters "kl,kt,C2V,CV" \
     --br bbww \

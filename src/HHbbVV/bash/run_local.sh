@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 
 # for f in hhbbvv xhy ttsl qcd data
 # do

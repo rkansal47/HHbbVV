@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2043
 
 for txbb_wp in "LP" "MP" "HP"
 do
@@ -11,10 +12,10 @@ do
     python3 -u postprocessing/CreateDatacard.py --templates-dir templates/23May13NonresScan/$cutstr \
     --model-name 23May14NonresScan/$cutstr --no-do-jshifts --nTF 0
 
-    cd cards/23May14NonresScan/$cutstr
+    cd cards/23May14NonresScan/$cutstr || exit
 
     /uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh -wbl
 
-    cd -
+    cd - || exit
   done
 done

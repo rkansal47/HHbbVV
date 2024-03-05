@@ -233,7 +233,7 @@ Raghav:
 - [ ] Samples
   - [x] Nanogen
 - [x] Skimming VBF
-- [ ] Runnning over kL, k2V
+- [ ] Running over kL, k2V
 
 ## In progress:
 
