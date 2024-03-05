@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from pathlib import Path
 from string import Template
@@ -51,6 +52,8 @@ def check_branch_exists(git_branch: str):
             f'git ls-remote --exit-code --heads "https://github.com/rkansal47/HHbbVV" "{git_branch}"'
         )
     ), f"Branch {git_branch} does not exist"
+
+    logging.info(f"{git_branch} branch does exist. Important!! Did you push your change to github?")
 
 
 # for Dask executor
