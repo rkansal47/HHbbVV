@@ -10,56 +10,47 @@ Post processing skimmed parquet files (output of bbVVSkimmer processor):
 Author(s): Raghav Kansal, Cristina Mantilla Suarez
 """
 
-from dataclasses import dataclass, field
-from collections import OrderedDict
+from __future__ import annotations
 
-import os
-from pathlib import Path
-import sys
-import pickle, json
+import argparse
 import itertools
+import json
+import os
+import pickle
+import sys
+import warnings
+from collections import OrderedDict
+from copy import deepcopy
+from dataclasses import dataclass, field
+from pathlib import Path
 
-import numpy as np
-import pandas as pd
+import corrections
 
 # from pandas.errors import SettingWithCopyWarning
 import hist
-from hist import Hist
-
-import utils
+import numpy as np
+import pandas as pd
 import plotting
-
-from numpy.typing import ArrayLike
-from typing import Dict, List, Tuple
-from inspect import cleandoc
-from textwrap import dedent
-
-import corrections
-from corrections import postprocess_lpsfs, get_lpsf
-from hh_vars import (
-    years,
-    nonres_sig_keys,
-    res_sig_keys,
-    data_key,
-    qcd_key,
-    bg_keys,
-    all_mc,
-    samples,
-    nonres_samples,
-    res_samples,
-    norm_preserving_weights,
-    txbb_wps,
-    jec_shifts,
-    jmsr_shifts,
-)
+import utils
+from corrections import get_lpsf, postprocess_lpsfs
+from hist import Hist
 from utils import CUT_MAX_VAL, ShapeVar
 
-from pprint import pprint
-from copy import deepcopy
-import warnings
-
-import argparse
-
+from HHbbVV.hh_vars import (
+    bg_keys,
+    data_key,
+    jec_shifts,
+    jmsr_shifts,
+    nonres_samples,
+    nonres_sig_keys,
+    norm_preserving_weights,
+    qcd_key,
+    res_samples,
+    res_sig_keys,
+    samples,
+    txbb_wps,
+    years,
+)
 
 # ignore these because they don't seem to apply
 # warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
@@ -67,14 +58,14 @@ import argparse
 
 @dataclass
 class Syst:
-    samples: List[str] = None
-    years: List[str] = field(default_factory=lambda: years)
+    samples: list[str] = None
+    years: list[str] = field(default_factory=lambda: years)
     label: str = None
 
 
 @dataclass
 class Region:
-    cuts: Dict = None
+    cuts: dict = None
     label: str = None
 
 
@@ -225,12 +216,14 @@ def get_nonres_vbf_selection_regions(
 
 def get_res_selection_regions(
     year: str,
-    mass_window: List[float] = [110, 145],
+    mass_window: list[float] = None,
     txbb_wp: str = "HP",
     thww_wp: float = 0.6,
     leadingpt_wp: float = 400,
     subleadingpt_wp: float = 300,
 ):
+    if mass_window is None:
+        mass_window = [110, 145]
     mwsize = mass_window[1] - mass_window[0]
     mw_sidebands = [
         [mass_window[0] - mwsize / 2, mass_window[0]],
@@ -285,7 +278,7 @@ def get_res_selection_regions(
     leading_pt_cut = [leadingpt_wp, CUT_MAX_VAL]
     subleading_pt_cut = [subleadingpt_wp, CUT_MAX_VAL]
 
-    for key, region in regions.items():
+    for _key, region in regions.items():
         cuts = {
             "bbFatJetPt": subleading_pt_cut,
             "VVFatJetPt": subleading_pt_cut,
@@ -380,7 +373,7 @@ plot_sig_keys_nonres = [
 
 
 def main(args):
-    global control_plot_vars
+    global control_plot_vars  # noqa: PLW0603
 
     shape_vars, scan, scan_cuts, scan_wps = _init(args)
     sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args)
@@ -400,7 +393,7 @@ def main(args):
 
     # args has attr if --control-plots arg was set
     if hasattr(args, "control_plots_dir"):
-        cutflow.to_csv(f"{args.control_plots_dir}/preselection_cutflow.csv")
+        cutflow.to_csv(args.control_plots_dir / "preselection_cutflow.csv")
 
     print("\nCutflow", cutflow)
 
@@ -467,7 +460,7 @@ def main(args):
     if args.templates:
         for wps in scan_wps:  # if not scanning, this will just be a single WP
             cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)]) if scan else ""
-            template_dir = f"{args.template_dir}/{cutstr}/{args.templates_name}/"
+            template_dir = args.template_dir / cutstr / args.templates_name
 
             cutargs = {f"{cut}_wp": wp for cut, wp in zip(scan_cuts, wps)}
             if args.resonant:
@@ -478,7 +471,7 @@ def main(args):
                 selection_regions = get_nonres_selection_regions(args.year, **cutargs)
 
             # load pre-calculated systematics and those for different years if saved already
-            systs_file = f"{template_dir}/systematics.json"
+            systs_file = template_dir / "systematics.json"
             systematics = _check_load_systematics(systs_file, args.year)
 
             # Lund plane SFs
@@ -507,7 +500,7 @@ def main(args):
             for jshift in jshifts:
                 print(jshift)
                 plot_dir = (
-                    f"{args.templates_plots_dir}/{cutstr}/" f"{'jshifts/' if jshift != '' else ''}"
+                    args.templates_plots_dir / cutstr / f"{'jshifts/' if jshift != '' else ''}"
                     if args.plot_dir != ""
                     else ""
                 )
@@ -527,7 +520,7 @@ def main(args):
                     # sig_splits=sig_splits,
                     weight_shifts=weight_shifts,
                     jshift=jshift,
-                    blind_pass=True if args.resonant else False,
+                    blind_pass=bool(args.resonant),
                     show=False,
                     plot_shifts=args.plot_shifts,
                 )
@@ -535,17 +528,17 @@ def main(args):
 
             print("\nSaving templates")
             save_templates(
-                templates, f"{template_dir}/{args.year}_templates.pkl", args.resonant, shape_vars
+                templates, template_dir / f"{args.year}_templates.pkl", args.resonant, shape_vars
             )
 
-            with open(systs_file, "w") as f:
+            with systs_file.open("w") as f:
                 json.dump(systematics, f)
 
 
 def _init(args):
     if not (args.control_plots or args.bdt_plots or args.templates):
         print("You need to pass at least one of --control-plots, --bdt-plots, or --templates")
-        return
+        return None
 
     if args.resonant:
         scan = (
@@ -629,36 +622,33 @@ def _add_vbf_columns(df, bb_mask, ptlabel, mlabel):
 
     jj = vbf1 + vbf2
 
-    mass_jj_cut_sorted_pt = jj.mass > 500
-    eta_jj_cut_sorted_pt = np.abs(vbf1.eta - vbf2.eta) > 4.0
-
     # Adapted from HIG-20-005 ggF_Killer 6.2.2
     # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.PtEtaPhiMLorentzVector.html
     # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.LorentzVector.html
     # Adding variables defined in HIG-20-005 that show strong differentiation for VBF signal events and background
 
-    # seperation between both ak8 higgs jets
+    # separation between both ak8 higgs jets
     if "vbf_dR_HH" not in df.columns:
-        df[f"vbf_dR_HH"] = VVJet.deltaR(bbJet)
+        df["vbf_dR_HH"] = VVJet.deltaR(bbJet)
     if "vbf_dR_j0_HVV" not in df.columns:
-        df[f"vbf_dR_j0_HVV"] = vbf1.deltaR(VVJet)
+        df["vbf_dR_j0_HVV"] = vbf1.deltaR(VVJet)
     if "vbf_dR_j1_HVV" not in df.columns:
-        df[f"vbf_dR_j1_HVV"] = vbf2.deltaR(VVJet)
+        df["vbf_dR_j1_HVV"] = vbf2.deltaR(VVJet)
     if "vbf_dR_j0_Hbb" not in df.columns:
-        df[f"vbf_dR_j0_Hbb"] = vbf1.deltaR(bbJet)
+        df["vbf_dR_j0_Hbb"] = vbf1.deltaR(bbJet)
     if "vbf_dR_j1_Hbb" not in df.columns:
-        df[f"vbf_dR_j1_Hbb"] = vbf2.deltaR(bbJet)
+        df["vbf_dR_j1_Hbb"] = vbf2.deltaR(bbJet)
     if "vbf_dR_jj" not in df.columns:
-        df[f"vbf_dR_jj"] = vbf1.deltaR(vbf2)
+        df["vbf_dR_jj"] = vbf1.deltaR(vbf2)
     if "vbf_Mass_jj{ptlabel}" not in df.columns:
         df[f"vbf_Mass_jj{ptlabel}"] = jj.M
     if "vbf_dEta_jj" not in df.columns:
-        df[f"vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
+        df["vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
 
     if "DijetdEta" not in df.columns:
-        df[f"DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
+        df["DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
     if "DijetdPhi" not in df.columns:
-        df[f"DijetdPhi"] = np.abs(bbJet.phi - VVJet.phi)
+        df["DijetdPhi"] = np.abs(bbJet.phi - VVJet.phi)
 
     # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
     # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
@@ -687,20 +677,19 @@ def _add_vbf_columns(df, bb_mask, ptlabel, mlabel):
             -np.power((VVJet.eta - avg_eta) / delta_eta, 2)
             - np.power((bbJet.eta - avg_eta) / delta_eta, 2)
         )
-        df[f"vbf_prod_centrality"] = prod_centrality
+        df["vbf_prod_centrality"] = prod_centrality
 
 
-def _process_samples(args, BDT_sample_order: List[str] = None):
+def _process_samples(args, BDT_sample_order: list[str] = None):
     sig_samples = res_samples if args.resonant else nonres_samples
     sig_samples = deepcopy(sig_samples)
 
     if not args.resonant and BDT_sample_order is None and not args.vbf:
-        with open(f"{args.bdt_preds_dir}/{args.year}/sample_order.txt", "r") as f:
+        with (args.bdt_preds_dir / f"{args.year}/sample_order.txt").open() as f:
             BDT_sample_order = list(eval(f.read()).keys())
 
     if args.read_sig_samples:
         # read all signal samples in directory
-        read_year = args.year if args.year != "all" else "2017"
         read_samples = os.listdir(f"{args.signal_data_dirs[0]}/{args.year}")
         sig_samples = OrderedDict()
         for sample in read_samples:
@@ -721,7 +710,7 @@ def _process_samples(args, BDT_sample_order: List[str] = None):
                 sig_samples[sig_key] = nonres_samples[sig_key]
 
         if len(sig_samples):
-            # re-order acording to input ordering
+            # re-order according to input ordering
             tsig_samples = OrderedDict()
             for sample in args.sig_samples:
                 if sample in sig_samples:
@@ -729,13 +718,13 @@ def _process_samples(args, BDT_sample_order: List[str] = None):
                     tsig_samples[sample] = sig_samples[sample]
                 else:
                     # else if it is a value, have to find corresponding key
-                    key = [key for key, value in sig_samples.items() if value == sample][0]
+                    key = next(key for key, value in sig_samples.items() if value == sample)
                     tsig_samples[key] = sample
 
             sig_samples = tsig_samples
 
     bg_samples = deepcopy(samples)
-    for bg_key, sample in list(bg_samples.items()):
+    for bg_key in bg_samples:
         if bg_key not in args.bg_keys and bg_key != data_key:
             del bg_samples[bg_key]
 
@@ -817,8 +806,11 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
                 parents=True, exist_ok=True
             )
 
+    if args.bdt_preds_dir != "" and args.bdt_preds_dir is not None:
+        args.bdt_preds_dir = Path(args.bdt_preds_dir)
 
-def _normalize_weights(events: pd.DataFrame, totals: Dict, sample: str, isData: bool):
+
+def _normalize_weights(events: pd.DataFrame, totals: dict, sample: str, isData: bool):
     """Normalize weights and all the variations"""
     # don't need any reweighting for data
     if isData:
@@ -826,9 +818,8 @@ def _normalize_weights(events: pd.DataFrame, totals: Dict, sample: str, isData: 
         return
 
     # check weights are scaled
-    if "weight_noxsec" in events:
-        if np.all(events["weight"] == events["weight_noxsec"]):
-            warnings.warn(f"{sample} has not been scaled by its xsec and lumi!")
+    if "weight_noxsec" in events and np.all(events["weight"] == events["weight_noxsec"]):
+        warnings.warn(f"{sample} has not been scaled by its xsec and lumi!", stacklevel=1)
 
     # checking that trigger efficiencies have been applied
     if "weight_noTrigEffs" in events and not np.all(
@@ -852,7 +843,7 @@ def _normalize_weights(events: pd.DataFrame, totals: Dict, sample: str, isData: 
                 events[f"weight_{wlabel}"] /= totals[f"np_{wlabel}"]
             else:
                 # normalize by the nominal
-                events[f"weight_{wlabel}"] /= totals[f"np_nominal"]
+                events[f"weight_{wlabel}"] /= totals["np_nominal"]
 
     # create lepton weights - using Hbb weights for now
     # TODO after finalizing lepton vetoes:
@@ -875,13 +866,13 @@ def _normalize_weights(events: pd.DataFrame, totals: Dict, sample: str, isData: 
 
 
 def load_samples(
-    data_dir: str,
-    samples: Dict[str, str],
+    data_dir: Path,
+    samples: dict[str, str],
     year: str,
-    filters: List = None,
-    columns: List = None,
+    filters: list = None,
+    columns: list = None,
     hem_cleaning: bool = True,
-) -> Dict[str, pd.DataFrame]:
+) -> dict[str, pd.DataFrame]:
     """
     Loads events with an optional filter.
     Divides MC samples by the total pre-skimming, to take the acceptance into account.
@@ -916,7 +907,7 @@ def load_samples(
 
             # no parquet directory?
             if not parquet_path.exists():
-                warnings.warn(f"No parquet directory for {sample}!")
+                warnings.warn(f"No parquet directory for {sample}!", stacklevel=1)
                 continue
 
             # print(f"Loading {sample}")
@@ -924,7 +915,7 @@ def load_samples(
 
             # no events?
             if not len(events):
-                warnings.warn(f"No events for {sample}!")
+                warnings.warn(f"No events for {sample}!", stacklevel=1)
                 continue
 
             # normalize by total events
@@ -946,9 +937,9 @@ def load_samples(
 
 
 def _check_load_systematics(systs_file: str, year: str):
-    if os.path.exists(systs_file):
+    if systs_file.exists():
         print("Loading systematics")
-        with open(systs_file, "r") as f:
+        with systs_file.open() as f:
             systematics = json.load(f)
     else:
         systematics = {}
@@ -984,19 +975,19 @@ def _load_samples(args, samples, sig_samples, cutflow, filters=None):
 
     print("")
     # print weighted sample yields
-    wkey = "finalWeight" if "finalWeight" in list(events_dict.values())[0] else "weight"
+    wkey = "finalWeight" if "finalWeight" in next(iter(events_dict.values())) else "weight"
     for sample in events_dict:
-        tot_weight = np.sum(events_dict[sample][wkey].values)
+        tot_weight = np.sum(events_dict[sample][wkey].to_numpy())
         print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
 
     return events_dict
 
 
-def apply_trigger_weights(events_dict: Dict[str, pd.DataFrame], year: str, cutflow: pd.DataFrame):
+def apply_trigger_weights(events_dict: dict[str, pd.DataFrame], year: str, cutflow: pd.DataFrame):
     """Applies trigger scale factors to the events."""
     from coffea.lookup_tools.dense_lookup import dense_lookup
 
-    with open(f"../corrections/trigEffs/{year}_combined.pkl", "rb") as filehandler:
+    with Path(f"../corrections/trigEffs/{year}_combined.pkl").open("rb") as filehandler:
         combined = pickle.load(filehandler)
 
     # sum over TH4q bins
@@ -1015,9 +1006,9 @@ def apply_trigger_weights(events_dict: Dict[str, pd.DataFrame], year: str, cutfl
                 events[weight_key] = events["weight"]
         elif f"{weight_key}_noTrigEffs" not in events:
             fj_trigeffs = ak8TrigEffsLookup(
-                events["ak8FatJetParticleNetMD_Txbb"].values,
-                events["ak8FatJetPt"].values,
-                events["ak8FatJetMsd"].values,
+                events["ak8FatJetParticleNetMD_Txbb"].to_numpy(),
+                events["ak8FatJetPt"].to_numpy(),
+                events["ak8FatJetMsd"].to_numpy(),
             )
             # combined eff = 1 - (1 - fj1_eff) * (1 - fj2_eff)
             combined_trigEffs = 1 - np.prod(1 - fj_trigeffs, axis=1, keepdims=True)
@@ -1028,7 +1019,7 @@ def apply_trigger_weights(events_dict: Dict[str, pd.DataFrame], year: str, cutfl
         utils.add_to_cutflow(events_dict, "TriggerEffs", weight_key, cutflow)
 
 
-def qcd_sf(events_dict: Dict[str, pd.DataFrame], cutflow: pd.DataFrame):
+def qcd_sf(events_dict: dict[str, pd.DataFrame], cutflow: pd.DataFrame):
     """Applies a QCD scale factor."""
     trig_yields = cutflow.iloc[:, -1]
     non_qcd_bgs_yield = np.sum(
@@ -1048,7 +1039,7 @@ def qcd_sf(events_dict: Dict[str, pd.DataFrame], cutflow: pd.DataFrame):
 
 
 def apply_weights(
-    events_dict: Dict[str, pd.DataFrame],
+    events_dict: dict[str, pd.DataFrame],
     year: str,
     cutflow: pd.DataFrame = None,
     trigger_effs: bool = True,
@@ -1069,7 +1060,7 @@ def apply_weights(
         qcd_sf(events_dict, cutflow)
 
 
-def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+def bb_VV_assignment(events_dict: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
     """
     Creates a dataframe of masks for extracting the bb or VV candidates.
     bb candidate is chosen based on higher Txbb score.
@@ -1089,14 +1080,14 @@ def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataF
     return bb_masks
 
 
-def derive_variables(events_dict: Dict[str, pd.DataFrame]):
+def derive_variables(events_dict: dict[str, pd.DataFrame]):
     """Add HWW vs (QCD + Top) discriminant"""
     for sample, events in events_dict.items():
         if "VVFatJetParTMD_THWWvsT" in events or "ak8FatJetParTMD_THWWvsT" in events:
             continue
 
         if "ak8FatJetParTMD_probT" not in events:
-            warnings.warn(f"ParT variables missing in {sample}!")
+            warnings.warn(f"ParT variables missing in {sample}!", stacklevel=1)
             continue
 
         h4qvst = (events["ak8FatJetParTMD_probHWW3q"] + events["ak8FatJetParTMD_probHWW4q"]) / (
@@ -1112,9 +1103,9 @@ def derive_variables(events_dict: Dict[str, pd.DataFrame]):
 
 
 def load_bdt_preds(
-    events_dict: Dict[str, pd.DataFrame],
+    events_dict: dict[str, pd.DataFrame],
     year: str,
-    bdt_preds_dir: str,
+    bdt_preds_dir: Path,
     jec_jmsr_shifts: bool = False,
 ):
     """
@@ -1126,7 +1117,7 @@ def load_bdt_preds(
         bdt_sample_order (List[str]): Order of samples in the predictions file.
 
     """
-    with open(f"{bdt_preds_dir}/{year}/sample_order.txt", "r") as f:
+    with (bdt_preds_dir / year / "sample_order.txt").open() as f:
         sample_order_dict = eval(f.read())
 
     bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
@@ -1174,10 +1165,10 @@ def load_bdt_preds(
 
 def get_lpsf_all_years(
     sig_key: str,
-    data_dir: str,
-    samples: Dict,
+    data_dir: Path,
+    samples: dict,
     lp_region: Region,
-    bdt_preds_dir: str = None,
+    bdt_preds_dir: Path = None,
 ):
     print("Getting LP SF for all years combined")
     events_all = []
@@ -1225,8 +1216,8 @@ def get_lpsf_all_years(
         )
 
         # print weighted sample yields
-        wkey = "finalWeight" if "finalWeight" in list(events_dict.values())[0] else "weight"
-        tot_weight = np.sum(events_dict[sig_key][wkey].values)
+        wkey = "finalWeight" if "finalWeight" in next(iter(events_dict.values())) else "weight"
+        print(np.sum(events_dict[sig_key][wkey].to_numpy()))
 
         bb_masks = bb_VV_assignment(events_dict)
 
@@ -1237,7 +1228,7 @@ def get_lpsf_all_years(
         events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
 
         if bdt_preds_dir is not None:
-            with open(f"{bdt_preds_dir}/{year}/sample_order.txt", "r") as f:
+            with (bdt_preds_dir / year / "sample_order.txt").open() as f:
                 sample_order_dict = eval(f.read())
 
             # load bdt preds for sig only
@@ -1248,16 +1239,16 @@ def get_lpsf_all_years(
                 if sample != sig_key:
                     i += num_events
                     continue
+
+                events = events_dict[sample]
+                assert num_events == len(
+                    events
+                ), f"# of BDT predictions does not match # of events for sample {sample}"
+                if not multiclass:
+                    events["BDTScore"] = bdt_preds[i : i + num_events]
                 else:
-                    events = events_dict[sample]
-                    assert num_events == len(
-                        events
-                    ), f"# of BDT predictions does not match # of events for sample {sample}"
-                    if not multiclass:
-                        events["BDTScore"] = bdt_preds[i : i + num_events]
-                    else:
-                        events["BDTScore"] = bdt_preds[i : i + num_events, 0]
-                    break
+                    events["BDTScore"] = bdt_preds[i : i + num_events, 0]
+                break
 
         sel, _ = utils.make_selection(lp_region.cuts, events_dict, bb_masks)
 
@@ -1271,18 +1262,18 @@ def get_lpsf_all_years(
 
 
 def lpsfs(
-    events_dict: Dict[str, pd.DataFrame],
-    bb_masks: Dict[str, pd.DataFrame],
-    sig_keys: List[str],
-    sig_samples: Dict[str, str],
+    events_dict: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame],
+    sig_keys: list[str],
+    sig_samples: dict[str, str],
     cutflow: pd.DataFrame,
     lp_selection_region: Region,
-    systematics: Dict,
+    systematics: dict,
     all_years: bool = False,
-    bdt_preds_dir: str = None,
-    template_dir: str = None,
-    systs_file: str = None,
-    data_dir: str = None,
+    bdt_preds_dir: Path = None,
+    template_dir: Path = None,
+    systs_file: Path = None,
+    data_dir: Path = None,
 ):
     """
     1) Calculates LP SFs for each signal, if not already in ``systematics``
@@ -1290,7 +1281,9 @@ def lpsfs(
     2) Saves them to ``systs_file`` and CSV for posterity
     """
     if not all_years:
-        warnings.warn(f"LP SF only calculated from single year's samples", RuntimeWarning)
+        warnings.warn(
+            "LP SF only calculated from single year's samples", RuntimeWarning, stacklevel=1
+        )
 
     for sig_key in sig_keys:
         if sig_key not in systematics or "lp_sf" not in systematics[sig_key]:
@@ -1327,7 +1320,7 @@ def lpsfs(
             systematics[sig_key]["lp_sf_uncs"] = uncs
 
             if systs_file is not None:
-                with open(systs_file, "w") as f:
+                with systs_file.open("w") as f:
                     json.dump(systematics, f)
 
     if template_dir is not None:
@@ -1346,10 +1339,10 @@ def lpsfs(
 
 
 def hists_HEM2d(
-    events_dict: Dict[str, pd.DataFrame],
-    bb_masks: Dict[str, pd.DataFrame],
+    events_dict: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame],
     weight_key: str = "finalWeight",
-    selection: Dict[str, np.ndarray] = None,
+    selection: dict[str, np.ndarray] = None,
 ):
     """Create 2D hists of FatJet phi vs eta for bb and VV jets as a check for HEM cleaning."""
     HEM2d_vars = [
@@ -1377,7 +1370,7 @@ def hists_HEM2d(
             events = events_dict[sample]
 
             fill_data = {var: utils.get_feat(events, var, bb_masks[sample]) for var in vars2d}
-            weight = events[weight_key].values.squeeze()
+            weight = events[weight_key].to_numpy().squeeze()
 
             if selection is not None:
                 sel = selection[sample]
@@ -1395,24 +1388,24 @@ def hists_HEM2d(
 
 
 def control_plots(
-    events_dict: Dict[str, pd.DataFrame],
-    bb_masks: Dict[str, pd.DataFrame],
-    sig_keys: List[str],
-    control_plot_vars: List[ShapeVar],
+    events_dict: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame],
+    sig_keys: list[str],
+    control_plot_vars: list[ShapeVar],
     plot_dir: Path,
     year: str,
     weight_key: str = "finalWeight",
-    hists: Dict = {},
+    hists: dict = None,
     cutstr: str = "",
-    sig_splits: List[List[str]] = None,
-    bg_keys: List[str] = bg_keys,
-    selection: Dict[str, np.ndarray] = None,
-    sig_scale_dict: Dict[str, float] = None,
+    sig_splits: list[list[str]] = None,
+    bg_keys: list[str] = bg_keys,
+    selection: dict[str, np.ndarray] = None,
+    sig_scale_dict: dict[str, float] = None,
     combine_pdf: bool = True,
     HEM2d: bool = False,
     plot_significance: bool = False,
     show: bool = False,
-    log: Tuple[bool, str] = "both",
+    log: tuple[bool, str] = "both",
 ):
     """
     Makes and plots histograms of each variable in ``control_plot_vars``.
@@ -1430,6 +1423,8 @@ def control_plots(
     # sig_scale_dict = {sig_key: 5e3 for sig_key in sig_keys}
     # sig_scale_dict["HHbbVV"] = 2e5
 
+    if hists is None:
+        hists = {}
     if sig_scale_dict is None:
         sig_scale_dict = {sig_key: 2e5 for sig_key in sig_keys}
 
@@ -1498,9 +1493,9 @@ def control_plots(
 
 
 def plot_bdt_sculpting(
-    events_dict: Dict[str, pd.DataFrame],
-    bb_masks: Dict[str, pd.DataFrame],
-    plot_dir: str,
+    events_dict: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame],
+    plot_dir: Path,
     year: str,
     weight_key: str = "finalWeight",
     show: bool = False,
@@ -1550,7 +1545,7 @@ def check_weights(events_dict):
 
 
 def _get_fill_data(
-    events: pd.DataFrame, bb_mask: pd.DataFrame, shape_vars: List[ShapeVar], jshift: str = ""
+    events: pd.DataFrame, bb_mask: pd.DataFrame, shape_vars: list[ShapeVar], jshift: str = ""
 ):
     return {
         shape_var.var: utils.get_feat(
@@ -1563,7 +1558,7 @@ def _get_fill_data(
 
 
 def _get_qcdvar_hists(
-    events: pd.DataFrame, shape_vars: List[ShapeVar], fill_data: Dict, wshift: str
+    events: pd.DataFrame, shape_vars: list[ShapeVar], fill_data: dict, wshift: str
 ):
     """Get histograms for QCD scale and PDF variations"""
     wkey = f"{wshift}_weights"
@@ -1584,22 +1579,22 @@ def _get_qcdvar_hists(
 
 
 def get_templates(
-    events_dict: Dict[str, pd.DataFrame],
-    bb_masks: Dict[str, pd.DataFrame],
+    events_dict: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame],
     year: str,
-    sig_keys: List[str],
-    selection_regions: Dict[str, Region],
-    shape_vars: List[ShapeVar],
-    systematics: Dict,
-    template_dir: str = "",
-    bg_keys: List[str] = bg_keys,
-    plot_dir: str = "",
+    sig_keys: list[str],
+    selection_regions: dict[str, Region],
+    shape_vars: list[ShapeVar],
+    systematics: dict,
+    template_dir: Path = "",
+    bg_keys: list[str] = bg_keys,
+    plot_dir: Path = "",
     prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
-    plot_sig_keys: List[str] = None,
-    sig_splits: List[List[str]] = None,
-    sig_scale_dict: Dict = None,
-    weight_shifts: Dict = {},
+    plot_sig_keys: list[str] = None,
+    sig_splits: list[list[str]] = None,
+    sig_scale_dict: dict = None,
+    weight_shifts: dict = None,
     jshift: str = "",
     lpsfs: bool = True,
     plot_shifts: bool = False,
@@ -1607,7 +1602,7 @@ def get_templates(
     fail_ylim: int = None,
     blind_pass: bool = False,
     show: bool = False,
-) -> Dict[str, Hist]:
+) -> dict[str, Hist]:
     """
     (1) Makes histograms for each region in the ``selection_regions`` dictionary,
     (2) Applies the Txbb scale factor in the pass region,
@@ -1624,6 +1619,8 @@ def get_templates(
         Dict[str, Hist]: dictionary of templates, saved as hist.Hist objects.
 
     """
+    if weight_shifts is None:
+        weight_shifts = {}
     do_jshift = jshift != ""
     jlabel = "" if not do_jshift else "_" + jshift
     templates = {}
@@ -1705,7 +1702,7 @@ def get_templates(
             fill_data = _get_fill_data(
                 events, bb_mask, shape_vars, jshift=jshift if sample != data_key else None
             )
-            weight = events[weight_key].values.squeeze()
+            weight = events[weight_key].to_numpy().squeeze()
             h.fill(Sample=sample, **fill_data, weight=weight)
 
             if not do_jshift:
@@ -1718,7 +1715,7 @@ def get_templates(
                                 h.fill(
                                     Sample=f"{sample}_{wshift}_{shift}",
                                     **fill_data,
-                                    weight=events[f"weight_{wshift}{skey}"].values.squeeze(),
+                                    weight=events[f"weight_{wshift}{skey}"].to_numpy().squeeze(),
                                 )
                         else:
                             # get histograms for all QCD scale and PDF variations
@@ -1863,7 +1860,7 @@ def get_templates(
 
 
 def save_templates(
-    templates: Dict[str, Hist], template_file: str, resonant: bool, shape_vars: List[ShapeVar]
+    templates: dict[str, Hist], template_file: Path, resonant: bool, shape_vars: list[ShapeVar]
 ):
     """Creates blinded copies of each region's templates and saves a pickle of the templates"""
 
@@ -1877,7 +1874,7 @@ def save_templates(
             utils.blindBins(blinded_template, blind_window)
             templates[f"{label}Blinded"] = blinded_template
 
-    with open(template_file, "wb") as f:
+    with template_file.open("wb") as f:
         pickle.dump(templates, f)
 
     print("Saved templates to", template_file)
@@ -2059,6 +2056,6 @@ if __name__ == "__main__":
 
     if args.hem_cleaning is None:
         # can't do HEM cleaning for non-resonant until BDT is re-inferenced
-        args.hem_cleaning = True if (args.resonant or args.vbf) else False
+        args.hem_cleaning = bool(args.resonant or args.vbf)
 
     main(args)

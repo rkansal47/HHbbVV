@@ -5,54 +5,25 @@ Splits toy generation into separate condor jobs and fits lowest order + 1 models
 
 Author(s): Raghav Kansal
 """
+from __future__ import annotations
 
 import argparse
 import os
-from math import ceil
-from string import Template
-import json
-import sys
+from pathlib import Path
 
-from utils import add_bool_arg, write_template, setup, parse_common_args
+from utils import setup
 
-
-def add_bool_arg(parser, name, help, default=False, no_name=None):
-    """Add a boolean command line argument for argparse"""
-    varname = "_".join(name.split("-"))  # change hyphens to underscores
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument("--" + name, dest=varname, action="store_true", help=help)
-    if no_name is None:
-        no_name = "no-" + name
-        no_help = "don't " + help
-    else:
-        no_help = help
-    group.add_argument("--" + no_name, dest=varname, action="store_false", help=no_help)
-    parser.set_defaults(**{varname: default})
-
-
-def write_template(templ_file: str, out_file: str, templ_args: dict):
-    """Write to ``out_file`` based on template from ``templ_file`` using ``templ_args``"""
-
-    with open(templ_file, "r") as f:
-        templ = Template(f.read())
-
-    with open(out_file, "w") as f:
-        f.write(
-            templ.safe_substitute(
-                templ_args,
-            )
-        )
+from HHbbVV import run_utils
+from HHbbVV.run_utils import add_bool_arg
 
 
 def main(args):
     t2_local_prefix, t2_prefix, proxy, username, submitdir = setup(args)
-
-    username = os.environ["USER"]
-    local_dir = f"condor/f_tests/{args.tag}_{args.low1}{args.low2}"
+    local_dir = Path(f"condor/f_tests/{args.tag}_{args.low1}{args.low2}")
 
     # make local directory
-    logdir = local_dir + "/logs"
-    os.system(f"mkdir -p {logdir}")
+    logdir = local_dir / "logs"
+    logdir.mkdir(parents=True, exist_ok=True)
 
     # and eos directories
     for i, j in [(0, 0), (0, 1), (1, 0)]:
@@ -70,7 +41,9 @@ def main(args):
 
     for j in range(args.num_jobs):
         prefix = f"ftests_{args.low1}{args.low2}"
-        localcondor = f"{local_dir}/{prefix}_{j}.jdl"
+        local_jdl = Path(f"{local_dir}/{prefix}_{j}.jdl")
+        local_log = Path(f"{local_dir}/{prefix}_{j}.log")
+
         jdl_args = {
             "dir": local_dir,
             "prefix": prefix,
@@ -78,7 +51,7 @@ def main(args):
             "jobid": j,
             "proxy": proxy,
         }
-        write_template(jdl_templ, localcondor, jdl_args)
+        run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
         localsh = f"{local_dir}/{prefix}_{j}.sh"
         sh_args = {
@@ -88,16 +61,16 @@ def main(args):
             "in_seed": args.seed + j * args.toys_per_job,
             "in_num_toys": args.toys_per_job,
         }
-        write_template(sh_templ, localsh, sh_args)
+        run_utils.write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
 
-        if os.path.exists(f"{localcondor}.log"):
-            os.system(f"rm {localcondor}.log")
+        if local_log.exists():
+            local_log.unlink()
 
         if args.submit:
-            os.system("condor_submit %s" % localcondor)
+            os.system(f"condor_submit {local_jdl}")
         else:
-            print("To submit ", localcondor)
+            print("To submit ", local_jdl)
 
 
 if __name__ == "__main__":

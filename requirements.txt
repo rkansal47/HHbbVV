@@ -1,0 +1,17 @@
+awkward==1.10.4
+cachetools==5.3.1
+coffea==0.7.21
+colorama==0.4.6
+correctionlib==2.2.2
+fastjet==3.4.0.1  # pre awkward v2, but doesn't work on mac!
+hist==2.7.1
+lz4
+numpy==1.23.5
+pandas==2.0.3
+pyarrow==12.0.1
+PyYAML==6.0.1
+tqdm==4.65.0
+tritonclient[all]
+uproot==4.3.7
+vector==1.1.0
+xxhash

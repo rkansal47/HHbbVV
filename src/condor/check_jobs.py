@@ -4,19 +4,17 @@ Checks that there is an output for each job submitted.
 Author: Raghav Kansal
 """
 
+from __future__ import annotations
+
+import argparse
 import os
 from os import listdir
-from os.path import exists
-import sys
+from pathlib import Path
+
 import numpy as np
-import argparse
-from colorama import Fore, Style
 
-# needed to import run_utils from parent directory
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-
-import run_utils
-
+from HHbbVV import run_utils
+from HHbbVV.run_utils import print_red
 
 parser = argparse.ArgumentParser()
 run_utils.parse_common_args(parser)
@@ -58,14 +56,10 @@ jdl_dict = {
 }
 
 
-def print_red(s):
-    return print(f"{Fore.RED}{s}{Style.RESET_ALL}")
-
-
 running_jobs = []
 if args.check_running:
     os.system("condor_q | awk '{print $9}' > running_jobs.txt")
-    with open("running_jobs.txt", "r") as f:
+    with Path("running_jobs.txt").open() as f:
         lines = f.readlines()
 
     running_jobs = [s[:-4] for s in lines if s.endswith(".sh\n")]
@@ -79,7 +73,7 @@ for sample in samples:
     print(f"Checking {sample}")
 
     if not trigger_processor:
-        if not exists(f"{eosdir}/{sample}/parquet"):
+        if not Path(f"{eosdir}/{sample}/parquet").exists():
             print_red(f"No parquet directory for {sample}!")
 
             for i in range(jdl_dict[sample]):
@@ -102,7 +96,7 @@ for sample in samples:
         ]
         print(f"Out parquets: {outs_parquet}")
 
-    if not exists(f"{eosdir}/{sample}/pickles"):
+    if not Path(f"{eosdir}/{sample}/pickles").exists():
         print_red(f"No pickles directory for {sample}!")
         continue
 
@@ -127,15 +121,14 @@ for sample in samples:
             if args.submit_missing:
                 os.system(f"condor_submit {jdl_file}")
 
-        if not trigger_processor:
-            if i not in outs_parquet:
-                print_red(f"Missing output parquet #{i} for sample {sample}")
+        if not trigger_processor and i not in outs_parquet:
+            print_red(f"Missing output parquet #{i} for sample {sample}")
 
 
 print(f"{len(missing_files)} files to re-run:")
 for f in missing_files:
     print(f)
 
-print(f"\nError files:")
+print("\nError files:")
 for f in err_files:
     print(f)

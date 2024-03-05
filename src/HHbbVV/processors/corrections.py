@@ -9,30 +9,31 @@ See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/
 Authors: Raghav Kansal, Cristina Suarez
 """
 
-import os
-from typing import Dict, List, Tuple, Union
-import numpy as np
-import gzip
-import pickle
-import correctionlib
-import awkward as ak
+from __future__ import annotations
 
+import pickle
+from pathlib import Path
+
+import awkward as ak
+import correctionlib
+import numpy as np
 from coffea import util as cutil
 from coffea.analysis_tools import Weights
 from coffea.lookup_tools.dense_lookup import dense_lookup
-from coffea.nanoevents.methods.nanoaod import MuonArray, JetArray, FatJetArray, GenParticleArray
-from coffea.nanoevents.methods.base import NanoEventsArray
 from coffea.nanoevents.methods import vector
-
-ak.behavior.update(vector.behavior)
-
-import pathlib
+from coffea.nanoevents.methods.base import NanoEventsArray
+from coffea.nanoevents.methods.nanoaod import (
+    FatJetArray,
+    GenParticleArray,
+    JetArray,
+    MuonArray,
+)
 
 from . import utils
-from .utils import P4, pad_val, PAD_VAL
+from .utils import P4, PAD_VAL, pad_val
 
-
-package_path = str(pathlib.Path(__file__).parent.parent.resolve())
+ak.behavior.update(vector.behavior)
+package_path = Path(__file__).parent.parent.resolve()
 
 
 """
@@ -41,7 +42,7 @@ See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/
 """
 pog_correction_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/"
 pog_jsons = {
-    "muon": ["MUO", "muon_Z_v2.json.gz"],
+    "muon": ["MUO", "muon_Z.json.gz"],
     "electron": ["EGM", "electron.json.gz"],
     "pileup": ["LUM", "puWeights.json.gz"],
     "btagging": ["BTV", "btagging.json.gz"],
@@ -135,7 +136,7 @@ def add_VJets_kFactors(weights, genpart, dataset):
     """Revised version of add_VJets_NLOkFactor, for both NLO EW and ~NNLO QCD"""
 
     vjets_kfactors = correctionlib.CorrectionSet.from_file(
-        package_path + "/corrections/ULvjets_corrections.json"
+        str(package_path / "corrections/ULvjets_corrections.json")
     )
 
     def get_vpt(genpart, check_offshell=False):
@@ -297,9 +298,9 @@ def add_btag_weights(
     algo: str = "deepJet",
 ):
     """Method 1b from https://twiki.cern.ch/twiki/bin/viewauth/CMS/BTagSFMethods"""
-    ul_year = get_UL_year(year)
+    get_UL_year(year)
     cset = correctionlib.CorrectionSet.from_file(get_pog_json("btagging", year))
-    efflookup = cutil.load(package_path + f"/corrections/btag_effs/btageff_deepJet_M_{year}.coffea")
+    efflookup = cutil.load(package_path / f"corrections/btag_effs/btageff_deepJet_M_{year}.coffea")
 
     lightJets = jets[jets.hadronFlavour == 0]
     bcJets = jets[jets.hadronFlavour > 0]
@@ -337,7 +338,7 @@ def add_pileupid_weights(weights: Weights, year: str, jets: JetArray, genjets, w
 
     sfs_var = []
     for var in ["nom", "up", "down"]:
-        # correctionlib < 2.3 doesn't accept jagged arrays (but >= 2.3 needs awkard v2)
+        # correctionlib < 2.3 doesn't accept jagged arrays (but >= 2.3 needs awkward v2)
         sfs = sf_cset.evaluate(ak.flatten(jets.eta), ak.flatten(jets.pt), var, wp)
         # reshape flat effs
         sfs = ak.Array(ak.layout.ListOffsetArray64(offsets, ak.layout.NumpyArray(sfs)))
@@ -482,7 +483,7 @@ def add_top_pt_weight(weights: Weights, events: NanoEventsArray):
 
 # find corrections path using this file's path
 try:
-    with open(package_path + "/corrections/jec_compiled.pkl", "rb") as filehandler:
+    with (package_path / "corrections/jec_compiled.pkl").open("rb") as filehandler:
         jmestuff = pickle.load(filehandler)
 
     ak4jet_factory = jmestuff["jet_factory"]
@@ -505,7 +506,7 @@ def get_jec_jets(
     events: NanoEventsArray,
     year: str,
     isData: bool = False,
-    jecs: Dict[str, str] = None,
+    jecs: dict[str, str] = None,
     fatjets: bool = True,
 ) -> FatJetArray:
     """
@@ -600,7 +601,7 @@ jmsValues["particleNet_mass"] = {
 
 def get_jmsr(
     fatjets: FatJetArray, num_jets: int, year: str, isData: bool = False, seed: int = 42
-) -> Dict:
+) -> dict:
     """Calculates post JMS/R masses and shifts"""
     jmsr_shifted_vars = {}
 
@@ -615,9 +616,9 @@ def get_jmsr(
             np.random.seed(seed)
             smearing = np.random.normal(size=mass.shape)
             # scale to JMR nom, down, up (minimum at 0)
-            jmr_nom, jmr_down, jmr_up = [
+            jmr_nom, jmr_down, jmr_up = (
                 ((smearing * max(jmrValues[mkey][year][i] - 1, 0)) + 1) for i in range(3)
-            ]
+            )
             jms_nom, jms_down, jms_up = jmsValues[mkey][year]
 
             mass_jms = mass * jms_nom
@@ -636,7 +637,7 @@ def get_jmsr(
 
 def add_trig_effs(weights: Weights, fatjets: FatJetArray, year: str, num_jets: int = 2):
     """Add the trigger efficiencies we measured in SingleMuon data"""
-    with open(f"{package_path}/corrections/trigEffs/{year}_combined.pkl", "rb") as filehandler:
+    with (package_path / f"corrections/trigEffs/{year}_combined.pkl").open("rb") as filehandler:
         combined = pickle.load(filehandler)
 
     # sum over TH4q bins
@@ -681,14 +682,14 @@ def _get_lund_lookups(year: str, seed: int = 42, lnN: bool = True, trunc_gauss: 
     import fastjet
 
     dR = 0.8
-    cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
-    ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
+    fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
+    fastjet.JetDefinition(fastjet.kt_algorithm, dR)
     n_LP_sf_toys = 100
 
     import uproot
 
     # initialize lund plane scale factors lookups
-    f = uproot.open(package_path + f"/corrections/lp_ratios/ratio_{year[:4]}.root")
+    f = uproot.open(package_path / f"corrections/lp_ratios/ratio_{year[:4]}.root")
 
     # 3D histogram: [subjet_pt, ln(0.8/Delta), ln(kT/GeV)]
     ratio_nom = f["ratio_nom"].to_numpy()
@@ -815,7 +816,7 @@ def _get_flat_lp_vars(lds, kt_subjets_pt):
 def _get_lund_arrays(
     events: NanoEventsArray,
     jec_fatjets: FatJetArray,
-    fatjet_idx: Union[int, ak.Array],
+    fatjet_idx: int | ak.Array,
     num_prongs: int,
 ):
     """
@@ -842,14 +843,9 @@ def _get_lund_arrays(
     nojec_fatjets_pt = events.FatJet.pt[np.arange(len(jec_fatjets)), fatjet_idx]
     jec_correction = (jec_fatjets.pt / nojec_fatjets_pt)[:, np.newaxis]
 
-    print("nojec fatjet pt", nojec_fatjets_pt)
-    print("jec fatjet pt", jec_fatjets.pt)
-    print("jec correction", jec_correction)
-
     dR = 0.8
     cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
     ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
-    n_LP_sf_toys = 100
 
     # get pfcands of the top-matched jets
     ak8_pfcands = events.FatJetPFCands
@@ -893,13 +889,12 @@ def _calc_lund_SFs(
     flat_subjet_pt: np.ndarray,
     ld_offsets: ak.Array,
     num_prongs: int,
-    ratio_lookups: List[dense_lookup],
-    pt_extrap_lookups: List[dense_lookup],
+    ratio_lookups: list[dense_lookup],
+    pt_extrap_lookups: list[dense_lookup],
     max_pt_bin: int = MAX_PT_BIN,
     max_fparams: int = MAX_PT_FPARAMS,
     clip_max: float = 10,
     clip_min: float = 0.1,
-    set_breakpoint: bool = False,
 ) -> np.ndarray:
     """
     Calculates scale factors for jets based on splittings in the primary Lund Plane.
@@ -919,12 +914,9 @@ def _calc_lund_SFs(
           parameters to use
 
     Returns:
-        nd.ndarray: SF values per jet for ratio and pt extrap lookup, shape
+        np.ndarray: SF values per jet for ratio and pt extrap lookup, shape
           ``[n_jets, len(ratio_lookups) * len(pt_extrap_lookups)]``.
     """
-    if set_breakpoint:
-        breakpoint()
-
     # get high pT subjets for extrapolation
     high_pt_sel = flat_subjet_pt > max_pt_bin
     hpt_logD = flat_logD[high_pt_sel]
@@ -977,14 +969,14 @@ def get_lund_SFs(
     year: str,
     events: NanoEventsArray,
     jec_fatjets: FatJetArray,
-    fatjet_idx: Union[int, ak.Array],
+    fatjet_idx: int | ak.Array,
     num_prongs: int,
     gen_quarks: GenParticleArray,
     seed: int = 42,
     trunc_gauss: bool = False,
     lnN: bool = True,
     gen_bs: GenParticleArray = None,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """
     Calculates scale factors for jets based on splittings in the primary Lund Plane.
     Calculates random smearings for statistical uncertainties, total up/down systematic variation,
@@ -1006,7 +998,7 @@ def get_lund_SFs(
     """
 
     # global variable to not have to load + smear LP ratios each time
-    global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down, pt_extrap_lookups_dict, bratio, lp_year
+    global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down, pt_extrap_lookups_dict, bratio, lp_year  # noqa: PLW0603
 
     if (
         (lnN and ratio_lnN_smeared_lookups is None)

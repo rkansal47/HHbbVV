@@ -52,7 +52,7 @@ do
     python -u postprocessing.py --control-plots --year $year ${resonant} ${hem2d} \
     --data-dir "${MAIN_DIR}/../data/skimmer/Feb24" \
     --signal-data-dirs "${MAIN_DIR}/../data/skimmer/Jun10" "${MAIN_DIR}/../data/skimmer/Apr11" \
-    --sig-samples ${samples} \
+    --sig-samples "$samples" \
     --bdt-preds-dir "${MAIN_DIR}/../data/skimmer/Feb24/23_05_12_multiclass_rem_feats_3/inferences" \
     --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG"
 done

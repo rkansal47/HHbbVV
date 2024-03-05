@@ -4,13 +4,11 @@ Common functions for processors.
 Author(s): Raghav Kansal
 """
 
-import numpy as np
+from __future__ import annotations
+
 import awkward as ak
-
+import numpy as np
 from coffea.analysis_tools import PackedSelection
-
-from typing import List, Dict
-
 
 P4 = {
     "eta": "Eta",
@@ -69,7 +67,7 @@ def add_selection_no_cutflow(
     selection.add(name, ak.fill_none(sel, False))
 
 
-def concatenate_dicts(dicts_list: List[Dict[str, np.ndarray]]):
+def concatenate_dicts(dicts_list: list[dict[str, np.ndarray]]):
     """given a list of dicts of numpy arrays, concatenates the numpy arrays across the lists"""
     if len(dicts_list) > 1:
         return {
@@ -86,7 +84,7 @@ def concatenate_dicts(dicts_list: List[Dict[str, np.ndarray]]):
         return dicts_list[0]
 
 
-def select_dicts(dicts_list: List[Dict[str, np.ndarray]], sel: np.ndarray):
+def select_dicts(dicts_list: list[dict[str, np.ndarray]], sel: np.ndarray):
     """given a list of dicts of numpy arrays, select the entries per array across the lists according to ``sel``"""
     return {
         key: np.stack(
@@ -156,7 +154,7 @@ class Weights:
 
         .. note:: ``weightUp`` and ``weightDown`` are assumed to be rvalue-like and may be modified in-place by this function
         """
-        if name.endswith("Up") or name.endswith("Down"):
+        if name.endswith(("Up", "Down")):
             raise ValueError(
                 "Avoid using 'Up' and 'Down' in weight names, instead pass appropriate shifts to add() call"
             )
@@ -204,7 +202,7 @@ class Weights:
             return self._weight / self._modifiers[modifier.replace("Down", "Up")]
         return self._weight * self._modifiers[modifier]
 
-    def partial_weight(self, include=[], exclude=[], modifier=None):
+    def partial_weight(self, include=None, exclude=None, modifier=None):
         """Partial event weight vector
 
         Return a partial weight by multiplying a subset of all weights.
@@ -228,6 +226,10 @@ class Weights:
                 The weight vector, corresponding to only the effect of the
                 corrections specified.
         """
+        if exclude is None:
+            exclude = []
+        if include is None:
+            include = []
         if not self._storeIndividual:
             raise ValueError(
                 "To be able to request weight exclusion, use storeIndividual=True when creating Weights object."
@@ -258,6 +260,6 @@ class Weights:
         """List of available modifiers"""
         keys = set(self._modifiers.keys())
         # add any missing 'Down' variation
-        for k in self._modifiers.keys():
+        for k in self._modifiers:
             keys.add(k.replace("Up", "Down"))
         return keys

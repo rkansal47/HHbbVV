@@ -10,27 +10,22 @@ Post processing skimmed parquet files (output of bbVVSkimmer processor):
 Author(s): Raghav Kansal, Cristina Mantilla Suarez
 """
 
+from __future__ import annotations
+
+import importlib
 import os
-import sys
 import pickle
+import sys
+from inspect import cleandoc
 
 import numpy as np
 import pandas as pd
-from hist import Hist
-
-import utils
 import plotting
-
-from typing import Dict, List, Tuple
-from inspect import cleandoc
-from textwrap import dedent
-
-from hh_vars import sig_key, data_key, qcd_key, bg_keys
+import utils
+from hist import Hist
 from utils import CUT_MAX_VAL
 
-from pprint import pprint
-
-import importlib
+from HHbbVV.hh_vars import bg_keys, data_key, qcd_key, sig_key
 
 _ = importlib.reload(utils)
 _ = importlib.reload(plotting)
@@ -107,7 +102,7 @@ args.scan = True
 
 
 def main(args):
-    from hh_vars import samples, bdt_sample_order
+    from HHbbVV.hh_vars import bdt_sample_order, samples
 
     # make plot, template dirs if needed
     make_dirs(args)
@@ -188,7 +183,7 @@ def make_dirs(args):
 
 
 def apply_weights(
-    events_dict: Dict[str, pd.DataFrame],
+    events_dict: dict[str, pd.DataFrame],
     year: str,
     cutflow: pd.DataFrame,
     weight_key: str = "finalWeight",
@@ -243,7 +238,7 @@ def apply_weights(
     utils.add_to_cutflow(events_dict, "QCD SF", weight_key, cutflow)
 
 
-def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+def bb_VV_assignment(events_dict: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
     """
     Creates a dataframe of masks for extracting the bb or VV candidates.
     bb candidate is chosen based on higher Txbb score.
@@ -263,7 +258,7 @@ def bb_VV_assignment(events_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataF
     return bb_masks
 
 
-def derive_variables(events_dict: Dict[str, pd.DataFrame], bb_masks: Dict[str, pd.DataFrame]):
+def derive_variables(events_dict: dict[str, pd.DataFrame], bb_masks: dict[str, pd.DataFrame]):
     """Derives more dijet kinematic variables for control plots."""
     for sample, events in events_dict.items():
         bb_mask = bb_masks[sample]
@@ -287,7 +282,7 @@ def derive_variables(events_dict: Dict[str, pd.DataFrame], bb_masks: Dict[str, p
 
 
 def load_bdt_preds(
-    events_dict: Dict[str, pd.DataFrame], bdt_preds: str, bdt_sample_order: List[str]
+    events_dict: dict[str, pd.DataFrame], bdt_preds: str, bdt_sample_order: list[str]
 ):
     """
     Loads the BDT scores for each event and saves in the dataframe in the "BDTScore" column.
@@ -308,9 +303,9 @@ def load_bdt_preds(
 
 
 def control_plots(
-    events_dict: Dict[str, pd.DataFrame],
-    bb_masks: Dict[str, pd.DataFrame],
-    control_plot_vars: Dict[str, Tuple],
+    events_dict: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame],
+    control_plot_vars: dict[str, tuple],
     plot_dir: str,
     weight_key: str = "finalWeight",
 ):
@@ -356,17 +351,17 @@ def control_plots(
 
 
 def get_templates(
-    events_dict: Dict[str, pd.DataFrame],
-    bb_masks: Dict[str, pd.DataFrame],
-    selection_regions: Dict[str, Dict],
-    shape_var: Tuple[str],
-    shape_bins: List[float],
-    blind_window: List[float],
+    events_dict: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame],
+    selection_regions: dict[str, dict],
+    shape_var: tuple[str],
+    shape_bins: list[float],
+    blind_window: list[float],
     plot_dir: str = "",
     prev_cutflow: pd.DataFrame = None,
     weight_key: str = "finalWeight",
     cutstr: str = "",
-) -> Dict[str, Hist]:
+) -> dict[str, Hist]:
     """
     (1) Makes histograms for each region in the ``selection_regions`` dictionary,
     (2) Saves a plot of each (if ``plot_dir`` is not ""),
@@ -442,7 +437,7 @@ def get_templates(
     return templates
 
 
-def save_templates(templates: Dict[str, Hist], blind_window: List[float], template_file: str):
+def save_templates(templates: dict[str, Hist], blind_window: list[float], template_file: str):
     """Creates blinded copies of each region's templates and saves a pickle of the templates"""
 
     from copy import deepcopy

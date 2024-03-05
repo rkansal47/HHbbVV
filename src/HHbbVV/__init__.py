@@ -1,8 +1,11 @@
-import HHbbVV.combine
-import HHbbVV.corrections
-import HHbbVV.data
-import HHbbVV.processors
-import HHbbVV.postprocessing
-import HHbbVV.scale_factors
+"""
+Copyright (c) 2024 Raghav Kansal. All rights reserved.
 
-__version__ = "0.0.1"
+HHbbVV: A package for the analysis of the HH->bbVV all-hadronic channel.
+"""
+
+from __future__ import annotations
+
+__version__ = "0.1.0"
+
+__all__ = ["__version__"]

@@ -1,7 +1,14 @@
-import warnings
-
 # from distributed.diagnostics.plugin import WorkerPlugin
+from __future__ import annotations
+
 import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+from string import Template
+
+from colorama import Fore, Style
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
@@ -18,6 +25,20 @@ def add_bool_arg(parser, name, help, default=False, no_name=None):
     parser.set_defaults(**{varname: default})
 
 
+def write_template(templ_file: str, out_file: Path, templ_args: dict):
+    """Write to ``out_file`` based on template from ``templ_file`` using ``templ_args``"""
+
+    with Path(templ_file).open() as f:
+        templ = Template(f.read())
+
+    with Path(out_file).open("w") as f:
+        f.write(templ.substitute(templ_args))
+
+
+def print_red(s):
+    return print(f"{Fore.RED}{s}{Style.RESET_ALL}")
+
+
 def add_mixins(nanoevents):
     # for running on condor
     nanoevents.PFNanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
@@ -29,6 +50,43 @@ def add_mixins(nanoevents):
     nanoevents.PFNanoAODSchema.mixins["SubJet"] = "FatJet"
     nanoevents.PFNanoAODSchema.mixins["PFCands"] = "PFCand"
     nanoevents.PFNanoAODSchema.mixins["SV"] = "PFCand"
+
+
+def check_branch(git_branch: str, allow_diff_local_repo: bool = False):
+    """Check that specified git branch exists in the repo, and local repo is up-to-date"""
+    assert not bool(
+        os.system(
+            f'git ls-remote --exit-code --heads "https://github.com/rkansal47/HHbbVV" "{git_branch}"'
+        )
+    ), f"Branch {git_branch} does not exist"
+
+    print(f"Using branch {git_branch}")
+
+    # check if there are uncommitted changes
+    uncommited_files = int(subprocess.getoutput("git status -s | wc -l"))
+
+    if uncommited_files:
+        print_red("There are local changes that have not been committed!")
+        os.system("git status -s")
+        if allow_diff_local_repo:
+            print_red("Proceeding anyway...")
+        else:
+            print_red("Exiting! Use the --allow-diff-local-repo option to override this.")
+            sys.exit(1)
+
+    # check that the local repo's latest commit matches that on github
+    remote_hash = subprocess.getoutput(f"git show origin/{git_branch} | head -n 1").split(" ")[1]
+    local_hash = subprocess.getoutput("git rev-parse HEAD")
+
+    if remote_hash != local_hash:
+        print_red("Latest local and github commits do not match!")
+        print(f"Local commit hash: {local_hash}")
+        print(f"Remote commit hash: {remote_hash}")
+        if allow_diff_local_repo:
+            print_red("Proceeding anyway...")
+        else:
+            print_red("Exiting! Use the --allow-diff-local-repo option to override this.")
+            sys.exit(1)
 
 
 # for Dask executor
@@ -55,10 +113,9 @@ def get_fileset(
     if processor.startswith("trigger"):
         samples = [f"SingleMu{year[:4]}"]
 
-    # redirector = "root://cmsxrootd.fnal.gov//" if not coffea_casa else "root://xcache//"
     redirector = "root://cmseos.fnal.gov//" if not coffea_casa else "root://xcache//"
 
-    with open(f"data/pfnanoindex_{year}.json", "r") as f:
+    with Path(f"data/pfnanoindex_{year}.json").open() as f:
         full_fileset_pfnano = json.load(f)
 
     fileset = {}
@@ -86,8 +143,8 @@ def get_fileset(
             sample_fileset = {}
 
             for subsample, fnames in sample_set.items():
-                fnames = fnames[starti:] if endi < 0 else fnames[starti:endi]
-                sample_fileset[f"{year}_{subsample}"] = [redirector + fname for fname in fnames]
+                run_fnames = fnames[starti:] if endi < 0 else fnames[starti:endi]
+                sample_fileset[f"{year}_{subsample}"] = [redirector + fname for fname in run_fnames]
 
             fileset = {**fileset, **sample_fileset}
 
@@ -95,11 +152,11 @@ def get_fileset(
 
 
 def get_xsecs():
-    with open("data/xsecs.json") as f:
+    with Path("data/xsecs.json").open() as f:
         xsecs = json.load(f)
 
     for key, value in xsecs.items():
-        if type(value) == str:
+        if isinstance(value, str):
             xsecs[key] = eval(value)
 
     return xsecs
@@ -152,8 +209,8 @@ def get_processor(
 def parse_common_args(parser):
     parser.add_argument(
         "--processor",
-        default="trigger",
-        help="Trigger processor",
+        required=True,
+        help="Which processor to run",
         type=str,
         choices=["trigger", "trigger4d", "skimmer", "input", "ttsfs", "xhy"],
     )

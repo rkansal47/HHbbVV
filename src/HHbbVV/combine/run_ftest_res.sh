@@ -25,7 +25,7 @@ while true; do
             goftoys=1
             ;;
         -f|--ffits)
-            ffitss=1
+            ffits=1
             ;;
         -d|--dfit)
             dfit=1
@@ -75,13 +75,10 @@ goftoys=$goftoys ffits=$ffits seed=$seed numtoys=$numtoys"
 
 templates_dir="/eos/uscms/store/user/rkansal/bbVV/templates/${templates_tag}"
 cards_dir="cards/f_tests/${cards_tag}/"
-mkdir -p ${cards_dir}
+mkdir -p "${cards_dir}"
 echo "Saving datacards to ${cards_dir}"
 
 # these are for inside the different cards directories
-dataset=data_obs
-ws="./combined"
-wsm=${ws}_withmasks
 wsm_snapshot=higgsCombineSnapshot.MultiDimFit.mH125
 
 outsdir="./outs"
@@ -117,11 +114,11 @@ do
         model_name="nTF1_${ord1}_nTF2_${ord2}"
         if [ ! -f "${cards_dir}/${model_name}/higgsCombineData.GoodnessOfFit.mH125.root" ]; then
             echo "Making Datacard for $model_name"
-            python3 -u postprocessing/CreateDatacard.py --templates-dir ${templates_dir} --sig-separate \
-            --resonant --model-name ${model_name} --sig-sample ${sig_sample} \
-            --nTF ${ord2} ${ord1} --cards-dir ${cards_dir}
+            python3 -u postprocessing/CreateDatacard.py --templates-dir "${templates_dir}" --sig-separate \
+            --resonant --model-name "${model_name}" --sig-sample" ${sig_sample}" \
+            --nTF "${ord2}" "${ord1}" --cards-dir "${cards_dir}"
 
-            cd ${cards_dir}/${model_name}/
+            cd "${cards_dir}"/"${model_name}"/ || exit
 
             /uscms/home/rkansal/hhcombine/combine_scripts/run_blinded.sh -wbgr
 
@@ -129,7 +126,7 @@ do
                 /uscms/home/rkansal/hhcombine/combine_scripts/run_blinded.sh -dr
             fi
 
-            cd -
+            cd - || exit
         fi
     done
 done
@@ -142,7 +139,7 @@ done
 if [ $goftoys = 1 ]; then
     model_name="nTF1_0_nTF2_0"
     toys_name="00"
-    cd ${cards_dir}/${model_name}/
+    cd "${cards_dir}/${model_name}/" || exit
     toys_file="$(pwd)/higgsCombineToys${toys_name}.GenerateOnly.mH125.42.root"
 
     ulimit -s unlimited
@@ -150,11 +147,11 @@ if [ $goftoys = 1 ]; then
     echo "Toys for (0, 0) order fit"
     combine -M GenerateOnly -m 125 -d ${wsm_snapshot}.root \
     --snapshotName MultiDimFit --bypassFrequentistFit \
-    --setParameters ${maskunblindedargs},${setparams},r=0 \
-    --freezeParameters ${freezeparams},r \
-    -n "Toys${toys_name}" -t $numtoys --saveToys -s $seed -v 9 2>&1 | tee $outsdir/gentoys.txt
+    --setParameters "${maskunblindedargs},${setparams},r=0" \
+    --freezeParameters "${freezeparams},r" \
+    -n "Toys${toys_name}" -t "$numtoys" --saveToys -s "$seed" -v 9 2>&1 | tee $outsdir/gentoys.txt
 
-    cd -
+    cd - || exit
 fi
 
 
@@ -162,12 +159,12 @@ fi
 # GoFs on generated toys for next order polynomials
 ####################################################################################################
 
-if [ $ffit = 1 ]; then
+if [ $ffits = 1 ]; then
     for ord1 in {0..1}
     do
         for ord2 in {0..1}
         do
-            if [ $ord1 -gt 0 ] && [ $ord2 -gt 0 ]
+            if [ "$ord1" -gt 0 ] && [ "$ord2" -gt 0 ]
             then
                 break
             fi
@@ -175,16 +172,16 @@ if [ $ffit = 1 ]; then
             model_name="nTF1_${ord1}_nTF2_${ord2}"
             echo "Fits for $model_name"
 
-            cd ${cards_dir}/${model_name}/
+            cd "${cards_dir}/${model_name}/" || exit
 
             ulimit -s unlimited
 
             combine -M GoodnessOfFit -d ${wsm_snapshot}.root --algo saturated -m 125 \
-            --setParameters ${maskunblindedargs},${setparams},r=0 \
-            --freezeParameters ${freezeparams},r \
-            -n Toys${toys_name} -v 9 -s $seed -t $numtoys --toysFile ${toys_file} 2>&1 | tee $outsdir/GoF_toys${toys_name}.txt
+            --setParameters "${maskunblindedargs},${setparams},r=0" \
+            --freezeParameters "${freezeparams},r" \
+            -n "Toys${toys_name}" -v 9 -s "$seed" -t "$numtoys" --toysFile "${toys_file}" 2>&1 | tee "$outsdir/GoF_toys${toys_name}.txt"
 
-            cd -
+            cd - || exit
         done
     done
 fi

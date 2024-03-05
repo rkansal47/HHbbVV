@@ -3,44 +3,46 @@ Skimmer for bbVV analysis.
 Author(s): Raghav Kansal, Cristina Suarez
 """
 
-import numpy as np
-import awkward as ak
-import pandas as pd
+from __future__ import annotations
 
+import json
+import logging
+from collections import OrderedDict
+from pathlib import Path
+
+import awkward as ak
+import numpy as np
+import vector
 from coffea import processor
 from coffea.analysis_tools import PackedSelection
-from coffea.nanoevents.methods.nanoaod import JetArray
-import vector
 
-import pathlib
-import pickle, json, gzip
-import os
+import HHbbVV
+from HHbbVV import hh_vars
+from HHbbVV.hh_vars import jec_shifts, jmsr_shifts
 
-from typing import Dict, Tuple
-from collections import OrderedDict
-
-from .SkimmerABC import SkimmerABC
-from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV, G_PDGID
-from .TaggerInference import runInferenceTriton
-from .utils import pad_val, add_selection, concatenate_dicts, select_dicts, P4, Weights
+from . import utils
+from .common import HLTs
 from .corrections import (
+    add_lepton_id_weights,
     add_pileup_weight,
     add_pileupid_weights,
-    add_VJets_kFactors,
-    add_top_pt_weight,
     add_ps_weight,
-    get_scale_weights,
-    get_pdf_weights,
     add_trig_effs,
-    get_jec_key,
+    add_VJets_kFactors,
     get_jec_jets,
     get_jmsr,
     get_lund_SFs,
-    add_lepton_id_weights,
+    get_pdf_weights,
+    get_scale_weights,
 )
-from .common import LUMI, HLTs, btagWPs, jec_shifts, jmsr_shifts
-from . import corrections, common, utils
-
+from .GenSelection import (
+    gen_selection_HH4V,
+    gen_selection_HHbbVV,
+    gen_selection_HYbbVV,
+)
+from .SkimmerABC import SkimmerABC
+from .TaggerInference import runInferenceTriton
+from .utils import P4, Weights, add_selection, concatenate_dicts, pad_val
 
 # mapping samples to the appropriate function for doing gen-level selections
 gen_selection_dict = {
@@ -53,9 +55,6 @@ gen_selection_dict = {
     "GluGluToHHTo4V_node_cHHH1": gen_selection_HH4V,
     "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
 }
-
-
-import logging
 
 logging.basicConfig(level=logging.INFO)
 # logger = logging.getLogger("bbVVSkimmer")
@@ -74,7 +73,7 @@ class bbVVSkimmer(SkimmerABC):
     """
 
     # key is name in nano files, value will be the name in the skimmed output
-    skim_vars = {
+    skim_vars = {  # noqa: RUF012
         "FatJet": {
             **P4,
             "msoftdrop": "Msd",
@@ -88,7 +87,7 @@ class bbVVSkimmer(SkimmerABC):
         "other": {"MET_pt": "MET_pt", "MET_phi": "MET_phi"},
     }
 
-    preselection = {
+    preselection = {  # noqa: RUF012
         "pt": 300.0,
         "eta": 2.4,
         "VVmsd": 50,
@@ -102,7 +101,7 @@ class bbVVSkimmer(SkimmerABC):
         # "nGoodElectrons": 0,
     }
 
-    ak4_jet_selection = {
+    ak4_jet_selection = {  # noqa: RUF012
         "pt": 25,
         "eta": 2.7,
         "jetId": "tight",
@@ -111,10 +110,10 @@ class bbVVSkimmer(SkimmerABC):
         "dR_fatjetVV": 0.8,
     }
 
-    jecs = common.jecs
+    jecs = hh_vars.jecs
 
     # only the branches necessary for templates and post processing
-    min_branches = [
+    min_branches = [  # noqa: RUF012
         "ak8FatJetPhi",
         "ak8FatJetEta",
         "ak8FatJetPt",
@@ -154,14 +153,16 @@ class bbVVSkimmer(SkimmerABC):
 
     def __init__(
         self,
-        xsecs={},
+        xsecs=None,
         save_ak15=False,
         save_systematics=True,
         lp_sfs=True,
         inference=True,
         save_all=False,
     ):
-        super(bbVVSkimmer, self).__init__()
+        if xsecs is None:
+            xsecs = {}
+        super().__init__()
 
         self.XSECS = xsecs  # in pb
         self.save_ak15 = save_ak15
@@ -179,14 +180,12 @@ class bbVVSkimmer(SkimmerABC):
         self._save_all = save_all
 
         # for tagger model and preprocessing dict
-        self.tagger_resources_path = (
-            str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
-        )
+        self.tagger_resources_path = Path(__file__).parent.resolve() / "tagger_resources"
 
         # MET filters
         # https://twiki.cern.ch/twiki/bin/view/CMS/MissingETOptionalFiltersRun2
-        package_path = str(pathlib.Path(__file__).parent.parent.resolve())
-        with open(package_path + "/data/metfilters.json", "rb") as filehandler:
+        package_path = Path(__file__).parent.parent.resolve()
+        with (package_path / "data/metfilters.json").open("rb") as filehandler:
             self.metfilters = json.load(filehandler)
 
         self._accumulator = processor.dict_accumulator({})
@@ -207,7 +206,6 @@ class bbVVSkimmer(SkimmerABC):
         dataset = "_".join(events.metadata["dataset"].split("_")[1:])
 
         isData = "JetHT" in dataset
-        isQCD = "QCD" in dataset
         isSignal = (
             "GluGluToHHTobbVV" in dataset
             or "XToYHTo2W2BTo4Q2B" in dataset
@@ -326,7 +324,6 @@ class bbVVSkimmer(SkimmerABC):
                 }
 
         # VBF ak4 jet vars
-        ak4_jet_vars = {}
 
         jets, _ = get_jec_jets(events, year, isData, self.jecs, fatjets=False)
 
@@ -655,15 +652,18 @@ class bbVVSkimmer(SkimmerABC):
         ################
 
         if isSignal and self._systematics and self._lp_sfs:
-            # TODO: remember to add new LP variables
+            # (var, # columns)
             items = [
                 ("lp_sf_lnN", 101),
+                ("lp_sf_pt_extrap_vars", 100),
                 ("lp_sf_sys_down", 1),
                 ("lp_sf_sys_up", 1),
                 ("lp_sf_double_matched_event", 1),
+                ("lp_sf_boundary_quarks", 1),
                 ("lp_sf_unmatched_quarks", 1),
-                ("lp_sf_num_sjpt_gt350", 1),
             ]
+
+            logging.info("Starting LP SFs and saving: " + str(items))
 
             if len(skimmed_events["weight"]):
                 genbb = genbb[sel_all]
@@ -704,12 +704,12 @@ class bbVVSkimmer(SkimmerABC):
                             selected_sfs[key] = get_lund_SFs(
                                 year,
                                 events[sel_all][selector],
+                                fatjets[sel_all][selector],
                                 (
                                     i
                                     if self._save_all
-                                    else skimmed_events["ak8FatJetHVV"][selector][:, 1]
+                                    else np.array(skimmed_events["ak8FatJetHVV"][selector][:, 1])
                                 ),  # giving HVV jet index if only doing LP SFs for HVV jet
-                                fatjets[sel_all][selector],
                                 num_prongs,
                                 gen_quarks[selector],
                                 trunc_gauss=False,
@@ -774,9 +774,9 @@ class bbVVSkimmer(SkimmerABC):
                     **{key: val for (key, val) in pnet_vars.items() if key in self.min_branches},
                 }
 
-        df = self.to_pandas(skimmed_events)
+        pddf = self.to_pandas(skimmed_events)
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
-        self.dump_table(df, fname)
+        self.dump_table(pddf, fname)
 
         return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
 
@@ -797,7 +797,7 @@ class bbVVSkimmer(SkimmerABC):
         goodelectronsHH,
         goodmuonsHbb,
         goodmuonsHH,
-    ) -> Tuple[Dict, Dict]:
+    ) -> tuple[dict, dict]:
         """Adds weights and variations, saves totals for all norm preserving weights and variations"""
         weights = Weights(len(events), storeIndividual=True)
         weights.add("genweight", gen_weights)
@@ -821,7 +821,7 @@ class bbVVSkimmer(SkimmerABC):
         ###################### Save all the weights and variations ######################
 
         # these weights should not change the overall normalization, so are saved separately
-        norm_preserving_weights = ["genweight", "pileup", "ISRPartonShower", "FSRPartonShower"]
+        norm_preserving_weights = HHbbVV.hh_vars.norm_preserving_weights
 
         # dictionary of all weights and variations
         weights_dict = {}
@@ -904,7 +904,7 @@ class bbVVSkimmer(SkimmerABC):
         return weights_dict, totals_dict
 
     def getDijetVars(
-        self, ak8FatJetVars: Dict, bb_mask: np.ndarray, pt_shift: str = None, mass_shift: str = None
+        self, ak8FatJetVars: dict, bb_mask: np.ndarray, pt_shift: str = None, mass_shift: str = None
     ):
         """Calculates Dijet variables for given pt / mass JEC / JMS/R variation"""
         dijetVars = {}

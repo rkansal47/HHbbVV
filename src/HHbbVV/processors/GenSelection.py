@@ -4,16 +4,15 @@ Gen selection functions for skimmer.
 Author(s): Raghav Kansal, Cristina Mantilla Suarez, Melissa Quinnan
 """
 
-import numpy as np
-import awkward as ak
+from __future__ import annotations
 
+import awkward as ak
+import numpy as np
 from coffea.analysis_tools import PackedSelection
 from coffea.nanoevents.methods.base import NanoEventsArray
 from coffea.nanoevents.methods.nanoaod import FatJetArray, GenParticleArray
 
-from typing import List, Dict, Tuple, Union
-
-from .utils import pad_val, add_selection, PAD_VAL
+from .utils import PAD_VAL, add_selection, pad_val
 
 d_PDGID = 1
 u_PDGID = 2
@@ -78,7 +77,7 @@ def gen_selection_HYbbVV(
     VV_children = VV.children
 
     # iterate through the children in photon scattering events to get final daughter quarks
-    for i in range(5):
+    for _i in range(5):
         photon_mask = ak.any(ak.flatten(abs(VV_children.pdgId), axis=2) == G_PDGID, axis=1)
         if not np.any(photon_mask):
             break
@@ -186,7 +185,7 @@ def gen_selection_HHbbVV(
     VV_children = VV.children
 
     # iterate through the children in photon scattering events to get final daughter quarks
-    for i in range(5):
+    for _i in range(5):
         photon_mask = ak.any(ak.flatten(abs(VV_children.pdgId), axis=2) == G_PDGID, axis=1)
         if not np.any(photon_mask):
             break
@@ -199,7 +198,7 @@ def gen_selection_HHbbVV(
     add_selection("all_q", all_q, selection, cutflow, False, signGenWeights)
 
     V_has_2q = ak.count(VV_children.pdgId, axis=2) == 2
-    has_4q = ak.values_astype(ak.prod(V_has_2q, axis=1), np.bool)
+    has_4q = ak.values_astype(ak.prod(V_has_2q, axis=1), bool)
     add_selection("has_4q", has_4q, selection, cutflow, False, signGenWeights)
 
     # saving 4q 4-vector info
@@ -345,7 +344,7 @@ def gen_selection_HVV(
 
 
 def get_pid_mask(
-    genparts: GenParticleArray, pdgids: Union[int, list], ax: int = 2, byall: bool = True
+    genparts: GenParticleArray, pdgids: int | list, ax: int = 2, byall: bool = True
 ) -> ak.Array:
     """
     Get selection mask for gen particles matching any of the pdgIds in ``pdgids``.
@@ -353,7 +352,7 @@ def get_pid_mask(
     """
     gen_pdgids = abs(genparts.pdgId)
 
-    if type(pdgids) == list:
+    if isinstance(pdgids, list):
         mask = gen_pdgids == pdgids[0]
         for pdgid in pdgids[1:]:
             mask = mask | (gen_pdgids == pdgid)
@@ -378,12 +377,12 @@ P4 = {
 def tagger_gen_H_matching(
     genparts: GenParticleArray,
     fatjets: FatJetArray,
-    genlabels: List[str],
+    genlabels: list[str],  # noqa: ARG001
     jet_dR: float,
     match_dR: float = 1.0,
     decays: str = "VV",
     h_pdgid: int = HIGGS_PDGID,
-) -> Tuple[np.array, Dict[str, np.array]]:
+) -> tuple[np.array, dict[str, np.array]]:
     """Gen matching for Higgs samples, arguments as defined in ``tagger_gen_matching``"""
 
     higgs = genparts[get_pid_mask(genparts, h_pdgid, byall=False) * genparts.hasFlags(GEN_FLAGS)]
@@ -527,13 +526,13 @@ def tagger_gen_H_matching(
         # higgs decay
         decay = (
             # 2 b quarks * 1
-            ((ak.sum(daughters_pdgId == b_PDGID, axis=1) == 2)) * 1
+            (ak.sum(daughters_pdgId == b_PDGID, axis=1) == 2) * 1
             # 2 c quarks * 3
-            + ((ak.sum(daughters_pdgId == c_PDGID, axis=1) == 2)) * 3
+            + (ak.sum(daughters_pdgId == c_PDGID, axis=1) == 2) * 3
             # 2 light quarks * 5
-            + ((ak.sum(daughters_pdgId < c_PDGID, axis=1) == 2)) * 5
+            + (ak.sum(daughters_pdgId < c_PDGID, axis=1) == 2) * 5
             # 2 gluons * 7
-            + ((ak.sum(daughters_pdgId == g_PDGID, axis=1) == 2)) * 7
+            + (ak.sum(daughters_pdgId == g_PDGID, axis=1) == 2) * 7
         )
 
         bs_decay = (ak.sum(daughters_pdgId == b_PDGID, axis=1) == 1) * (
@@ -560,18 +559,16 @@ def tagger_gen_H_matching(
         matched_qs_mask = ak.any(fatjets.delta_r(daughters) < jet_dR, axis=1)
         matched_mask = matched_higgs_mask & matched_qs_mask
 
-        breakpoint()
-
     return matched_mask, genVars
 
 
 def tagger_gen_QCD_matching(
     genparts: GenParticleArray,
     fatjets: FatJetArray,
-    genlabels: List[str],
-    jet_dR: float,
+    genlabels: list[str],  # noqa: ARG001
+    jet_dR: float,  # noqa: ARG001
     match_dR: float = 1.0,
-) -> Tuple[np.array, Dict[str, np.array]]:
+) -> tuple[np.array, dict[str, np.array]]:
     """Gen matching for QCD samples, arguments as defined in ``tagger_gen_matching``"""
     partons = genparts[
         get_pid_mask(genparts, [g_PDGID] + list(range(1, b_PDGID + 1)), ax=1, byall=False)
@@ -594,10 +591,10 @@ def tagger_gen_QCD_matching(
 def tagger_gen_VJets_matching(
     genparts: GenParticleArray,
     fatjets: FatJetArray,
-    genlabels: List[str],
+    genlabels: list[str],  # noqa: ARG001
     jet_dR: float,
     match_dR: float = 1.0,
-) -> Tuple[np.array, Dict[str, np.array]]:
+) -> tuple[np.array, dict[str, np.array]]:
     """Gen matching for VJets samples"""
 
     vs = genparts[
@@ -670,10 +667,10 @@ def tagger_gen_VJets_matching(
 def tagger_gen_Top_matching(
     genparts: GenParticleArray,
     fatjets: FatJetArray,
-    genlabels: List[str],
+    genlabels: list[str],  # noqa: ARG001
     jet_dR: float,
     match_dR: float = 1.0,
-) -> Tuple[np.array, Dict[str, np.array]]:
+) -> tuple[np.array, dict[str, np.array]]:
     """Gen matching for TT samples"""
 
     tops = genparts[get_pid_mask(genparts, TOP_PDGID, byall=False) * genparts.hasFlags(GEN_FLAGS)]
@@ -808,10 +805,10 @@ def tagger_gen_matching(
     events: NanoEventsArray,
     genparts: GenParticleArray,
     fatjets: FatJetArray,
-    genlabels: List[str],
+    genlabels: list[str],
     label: str,
     match_dR: float = 1.0,
-) -> Tuple[np.array, Dict[str, np.array]]:
+) -> tuple[np.array, dict[str, np.array]]:
     """Does fatjet -> gen-level matching and derives gen-level variables.
 
     Args:
@@ -860,9 +857,9 @@ def tagger_gen_matching(
 
     # if ``GenVars`` doesn't contain a gen var, that var is not applicable to this sample so fill with 0s
     GenVars = {
-        key: GenVars[key] if key in GenVars.keys() else np.zeros(len(genparts)) for key in genlabels
+        key: GenVars[key] if key in GenVars else np.zeros(len(genparts)) for key in genlabels
     }
-    for key, item in GenVars.items():
+    for key, _item in GenVars.items():
         try:
             GenVars[key] = GenVars[key].to_numpy()
         except:
@@ -872,7 +869,7 @@ def tagger_gen_matching(
 
 
 def ttbar_scale_factor_matching(
-    events: NanoEventsArray, leading_fatjet: FatJetArray, selection_args: Tuple
+    events: NanoEventsArray, leading_fatjet: FatJetArray, selection_args: tuple
 ):
     """
     Classifies jets as top-matched, w-matched, or un-matched using gen info, as defined in
@@ -894,7 +891,7 @@ def ttbar_scale_factor_matching(
     had_top_sel = np.all(np.abs(ws.children.pdgId) <= 5, axis=2)
     had_ws = ak.flatten(ws[had_top_sel])
     had_ws_children = had_ws.children
-    had_tops = ak.flatten(tops[had_top_sel])
+    ak.flatten(tops[had_top_sel])
 
     # check for b's from top
     had_top_children = ak.flatten(tops_children[had_top_sel], axis=1)

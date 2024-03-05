@@ -4,32 +4,23 @@ Get # of quarks per HVV fatjet for resonant samples.
 Author(s): Raghav Kansal
 """
 
-import numpy as np
-import awkward as ak
-import pandas as pd
+from __future__ import annotations
 
-from coffea import processor
-from coffea.analysis_tools import Weights, PackedSelection
-import vector
-from hist import Hist
-
-import pathlib
-import pickle
-import gzip
-import os
-
-from typing import Dict
+import logging
 from collections import OrderedDict
 
-from .GenSelection import gen_selection_HYbbVV
-from .utils import pad_val, add_selection, concatenate_dicts, P4
+import awkward as ak
+import numpy as np
+from coffea import processor
+from coffea.analysis_tools import PackedSelection, Weights
+from hist import Hist
+
 from .corrections import (
-    get_jec_key,
     get_jec_jets,
     get_jmsr,
 )
-
-import logging
+from .GenSelection import gen_selection_HYbbVV
+from .utils import P4, add_selection, pad_val
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -40,7 +31,7 @@ class XHYProcessor(processor.ProcessorABC):
     Histograms of quarks captured per YVV fatjet.
     """
 
-    ak8_jet_selection = {
+    ak8_jet_selection = {  # noqa: RUF012
         "pt": 300.0,
         "eta": 2.4,
         "VVmsd": 50,
@@ -49,13 +40,13 @@ class XHYProcessor(processor.ProcessorABC):
         "bbFatJetParticleNetMD_Txbb": 0.8,
     }
 
-    jecs = {
+    jecs = {  # noqa: RUF012
         "JES": "JES_jes",
         "JER": "JER",
     }
 
     # key is name in nano files, value will be the name in the skimmed output
-    skim_vars = {
+    skim_vars = {  # noqa: RUF012
         "FatJet": {
             **P4,
             "msoftdrop": "Msd",
@@ -69,7 +60,7 @@ class XHYProcessor(processor.ProcessorABC):
     }
 
     def __init__(self):
-        super(XHYProcessor, self).__init__()
+        super().__init__()
 
         self._accumulator = processor.dict_accumulator({})
 
@@ -91,7 +82,7 @@ class XHYProcessor(processor.ProcessorABC):
 
         n_events = np.sum(gen_weights)
         selection = PackedSelection()
-        weights = Weights(len(events), storeIndividual=True)
+        Weights(len(events), storeIndividual=True)
 
         cutflow = OrderedDict()
         cutflow["all"] = n_events

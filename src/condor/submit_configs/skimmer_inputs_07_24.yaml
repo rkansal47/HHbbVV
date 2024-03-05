@@ -1,31 +1,28 @@
-{
-    "Skimmer":
+{ "Skimmer": {
+      # "HH":
+      #     {
+      #         "subsamples": ["GluGluToHHTobbVV_node_cHHH1"],
+      #         "files_per_job": 20,
+      #     },
+      "QCD":
         {
-            # "HH":
-            #     {
-            #         "subsamples": ["GluGluToHHTobbVV_node_cHHH1"],
-            #         "files_per_job": 20,
-            #     },
-            "QCD":
-                {
-                    "files_per_job": 20,
-                    "subsamples":
-                        [
-                            "QCD_HT200to300",
-                            "QCD_HT300to500",
-                            "QCD_HT500to700",
-                            "QCD_HT700to1000",
-                            "QCD_HT1000to1500",
-                            "QCD_HT1500to2000",
-                            "QCD_HT2000toInf",
-                        ],
-                },
-            # "WJetsToQQ": { "files_per_job": 20 },
-            # "TTbar":
-            #     {
-            #         "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
-            #         "files_per_job": 20,
-            #     },
-            # "JetHT2017": { "files_per_job": 20 },
+          "files_per_job": 20,
+          "subsamples":
+            [
+              "QCD_HT200to300",
+              "QCD_HT300to500",
+              "QCD_HT500to700",
+              "QCD_HT700to1000",
+              "QCD_HT1000to1500",
+              "QCD_HT1500to2000",
+              "QCD_HT2000toInf",
+            ],
         },
-}
+      # "WJetsToQQ": { "files_per_job": 20 },
+      # "TTbar":
+      #     {
+      #         "subsamples": ["TTToSemiLeptonic", "TTToHadronic"],
+      #         "files_per_job": 20,
+      #     },
+      # "JetHT2017": { "files_per_job": 20 },
+    } }
