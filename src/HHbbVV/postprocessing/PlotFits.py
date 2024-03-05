@@ -1,15 +1,16 @@
-import uproot
-import plotting
-from hist import Hist
-import numpy as np
-import os
-import pickle
-
-from hh_vars import sig_key, data_key
-
-import utils
+from __future__ import annotations
 
 import argparse
+import pickle
+from pathlib import Path
+
+import numpy as np
+import plotting
+import uproot
+import utils
+from hist import Hist
+
+from HHbbVV.hh_vars import data_key
 
 parser = argparse.ArgumentParser()
 
@@ -24,9 +25,8 @@ utils.add_bool_arg(parser, "load-pickles", "load pre-saved shapes and data_err p
 
 args = parser.parse_args()
 
-
-os.system(f"mkdir -p {args.plots_dir}")
-
+args.plots_dir = Path(args.plots_dir)
+args.plots_dir.mkdir(parents=True, exist_ok=True)
 
 hist_label_map = {
     "data": "Data",
@@ -88,20 +88,20 @@ if not args.load_pickles:
                 )
             )
 
-    with open(f"{args.plots_dir}/hists.pkl", "wb") as f:
+    with (args.plots_dir / "hists.pkl").open("wb") as f:
         pickle.dump(hists, f)
 
-    with open(f"{args.plots_dir}/data_errs.pkl", "wb") as f:
+    with (args.plots_dir / "data_errs.pkl").open("wb") as f:
         pickle.dump(data_errs, f)
 
     print("Saved pickles")
 else:
     print("Loading pickles")
 
-    with open(f"{args.plots_dir}/hists.pkl", "rb") as f:
+    with (args.plots_dir / "hists.pkl").open("rb") as f:
         hists = pickle.load(f)
 
-    with open(f"{args.plots_dir}/data_errs.pkl", "rb") as f:
+    with (args.plots_dir / "data_errs.pkl").open("rb") as f:
         data_errs = pickle.load(f)
 
 

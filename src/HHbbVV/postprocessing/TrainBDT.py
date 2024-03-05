@@ -4,47 +4,40 @@ Takes the skimmed parquet files (output of bbVVSkimmer + YieldsAnalysis.py) and 
 Author(s): Raghav Kansal
 """
 
+from __future__ import annotations
+
 import argparse
-from collections import OrderedDict
-import os
 import pickle
-from typing import Dict
-import warnings
+from collections import OrderedDict
+
+# from pandas.errors import SettingWithCopyWarning
+from copy import deepcopy
+from pathlib import Path
 
 import hist
-from hist import Hist
-
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+import mplhep as hep
 import numpy as np
 import pandas as pd
+import plotting
+import utils
+import xgboost as xgb
+from hist import Hist
+from sklearn.metrics import roc_curve
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
 
-import matplotlib.pyplot as plt
-import mplhep as hep
-import matplotlib.ticker as mticker
+from HHbbVV.hh_vars import data_key, jec_shifts, jec_vars, jmsr_shifts, jmsr_vars, years
+
+# ignore these because they don't seem to apply
+# warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
 formatter = mticker.ScalarFormatter(useMathText=True)
 formatter.set_powerlimits((-3, 3))
 plt.rcParams.update({"font.size": 28})
-
-# from pandas.errors import SettingWithCopyWarning
-
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_curve, auc
-from sklearn.preprocessing import LabelEncoder
-
-import xgboost as xgb
-
-import utils
-import plotting
-
-from hh_vars import years, data_key, jec_shifts, jmsr_shifts, jec_vars, jmsr_vars
-
-from copy import deepcopy
-
-
-# ignore these because they don't seem to apply
-# warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
 
 weight_key = "finalWeight"
@@ -100,7 +93,7 @@ var_label_map = {
 }
 
 
-def get_X(data_dict: Dict[str, pd.DataFrame], jec_shift: str = None, jmsr_shift: str = None):
+def get_X(data_dict: dict[str, pd.DataFrame], jec_shift: str = None, jmsr_shift: str = None):
     """
     Gets variables for BDT for all samples in ``data``.
     Optionally gets shifted variables (in which returns only MC samples).
@@ -108,7 +101,7 @@ def get_X(data_dict: Dict[str, pd.DataFrame], jec_shift: str = None, jmsr_shift:
     X = []
 
     if jec_shift is None and jmsr_shift is None:
-        for year, data in data_dict.items():
+        for _year, data in data_dict.items():
             X.append(data.filter(items=bdtVars))
 
         return pd.concat(X, axis=0)
@@ -125,15 +118,15 @@ def get_X(data_dict: Dict[str, pd.DataFrame], jec_shift: str = None, jmsr_shift:
             if var in jmsr_vars:
                 mc_vars[i] = f"{var}_{jmsr_shift}"
 
-    for year, data in data_dict.items():
+    for _year, data in data_dict.items():
         X.append(data.filter(items=mc_vars)[data["Dataset"] != data_key])
 
     return pd.concat(X, axis=0), mc_vars
 
 
-def get_Y(data_dict: Dict[str, pd.DataFrame], multiclass: bool = False):
+def get_Y(data_dict: dict[str, pd.DataFrame], multiclass: bool = False):
     Y = []
-    for year, data in data_dict.items():
+    for _year, data in data_dict.items():
         if multiclass:
             Y.append(pd.DataFrame(label_encoder.transform(data["Dataset"])))
         else:
@@ -142,19 +135,19 @@ def get_Y(data_dict: Dict[str, pd.DataFrame], multiclass: bool = False):
     return pd.concat(Y, axis=0)
 
 
-def add_preds(data_dict: Dict[str, pd.DataFrame], preds: np.ndarray):
+def add_preds(data_dict: dict[str, pd.DataFrame], preds: np.ndarray):
     """Adds BDT predictions to ``data_dict``."""
     count = 0
-    for year, data in data_dict.items():
+    for _year, data in data_dict.items():
         data["BDTScore"] = preds[count : count + len(data)]
         count += len(data)
 
     return data_dict
 
 
-def get_weights(data_dict: Dict[str, pd.DataFrame], abs_weights: bool = True):
+def get_weights(data_dict: dict[str, pd.DataFrame], abs_weights: bool = True):
     weights = []
-    for year, data in data_dict.items():
+    for _year, data in data_dict.items():
         weights.append(np.abs(data[weight_key]) if abs_weights else data[weight_key])
 
     return pd.concat(weights, axis=0)
@@ -200,7 +193,7 @@ def load_data(data_path: str, year: str, all_years: bool):
 
 
 def main(args):
-    global bdtVars
+    global bdtVars  # noqa: PLW0603
 
     early_stopping_callback = xgb.callback.EarlyStopping(
         rounds=args.early_stopping_rounds, min_delta=args.early_stopping_min_delta
@@ -227,12 +220,10 @@ def main(args):
     for year, data in data_dict.items():
         for key in training_keys:
             print(
-                (
-                    f"{year} {key} Yield: "
-                    f'{np.sum(data[data["Dataset"] == key][weight_key])}, '
-                    "Number of Events: "
-                    f'{len(data[data["Dataset"] == key])}, '
-                )
+                f"{year} {key} Yield: "
+                f'{np.sum(data[data["Dataset"] == key][weight_key])}, '
+                "Number of Events: "
+                f'{len(data[data["Dataset"] == key])}, '
             )
 
         bg_select = np.sum(
@@ -262,7 +253,7 @@ def main(args):
             ]
         )
 
-        training_samples = np.unique(list(training_data_dict.values())[0]["Dataset"])
+        training_samples = np.unique(next(iter(training_data_dict.values()))["Dataset"])
         print("Training samples:", training_samples)
 
         if args.test:
@@ -310,20 +301,16 @@ def main(args):
             for year, data in training_data_dict.items():
                 for key in training_keys:
                     print(
-                        (
-                            f"Pre-equalization {year} {key} total: "
-                            f'{np.sum(data[data["Dataset"] == key][weight_key])}'
-                        )
+                        f"Pre-equalization {year} {key} total: "
+                        f'{np.sum(data[data["Dataset"] == key][weight_key])}'
                     )
 
                 equalize_weights(data, args.equalize_weights, args.equalize_weights_per_process)
 
                 for key in training_keys:
                     print(
-                        (
-                            f"Post-equalization {year} {key} total: "
-                            f'{np.sum(data[data["Dataset"] == key][weight_key])}'
-                        )
+                        f"Post-equalization {year} {key} total: "
+                        f'{np.sum(data[data["Dataset"] == key][weight_key])}'
                     )
 
                 print("")
@@ -339,9 +326,9 @@ def main(args):
 
     if args.evaluate_only or args.inference_only:
         model = xgb.XGBClassifier()
-        model.load_model(f"{args.model_dir}/trained_bdt.model")
+        model.load_model(args.model_dir / "trained_bdt.model")
     else:
-        os.system(f"mkdir -p {args.model_dir}")
+        args.model_dir.mkdir(exist_ok=True, parents=True)
         model = train_model(
             get_X(train),
             get_X(test),
@@ -369,20 +356,20 @@ def main(args):
         do_inference(model, args.model_dir, data_dict, multiclass=args.multiclass)
 
 
-def plot_losses(trained_model: xgb.XGBClassifier, model_dir: str):
+def plot_losses(trained_model: xgb.XGBClassifier, model_dir: Path):
     evals_result = trained_model.evals_result()
 
-    with open(f"{model_dir}/evals_result.txt", "w") as f:
+    with (model_dir / "evals_result.txt").open("w") as f:
         f.write(str(evals_result))
 
-    fig = plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(10, 8))
     for i, label in enumerate(["Train", "Test"]):
         plt.plot(evals_result[f"validation_{i}"]["mlogloss"], label=label, linewidth=2)
 
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
     plt.legend()
-    plt.savefig(f"{model_dir}/losses.pdf", bbox_inches="tight")
+    plt.savefig(model_dir / "losses.pdf", bbox_inches="tight")
     plt.close()
 
 
@@ -393,7 +380,7 @@ def train_model(
     y_test: np.ndarray,
     weights_train: np.ndarray,
     weights_test: np.ndarray,
-    model_dir: str,
+    model_dir: Path,
     use_sample_weights: bool = False,
     **classifier_params,
 ):
@@ -412,14 +399,14 @@ def train_model(
         sample_weight_eval_set=[weights_train, weights_test] if use_sample_weights else None,
         verbose=True,
     )
-    trained_model.save_model(f"{model_dir}/trained_bdt.model")
+    trained_model.save_model(model_dir / "trained_bdt.model")
     plot_losses(trained_model, model_dir)
     return model
 
 
-def _txbb_thresholds(test: Dict[str, pd.DataFrame], txbb_threshold: float):
+def _txbb_thresholds(test: dict[str, pd.DataFrame], txbb_threshold: float):
     t = []
-    for year, data in test.items():
+    for _year, data in test.items():
         t.append(data["bbFatJetParticleNetMD_Txbb"] < txbb_threshold)
 
     return pd.concat(t, axis=0)
@@ -428,8 +415,8 @@ def _txbb_thresholds(test: Dict[str, pd.DataFrame], txbb_threshold: float):
 def evaluate_model(
     model: xgb.XGBClassifier,
     model_dir: str,
-    train: Dict[str, pd.DataFrame],
-    test: Dict[str, pd.DataFrame],
+    train: dict[str, pd.DataFrame],
+    test: dict[str, pd.DataFrame],
     test_size: float,
     equalize_sig_bg: bool,
     txbb_threshold: float = 0.98,
@@ -461,8 +448,8 @@ def evaluate_model(
     rocs = OrderedDict()
 
     for data, label in [(train, "train"), (test, "test")]:
-        save_model_dir = f"{model_dir}/rocs_{label}/"
-        os.makedirs(save_model_dir, exist_ok=True)
+        save_model_dir = model_dir / f"rocs_{label}"
+        save_model_dir.mkdir(exist_ok=True, parents=True)
 
         Y = get_Y(data)
         weights_test = get_weights(data)
@@ -481,7 +468,7 @@ def evaluate_model(
             "thresholds": thresholds,
         }
 
-        with open(f"{save_model_dir}/roc_dict.pkl", "wb") as f:
+        with (save_model_dir / "roc_dict.pkl").open("wb") as f:
             pickle.dump(rocs[label], f)
 
         plotting.rocCurve(
@@ -541,8 +528,8 @@ def evaluate_model(
         utils.ShapeVar("BDTScore", "BDT Score", [20, 0.98, 1]),
     ]
 
-    save_model_dir = f"{model_dir}/hists/"
-    os.makedirs(save_model_dir, exist_ok=True)
+    save_model_dir = model_dir / "hists"
+    save_model_dir.mkdir(exist_ok=True, parents=True)
 
     for year in train:
         for shape_var in plot_vars:
@@ -583,34 +570,34 @@ def evaluate_model(
             )
 
     # temporarily save train and test data as pickles to iterate on plots
-    with open(f"{model_dir}/train.pkl", "wb") as f:
+    with (model_dir / "train.pkl").open("wb") as f:
         pickle.dump(train, f)
 
-    with open(f"{model_dir}/test.pkl", "wb") as f:
+    with (model_dir / "test.pkl").open("wb") as f:
         pickle.dump(test, f)
 
 
 def do_inference(
     model: xgb.XGBClassifier,
     model_dir: str,
-    data_dict: Dict[str, pd.DataFrame],
+    data_dict: dict[str, pd.DataFrame],
     jec_jmsr_shifts: bool = True,
     multiclass: bool = False,
 ):
     """ """
     import time
 
-    os.system(f"mkdir -p {model_dir}/inferences/")
+    (model_dir / "inferences").mkdir(exist_ok=True, parents=True)
 
     for year, data in data_dict.items():
         year_data_dict = {year: data}
-        os.system(f"mkdir -p {model_dir}/inferences/{year}")
+        (model_dir / "inferences" / year).mkdir(exist_ok=True, parents=True)
 
         sample_order = list(pd.unique(data["Dataset"]))
         value_counts = data["Dataset"].value_counts()
         sample_order_dict = OrderedDict([(sample, value_counts[sample]) for sample in sample_order])
 
-        with open(f"{model_dir}/inferences/{year}/sample_order.txt", "w") as f:
+        with (model_dir / f"inferences/{year}/sample_order.txt").open("w") as f:
             f.write(str(sample_order_dict))
 
         print("Running inference")
@@ -682,7 +669,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--rem-feats", default=3, help="remove N lowest importance feats", type=int)
 
-    utils.add_bool_arg(parser, "multiclass", "Classify each background separtely", default=True)
+    utils.add_bool_arg(parser, "multiclass", "Classify each background separately", default=True)
 
     utils.add_bool_arg(
         parser, "use-sample-weights", "Use properly scaled event weights", default=True
@@ -726,6 +713,7 @@ if __name__ == "__main__":
     if args.equalize_weights or args.equalize_weights_per_process:
         args.use_sample_weights = True  # sample weights are used before equalizing
 
-    args.all_years = True if args.year == "all" else False
+    args.all_years = args.year == "all"
+    args.model_dir = Path(args.model_dir)
 
     main(args)

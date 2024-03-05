@@ -8,18 +8,35 @@ Based on https://github.com/LPC-HH/combine-hh/blob/master/create_datacard.py
 Authors: Raghav Kansal, Andres Nava
 """
 
-import os, sys
-from typing import Dict, List, Tuple, Union
+from __future__ import annotations
 
-import numpy as np
-import pickle, json
+# from utils import add_bool_arg
+import argparse
+import json
 import logging
+import pickle
+import sys
 from collections import OrderedDict
+from pathlib import Path
 
-import hist
+import datacardHelpers as helpers
+import numpy as np
+import rhalphalib as rl
+from datacardHelpers import (
+    ShapeVar,
+    Syst,
+    add_bool_arg,
+    combine_templates,
+    get_channels,
+    get_effect_updown,
+    join_with_padding,
+    mxmy,
+    rem_neg,
+    sum_templates,
+)
 from hist import Hist
 
-import rhalphalib as rl
+from HHbbVV.hh_vars import LUMI, data_key, jecs, jmsr, qcd_key, res_sig_keys, years
 
 try:
     rl.util.install_roofit_helpers()
@@ -30,27 +47,6 @@ except:
 # logging.basicConfig(level=logging.DEBUG)
 logging.basicConfig(level=logging.INFO)
 adjust_posdef_yields = False
-
-# from utils import add_bool_arg
-from hh_vars import LUMI, res_sig_keys, qcd_key, data_key, years, jecs, jmsr, res_mps
-import utils
-import datacardHelpers as helpers
-from datacardHelpers import (
-    Syst,
-    ShapeVar,
-    add_bool_arg,
-    rem_neg,
-    sum_templates,
-    combine_templates,
-    get_effect_updown,
-    join_with_padding,
-    rebin_channels,
-    get_channels,
-    mxmy,
-)
-
-import argparse
-
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -126,11 +122,14 @@ if args.nTF is None:
 mc_samples = OrderedDict(
     [
         ("TT", "ttbar"),
-        ("V+Jets", "vjets"),
+        ("W+Jets", "wjets"),
+        ("Z+Jets", "zjets"),
         # ("Diboson", "diboson"),
         ("ST", "singletop"),
     ]
 )
+
+# TODO: float VJets normalization!
 
 bg_keys = list(mc_samples.keys())
 nonres_sig_keys_ggf = [
@@ -269,18 +268,24 @@ nuisance_params_dict = {
     param: rl.NuisanceParameter(param, syst.prior) for param, syst in nuisance_params.items()
 }
 
+# TODO: pileupID, ECal firing, lepton IDs
+
 # dictionary of correlated shape systematics: name in templates -> name in cards, etc.
 corr_year_shape_systs = {
-    "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=nonres_sig_keys_ggf + ["V+Jets"]),
-    "ISRPartonShower": Syst(name="ps_isr", prior="shape", samples=nonres_sig_keys_ggf + ["V+Jets"]),
-    # TODO: should we be applying QCDscale for "others" process?
-    # https://github.com/LPC-HH/HHLooper/blob/master/python/prepare_card_SR_final.py#L290
-    # "QCDscale": Syst(
-    #     name=f"{CMS_PARAMS_LABEL}_ggHHQCDacc", prior="shape", samples=nonres_sig_keys_ggf
-    # ),
-    # "PDFalphaS": Syst(
-    #     name=f"{CMS_PARAMS_LABEL}_ggHHPDFacc", prior="shape", samples=nonres_sig_keys_ggf
-    # ),
+    "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=all_mc),
+    "ISRPartonShower": Syst(name="ps_isr", prior="shape", samples=all_mc),
+    "scaleacc": Syst(
+        name=f"{CMS_PARAMS_LABEL}_QCDScaleacc",
+        prior="shape",
+        samples=nonres_sig_keys,
+        samples_corr=False,
+    ),
+    "pdfacc": Syst(
+        name=f"{CMS_PARAMS_LABEL}_PDFacc",
+        prior="shape",
+        samples=nonres_sig_keys,
+        samples_corr=False,
+    ),
     # TODO: separate into individual
     "JES": Syst(name="CMS_scale_j", prior="shape", samples=all_mc),
     "txbb": Syst(
@@ -312,7 +317,14 @@ if not args.do_jshifts:
 
 shape_systs_dict = {}
 for skey, syst in corr_year_shape_systs.items():
-    shape_systs_dict[skey] = rl.NuisanceParameter(syst.name, "shape")
+    if not syst.samples_corr:
+        # separate nuisance param for each affected sample (TODO: propagate below)
+        for sample in syst.samples:
+            shape_systs_dict[f"{skey}_{sample}"] = rl.NuisanceParameter(
+                f"{syst.name}_{mc_samples[sample]}", "shape"
+            )
+    else:
+        shape_systs_dict[skey] = rl.NuisanceParameter(syst.name, "shape")
 for skey, syst in uncorr_year_shape_systs.items():
     for year in years:
         if year in syst.uncorr_years:
@@ -322,30 +334,32 @@ for skey, syst in uncorr_year_shape_systs.items():
 
 
 def get_templates(
-    templates_dir: str,
-    years: List[str],
+    templates_dir: Path,
+    years: list[str],
     sig_separate: bool,
     scale: float = None,
     combine_lasttwo: bool = False,
 ):
     """Loads templates, combines bg and sig templates if separate, sums across all years"""
-    templates_dict: Dict[str, Dict[str, Hist]] = {}
+    templates_dict: dict[str, dict[str, Hist]] = {}
 
     if not sig_separate:
         # signal and background templates in same hist, just need to load and sum across years
         for year in years:
-            with open(f"{templates_dir}/{year}_templates.pkl", "rb") as f:
+            with (templates_dir / f"{year}_templates.pkl").open("rb") as f:
                 templates_dict[year] = rem_neg(pickle.load(f))
     else:
         # signal and background in different hists - need to combine them into one hist
         for year in years:
-            with open(f"{templates_dir}/backgrounds/{year}_templates.pkl", "rb") as f:
+            with (templates_dir / f"backgrounds/{year}_templates.pkl").open("rb") as f:
                 bg_templates = rem_neg(pickle.load(f))
 
             sig_templates = []
 
             for sig_key in sig_keys:
-                with open(f"{templates_dir}/{hist_names[sig_key]}/{year}_templates.pkl", "rb") as f:
+                with (templates_dir / f"{hist_names[sig_key]}/{year}_templates.pkl").open(
+                    "rb"
+                ) as f:
                     sig_templates.append(rem_neg(pickle.load(f)))
 
             templates_dict[year] = combine_templates(bg_templates, sig_templates)
@@ -370,13 +384,12 @@ def get_templates(
     if combine_lasttwo:
         helpers.combine_last_two_bins(templates_dict, years)
 
-    templates_summed: Dict[str, Hist] = sum_templates(templates_dict, years)  # sum across years
+    templates_summed: dict[str, Hist] = sum_templates(templates_dict, years)  # sum across years
     return templates_dict, templates_summed
 
 
-def process_systematics_combined(systematics: Dict):
+def process_systematics_combined(systematics: dict):
     """Get total uncertainties from per-year systs in ``systematics``"""
-    global nuisance_params
     for sig_key in sig_keys:
         # already for all years
         nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{mc_samples[sig_key]}"].value = (
@@ -405,10 +418,8 @@ def process_systematics_combined(systematics: Dict):
     nuisance_params[f"{CMS_PARAMS_LABEL}_triggerEffSF_uncorrelated"].value = tdict
 
 
-def process_systematics_separate(bg_systematics: Dict, sig_systs: Dict[str, Dict]):
+def process_systematics_separate(bg_systematics: dict, sig_systs: dict[str, dict]):
     """Get total uncertainties from per-year systs separated into bg and sig systs"""
-    global nuisance_params
-
     for sig_key in sig_keys:
         # already for all years
         nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{mc_samples[sig_key]}"].value = (
@@ -441,19 +452,19 @@ def process_systematics_separate(bg_systematics: Dict, sig_systs: Dict[str, Dict
 
 
 def process_systematics(templates_dir: str, sig_separate: bool):
-    """Processses systematics based on whether signal and background JSONs are combined or not"""
+    """Processes systematics based on whether signal and background JSONs are combined or not"""
     if not sig_separate:
-        with open(f"{templates_dir}/systematics.json", "r") as f:
+        with (templates_dir / "systematics.json").open("r") as f:
             systematics = json.load(f)
 
         process_systematics_combined(systematics)  # LP SF and trig effs.
     else:
-        with open(f"{templates_dir}/backgrounds/systematics.json", "r") as f:
+        with (templates_dir / "backgrounds/systematics.json").open("r") as f:
             bg_systematics = json.load(f)
 
         sig_systs = {}
         for sig_key in sig_keys:
-            with open(f"{templates_dir}/{hist_names[sig_key]}/systematics.json", "r") as f:
+            with (templates_dir / f"{hist_names[sig_key]}/systematics.json").open("r") as f:
                 sig_systs[sig_key] = json.load(f)
 
         process_systematics_separate(bg_systematics, sig_systs)  # LP SF and trig effs.
@@ -503,15 +514,15 @@ def get_year_updown(
 
 def fill_regions(
     model: rl.Model,
-    regions: List[str],
-    templates_dict: Dict,
-    templates_summed: Dict,
-    mc_samples: Dict[str, str],
-    nuisance_params: Dict[str, Syst],
-    nuisance_params_dict: Dict[str, rl.NuisanceParameter],
-    corr_year_shape_systs: Dict[str, Syst],
-    uncorr_year_shape_systs: Dict[str, Syst],
-    shape_systs_dict: Dict[str, rl.NuisanceParameter],
+    regions: list[str],
+    templates_dict: dict,
+    templates_summed: dict,
+    mc_samples: dict[str, str],
+    nuisance_params: dict[str, Syst],
+    nuisance_params_dict: dict[str, rl.NuisanceParameter],
+    corr_year_shape_systs: dict[str, Syst],
+    uncorr_year_shape_systs: dict[str, Syst],
+    shape_systs_dict: dict[str, rl.NuisanceParameter],
     bblite: bool = True,
     mX_bin: int = None,
 ):
@@ -557,10 +568,11 @@ def fill_regions(
         for sample_name, card_name in mc_samples.items():
             # don't add signals in fail regions
             # also skip resonant signals in pass blinded - they are ignored in the validation fits anyway
-            if sample_name in sig_keys:
-                if not pass_region or (mX_bin is not None and region == "passBlinded"):
-                    logging.info(f"\nSkipping {sample_name} in {region} region\n")
-                    continue
+            if sample_name in sig_keys and (
+                not pass_region or (mX_bin is not None and region == "passBlinded")
+            ):
+                logging.info(f"\nSkipping {sample_name} in {region} region\n")
+                continue
 
             # single top only in fail regions
             if sample_name == "ST" and pass_region:
@@ -588,12 +600,12 @@ def fill_regions(
                 1.0 + np.sqrt(sample_template.variances()[mask]) / values_nominal[mask]
             )
 
-            logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
-            logging.debug("error     : {errors}".format(errors=errors_nominal))
+            logging.debug(f"nominal   : {values_nominal}")
+            logging.debug(f"error     : {errors_nominal}")
 
             if not bblite and args.mcstats:
                 # set mc stat uncs
-                logging.info("setting autoMCStats for %s in %s" % (sample_name, region))
+                logging.info(f"setting autoMCStats for {sample_name} in {region}")
 
                 # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
                 region_name = region if args.resonant else region_noblinded
@@ -655,12 +667,10 @@ def fill_regions(
                     values_up = region_templates[f"{sample_name}_{skey}_up", :].values()
                     values_down = region_templates[f"{sample_name}_{skey}_down", :].values()
 
-                logger = logging.getLogger(
-                    "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
-                )
+                logger = logging.getLogger(f"validate_shapes_{region}_{sample_name}_{skey}")
 
                 effect_up, effect_down = get_effect_updown(
-                    values_nominal, values_up, values_down, mask, logger
+                    values_nominal, values_up, values_down, mask, logger, args.epsilon
                 )
                 sample.setParamEffect(shape_systs_dict[skey], effect_up, effect_down)
 
@@ -685,12 +695,10 @@ def fill_regions(
                         skey,
                         mX_bin=mX_bin,
                     )
-                    logger = logging.getLogger(
-                        "validate_shapes_{}_{}_{}".format(region, sample_name, skey)
-                    )
+                    logger = logging.getLogger(f"validate_shapes_{region}_{sample_name}_{skey}")
 
                     effect_up, effect_down = get_effect_updown(
-                        values_nominal, values_up, values_down, mask, logger
+                        values_nominal, values_up, values_down, mask, logger, args.epsilon
                     )
                     sample.setParamEffect(
                         shape_systs_dict[f"{skey}_{year}"], effect_up, effect_down
@@ -713,8 +721,8 @@ def fill_regions(
 
 def nonres_alphabet_fit(
     model: rl.Model,
-    shape_vars: List[ShapeVar],
-    templates_summed: Dict,
+    shape_vars: list[ShapeVar],
+    templates_summed: dict,
     scale: float = None,
     min_qcd_val: float = None,
 ):
@@ -723,8 +731,8 @@ def nonres_alphabet_fit(
 
     # QCD overall pass / fail efficiency
     qcd_eff = (
-        templates_summed[f"pass"][qcd_key, :].sum().value
-        / templates_summed[f"fail"][qcd_key, :].sum().value
+        templates_summed["pass"][qcd_key, :].sum().value
+        / templates_summed["fail"][qcd_key, :].sum().value
     )
 
     # transfer factor
@@ -752,7 +760,7 @@ def nonres_alphabet_fit(
         passChName = f"pass{blind_str}".replace("_", "")
         failChName = f"fail{blind_str}".replace("_", "")
         logging.info(
-            "setting transfer factor for pass region %s, fail region %s" % (passChName, failChName)
+            f"setting transfer factor for pass region {passChName}, fail region {failChName}"
         )
         failCh = model[failChName]
         passCh = model[passChName]
@@ -802,8 +810,8 @@ def nonres_alphabet_fit(
 
 def res_alphabet_fit(
     model: rl.Model,
-    shape_vars: List[ShapeVar],
-    templates_summed: Dict,
+    shape_vars: list[ShapeVar],
+    templates_summed: dict,
     scale: float = None,
     min_qcd_val: float = None,
 ):
@@ -812,8 +820,8 @@ def res_alphabet_fit(
 
     # QCD overall pass / fail efficiency
     qcd_eff = (
-        templates_summed[f"pass"][qcd_key, ...].sum().value
-        / templates_summed[f"fail"][qcd_key, ...].sum().value
+        templates_summed["pass"][qcd_key, ...].sum().value
+        / templates_summed["fail"][qcd_key, ...].sum().value
     )
 
     # transfer factor
@@ -848,8 +856,7 @@ def res_alphabet_fit(
             passChName = f"mXbin{mX_bin}pass{blind_str}".replace("_", "")
             failChName = f"mXbin{mX_bin}fail{blind_str}".replace("_", "")
             logging.info(
-                "setting transfer factor for pass region %s, fail region %s"
-                % (passChName, failChName)
+                f"setting transfer factor for pass region {passChName}, fail region {failChName}"
             )
             failCh = model[failChName]
             passCh = model[passChName]
@@ -900,8 +907,8 @@ def res_alphabet_fit(
 
 def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
     # (pass, fail) x (unblinded, blinded)
-    regions: List[str] = [
-        f"{pf}{blind_str}" for pf in [f"pass", "fail"] for blind_str in ["", "Blinded"]
+    regions: list[str] = [
+        f"{pf}{blind_str}" for pf in ["pass", "fail"] for blind_str in ["", "Blinded"]
     ]
 
     # build actual fit model now
@@ -941,14 +948,10 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
 
     logging.info("rendering combine model")
 
-    out_dir = (
-        os.path.join(str(args.cards_dir), args.model_name)
-        if args.model_name is not None
-        else args.cards_dir
-    )
+    out_dir = args.cards_dir / args.model_name if args.model_name is not None else args.cards_dir
     model.renderCombine(out_dir)
 
-    with open(f"{out_dir}/model.pkl", "wb") as fout:
+    with (out_dir / "model.pkl").open("wb") as fout:
         pickle.dump(model, fout, 2)  # use python 2 compatible protocol
 
 
@@ -966,17 +969,17 @@ def fill_yields(channels, channels_summed):
         "qcdlabel": qcd_data_key,
     }
 
-    for i, l in enumerate(["A", "B", "C", "D"]):
+    for i, label in enumerate(["A", "B", "C", "D"]):
         # channel labels
-        datacard_dict[f"bin{l}"] = f"{channels[i]:<14}"
+        datacard_dict[f"bin{label}"] = f"{channels[i]:<14}"
 
         # fill in data - MC yields for ABCD method
         if i > 0:
             data_obs = channels_summed[channels[i]][data_key].value
             mc_bg_yields = sum([channels_summed[channels[i]][key].value for key in bg_keys])
-            datacard_dict[f"dataqcd{l}"] = data_obs - mc_bg_yields
+            datacard_dict[f"dataqcd{label}"] = data_obs - mc_bg_yields
 
-    # collecting MC samples and yields per chanel
+    # collecting MC samples and yields per channel
     channel_bins_dict = {
         "bins_x_processes": [],
         "processes_per_bin": [],
@@ -1020,7 +1023,7 @@ def get_systematics_abcd(channels, channels_dict, channels_summed, rates_dict):
         # TODO: bblite
         channel_systs_dict[region]["mcstats"] = {}
 
-        for sample_name, card_name in mc_samples.items():
+        for sample_name, _card_name in mc_samples.items():
             systs_dict = {}
             channel_systs_dict[region][sample_name] = systs_dict
 
@@ -1111,8 +1114,8 @@ def get_systematics_abcd(channels, channels_dict, channels_summed, rates_dict):
         if cmcstats is None:
             continue
 
-        # bblite criteria sastisfied for this channel - single nuisance for all mc samples
-        elif isinstance(cmcstats, float):
+        # bblite criteria satisfied for this channel - single nuisance for all mc samples
+        if isinstance(cmcstats, float):
             vals = []
             skey = f"mcstats_{channel}"
             sstr = f"{skey:<54}lnN   "
@@ -1123,7 +1126,7 @@ def get_systematics_abcd(channels, channels_dict, channels_summed, rates_dict):
             sstr += join_with_padding(vals)
             syst_strs.append(sstr)
 
-        # bblite not satisifed - separate nuisance for all mc samples
+        # bblite not satisfied - separate nuisance for all mc samples
         else:
             for i, key in enumerate(sig_keys + bg_keys):
                 if key in cmcstats:
@@ -1146,7 +1149,7 @@ def get_systematics_abcd(channels, channels_dict, channels_summed, rates_dict):
         sstr = f"{skey:<54}lnN   "
         vals = []
         for channel in channels:
-            for i, key in enumerate(all_processes):
+            for _, key in enumerate(all_processes):
                 if key == qcd_data_key or skey not in channel_systs_dict[channel][key]:
                     vals.append("-")
                 else:
@@ -1172,19 +1175,18 @@ def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
         channels, channels_dict, channels_summed, rates_dict
     )
 
-    out_dir = (
-        os.path.join(str(args.cards_dir), args.model_name)
-        if args.model_name is not None
-        else args.cards_dir
-    )
+    out_dir = args.cards_dir / args.model_name if args.model_name is not None else args.cards_dir
 
-    with open(f"{out_dir}/datacard.txt", "w") as f:
+    with (out_dir / "datacard.txt").open("w") as f:
         f.write(helpers.abcd_datacard_template.substitute(datacard_dict))
 
     return
 
 
 def main(args):
+    args.templates_dir = Path(args.templates_dir)
+    args.cards_dir = Path(args.cards_dir)
+
     # templates per region per year, templates per region summed across years
     templates_dict, templates_summed = get_templates(
         args.templates_dir, years, args.sig_separate, args.scale_templates, args.combine_lasttwo
@@ -1194,7 +1196,7 @@ def main(args):
     process_systematics(args.templates_dir, args.sig_separate)
 
     # random template from which to extract shape vars
-    sample_templates: Hist = templates_summed[list(templates_summed.keys())[0]]
+    sample_templates: Hist = templates_summed[next(iter(templates_summed.keys()))]
 
     # [mH(bb)] for nonresonant, [mY, mX] for resonant
     shape_vars = [
@@ -1202,7 +1204,7 @@ def main(args):
         for i, axis in enumerate(sample_templates.axes[1:])
     ]
 
-    os.makedirs(args.cards_dir, exist_ok=True)
+    args.cards_dir.mkdir(parents=True, exist_ok=True)
 
     dc_args = [args, templates_dict, templates_summed, shape_vars]
     if args.vbf:

@@ -5,45 +5,18 @@ Submits jobs for making the datacards and running fits per sample.
 
 Author(s): Raghav Kansal
 """
+from __future__ import annotations
 
 import argparse
+import itertools
 import os
 from math import ceil
-from string import Template
-import json
-import itertools
-import sys
+from pathlib import Path
 
-from utils import add_bool_arg, write_template, setup, parse_common_args
+from utils import setup
 
-
-def add_bool_arg(parser, name, help, default=False, no_name=None):
-    """Add a boolean command line argument for argparse"""
-    varname = "_".join(name.split("-"))  # change hyphens to underscores
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument("--" + name, dest=varname, action="store_true", help=help)
-    if no_name is None:
-        no_name = "no-" + name
-        no_help = "don't " + help
-    else:
-        no_help = help
-    group.add_argument("--" + no_name, dest=varname, action="store_false", help=no_help)
-    parser.set_defaults(**{varname: default})
-
-
-def write_template(templ_file: str, out_file: str, templ_args: dict):
-    """Write to ``out_file`` based on template from ``templ_file`` using ``templ_args``"""
-
-    with open(templ_file, "r") as f:
-        templ = Template(f.read())
-
-    with open(out_file, "w") as f:
-        f.write(
-            templ.safe_substitute(
-                templ_args,
-            )
-        )
-
+from HHbbVV import run_utils
+from HHbbVV.run_utils import add_bool_arg
 
 res_mps = [
     (1000, 100),
@@ -193,18 +166,18 @@ res_scan_cuts = ["txbb", "thww", "leadingpt", "subleadingpt"]
 
 
 def main(args):
-    global scan_txbb_wps, scan_thww_wps, scan_leadingpt_wps, scan_subleadingpt_wps
+    global scan_txbb_wps, scan_thww_wps, scan_leadingpt_wps, scan_subleadingpt_wps  # noqa: PLW0602, PLW0603
 
     t2_local_prefix, t2_prefix, proxy, username, submitdir = setup(args)
 
-    local_dir = f"condor/cards/{args.tag}"
+    local_dir = Path(f"condor/cards/{args.tag}")
 
     templates_dir = f"/store/user/{username}/bbVV/templates/{args.templates_dir}/"
     cards_dir = f"/store/user/{username}/bbVV/cards/{args.tag}/"
 
     # make local directory
-    logdir = local_dir + "/logs"
-    os.system(f"mkdir -p {logdir}")
+    logdir = local_dir / "logs"
+    logdir.mkdir(parents=True, exist_ok=True)
 
     # and eos directory
     os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}")
@@ -259,9 +232,10 @@ def main(args):
             run_cards_dir = cards_dir
 
         prefix = "cards" f"{'Scan' if args.scan else ''}"
-        localcondor = f"{local_dir}/{prefix}_{j}.jdl"
+        local_jdl = Path(f"{local_dir}/{prefix}_{j}.jdl")
+        local_log = Path(f"{local_dir}/{prefix}_{j}.log")
         jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": j, "proxy": proxy}
-        write_template(jdl_templ, localcondor, jdl_args)
+        run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
         localsh = f"{local_dir}/{prefix}_{j}.sh"
         sh_args = {
@@ -270,15 +244,16 @@ def main(args):
             "in_cards_dir": run_cards_dir,
             "datacard_args": datacard_args,
         }
-        write_template(sh_templ, localsh, sh_args)
+        run_utils.write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
 
-        if os.path.exists(f"{localcondor}.log"):
-            os.system(f"rm {localcondor}.log")
+        if local_log.exists():
+            local_log.unlink()
 
-        print("To submit ", localcondor)
         if args.submit:
-            os.system("condor_submit %s" % localcondor)
+            os.system(f"condor_submit {local_jdl}")
+        else:
+            print("To submit ", local_jdl)
 
         nsubmit = nsubmit + 1
 

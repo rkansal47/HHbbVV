@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2154,SC2086
 
 # make sure this is installed
 # python3 -m pip install correctionlib==2.0.0rc6
@@ -13,8 +14,8 @@ python -u -W ignore $script --year $year --starti $starti --endi $endi --samples
 
 #move output to eos
 xrdcp -f outfiles/* $eosoutpkl
-xrdcp -f *.parquet $eosoutparquet
-xrdcp -f *.root $eosoutroot
+xrdcp -f ./*.parquet $eosoutparquet
+xrdcp -f ./*.root $eosoutroot
 
-rm *.parquet
-rm *.root
+rm ./*.parquet
+rm ./*.root

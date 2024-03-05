@@ -4,34 +4,27 @@ Methods for deriving input variables for the tagger and running inference.
 Author(s): Raghav Kansal, Cristina Mantilla Suarez, Melissa Quinnan
 """
 
-from typing import Dict, Union
-
-import warnings
-
-import numpy as np
-import numpy.ma as ma
-from numpy.typing import ArrayLike
-
-from scipy.special import softmax
-
-import awkward as ak
-from coffea.nanoevents.methods.base import NanoEventsArray
-from coffea.nanoevents.methods import candidate, vector
-from coffea.nanoevents.methods.nanoaod import FatJetArray
+from __future__ import annotations
 
 import json
 
 # import onnxruntime as ort
-
 import time
+import warnings
+from pathlib import Path
 
+import awkward as ak
+import numpy as np
+import numpy.ma as ma
 import tritonclient
 import tritonclient.grpc as triton_grpc
 import tritonclient.http as triton_http
-
+from coffea.nanoevents.methods import candidate
+from coffea.nanoevents.methods.base import NanoEventsArray
+from coffea.nanoevents.methods.nanoaod import FatJetArray
+from numpy.typing import ArrayLike
+from scipy.special import softmax
 from tqdm import tqdm
-
-from .utils import pad_val
 
 
 def build_p4(cand):
@@ -51,12 +44,12 @@ def build_p4(cand):
 def get_pfcands_features(
     tagger_vars: dict,
     preselected_events: NanoEventsArray,
-    jet_idx: Union[int, ArrayLike],
+    jet_idx: int | ArrayLike,
     jet: FatJetArray = None,
     fatjet_label: str = "FatJet",
     pfcands_label: str = "FatJetPFCands",
     normalize: bool = True,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """
     Extracts the pf_candidate features specified in the ``tagger_vars`` dict from the
     ``preselected_events`` and returns them as a dict of numpy arrays
@@ -185,12 +178,12 @@ def get_pfcands_features(
 def get_svs_features(
     tagger_vars: dict,
     preselected_events: NanoEventsArray,
-    jet_idx: Union[int, ArrayLike],
+    jet_idx: int | ArrayLike,
     jet: FatJetArray = None,
     fatjet_label: str = "FatJet",
     svs_label: str = "JetSVs",
     normalize: bool = True,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """
     Extracts the sv features specified in the ``tagger_vars`` dict from the
     ``preselected_events`` and returns them as a dict of numpy arrays
@@ -291,7 +284,7 @@ def get_met_features(
     fatjet_label: str = "FatJetAK15",
     met_label: str = "MET",
     normalize: bool = True,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """
     Extracts the MET features specified in the ``tagger_vars`` dict from the
     ``preselected_events`` and returns them as a dict of numpy arrays
@@ -333,7 +326,7 @@ def get_lep_features(
     muon_label: str = "Muon",
     electron_label: str = "Electron",
     normalize: bool = True,
-) -> Dict[str, np.ndarray]:
+) -> dict[str, np.ndarray]:
     """
     Extracts the lepton features specified in the ``tagger_vars`` dict from the
     ``preselected_events`` and returns them as a dict of numpy arrays
@@ -376,7 +369,7 @@ def get_lep_features(
     feature_dict["lep_miniiso"] = lepton_cand.miniPFRelIso_all.to_numpy().filled(fill_value=0)
 
     # get features
-    if "el_features" in tagger_vars.keys():
+    if "el_features" in tagger_vars:
         feature_dict["elec_pt"] = jet_electrons.pt / jet.pt
         feature_dict["elec_eta"] = jet_electrons.eta - jet.eta
         feature_dict["elec_phi"] = jet_electrons.delta_phi(jet)
@@ -415,7 +408,7 @@ def get_lep_features(
 
             feature_dict[var] = a
 
-    if "mu_features" in tagger_vars.keys():
+    if "mu_features" in tagger_vars:
         feature_dict["muon_pt"] = jet_muons.pt / jet.pt
         feature_dict["muon_eta"] = jet_muons.eta - jet.eta
         feature_dict["muon_phi"] = jet_muons.delta_phi(jet)
@@ -473,7 +466,7 @@ class wrapped_triton:
         self._batch_size = batch_size
         self._torchscript = torchscript
 
-    def __call__(self, input_dict: Dict[str, np.ndarray]) -> np.ndarray:
+    def __call__(self, input_dict: dict[str, np.ndarray]) -> np.ndarray:
         if self._protocol == "grpc":
             client = triton_grpc.InferenceServerClient(url=self._address, verbose=False)
             triton_protocol = triton_grpc
@@ -488,7 +481,7 @@ class wrapped_triton:
             raise ValueError(f"{self._protocol} does not encode a valid protocol (grpc or http)")
 
         # manually split into batches for gpu inference
-        input_size = input_dict[list(input_dict.keys())[0]].shape[0]
+        input_size = input_dict[next(iter(input_dict.keys()))].shape[0]
         print(f"size of input = {input_size}")
 
         outs = [
@@ -498,14 +491,14 @@ class wrapped_triton:
                 client,
             )
             for batch in tqdm(
-                range(0, input_dict[list(input_dict.keys())[0]].shape[0], self._batch_size)
+                range(0, input_dict[next(iter(input_dict.keys()))].shape[0], self._batch_size)
             )
         ]
 
         return np.concatenate(outs) if input_size > 0 else outs
 
     def _do_inference(
-        self, input_dict: Dict[str, np.ndarray], triton_protocol, client
+        self, input_dict: dict[str, np.ndarray], triton_protocol, client
     ) -> np.ndarray:
         # Infer
         inputs = []
@@ -520,7 +513,7 @@ class wrapped_triton:
         output = triton_protocol.InferRequestedOutput(out_name)
 
         # in case of a server error, keep trying to connect for 5 minutes
-        for i in range(60):
+        for _i in range(60):
             try:
                 request = client.infer(
                     self._model,
@@ -569,7 +562,7 @@ def _derive_vars_new_tagger(
         pnet_vars_all = {}
 
         if all_outputs:
-            for i, output_name in enumerate(tagger_vars["output_names"]):
+            for output_name in tagger_vars["output_names"]:
                 pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = np.array([])
 
         pvars = {**derived_vars, **pnet_vars_all}
@@ -625,7 +618,7 @@ def _derive_vars(jet_outputs: np.ndarray, jet_label: str, all_outputs: bool, tag
         pnet_vars_all = {}
 
         if all_outputs:
-            for i, output_name in enumerate(tagger_vars["output_names"]):
+            for output_name in tagger_vars["output_names"]:
                 pnet_vars_all[f"{jet_label}FatJetParTMD_{output_name}"] = np.array([])
 
         pvars = {**derived_vars, **pnet_vars_all}
@@ -634,7 +627,7 @@ def _derive_vars(jet_outputs: np.ndarray, jet_label: str, all_outputs: bool, tag
 
 
 def runInferenceTriton(
-    tagger_resources_path: str,
+    tagger_resources_path: Path,
     events: NanoEventsArray,
     num_jets: int = 2,
     in_jet_idx: ArrayLike = None,
@@ -667,7 +660,8 @@ def runInferenceTriton(
 
     if jets is not None and in_jet_idx is None:
         warnings.warn(
-            "Input jets given without in_jet_idx - pfcands and svs matching will likely be incorrect!"
+            "Input jets given without in_jet_idx - pfcands and svs matching will likely be incorrect!",
+            stacklevel=2,
         )
 
     total_start = time.time()
@@ -682,10 +676,10 @@ def runInferenceTriton(
     else:
         config_name = "triton_config_ak15"
 
-    with open(f"{tagger_resources_path}/{config_name}.json") as f:
+    with (tagger_resources_path / f"{config_name}.json").open() as f:
         triton_config = json.load(f)
 
-    with open(f"{tagger_resources_path}/{triton_config['model_name']}.json") as f:
+    with (tagger_resources_path / f"{triton_config['model_name']}.json").open() as f:
         tagger_vars = json.load(f)
 
     triton_model = wrapped_triton(

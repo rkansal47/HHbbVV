@@ -4,8 +4,9 @@ Collection of variables useful for the nonresonant analysis.
 Author: Raghav Kansal
 """
 
-from collections import OrderedDict
+from __future__ import annotations
 
+from collections import OrderedDict
 
 years = ["2016APV", "2016", "2017", "2018"]
 
@@ -25,7 +26,8 @@ samples = OrderedDict(
         ("QCD", "QCD"),
         ("TT", "TT"),
         ("ST", "ST"),
-        ("V+Jets", ("WJets", "ZJets")),
+        ("W+Jets", "WJets"),
+        ("Z+Jets", "ZJets"),
         ("Diboson", ("WW", "WZ", "ZZ")),
         # break this down into production modes for combination
         # https://gitlab.cern.ch/hh/naming-conventions#single-h-backgrounds
@@ -35,7 +37,7 @@ samples = OrderedDict(
         ("WHbb", ("WminusH_HToBB", "WplusH_HToBB")),
         ("ggZHbb", "ggZH_HToBB"),
         ("ttHbb", "ttHToBB"),
-        # ("HWW", ("*HToWW", "*HToNonbb")),
+        ("HWW", ("*HToWW", "*HToNonbb")),
         # ("HH", ("GluGluToHHTo4B_node_cHHH1_preUL")),
         ("Data", "JetHT"),
     ]
@@ -44,8 +46,8 @@ samples = OrderedDict(
 
 data_key = "Data"
 qcd_key = "QCD"
-bg_keys = [key for key in samples.keys() if key != data_key]
-hbb_bg_keys = [key for key in samples.keys() if "Hbb" in key]
+bg_keys = [key for key in samples if key != data_key]
+hbb_bg_keys = [key for key in samples if "Hbb" in key]
 
 # change HHbbVV to hbbhVV
 nonres_samples = OrderedDict(
@@ -188,6 +190,8 @@ for mX, mY in res_mps:
     res_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}"
 
 res_sig_keys = list(res_samples.keys())
+
+all_mc = nonres_sig_keys + res_sig_keys + bg_keys
 
 # from https://cms.cern.ch/iCMS/jsp/db_notes/noteInfo.jsp?cmsnoteid=CMS%20AN-2021/005
 txbb_wps = {

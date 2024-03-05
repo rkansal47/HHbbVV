@@ -5,23 +5,24 @@ Runs coffea processors on the LPC via either condor or dask.
 
 Author(s): Cristina Mantilla Suarez, Raghav Kansal
 """
+from __future__ import annotations
 
-import pickle
-import os
 import argparse
+import os
+import pickle
+from pathlib import Path
 
 import numpy as np
 import uproot
+from coffea import nanoevents, processor
 
-from coffea import nanoevents
-from coffea import processor
-
-import run_utils
+from HHbbVV import run_utils
 
 
 def run_dask(p: processor, fileset: dict, args):
     """Run processor on using dask via lpcjobqueue"""
     import time
+
     from distributed import Client
     from lpcjobqueue import LPCCondorCluster
 
@@ -56,7 +57,7 @@ def run_dask(p: processor, fileset: dict, args):
     print(f"Metrics: {metrics}")
     print(f"Finished in {elapsed:.1f}s")
 
-    with open("hists.pkl", "wb") as f:
+    with Path("hists.pkl").open("wb") as f:
         pickle.dump(hists, f)
 
 
@@ -65,18 +66,18 @@ def run(p: processor, fileset: dict, args):
     run_utils.add_mixins(nanoevents)  # update nanoevents schema
 
     # outputs are saved here as pickles
-    outdir = "./outfiles"
-    os.system(f"mkdir -p {outdir}")
+    outdir = Path("outfiles")
+    outdir.mkdir(exist_ok=True)
 
     if args.processor in ["skimmer", "input", "ttsfs"]:
         # these processors store intermediate files in the "./outparquet" local directory
-        local_dir = os.path.abspath(".")
-        local_parquet_dir = os.path.abspath(os.path.join(".", "outparquet"))
+        local_dir = Path().resolve()
+        local_parquet_dir = local_dir / "outparquet"
 
-        if os.path.isdir(local_parquet_dir):
+        if local_parquet_dir.is_dir():
             os.system(f"rm -rf {local_parquet_dir}")
 
-        os.system(f"mkdir {local_parquet_dir}")
+        local_parquet_dir.mkdir()
 
     uproot.open.defaults["xrootd_handler"] = uproot.source.xrootd.MultithreadedXRootDSource
 
@@ -95,9 +96,8 @@ def run(p: processor, fileset: dict, args):
 
     out, metrics = run(fileset, "Events", processor_instance=p)
 
-    filehandler = open(f"{outdir}/{args.starti}-{args.endi}.pkl", "wb")
-    pickle.dump(out, filehandler)
-    filehandler.close()
+    with (outdir / f"{args.starti}-{args.endi}.pkl").open("wb") as f:
+        pickle.dump(out, f)
 
     print(out)
 
@@ -105,8 +105,8 @@ def run(p: processor, fileset: dict, args):
     # otherwise it will complain about too many small files
     if args.processor in ["skimmer", "input", "ttsfs"]:
         import pandas as pd
-        import pyarrow.parquet as pq
         import pyarrow as pa
+        import pyarrow.parquet as pq
 
         pddf = pd.read_parquet(local_parquet_dir)
 

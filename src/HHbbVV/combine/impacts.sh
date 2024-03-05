@@ -1,9 +1,7 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 
-dataset=data_obs
 cards_dir=$1
-ws=${cards_dir}/combined
-wsm=${ws}_withmasks
 wsm_snapshot=higgsCombineSnapshot.MultiDimFit.mH125
 
 outsdir=${cards_dir}/outs

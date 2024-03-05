@@ -4,14 +4,25 @@ Common plotting functions.
 Author(s): Raghav Kansal
 """
 
-from collections import OrderedDict
-import numpy as np
-from pandas import DataFrame
+from __future__ import annotations
 
+from collections import OrderedDict
+from copy import deepcopy
+
+import hist
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import mplhep as hep
 import matplotlib.ticker as mticker
+import mplhep as hep
+import numpy as np
+import utils
+from hist import Hist
+from hist.intervals import poisson_interval, ratio_uncertainty
+from numpy.typing import ArrayLike
+from pandas import DataFrame
+from utils import CUT_MAX_VAL
+
+from HHbbVV.hh_vars import LUMI, data_key, hbb_bg_keys
 
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
@@ -23,21 +34,8 @@ fig, ax = plt.subplots(1, 1, figsize=(12, 12))
 plt.rcParams.update({"font.size": 24})
 plt.close()
 
-import hist
-from hist import Hist
-from hist.intervals import ratio_uncertainty, poisson_interval
 
-from typing import Dict, List, Union, Tuple
-from numpy.typing import ArrayLike
-
-from hh_vars import LUMI, data_key, hbb_bg_keys
-import utils
-from utils import CUT_MAX_VAL
-
-from copy import deepcopy
-
-
-bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "V+Jets", "TT", "QCD"]
+bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "TT", "QCD"]
 
 sample_label_map = {
     "HHbbVV": "ggF HHbbVV",
@@ -75,12 +73,12 @@ BG_COLOURS = {
     "QCD": "lightblue",
     "TT": "darkblue",
     "V+Jets": "green",
-    "WJets": "green",
-    "ZJets": "flax",
+    "W+Jets": "green",
+    "Z+Jets": "flax",
     "ST": "orange",
     "Diboson": "canary",
-    "Hbb": "lightred",
-    "HWW": "deeppurple",
+    "Hbb": "deeppurple",
+    "HWW": "lightred",
     "HH": "ashgrey",
     "HHbbVV": "red",
 }
@@ -88,14 +86,15 @@ BG_COLOURS = {
 sig_colour = "red"
 
 SIG_COLOURS = [
-    "#A95648",
+    "#ff5252",
     "#7F2CCB",
     "#ffbaba",
-    "#ff7b7b",
-    "#ff5252",
-    "#a70000",
+    # "#ff7b7b",
     "#885053",
+    "#a70000",
+    "#5A1807",
     "#3C0919",
+    "#353535",
 ]
 
 
@@ -131,7 +130,7 @@ def _combine_hbb_bgs(hists, bg_keys):
     return h, bg_keys
 
 
-def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, variation):
+def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, syst, variation):
     # set up samples, colours and labels
     bg_keys = [key for key in bg_order if key in bg_keys]
     bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
@@ -146,18 +145,18 @@ def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, variation):
     for sig_key, sig_scale in sig_scale_dict.items():
         label = sig_key if sig_key not in sample_label_map else sample_label_map[sig_key]
 
-        if sig_scale == 1:
-            label = label
-        elif sig_scale <= 100:
-            label = f"{label} $\\times$ {sig_scale:.0f}"
-        else:
-            label = f"{label} $\\times$ {sig_scale:.1e}"
+        if sig_scale != 1:
+            if sig_scale <= 100:
+                label = f"{label} $\\times$ {sig_scale:.0f}"
+            else:
+                label = f"{label} $\\times$ {sig_scale:.1e}"
 
         sig_labels[sig_key] = label
 
     # set up systematic variations if needed
-    if variation is not None:
-        wshift, shift, wsamples = variation
+    if syst is not None and variation is not None:
+        wshift, wsamples = syst
+        shift = variation
         skey = {"up": " Up", "down": " Down"}[shift]
 
         for i, key in enumerate(bg_keys):
@@ -212,27 +211,28 @@ def _asimov_significance(s, b):
 def ratioHistPlot(
     hists: Hist,
     year: str,
-    sig_keys: List[str],
-    bg_keys: List[str],
-    sig_colours: List[str] = None,
-    bg_colours: Dict[str, str] = None,
-    sig_err: Union[ArrayLike, str] = None,
-    data_err: Union[ArrayLike, bool, None] = None,
+    sig_keys: list[str],
+    bg_keys: list[str],
+    sig_colours: list[str] = None,
+    bg_colours: dict[str, str] = None,
+    sig_err: ArrayLike | str = None,
+    bg_err: ArrayLike = None,
+    data_err: ArrayLike | bool | None = None,
     title: str = None,
-    blind_region: list = None,
     name: str = "",
     sig_scale_dict: OrderedDict[str, float] = None,
     ylim: int = None,
     show: bool = True,
-    variation: Tuple = None,
+    syst: tuple = None,
+    variation: str = None,
     plot_data: bool = True,
-    bg_order: List[str] = bg_order,
+    bg_order: list[str] = bg_order,
     log: bool = False,
-    ratio_ylims: List[float] = [0, 2],
+    ratio_ylims: list[float] = None,
     divide_bin_width: bool = False,
     plot_significance: bool = False,
     significance_dir: str = "right",
-    axrax: Tuple = None,
+    axrax: tuple = None,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -248,19 +248,20 @@ def ratioHistPlot(
         sig_err (Union[ArrayLike, str], optional): plot error on signal.
           if string, will take up down shapes from the histograms (assuming they're saved as "{sig_key}_{sig_err}_{up/down}")
           if 1D Array, will take as error per bin
+        bg_err (ArrayLike, optional): [bg_tot_down, bg_tot_up] to plot bg variations. Defaults to None.
         data_err (Union[ArrayLike, bool, None], optional): plot error on data.
           if True, will plot poisson error per bin
-          if array, will plot given errors per bin
+          if array, will plot given errors per bins
         title (str, optional): plot title. Defaults to None.
-        blind_region (list): [min, max] range of values which should be blinded in the plot
-          i.e. Data set to 0 in those bins
         name (str): name of file to save plot
         sig_scale_dict (Dict[str, float]): if scaling signals in the plot, dictionary of factors
           by which to scale each signal
         ylim (optional): y-limit on plot
         show (bool): show plots or not
-        variation (Tuple): Tuple of
-          (wshift: name of systematic e.g. pileup, shift: up or down, wsamples: list of samples which are affected by this)
+        syst (Tuple): Tuple of (wshift: name of systematic e.g. pileup,  wsamples: list of samples which are affected by this),
+          to plot variations of this systematic.
+        variation (str): "up" or "down", to plot only one variation (if syst is not None).
+          Defaults to None i.e. plotting both variations.
         plot_data (bool): plot data
         bg_order (List[str]): order in which to plot backgrounds
         ratio_ylims (List[float]): y limits on the ratio plots
@@ -270,6 +271,8 @@ def ratioHistPlot(
         axrax (Tuple): optionally input ax and rax instead of creating new ones
     """
 
+    if ratio_ylims is None:
+        ratio_ylims = [0, 2]
     if bg_colours is None:
         bg_colours = BG_COLOURS
 
@@ -281,8 +284,22 @@ def ratioHistPlot(
     hists, bg_keys = _combine_hbb_bgs(hists, bg_keys)
 
     bg_keys, bg_colours, bg_labels, sig_scale_dict, sig_labels = _process_samples(
-        sig_keys, bg_keys, bg_colours, sig_scale_dict, variation
+        sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, syst, variation
     )
+
+    if syst is not None and variation is None:
+        # plot up/down variations
+        wshift, wsamples = syst
+        sig_err = wshift  # will plot sig variations below
+        bg_err = []
+        for shift in ["down", "up"]:
+            bg_sums = []
+            for sample in bg_keys:
+                if sample in wsamples:
+                    bg_sums.append(hists[f"{sample}_{wshift}_{shift}", :].values())
+                else:
+                    bg_sums.append(hists[sample, :].values())
+            bg_err.append(np.sum(bg_sums, axis=0))
 
     pre_divide_hists = hists
     if divide_bin_width:
@@ -297,11 +314,15 @@ def ratioHistPlot(
         ax.sharex(rax)
     elif plot_significance:
         fig, (ax, rax, sax) = plt.subplots(
-            3, 1, figsize=(12, 18), gridspec_kw=dict(height_ratios=[3, 1, 1], hspace=0), sharex=True
+            3,
+            1,
+            figsize=(12, 18),
+            gridspec_kw={"height_ratios": [3, 1, 1], "hspace": 0},
+            sharex=True,
         )
     else:
         fig, (ax, rax) = plt.subplots(
-            2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
+            2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
         )
 
     plt.rcParams.update({"font.size": 24})
@@ -331,8 +352,7 @@ def ratioHistPlot(
         )
 
     # plot signal errors
-    if type(sig_err) == str:
-        scolours = {"down": colours["lightred"], "up": colours["darkred"]}
+    if isinstance(sig_err, str):
         for skey, shift in [("Up", "up"), ("Down", "down")]:
             hep.histplot(
                 [
@@ -356,6 +376,17 @@ def ratioHistPlot(
                 sig_scale,
             )
 
+    if bg_err is not None:
+        ax.fill_between(
+            np.repeat(hists.axes[1].edges, 2)[1:-1],
+            np.repeat(bg_err[0], 2),
+            np.repeat(bg_err[1], 2),
+            color="black",
+            alpha=0.2,
+            hatch="//",
+            linewidth=0,
+        )
+
     # plot data
     if plot_data:
         hep.histplot(
@@ -369,8 +400,10 @@ def ratioHistPlot(
 
     if log:
         ax.set_yscale("log")
-
-    ax.legend(fontsize=16)
+        # two column legend
+        ax.legend(fontsize=16, ncol=2)
+    else:
+        ax.legend(fontsize=16)
 
     y_lowlim = 0 if not log else 1e-5
     if ylim is not None:
@@ -462,17 +495,16 @@ def ratioHistPlot(
 
 def ratioLinePlot(
     hists: Hist,
-    bg_keys: List[str],
+    bg_keys: list[str],
     year: str,
-    bg_colours: Dict[str, str] = None,
-    sig_colour: str = sig_colour,
-    bg_err: Union[np.ndarray, str] = None,
-    data_err: Union[ArrayLike, bool, None] = None,
+    bg_colours: dict[str, str] = None,
+    sig_colour: str = sig_colour,  # noqa: ARG001
+    bg_err: np.ndarray | str = None,
+    data_err: ArrayLike | bool | None = None,
     title: str = None,
-    blind_region: list = None,
     pulls: bool = False,
     name: str = "",
-    sig_scale: float = 1.0,
+    sig_scale: float = 1.0,  # noqa: ARG001
     show: bool = True,
 ):
     """
@@ -485,7 +517,7 @@ def ratioLinePlot(
     plt.rcParams.update({"font.size": 24})
 
     fig, (ax, rax) = plt.subplots(
-        2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
+        2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
     )
 
     bg_tot = np.sum(hists[bg_keys, :].values(), axis=0)
@@ -512,14 +544,15 @@ def ratioLinePlot(
             linewidth=0,
         )
 
-    if sig_key in hists:
-        hep.histplot(
-            hists[sig_key, :] * sig_scale,
-            ax=ax,
-            histtype="step",
-            label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
-            color=colours[sig_colour],
-        )
+    # if sig_key in hists:
+    #     hep.histplot(
+    #         hists[sig_key, :] * sig_scale,
+    #         ax=ax,
+    #         histtype="step",
+    #         label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
+    #         color=colours[sig_colour],
+    #     )
+
     hep.histplot(
         hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
     )
@@ -550,7 +583,7 @@ def ratioLinePlot(
         rax.set_ylim(0.5, 1.5)
         rax.grid()
     else:
-        mcdata_ratio = bg_tot / (data_vals + 1e-5)
+        bg_tot / (data_vals + 1e-5)
         yerr = bg_err / data_vals
 
         hep.histplot(
@@ -579,11 +612,11 @@ def ratioLinePlot(
 
 
 def hist2ds(
-    hists: Dict[str, Hist],
+    hists: dict[str, Hist],
     plot_dir: str,
-    regions: List[str] = None,
-    region_labels: Dict[str, str] = None,
-    samples: List[str] = None,
+    regions: list[str] = None,
+    region_labels: dict[str, str] = None,
+    samples: list[str] = None,
     fail_zlim: float = None,
     pass_zlim: float = None,
     show: bool = True,
@@ -602,13 +635,13 @@ def hist2ds(
         show (bool, optional): show plot or close. Defaults to True.
     """
     if samples is None:
-        samples = list(list(hists.values())[0].axes[0])
+        samples = list(next(iter(hists.values())).axes[0])
 
     if regions is None:
         regions = list(hists.keys())
 
     for region in regions:
-        h = hists[region]
+        hists[region]
         region_label = region_labels[region] if region_labels is not None else region
         pass_region = region.startswith("pass")
         lim = pass_zlim if pass_region else fail_zlim
@@ -639,15 +672,21 @@ def rocCurve(
     fpr,
     tpr,
     auc=None,
-    sig_eff_lines=[],
+    sig_eff_lines=None,
     # bg_eff_lines=[],
     title=None,
-    xlim=[0, 0.8],
-    ylim=[1e-6, 1],
+    xlim=None,
+    ylim=None,
     plotdir="",
     name="",
 ):
     """Plots a ROC curve"""
+    if ylim is None:
+        ylim = [1e-06, 1]
+    if xlim is None:
+        xlim = [0, 0.8]
+    if sig_eff_lines is None:
+        sig_eff_lines = []
     line_style = {"colors": "lightgrey", "linestyles": "dashed"}
 
     plt.figure(figsize=(12, 12))
@@ -680,15 +719,21 @@ def _find_nearest(array, value):
 
 
 def multiROCCurve(
-    rocs: Dict,
-    thresholds=[0.6, 0.9, 0.96, 0.99, 0.997, 0.998, 0.999],
+    rocs: dict,
+    thresholds=None,
     title=None,
-    xlim=[0, 1],
-    ylim=[1e-6, 1],
+    xlim=None,
+    ylim=None,
     plotdir="",
     name="",
     show=False,
 ):
+    if ylim is None:
+        ylim = [1e-06, 1]
+    if xlim is None:
+        xlim = [0, 1]
+    if thresholds is None:
+        thresholds = [0.6, 0.9, 0.96, 0.99, 0.997, 0.998, 0.999]
     th_colours = [
         "#36213E",
         "#9381FF",
@@ -756,6 +801,7 @@ def multiROCCurve(
     plt.xlim(*xlim)
     plt.ylim(*ylim)
     plt.legend(loc="lower right")
+    plt.title(title)
 
     if len(name):
         plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
@@ -766,7 +812,7 @@ def multiROCCurve(
         plt.close()
 
 
-def plot_HEM2d(hists2d: List[Hist], plot_keys: List[str], year: str, name: str, show: bool = False):
+def plot_HEM2d(hists2d: list[Hist], plot_keys: list[str], year: str, name: str, show: bool = False):
     fig, axs = plt.subplots(
         len(plot_keys),
         2,
@@ -794,7 +840,7 @@ def plot_HEM2d(hists2d: List[Hist], plot_keys: List[str], year: str, name: str, 
 
 def ratioTestTrain(
     h: Hist,
-    training_keys: List[str],
+    training_keys: list[str],
     shape_var: utils.ShapeVar,
     year: str,
     plotdir="",
@@ -817,7 +863,7 @@ def ratioTestTrain(
     }
 
     fig, (ax, rax) = plt.subplots(
-        2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
+        2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
     )
 
     for data in ["Train", "Test"]:
@@ -879,12 +925,12 @@ def ratioTestTrain(
 
 
 def cutsLinePlot(
-    events_dict: Dict[str, DataFrame],
-    bb_masks: Dict[str, DataFrame],
+    events_dict: dict[str, DataFrame],
+    bb_masks: dict[str, DataFrame],
     shape_var: utils.ShapeVar,
     plot_key: str,
     cut_var: str,
-    cuts: List[float],
+    cuts: list[float],
     year: str,
     weight_key: str,
     plotdir: str = "",
@@ -895,7 +941,7 @@ def cutsLinePlot(
     fig, ax = plt.subplots(1, 1, figsize=(12, 12))
     plt.rcParams.update({"font.size": 24})
 
-    for i, cut in enumerate(cuts):
+    for _i, cut in enumerate(cuts):
         sel, _ = utils.make_selection({cut_var: [cut, CUT_MAX_VAL]}, events_dict, bb_masks)
         h = utils.singleVarHist(
             events_dict, shape_var, bb_masks, weight_key=weight_key, selection=sel

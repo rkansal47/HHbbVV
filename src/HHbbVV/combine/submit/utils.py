@@ -1,34 +1,9 @@
+from __future__ import annotations
+
 import os
-from string import Template
 from pathlib import Path
 
-
-def add_bool_arg(parser, name, help, default=False, no_name=None):
-    """Add a boolean command line argument for argparse"""
-    varname = "_".join(name.split("-"))  # change hyphens to underscores
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument("--" + name, dest=varname, action="store_true", help=help)
-    if no_name is None:
-        no_name = "no-" + name
-        no_help = "don't " + help
-    else:
-        no_help = help
-    group.add_argument("--" + no_name, dest=varname, action="store_false", help=no_help)
-    parser.set_defaults(**{varname: default})
-
-
-def write_template(templ_file: str, out_file: str, templ_args: dict):
-    """Write to ``out_file`` based on template from ``templ_file`` using ``templ_args``"""
-
-    with open(templ_file, "r") as f:
-        templ = Template(f.read())
-
-    with open(out_file, "w") as f:
-        f.write(
-            templ.safe_substitute(
-                templ_args,
-            )
-        )
+from HHbbVV import run_utils
 
 
 def setup(args):
@@ -65,5 +40,7 @@ def parse_common_args(parser):
     parser.add_argument("--toys-per-job", default=100, help="# toys per condor job", type=int)
     parser.add_argument("--num-jobs", default=10, help="# condor jobs", type=int)
     parser.add_argument("--seed", default=444, help="# condor jobs", type=int)
-    add_bool_arg(parser, "submit", default=False, help="submit files as well as create them")
-    add_bool_arg(parser, "resonant", default=True, help="resonant or nonresonant")
+    run_utils.add_bool_arg(
+        parser, "submit", default=False, help="submit files as well as create them"
+    )
+    run_utils.add_bool_arg(parser, "resonant", default=True, help="resonant or nonresonant")

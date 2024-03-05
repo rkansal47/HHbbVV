@@ -4,15 +4,17 @@ Takes the skimmed pickles (output of bbVVSkimmer) and makes control plots.
 Author(s): Raghav Kansal
 """
 
-import numpy as np
-import awkward as ak
+from __future__ import annotations
 
-import utils
-import plotting
+import os
 
 # load the data
-
 import pickle
+
+import awkward as ak
+import numpy as np
+import plotting
+import utils
 
 # backgrounds listed first and plotted in order
 keys = ["V", "Top", "QCD", "Data", "HHbbVV4q"]
@@ -20,8 +22,6 @@ labels = ["VV/V+jets", "ST/TT", "QCD", "Data", "HHbbVV4q"]
 num_bg = 3  # up to this label for bg
 sig = "HHbbVV4q"
 data_path = "../../data/2017_combined/"
-
-import os
 
 plotdir = "../plots/ControlPlots/Sep3/"
 os.system(f"mkdir -p {plotdir}")
@@ -224,7 +224,7 @@ for var, (bins, label) in hist_vars.items():
 
 # var = 'MET_pt'
 
-for var in hist_vars.keys():
+for var in hist_vars:
     plotting.ratioHistPlot(
         hists[var],
         keys[:num_bg],

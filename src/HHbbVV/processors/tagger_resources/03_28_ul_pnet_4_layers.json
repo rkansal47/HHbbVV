@@ -17,25 +17,22 @@
     "sv_mask"
   ],
   "pf_points": {
-    "var_names": [
-      "pfcand_etarel",
-      "pfcand_phirel"
-    ],
+    "var_names": ["pfcand_etarel", "pfcand_phirel"],
     "var_infos": {
       "pfcand_etarel": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "pfcand_phirel": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       }
     },
@@ -84,56 +81,56 @@
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "pfcand_phirel": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "pfcand_isEl": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "pfcand_isMu": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "pfcand_isGamma": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "pfcand_isChargedHad": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "pfcand_isNeutralHad": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "pfcand_abseta": {
@@ -148,8 +145,8 @@
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "pfcand_VTX_ass": {
@@ -164,8 +161,8 @@
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "pfcand_normchi2": {
@@ -220,41 +217,36 @@
     "var_length": 130
   },
   "pf_mask": {
-    "var_names": [
-      "pfcand_mask"
-    ],
+    "var_names": ["pfcand_mask"],
     "var_infos": {
       "pfcand_mask": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       }
     },
     "var_length": 130
   },
   "sv_points": {
-    "var_names": [
-      "sv_etarel",
-      "sv_phirel"
-    ],
+    "var_names": ["sv_etarel", "sv_phirel"],
     "var_infos": {
       "sv_etarel": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "sv_phirel": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       }
     },
@@ -295,16 +287,16 @@
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "sv_phirel": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       },
       "sv_abseta": {
@@ -367,16 +359,14 @@
     "var_length": 7
   },
   "sv_mask": {
-    "var_names": [
-      "sv_mask"
-    ],
+    "var_names": ["sv_mask"],
     "var_infos": {
       "sv_mask": {
         "median": 0,
         "norm_factor": 1,
         "replace_inf_value": 0,
-        "lower_bound": -1e+32,
-        "upper_bound": 1e+32,
+        "lower_bound": -1e32,
+        "upper_bound": 1e32,
         "pad": 0
       }
     },

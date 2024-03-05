@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import matplotlib.pyplot as plt
 import mplhep as hep
 
@@ -135,7 +137,7 @@ def ratioHistPlot(
         sig_label = sig_key
 
     fig, (ax, rax) = plt.subplots(
-        2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
+        2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
     )
 
     ax.set_ylabel("Events")
@@ -171,8 +173,12 @@ def ratioHistPlot(
         plt.savefig(f"{plotdir}{name}.pdf", bbox_inches="tight")
 
 
-def rocCurve(fpr, tpr, title=None, xlim=[0, 0.4], ylim=[1e-6, 1e-2], plotdir="", name=""):
+def rocCurve(fpr, tpr, title=None, xlim=None, ylim=None, plotdir="", name=""):
     """Plots a ROC curve"""
+    if ylim is None:
+        ylim = [1e-06, 0.01]
+    if xlim is None:
+        xlim = [0, 0.4]
     plt.figure(figsize=(12, 12))
     plt.plot(tpr, fpr)
     plt.yscale("log")
