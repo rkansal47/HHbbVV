@@ -129,9 +129,7 @@ def main(args):
 def parse_args(parser):
     parser.add_argument("--git-branch", required=True, help="git branch to use", type=str)
     parser.add_argument("--script", default="src/run.py", help="script to run", type=str)
-    parser.add_argument(
-        "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
-    )
+    parser.add_argument("--outdir", default="outfiles", help="directory for output files", type=str)
     parser.add_argument(
         "--site",
         default="lpc",

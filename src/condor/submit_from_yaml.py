@@ -40,8 +40,6 @@ if __name__ == "__main__":
     with Path(args.yaml).open() as file:
         samples_to_submit = yaml.safe_load(file)
 
-    args.script = "run.py"
-    args.outdir = "outfiles"
     args.test = False
     tag = args.tag
     for key, tdict in samples_to_submit.items():
