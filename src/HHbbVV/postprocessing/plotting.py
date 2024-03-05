@@ -232,6 +232,7 @@ def ratioHistPlot(
     divide_bin_width: bool = False,
     plot_significance: bool = False,
     significance_dir: str = "right",
+    plot_ratio: bool = True,
     axrax: tuple = None,
 ):
     """
@@ -320,10 +321,12 @@ def ratioHistPlot(
             gridspec_kw={"height_ratios": [3, 1, 1], "hspace": 0},
             sharex=True,
         )
-    else:
+    elif plot_ratio:
         fig, (ax, rax) = plt.subplots(
             2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
         )
+    else:
+        fig, ax = plt.subplots(1, 1, figsize=(12, 11))
 
     plt.rcParams.update({"font.size": 24})
 
@@ -385,6 +388,7 @@ def ratioHistPlot(
             alpha=0.2,
             hatch="//",
             linewidth=0,
+            label="Total Background Uncertainty",
         )
 
     # plot data
@@ -412,24 +416,27 @@ def ratioHistPlot(
         ax.set_ylim(y_lowlim)
 
     # plot ratio below
-    if plot_data:
-        bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
-        yerr = ratio_uncertainty(pre_divide_hists[data_key, :].values(), bg_tot.values(), "poisson")
+    if plot_ratio:
+        if plot_data:
+            bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
+            yerr = ratio_uncertainty(
+                pre_divide_hists[data_key, :].values(), bg_tot.values(), "poisson"
+            )
 
-        hep.histplot(
-            pre_divide_hists[data_key, :] / (bg_tot.values() + 1e-5),
-            yerr=yerr,
-            ax=rax,
-            histtype="errorbar",
-            color="black",
-            capsize=4,
-        )
-    else:
-        rax.set_xlabel(hists.axes[1].label)
+            hep.histplot(
+                pre_divide_hists[data_key, :] / (bg_tot.values() + 1e-5),
+                yerr=yerr,
+                ax=rax,
+                histtype="errorbar",
+                color="black",
+                capsize=4,
+            )
+        else:
+            rax.set_xlabel(hists.axes[1].label)
 
-    rax.set_ylabel("Data/MC")
-    rax.set_ylim(ratio_ylims)
-    rax.grid()
+        rax.set_ylabel("Data/MC")
+        rax.set_ylim(ratio_ylims)
+        rax.grid()
 
     if plot_significance:
         bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys]).values()

@@ -680,6 +680,11 @@ def make_selection(
     return selection, cutflow
 
 
+def get_all_weights(events: pd.DataFrame):
+    """Get all weight columns in the events dataframe"""
+    return np.unique([key for (key, ind) in events.columns if "weight" in key or "Weight" in key])
+
+
 def getSigSidebandBGYields(
     mass_key: str,
     sig_key: str,

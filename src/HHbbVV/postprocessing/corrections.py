@@ -29,7 +29,7 @@ def _load_txbb_sfs(year: str):
     """Create 2D lookup tables in [Txbb, pT] for Txbb SFs from given year"""
 
     # https://coli.web.cern.ch/coli/.cms/btv/boohft-calib/20221201_bb_ULNanoV9_PNetXbbVsQCD_ak8_ext_2016APV/4_fit/
-    with (package_path / f"/corrections/txbb_sfs/txbb_sf_ul_{year}.json").open() as f:
+    with (package_path / f"corrections/txbb_sfs/txbb_sf_ul_{year}.json").open() as f:
         txbb_sf = json.load(f)
 
     wps = ["LP", "MP", "HP"]
@@ -81,9 +81,12 @@ def apply_txbb_sfs(
             events[f"{weight_key}_txbb_{var}"] = events[weight_key]
 
     if len(events[weight_key]):
-        events[weight_key] = events[weight_key] * txbb_sf_lookups[year]["nom"](bb_txbb, bb_pt)
-    else:
-        events[weight_key] = events[weight_key]
+        txbb_nom = txbb_sf_lookups[year]["nom"](bb_txbb, bb_pt)
+        for wkey in utils.get_all_weights(events):
+            if len(events[wkey].shape) > 1:
+                events[wkey] *= txbb_nom[:, np.newaxis]
+            else:
+                events[wkey] *= txbb_nom
 
 
 trig_effs = {}
@@ -334,7 +337,7 @@ def get_lpsf(
     # pt extrapolation uncertainty is the std of all pt param variations
     uncs["sj_pt_unc"] = (
         np.std(
-            np.sum(weight[:, np.newaxis] * events[f"{jet}_lp_pt_extrap_vars"].to_numpy(), axis=0)
+            np.sum(weight[:, np.newaxis] * events[f"{jet}_lp_sf_pt_extrap_vars"].to_numpy(), axis=0)
         )
         / tot_post
     )
