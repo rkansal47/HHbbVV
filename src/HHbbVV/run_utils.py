@@ -79,7 +79,7 @@ def check_branch(git_branch: str, allow_diff_local_repo: bool = False):
     local_hash = subprocess.getoutput("git rev-parse HEAD")
 
     if remote_hash != local_hash:
-        print_red("Latest local and github commits do not match!")
+        print_red("Latest local and github commits do not match! Did you push your changes?")
         print(f"Local commit hash: {local_hash}")
         print(f"Remote commit hash: {remote_hash}")
         if allow_diff_local_repo:
