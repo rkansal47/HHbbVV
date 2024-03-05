@@ -9,7 +9,7 @@ mkdir condor_templates
 for sample in $samples
 do
     for year in 2016 2016APV 2017 2018
-    do 
+    do
         python -u postprocessing.py --templates --resonant --no-data --read-sig-samples --bg-keys "" --year $year \
         --sig-samples $sample --template-dir "condor_templates/$sample" \
         --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/Apr11/"

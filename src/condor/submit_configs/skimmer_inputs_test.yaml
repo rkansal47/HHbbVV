@@ -1,6 +1,4 @@
 {
-    "Skimmer":
-        {
-            "QCD": { "subsamples": ["QCD_HT1000to1500"], "files_per_job": 20 },
-        },
+  "Skimmer":
+    { "QCD": { "subsamples": ["QCD_HT1000to1500"], "files_per_job": 20 } },
 }

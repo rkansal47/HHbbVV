@@ -1,11 +1,11 @@
-import os
-import subprocess
-import json
+from __future__ import annotations
 
+import json
+import subprocess
 
 eosbase = "root://cmseos.fnal.gov/"
 eosdirs = {
-    "pfnanov1": f"/store/user/lpchbb/cmantill/v2_2/2017v1/",
+    "pfnanov1": "/store/user/lpchbb/cmantill/v2_2/2017v1/",
 }
 
 sampledict = {

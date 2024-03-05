@@ -118,7 +118,7 @@ freezeparamsblinded=${freezeparamsblinded%,}
 for ord in {0..3}
 do
     model_name="nTF_${ord}"
-    
+
     # create datacards if they don't already exist
     if [ ! -f "${cards_dir}/${model_name}/pass.txt" ]; then
         echo "Making Datacard for $model_name"
@@ -159,7 +159,7 @@ cd -
 
 if [ $goftoys = 1 ]; then
     cd ${cards_dir}/${model_name}/
-    
+
     ulimit -s unlimited
 
     echo "Toys for $order order fit"

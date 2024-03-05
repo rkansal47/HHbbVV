@@ -1,23 +1,23 @@
-#!/bin/bash                                                                                                                   
+#!/bin/bash
 
 ####################################################################################################
-# Template for condor job script to 
+# Template for condor job script to
 # 1) Make datacards for specified samples
 # 2) Do background-only fit in validation region and get asymptotic limits
-# 
+#
 # Author: Raghav Kansal
 ####################################################################################################
 
-echo "Starting job on " `date` # Date/time of start of job                                                                       
-echo "Running on: `uname -a`" # Condor job is running on this node                                                               
-echo "System software: `cat /etc/redhat-release`" # Operating System on that node                                             
+echo "Starting job on " `date` # Date/time of start of job
+echo "Running on: `uname -a`" # Condor job is running on this node
+echo "System software: `cat /etc/redhat-release`" # Operating System on that node
 
 ####################################################################################################
 # Get my tarred CMSSW with combine already compiled
 # Made with `tar cvfz CMSSW_11_3_4.tgz CMSSW_11_3_4`
 ####################################################################################################
 
-source /cvmfs/cms.cern.ch/cmsset_default.sh 
+source /cvmfs/cms.cern.ch/cmsset_default.sh
 xrdcp -s root://cmseos.fnal.gov//store/user/rkansal/CMSSW_11_3_4.tgz .
 
 echo "extracting tar"

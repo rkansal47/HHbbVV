@@ -2,7 +2,7 @@
 
 ####################################################################################################
 # Script for fits
-# 
+#
 # 1) Combines cards and makes a workspace (--workspace / -w)
 # 2) Background-only fit (--bfit / -b)
 # 3) Expected asymptotic limits (--limits / -l)
@@ -11,13 +11,13 @@
 # 6) GoF on data (--gofdata / -g)
 # 7) GoF on toys (--goftoys / -t),
 # 8) Impacts: initial fit (--impactsi / -i), per-nuisance fits (--impactsf $nuisance), collect (--impactsc $nuisances)
-# 9) Bias test: run a bias test on toys (using post-fit nuisances) with expected signal strength 
+# 9) Bias test: run a bias test on toys (using post-fit nuisances) with expected signal strength
 #    given by --bias X.
-# 
+#
 # Specify resonant with --resonant / -r, otherwise does nonresonant
 # Specify seed with --seed (default 42) and number of toys with --numtoys (default 100)
 #
-# Usage ./run_blinded.sh [-wblsdgt] [--numtoys 100] [--seed 42] 
+# Usage ./run_blinded.sh [-wblsdgt] [--numtoys 100] [--seed 42]
 #
 # Author: Raghav Kansal
 ####################################################################################################
@@ -126,9 +126,9 @@ seed=$seed numtoys=$numtoys"
 
 ####################################################################################################
 # Set up fit arguments
-# 
-# We use channel masking to "mask" the blinded and "unblinded" regions in the same workspace. 
-# (mask = 1 means the channel is masked off) 
+#
+# We use channel masking to "mask" the blinded and "unblinded" regions in the same workspace.
+# (mask = 1 means the channel is masked off)
 ####################################################################################################
 
 dataset=data_obs
@@ -232,7 +232,7 @@ echo $unblindedparams
 # Combine cards, text2workspace, fit, limits, significances, fitdiagnositcs, GoFs
 ####################################################################################################
 
-# need to run this for large # of nuisances 
+# need to run this for large # of nuisances
 # https://cms-talk.web.cern.ch/t/segmentation-fault-in-combine/20735
 ulimit -s unlimited
 
@@ -356,7 +356,7 @@ fi
 if [ $impactsf != 0 ]; then
     echo "Impact scan for $impactsf"
     # Impacts module cannot access parameters which were frozen in MultiDimFit, so running impacts
-    # for each parameter directly using its internal command 
+    # for each parameter directly using its internal command
     # (also need to do this for submitting to condor anywhere other than lxplus)
     combine -M MultiDimFit -n _paramFit_impacts_$impactsf --algo impact --redefineSignalPOIs r -P $impactsf \
     --floatOtherPOIs 1 --saveInactivePOI 1 --snapshotName MultiDimFit -d ${wsm_snapshot}.root \

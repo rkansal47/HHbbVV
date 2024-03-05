@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-from setuptools import setup, find_packages
+from __future__ import annotations
+
+from setuptools import setup
 
 # packages = find_packages(
 #     where="src",

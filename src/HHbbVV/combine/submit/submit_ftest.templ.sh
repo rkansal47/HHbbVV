@@ -1,25 +1,25 @@
-#!/bin/bash 
+#!/bin/bash
 
 ####################################################################################################
 # Script for generating toys and doing GoFs for F-tests
 # Needs workspaces for all orders + b-only fit snapshot of lowest order model transferred as inputs.
-# 
+#
 # 1) Generates toys using b-only fit
 # 2) GoF on toys for lowest and lowest + 1 orders
 # 3) Transfers toys and GoF test files to EOS directory
-# 
+#
 # Author: Raghav Kansal
 ####################################################################################################
 
-echo "Starting job on " `date` #Date/time of start of job                                                                       
-echo "Running on: `uname -a`" #Condor job is running on this node                                                               
-echo "System software: `cat /etc/redhat-release`" #Operating System on that node                                             
+echo "Starting job on " `date` #Date/time of start of job
+echo "Running on: `uname -a`" #Condor job is running on this node
+echo "System software: `cat /etc/redhat-release`" #Operating System on that node
 
 ####################################################################################################
 # Get my tarred CMSSW with combine already compiled
 ####################################################################################################
 
-source /cvmfs/cms.cern.ch/cmsset_default.sh 
+source /cvmfs/cms.cern.ch/cmsset_default.sh
 xrdcp -s root://cmseos.fnal.gov//store/user/rkansal/CMSSW_11_3_4.tgz .
 
 echo "extracting tar"
@@ -132,7 +132,7 @@ do
         xrdcp "higgsCombineToys${toys_name}Seed$seed.GoodnessOfFit.mH125.$seed.root" root://cmseos.fnal.gov//store/user/rkansal/bbVV/cards/f_tests/$tag/$model_name/
         xrdcp $outsdir/GoF_toys${toys_name}$seed.txt root://cmseos.fnal.gov//store/user/rkansal/bbVV/cards/f_tests/$tag/$model_name/$outsdir/
 
-        rm "higgsCombineToys${toys_name}Seed$seed.GoodnessOfFit.mH125.$seed.root" 
+        rm "higgsCombineToys${toys_name}Seed$seed.GoodnessOfFit.mH125.$seed.root"
         rm "$outsdir/GoF_toys${toys_name}$seed.txt"
 
         cd -

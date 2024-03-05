@@ -1,5 +1,5 @@
 {
-  "QCD_HT50to100": 2.486e+08,
+  "QCD_HT50to100": 2.486e8,
   "QCD_HT100to200": 27990000.0,
   "QCD_HT200to300": 1712000,
   "QCD_HT300to500": 347700,
@@ -37,7 +37,7 @@
   "TTToSemiLeptonic_ext1": "670.3*1.24088*2*(0.667*0.333)",
   "TT_MTT1000ToInf": 76.61,
   "TT_MTT700To1000": 20.58,
-  
+
   "WJetsToQQ_HT-200to400": 2549.0,
   "WJetsToQQ_HT-400to600": 277.0,
   "WJetsToQQ_HT-600to800": 59.06,
@@ -90,7 +90,7 @@
   "GluGluHToBB": 0.27395244,
   "VBFHToBB": 2.2498257,
   "WminusH_HToBB_WToQQ": 0.21348075,
-  "WplusH_HToBB_WToQQ": 0.342150,
+  "WplusH_HToBB_WToQQ": 0.34215,
   "ZH_HToBB_ZToQQ": 0.326,
   "ggZH_HToBB_ZToQQ": 0.025,
   "ttHToBB": 0.2912
