@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 muon_HLTs = {
     "2016": ["IsoMu24", "IsoTkMu24", "Mu50"],
     "2017": ["IsoMu27", "Mu50"],

@@ -1,7 +1,9 @@
-from typing import Optional, List, Dict
+from __future__ import annotations
+
+import pickle
+from pathlib import Path
 
 import numpy as np
-
 import tritonclient.grpc as triton_grpc
 import tritonclient.http as triton_http
 
@@ -21,7 +23,7 @@ class wrapped_triton:
         self._model = model
         self._version = version
 
-    def __call__(self, input_dict: Dict[str, np.ndarray]) -> np.ndarray:
+    def __call__(self, input_dict: dict[str, np.ndarray]) -> np.ndarray:
         if self._protocol == "grpc":
             client = triton_grpc.InferenceServerClient(url=self._address, verbose=False)
             triton_protocol = triton_grpc
@@ -87,13 +89,9 @@ input_dict = {
 
 print("running inference")
 
-import pickle
-
-with open("tensors.pkl", "wb") as f:
+with Path("tensors.pkl").open("wb") as f:
     pickle.dump(input_dict, f)
 
-
-input_dict
 
 model_url = "triton+grpc://67.58.49.52:8001/particlenet_hww_ul_4q_3q/1"
 triton_model = wrapped_triton(model_url)

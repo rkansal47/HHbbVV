@@ -81,21 +81,16 @@ goftoys=$goftoys ffits=$ffits order=$order seed=$seed numtoys=$numtoys"
 
 templates_dir="/eos/uscms/store/user/rkansal/bbVV/templates/${templates_tag}"
 cards_dir="cards/f_tests/${cards_tag}/"
-mkdir -p ${cards_dir}
+mkdir -p "${cards_dir}"
 echo "Saving datacards to ${cards_dir}"
 
 # these are for inside the different cards directories
-dataset=data_obs
-ws="./combined"
-wsm=${ws}_withmasks
 wsm_snapshot=higgsCombineSnapshot.MultiDimFit.mH125
 
 outsdir="./outs"
 
 # nonresonant args
-ccargs="fail=${cards_dir}/fail.txt failBlinded=${cards_dir}/failBlinded.txt pass=${cards_dir}/pass.txt passBlinded=${cards_dir}/passBlinded.txt"
 maskunblindedargs="mask_pass=1,mask_fail=1,mask_passBlinded=0,mask_failBlinded=0"
-maskblindedargs="mask_pass=0,mask_fail=0,mask_passBlinded=1,mask_failBlinded=1"
 
 # freeze qcd params in blinded bins
 setparamsblinded=""
@@ -118,16 +113,16 @@ freezeparamsblinded=${freezeparamsblinded%,}
 for ord in {0..3}
 do
     model_name="nTF_${ord}"
-    
+
     # create datacards if they don't already exist
     if [ ! -f "${cards_dir}/${model_name}/pass.txt" ]; then
         echo "Making Datacard for $model_name"
-        python3 -u postprocessing/CreateDatacard.py --templates-dir ${templates_dir} \
-        --model-name ${model_name} --nTF ${ord} --cards-dir ${cards_dir}
+        python3 -u postprocessing/CreateDatacard.py --templates-dir "${templates_dir}" \
+        --model-name "${model_name}" --nTF "${ord}" --cards-dir "${cards_dir}"
     fi
 
-    cd ${cards_dir}/${model_name}/
-    echo ${cards_dir}/${model_name}/
+    cd "${cards_dir}/${model_name}/" || exit
+    echo "${cards_dir}/${model_name}/"
 
     # make workspace, background-only fit, GoF on data if they don't already exist
     if [ ! -f "./higgsCombineData.GoodnessOfFit.mH125.root" ]; then
@@ -143,7 +138,7 @@ do
         /uscms/home/rkansal/hhcombine/combine_scripts/run_blinded.sh -l
     fi
 
-    cd -
+    cd - || exit
 done
 
 
@@ -153,23 +148,23 @@ done
 
 model_name="nTF_$order"
 toys_name=$order
-cd ${cards_dir}/${model_name}/
+cd "${cards_dir}/${model_name}/" || exit
 toys_file="$(pwd)/higgsCombineToys${toys_name}.GenerateOnly.mH125.$seed.root"
-cd -
+cd - || exit
 
 if [ $goftoys = 1 ]; then
-    cd ${cards_dir}/${model_name}/
-    
+    cd "${cards_dir}/${model_name}/" || exit
+
     ulimit -s unlimited
 
     echo "Toys for $order order fit"
     combine -M GenerateOnly -m 125 -d ${wsm_snapshot}.root \
     --snapshotName MultiDimFit --bypassFrequentistFit \
-    --setParameters ${maskunblindedargs},${setparams},r=0 \
-    --freezeParameters ${freezeparams},r \
-    -n "Toys${toys_name}" -t $numtoys --saveToys -s $seed -v 9 2>&1 | tee $outsdir/gentoys.txt
+    --setParameters "${maskunblindedargs},${setparamsblinded},r=0" \
+    --freezeParameters "${freezeparamsblinded},r" \
+    -n "Toys${toys_name}" -t "$numtoys" --saveToys -s "$seed" -v 9 2>&1 | tee "$outsdir/gentoys.txt"
 
-    cd -
+    cd - || exit
 fi
 
 
@@ -183,15 +178,15 @@ if [ $ffits = 1 ]; then
         model_name="nTF_${ord}"
         echo "Fits for $model_name"
 
-        cd ${cards_dir}/${model_name}/
+        cd "${cards_dir}/${model_name}/" || exit
 
         ulimit -s unlimited
 
         combine -M GoodnessOfFit -d ${wsm_snapshot}.root --algo saturated -m 125 \
-        --setParameters ${maskunblindedargs},${setparams},r=0 \
-        --freezeParameters ${freezeparams},r \
-        -n Toys${toys_name} -v 9 -s $seed -t $numtoys --toysFile ${toys_file} 2>&1 | tee $outsdir/GoF_toys${toys_name}.txt
+        --setParameters "${maskunblindedargs},${setparamsblinded},r=0" \
+        --freezeParameters "${freezeparamsblinded},r" \
+        -n "Toys${toys_name}" -v 9 -s "$seed" -t "$numtoys" --toysFile "${toys_file}" 2>&1 | tee "$outsdir/GoF_toys${toys_name}.txt"
 
-        cd -
+        cd - || exit
     done
 fi

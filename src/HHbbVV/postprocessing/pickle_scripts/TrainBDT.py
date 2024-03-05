@@ -4,17 +4,18 @@ Takes the skimmed pickles (output of bbVVSkimmer) and trains a BDT using xgboost
 Author(s): Raghav Kansal
 """
 
+from __future__ import annotations
+
 import argparse
 import os
 from os.path import exists
 
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_curve
-import xgboost as xgb
-
-import utils
 import plotting
+import utils
+import xgboost as xgb
+from sklearn.metrics import roc_curve
+from sklearn.model_selection import train_test_split
 
 # import matplotlib.pyplot as plt
 
@@ -165,7 +166,7 @@ def load_events(
 
     if num_events > 0:
         for key in keys:
-            for var in events[key].keys():
+            for var in events[key]:
                 events[key][var] = events[key][var][:num_events]
 
     if preselection:
@@ -175,7 +176,7 @@ def load_events(
                 * (events[key]["bbFatJetMsd"] > 50)
                 * (events[key]["VVFatJetMsd"] > 50)
             )
-            for var in events[key].keys():
+            for var in events[key]:
                 events[key][var] = events[key][var][cut]
 
     # Just for checking

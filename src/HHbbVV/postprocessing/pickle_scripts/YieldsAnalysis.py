@@ -4,13 +4,13 @@ Takes the skimmed pickles (output of bbVVSkimmer) and trains a BDT using xgboost
 Author(s): Raghav Kansal
 """
 
-import utils
-import plotting
-import matplotlib.pyplot as plt
-from coffea.processor import PackedSelection
-import numpy as np
+from __future__ import annotations
 
 import importlib
+
+import numpy as np
+import plotting
+import utils
 
 importlib.reload(utils)
 importlib.reload(plotting)
@@ -32,7 +32,7 @@ for key in utils.getAllKeys():
         * (events[key]["bbFatJetMsd"] > 50)
         * (events[key]["VVFatJetMsd"] > 50)
     )
-    for var in events[key].keys():
+    for var in events[key]:
         events[key][var] = events[key][var][cut]
 
 # Just for checking
@@ -206,7 +206,7 @@ for var, (bins, label) in hist_vars.items():
         events, var, bins, label, weight_key="finalWeight", selection=bdt_bb_mass_selection
     )
 
-for var in hist_vars.keys():
+for var in hist_vars:
     plotting.ratioHistPlot(
         hists[var],
         bg_keys=utils.getBackgroundKeys(),

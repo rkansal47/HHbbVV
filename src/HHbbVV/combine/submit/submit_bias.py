@@ -5,27 +5,26 @@ Splits toy generation into separate condor jobs and fits lowest order + 1 models
 
 Author(s): Raghav Kansal
 """
+from __future__ import annotations
 
 import argparse
 import os
-from math import ceil
-from string import Template
-import json
+from pathlib import Path
 
-import sys
+from utils import parse_common_args, setup
 
-from utils import add_bool_arg, write_template, setup, parse_common_args
+from HHbbVV import run_utils
 
 
 def main(args):
     t2_local_prefix, t2_prefix, proxy, username, submitdir = setup(args)
 
     prefix = f"bias_{args.bias}_seed_{args.seed}"
-    local_dir = f"condor/bias/{args.tag}/{prefix}"
+    local_dir = Path(f"condor/bias/{args.tag}/{prefix}")
 
     # make local directory
-    logdir = local_dir + "/logs"
-    os.system(f"mkdir -p {logdir}")
+    logdir = local_dir / "logs"
+    logdir.mkdir(parents=True, exist_ok=True)
 
     jdl_templ = f"{submitdir}/submit_bias.templ.jdl"
     sh_templ = f"{submitdir}/submit_bias.templ.sh"
@@ -35,7 +34,9 @@ def main(args):
         print("Submitting jobs")
 
     for j in range(args.num_jobs):
-        localcondor = f"{local_dir}/{prefix}_{j}.jdl"
+        local_jdl = Path(f"{local_dir}/{prefix}_{j}.jdl")
+        local_log = Path(f"{local_dir}/{prefix}_{j}.log")
+
         seed = args.seed + j * args.toys_per_job
         jdl_args = {
             "dir": local_dir,
@@ -45,7 +46,7 @@ def main(args):
             "bias": args.bias,
             "seed": seed,
         }
-        write_template(jdl_templ, localcondor, jdl_args)
+        run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
         localsh = f"{local_dir}/{prefix}_{j}.sh"
         sh_args = {
@@ -55,16 +56,16 @@ def main(args):
             "bias": args.bias,
             "mintol": args.mintol,
         }
-        write_template(sh_templ, localsh, sh_args)
+        run_utils.write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
 
-        if os.path.exists(f"{localcondor}.log"):
-            os.system(f"rm {localcondor}.log")
+        if local_log.exists():
+            local_log.unlink()
 
         if args.submit:
-            os.system("condor_submit %s" % localcondor)
+            os.system(f"condor_submit {local_jdl}")
         else:
-            print("To submit ", localcondor)
+            print("To submit ", local_jdl)
 
 
 if __name__ == "__main__":

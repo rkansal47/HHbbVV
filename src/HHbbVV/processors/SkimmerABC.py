@@ -3,23 +3,19 @@ Skimmer Base Class - common functions for all skimmers.
 Author(s): Raghav Kansal
 """
 
-from abc import abstractmethod
-import numpy as np
-import awkward as ak
-import pandas as pd
-
-from coffea import processor
-
-import pathlib
-import pickle, json, gzip
-import os
-
-from typing import Dict, Tuple
-
-from .common import LUMI
-from . import corrections
+from __future__ import annotations
 
 import logging
+from abc import abstractmethod
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+from coffea import processor
+
+from HHbbVV.hh_vars import LUMI
+
+from . import corrections
 
 logging.basicConfig(level=logging.INFO)
 
@@ -37,7 +33,7 @@ class SkimmerABC(processor.ProcessorABC):
 
     XSECS = None
 
-    def to_pandas(self, events: Dict[str, np.array]):
+    def to_pandas(self, events: dict[str, np.array]):
         """
         Convert our dictionary of numpy arrays into a pandas data frame
         Uses multi-index columns for numpy arrays with >1 dimension
@@ -54,18 +50,18 @@ class SkimmerABC(processor.ProcessorABC):
         """
         Saves pandas dataframe events to './outparquet'
         """
-        import pyarrow.parquet as pq
         import pyarrow as pa
+        import pyarrow.parquet as pq
 
-        local_dir = os.path.abspath(os.path.join(".", "outparquet"))
+        local_dir = (Path() / "outparquet").resolve()
         if odir_str:
             local_dir += odir_str
-        os.system(f"mkdir -p {local_dir}")
+        local_dir.mkdir(parents=True, exist_ok=True)
 
         # need to write with pyarrow as pd.to_parquet doesn't support different types in
         # multi-index column names
         table = pa.Table.from_pandas(pddf)
-        pq.write_table(table, f"{local_dir}/{fname}")
+        pq.write_table(table, local_dir / fname)
 
     def pileup_cutoff(self, events, year, cutoff: float = 4):
         pweights = corrections.get_pileup_weight(year, events.Pileup.nPU.to_numpy())
@@ -97,6 +93,5 @@ class SkimmerABC(processor.ProcessorABC):
         return weight_norm
 
     @abstractmethod
-    def add_weights(self) -> Tuple[Dict, Dict]:
+    def add_weights(self) -> tuple[dict, dict]:
         """Adds weights and variations, saves totals for all norm preserving weights and variations"""
-        pass

@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086,SC2034
 
 ####################################################################################################
 # Sets up signal injection bias tests
@@ -59,7 +60,7 @@ do
         --resonant --model-name $sample --sig-sample $sample --cards-dir ${cards_dir} --scale-templates $scale
     fi
 
-    cd ${cards_dir}/${sample}/
+    cd ${cards_dir}/${sample}/ || exit
 
     # if scale is greater than or equal to 10 then run with higher minimum tolerance
     if [ $scale -ge 10 ]; then
@@ -68,5 +69,5 @@ do
         run_blinded.sh -rwb
     fi
 
-    cd -
+    cd - || exit
 done

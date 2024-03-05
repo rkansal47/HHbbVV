@@ -3,48 +3,40 @@ Skimmer for scale factors validation.
 Author(s): Raghav Kansal
 """
 
-from collections import OrderedDict
-import numpy as np
-import awkward as ak
-import pandas as pd
+from __future__ import annotations
 
-from coffea.processor import ProcessorABC, dict_accumulator
-from coffea.analysis_tools import PackedSelection
-from coffea.nanoevents.methods import nanoaod
-
-from coffea.lookup_tools.dense_lookup import dense_lookup
-from coffea.nanoevents.methods.base import NanoEventsArray
-from coffea.nanoevents.methods.nanoaod import FatJetArray
-from coffea.nanoevents.methods import vector
-
-ak.behavior.update(vector.behavior)
-
-import uproot
-
-import pathlib
-import pickle, json
 import gzip
-import os
+import json
+import logging
+import pickle
+from collections import OrderedDict
+from pathlib import Path
 
-from typing import Dict, Tuple, List
+import awkward as ak
+import numpy as np
+from coffea.analysis_tools import PackedSelection
+from coffea.nanoevents.methods import vector
+from coffea.processor import dict_accumulator
 
-from .SkimmerABC import SkimmerABC
-from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, ttbar_scale_factor_matching
-from .TaggerInference import runInferenceTriton
-from .utils import pad_val, add_selection, P4, Weights
 from .corrections import (
-    add_pileup_weight,
-    add_lepton_weights,
     add_btag_weights,
+    add_lepton_weights,
+    add_pileup_weight,
     add_pileupid_weights,
     add_top_pt_weight,
     get_jec_jets,
     get_lund_SFs,
 )
-from . import corrections, utils
+from .GenSelection import (
+    gen_selection_HH4V,
+    gen_selection_HHbbVV,
+    ttbar_scale_factor_matching,
+)
+from .SkimmerABC import SkimmerABC
+from .TaggerInference import runInferenceTriton
+from .utils import P4, Weights, add_selection, pad_val
 
-import logging
-
+ak.behavior.update(vector.behavior)
 logging.basicConfig(level=logging.INFO)
 
 
@@ -78,14 +70,14 @@ class TTScaleFactorsSkimmer(SkimmerABC):
           if sample not included no lumi and xsec will not be applied to weights
     """
 
-    HLTs = {
+    HLTs = {  # noqa: RUF012
         "2016": ["TkMu50", "Mu50"],
         "2017": ["Mu50", "OldMu100", "TkMu100"],
         "2018": ["Mu50", "OldMu100", "TkMu100"],
     }
 
     # key is name in nano files, value will be the name in the skimmed output
-    skim_vars = {
+    skim_vars = {  # noqa: RUF012
         "FatJet": {
             **P4,
             "msoftdrop": "Msd",
@@ -101,7 +93,7 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         "other": {"MET_pt": "MET_pt", "MET_phi": "MET_phi"},
     }
 
-    muon_selection = {
+    muon_selection = {  # noqa: RUF012
         "Id": "tight",
         "pt": 60,
         "eta": 2.4,
@@ -111,7 +103,7 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         "delta_trigObj": 0.15,
     }
 
-    ak8_jet_selection = {
+    ak8_jet_selection = {  # noqa: RUF012
         "pt": 500.0,
         "msd": [125, 250],
         "eta": 2.5,
@@ -119,7 +111,7 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         "jetId": "tight",
     }
 
-    ak4_jet_selection = {
+    ak4_jet_selection = {  # noqa: RUF012
         "pt": 30,  # from JME-18-002
         "eta": 2.4,
         "delta_phi_muon": 2,
@@ -132,16 +124,18 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         # "closest_muon_ptrel": 25,
     }
 
-    met_selection = {"pt": 50}
+    met_selection = {"pt": 50}  # noqa: RUF012
 
-    lepW_selection = {"pt": 100}
+    lepW_selection = {"pt": 100}  # noqa: RUF012
 
     num_jets = 1
 
-    top_matchings = ["top_matched", "w_matched", "unmatched"]
+    top_matchings = ["top_matched", "w_matched", "unmatched"]  # noqa: RUF012
 
-    def __init__(self, xsecs={}, inference: bool = True):
-        super(TTScaleFactorsSkimmer, self).__init__()
+    def __init__(self, xsecs=None, inference: bool = True):
+        if xsecs is None:
+            xsecs = {}
+        super().__init__()
 
         # TODO: Check if this is correct
         self.XSECS = xsecs  # in pb
@@ -149,18 +143,17 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         self._inference = inference
 
         # find corrections path using this file's path
-        package_path = str(pathlib.Path(__file__).parent.parent.resolve())
-        with gzip.open(package_path + "/corrections/corrections.pkl.gz", "rb") as filehandler:
+        package_path = Path(__file__).parent.parent.resolve()
+        with gzip.open(package_path / "corrections/corrections.pkl.gz", "rb") as filehandler:
             self.corrections = pickle.load(filehandler)
 
+        # MET filters
         # https://twiki.cern.ch/twiki/bin/view/CMS/MissingETOptionalFiltersRun2
-        with open(package_path + "/data/metfilters.json", "rb") as filehandler:
+        with (package_path / "data/metfilters.json").open("rb") as filehandler:
             self.metfilters = json.load(filehandler)
 
         # for tagger model and preprocessing dict
-        self.tagger_resources_path = (
-            str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
-        )
+        self.tagger_resources_path = Path(__file__).parent.resolve() / "tagger_resources"
 
         self._accumulator = dict_accumulator({})
 
@@ -487,22 +480,22 @@ class TTScaleFactorsSkimmer(SkimmerABC):
 
             skimmed_events = {
                 **skimmed_events,
-                **{key: value for (key, value) in pnet_vars.items()},
+                **dict(pnet_vars.items()),
             }
 
         if len(skimmed_events["weight"]):
-            df = self.to_pandas(skimmed_events)
+            pddf = self.to_pandas(skimmed_events)
             fname = (
                 events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
             )
-            self.dump_table(df, fname)
+            self.dump_table(pddf, fname)
 
         return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
 
     def postprocess(self, accumulator):
         return accumulator
 
-    def add_weights(self, events, dataset, year, gen_weights, muon, ak4_jets) -> Tuple[Dict, Dict]:
+    def add_weights(self, events, dataset, year, gen_weights, muon, ak4_jets) -> tuple[dict, dict]:
         """Adds weights and variations, saves totals for all norm preserving weights and variations"""
         weights = Weights(len(events), storeIndividual=True)
         weights.add("genweight", gen_weights)

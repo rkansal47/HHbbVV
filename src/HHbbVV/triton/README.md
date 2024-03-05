@@ -18,7 +18,15 @@ python weaver/train.py --train-mode hybrid \
 
 For the 2023May30 model I had to:
 
-1. Bypass the if statement here https://github.com/colizz/weaver-core-dev/blob/d038cd502d1b4a8ab3deefa9c3022bd3b812baf5/weaver/networks/ParticleTransformer2023.py#L586 (just `return output` instead) - torch complained about comparing a tensor to a Python boolean.
-2. Remove the softmax part https://github.com/colizz/weaver-core-dev/blob/d038cd502d1b4a8ab3deefa9c3022bd3b812baf5/weaver/networks/ParticleTransformer2023.py#L583-L584 (doesn't make sense since regression outputs are included).
-3. Rewrite this einsum statement https://github.com/colizz/weaver-core-dev/blob/d038cd502d1b4a8ab3deefa9c3022bd3b812baf5/weaver/networks/ParticleTransformer2023.py#L448C14-L448C14 -> https://github.com/colizz/weaver-core-dev/blob/d038cd502d1b4a8ab3deefa9c3022bd3b812baf5/weaver/networks/example_ParticleTransformerTagger_hybrid_outputWithHidNeurons.py#L337 - onnx opset v11 doesn't support einsum.
-
+1. Bypass the if statement here
+   https://github.com/colizz/weaver-core-dev/blob/d038cd502d1b4a8ab3deefa9c3022bd3b812baf5/weaver/networks/ParticleTransformer2023.py#L586
+   (just `return output` instead) - torch complained about comparing a tensor to
+   a Python boolean.
+2. Remove the softmax part
+   https://github.com/colizz/weaver-core-dev/blob/d038cd502d1b4a8ab3deefa9c3022bd3b812baf5/weaver/networks/ParticleTransformer2023.py#L583-L584
+   (doesn't make sense since regression outputs are included).
+3. Rewrite this einsum statement
+   https://github.com/colizz/weaver-core-dev/blob/d038cd502d1b4a8ab3deefa9c3022bd3b812baf5/weaver/networks/ParticleTransformer2023.py#L448C14-L448C14
+   ->
+   https://github.com/colizz/weaver-core-dev/blob/d038cd502d1b4a8ab3deefa9c3022bd3b812baf5/weaver/networks/example_ParticleTransformerTagger_hybrid_outputWithHidNeurons.py#L337 -
+   onnx opset v11 doesn't support einsum.

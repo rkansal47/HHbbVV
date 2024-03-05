@@ -5,18 +5,17 @@ Splits toy generation into separate condor jobs and fits lowest order + 1 models
 
 Author(s): Raghav Kansal
 """
+from __future__ import annotations
 
 import argparse
 import os
-from math import ceil
-from string import Template
-import json
-
-import sys
-
-from utils import add_bool_arg, write_template, setup, parse_common_args
+from pathlib import Path
 
 import ROOT
+from utils import parse_common_args, setup
+
+from HHbbVV import run_utils
+from HHbbVV.run_utils import add_bool_arg
 
 
 def _tolist(argset):
@@ -36,10 +35,8 @@ def getParameters():
         if not (
             "mcstat" in p
             or "qcdparam" in p
-            or p.endswith("_In")
-            or p.endswith("__norm")
-            or p.startswith("n_exp_")
-            or p.startswith("mask_")
+            or p.endswith(("_In", "__norm"))
+            or p.startswith(("n_exp_", "mask_"))
             or p in pois
             or p in obs
         ):
@@ -52,11 +49,11 @@ def main(args):
     t2_local_prefix, t2_prefix, proxy, username, submitdir = setup(args)
 
     prefix = "impacts"
-    local_dir = f"condor/impacts/{args.tag}/"
+    local_dir = Path(f"condor/impacts/{args.tag}/")
 
     # make local directory
-    logdir = local_dir + "/logs"
-    os.system(f"mkdir -p {logdir}")
+    logdir = local_dir / "logs"
+    logdir.mkdir(parents=True, exist_ok=True)
 
     jdl_templ = f"{submitdir}/submit_impacts.templ.jdl"
     sh_templ = f"{submitdir}/submit_impacts.templ.sh"
@@ -82,8 +79,8 @@ def main(args):
         os.system(collect_command)
         return
 
-    collect_sh = f"{local_dir}/collect.sh"
-    with open(collect_sh, "w") as f:
+    collect_sh = Path(f"{local_dir}/collect.sh")
+    with collect_sh.open("w") as f:
         f.write(collect_command)
 
     os.system(f"chmod u+x {collect_sh}")
@@ -94,7 +91,8 @@ def main(args):
         print("Submitting jobs")
 
     for p, command, impactfile in zip(["init"] + ps, commands, impactfiles):
-        localcondor = f"{local_dir}/{prefix}_{p}.jdl"
+        local_jdl = Path(f"{local_dir}/{prefix}_{p}.jdl")
+        local_log = Path(f"{local_dir}/{prefix}_{p}.log")
         jdl_args = {
             "dir": local_dir,
             "prefix": prefix,
@@ -102,20 +100,20 @@ def main(args):
             "proxy": proxy,
             "impactfile": impactfile,
         }
-        write_template(jdl_templ, localcondor, jdl_args)
+        run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
         localsh = f"{local_dir}/{prefix}_{p}.sh"
         sh_args = {"command": "./" + command}
-        write_template(sh_templ, localsh, sh_args)
+        run_utils.write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
 
-        if os.path.exists(f"{localcondor}.log"):
-            os.system(f"rm {localcondor}.log")
+        if local_log.exists():
+            local_log.unlink()
 
         if args.submit:
-            os.system("condor_submit %s" % localcondor)
+            os.system(f"condor_submit {local_jdl}")
         else:
-            print("To submit ", localcondor)
+            print("To submit ", local_jdl)
 
 
 if __name__ == "__main__":

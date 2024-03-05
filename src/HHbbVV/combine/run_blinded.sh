@@ -2,7 +2,7 @@
 
 ####################################################################################################
 # Script for fits
-# 
+#
 # 1) Combines cards and makes a workspace (--workspace / -w)
 # 2) Background-only fit (--bfit / -b)
 # 3) Expected asymptotic limits (--limits / -l)
@@ -11,13 +11,13 @@
 # 6) GoF on data (--gofdata / -g)
 # 7) GoF on toys (--goftoys / -t),
 # 8) Impacts: initial fit (--impactsi / -i), per-nuisance fits (--impactsf $nuisance), collect (--impactsc $nuisances)
-# 9) Bias test: run a bias test on toys (using post-fit nuisances) with expected signal strength 
+# 9) Bias test: run a bias test on toys (using post-fit nuisances) with expected signal strength
 #    given by --bias X.
-# 
+#
 # Specify resonant with --resonant / -r, otherwise does nonresonant
 # Specify seed with --seed (default 42) and number of toys with --numtoys (default 100)
 #
-# Usage ./run_blinded.sh [-wblsdgt] [--numtoys 100] [--seed 42] 
+# Usage ./run_blinded.sh [-wblsdgt] [--numtoys 100] [--seed 42]
 #
 # Author: Raghav Kansal
 ####################################################################################################
@@ -126,9 +126,9 @@ seed=$seed numtoys=$numtoys"
 
 ####################################################################################################
 # Set up fit arguments
-# 
-# We use channel masking to "mask" the blinded and "unblinded" regions in the same workspace. 
-# (mask = 1 means the channel is masked off) 
+#
+# We use channel masking to "mask" the blinded and "unblinded" regions in the same workspace.
+# (mask = 1 means the channel is masked off)
 ####################################################################################################
 
 dataset=data_obs
@@ -172,7 +172,7 @@ if [ $resonant = 0 ]; then
     # so this is just to be extra safe.
     unblindedparams="--freezeParameters var{.*_In},var{.*__norm},var{n_exp_.*} --setParameters $maskblindedargs"
 
-    excludeimpactparams='rgx{.*tf_dataResidual_Bin.*}'
+    # excludeimpactparams='rgx{.*tf_dataResidual_Bin.*}'
 else
     # resonant args
     CMS_PARAMS_LABEL="CMS_XHYbbWW_boosted"
@@ -213,32 +213,32 @@ else
     unblindedparams="--freezeParameters ${freezeparamsunblinded},var{.*_In},var{.*__norm},var{n_exp_.*} --setParameters ${maskblindedargs},${setparamsunblinded}"
 
     # excludeimpactparams='rgx{.*qcdparam_mXbin.*},rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*}'
-    excludeimpactparams='rgx{.*qcdparam_mXbin.*},rgx{.*mcstat.*}'
+    # excludeimpactparams='rgx{.*qcdparam_mXbin.*},rgx{.*mcstat.*}'
 fi
 
 echo "mask args:"
-echo $maskblindedargs
+echo "$maskblindedargs"
 
 echo "set params:"
-echo $setparamsblinded
+echo "$setparamsblinded"
 
 echo "freeze params:"
-echo $freezeparamsblinded
+echo "$freezeparamsblinded"
 
 echo "unblinded params:"
-echo $unblindedparams
+echo "$unblindedparams"
 
 ####################################################################################################
 # Combine cards, text2workspace, fit, limits, significances, fitdiagnositcs, GoFs
 ####################################################################################################
 
-# need to run this for large # of nuisances 
+# need to run this for large # of nuisances
 # https://cms-talk.web.cern.ch/t/segmentation-fault-in-combine/20735
 ulimit -s unlimited
 
 if [ $workspace = 1 ]; then
     echo "Combining cards"
-    combineCards.py $ccargs > $ws.txt
+    combineCards.py "$ccargs" > $ws.txt
 
     echo "Running text2workspace"
     # text2workspace.py -D $dataset $ws.txt --channel-masks -o $wsm.root 2>&1 | tee $outsdir/text2workspace.txt
@@ -255,9 +255,9 @@ fi
 if [ $bfit = 1 ]; then
     echo "Blinded background-only fit"
     combine -D $dataset -M MultiDimFit --saveWorkspace -m 125 -d ${wsm}.root -v 9 \
-    --cminDefaultMinimizerStrategy 1 --cminDefaultMinimizerTolerance $mintol --X-rtd MINIMIZER_MaxCalls=400000 \
-    --setParameters ${maskunblindedargs},${setparamsblinded},r=0  \
-    --freezeParameters r,${freezeparamsblinded} \
+    --cminDefaultMinimizerStrategy 1 --cminDefaultMinimizerTolerance "$mintol" --X-rtd MINIMIZER_MaxCalls=400000 \
+    --setParameters "${maskunblindedargs},${setparamsblinded},r=0"  \
+    --freezeParameters "r,${freezeparamsblinded}" \
     -n Snapshot 2>&1 | tee $outsdir/MultiDimFit.txt
 else
     if [ ! -f "higgsCombineSnapshot.MultiDimFit.mH125.root" ]; then
@@ -271,8 +271,8 @@ if [ $limits = 1 ]; then
     echo "Expected limits"
     combine -M AsymptoticLimits -m 125 -n "" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v 9 \
     --saveWorkspace --saveToys --bypassFrequentistFit \
-    ${unblindedparams},r=0 -s $seed \
-    --floatParameters ${freezeparamsblinded},r --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
+    "${unblindedparams},r=0" -s "$seed" \
+    --floatParameters "${freezeparamsblinded},r" --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
 fi
 
 
@@ -280,22 +280,22 @@ if [ $significance = 1 ]; then
     echo "Expected significance"
     combine -M Significance -d ${wsm_snapshot}.root -n "" --significance -m 125 --snapshotName MultiDimFit -v 9 \
     -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit \
-    ${unblindedparams},r=1 \
-    --floatParameters ${freezeparamsblinded},r --toysFrequentist 2>&1 | tee $outsdir/Significance.txt
+    "${unblindedparams},r=1" \
+    --floatParameters "${freezeparamsblinded},r" --toysFrequentist 2>&1 | tee $outsdir/Significance.txt
 fi
 
 
 if [ $dfit = 1 ]; then
     echo "Fit Diagnostics"
     combine -M FitDiagnostics -m 125 -d ${wsm}.root \
-    --setParameters ${maskunblindedargs},${setparamsblinded} \
-    --freezeParameters ${freezeparamsblinded} \
-    --cminDefaultMinimizerStrategy 1  --cminDefaultMinimizerTolerance $mintol --X-rtd MINIMIZER_MaxCalls=400000 \
+    --setParameters "${maskunblindedargs},${setparamsblinded}" \
+    --freezeParameters "${freezeparamsblinded}" \
+    --cminDefaultMinimizerStrategy 1  --cminDefaultMinimizerTolerance "$mintol" --X-rtd MINIMIZER_MaxCalls=400000 \
     -n Blinded --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnostics.txt
     # --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
 
     echo "Fit Shapes"
-    PostFitShapesFromWorkspace --dataset $dataset -w ${wsm}.root --output FitShapes.root \
+    PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapes.root \
     -m 125 -f fitDiagnosticsBlinded.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
 fi
 
@@ -304,8 +304,8 @@ if [ $dfit_asimov = 1 ]; then
     echo "Fit Diagnostics on Asimov dataset"
     combine -M FitDiagnostics -m 125 -d ${wsm_snapshot}.root --snapshotName MultiDimFit \
     -t -1 --expectSignal=1 --toysFrequentist --bypassFrequentistFit --saveWorkspace --saveToys \
-    ${unblindedparams} --floatParameters ${freezeparamsblinded},r \
-    --cminDefaultMinimizerStrategy 1  --cminDefaultMinimizerTolerance $mintol --X-rtd MINIMIZER_MaxCalls=400000 \
+    "${unblindedparams}" --floatParameters "${freezeparamsblinded},r" \
+    --cminDefaultMinimizerStrategy 1  --cminDefaultMinimizerTolerance "$mintol" --X-rtd MINIMIZER_MaxCalls=400000 \
     -n Asimov --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnosticsAsimov.txt
 
     combineTool.py -M ModifyDataSet ${wsm}.root:w ${wsm}_asimov.root:w:toy_asimov -d higgsCombineAsimov.FitDiagnostics.mH125.123456.root:toys/toy_asimov
@@ -320,8 +320,8 @@ if [ $gofdata = 1 ]; then
     echo "GoF on data"
     combine -M GoodnessOfFit -d ${wsm_snapshot}.root --algo saturated -m 125 \
     --snapshotName MultiDimFit --bypassFrequentistFit \
-    --setParameters ${maskunblindedargs},${setparams},r=0 \
-    --freezeParameters ${freezeparams},r \
+    --setParameters "${maskunblindedargs},${setparamsblinded},r=0" \
+    --freezeParameters "${freezeparamsblinded},r" \
     -n Data -v 9 2>&1 | tee $outsdir/GoF_data.txt
 fi
 
@@ -330,9 +330,9 @@ if [ $goftoys = 1 ]; then
     echo "GoF on toys"
     combine -M GoodnessOfFit -d ${wsm_snapshot}.root --algo saturated -m 125 \
     --snapshotName MultiDimFit --bypassFrequentistFit \
-    --setParameters ${maskunblindedargs},${setparams},r=0 \
-    --freezeParameters ${freezeparams},r --saveToys \
-    -n Toys -v 9 -s $seed -t $numtoys --toysFrequentist 2>&1 | tee $outsdir/GoF_toys.txt
+    --setParameters "${maskunblindedargs},${setparamsblinded},r=0" \
+    --freezeParameters "${freezeparamsblinded},r" --saveToys \
+    -n Toys -v 9 -s "$seed" -t "$numtoys" --toysFrequentist 2>&1 | tee $outsdir/GoF_toys.txt
 fi
 
 
@@ -348,21 +348,21 @@ if [ $impactsi = 1 ]; then
     combineTool.py -M Impacts --snapshotName MultiDimFit -m 125 -n "impacts" \
     -t -1 --bypassFrequentistFit --toysFrequentist --expectSignal 1 \
     -d ${wsm_snapshot}.root --doInitialFit --robustFit 1 \
-    ${unblindedparams} --floatParameters ${freezeparamsblinded} \
+    "${unblindedparams}" --floatParameters "${freezeparamsblinded}" \
      --cminDefaultMinimizerStrategy=1 -v 1 2>&1 | tee $outsdir/Impacts_init.txt
 fi
 
 
-if [ $impactsf != 0 ]; then
+if [ "$impactsf" != 0 ]; then
     echo "Impact scan for $impactsf"
     # Impacts module cannot access parameters which were frozen in MultiDimFit, so running impacts
-    # for each parameter directly using its internal command 
+    # for each parameter directly using its internal command
     # (also need to do this for submitting to condor anywhere other than lxplus)
-    combine -M MultiDimFit -n _paramFit_impacts_$impactsf --algo impact --redefineSignalPOIs r -P $impactsf \
+    combine -M MultiDimFit -n "_paramFit_impacts_$impactsf" --algo impact --redefineSignalPOIs r -P "$impactsf" \
     --floatOtherPOIs 1 --saveInactivePOI 1 --snapshotName MultiDimFit -d ${wsm_snapshot}.root \
     -t -1 --bypassFrequentistFit --toysFrequentist --expectSignal 1 --robustFit 1 \
-    ${unblindedparams} --floatParameters ${freezeparamsblinded} \
-    --setParameterRanges r=-0.5,20 --cminDefaultMinimizerStrategy=1 -v 1 -m 125 | tee $outsdir/Impacts_$impactsf.txt
+    "${unblindedparams}" --floatParameters "${freezeparamsblinded}" \
+    --setParameterRanges r=-0.5,20 --cminDefaultMinimizerStrategy=1 -v 1 -m 125 | tee "$outsdir/Impacts_$impactsf.txt"
 
     # Old Impacts command:
     # combineTool.py -M Impacts -t -1 --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal 1 \
@@ -374,26 +374,26 @@ if [ $impactsf != 0 ]; then
 fi
 
 
-if [ $impactsc != 0 ]; then
+if [ "$impactsc" != 0 ]; then
     echo "Collecting impacts"
     combineTool.py -M Impacts --snapshotName MultiDimFit \
     -m 125 -n "impacts" -d ${wsm_snapshot}.root \
-    --setParameters ${maskblindedargs} --floatParameters ${freezeparamsblinded} \
-    -t -1 --named $impactsc \
+    --setParameters "${maskblindedargs}" --floatParameters "${freezeparamsblinded}" \
+    -t -1 --named "$impactsc" \
     --setParameterRanges r=-0.5,20 -v 1 -o impacts.json 2>&1 | tee $outsdir/Impacts_collect.txt
 
     plotImpacts.py -i impacts.json -o impacts
 fi
 
 
-if [ $bias != -1 ]; then
+if [ "$bias" != -1 ]; then
     echo "Bias test with bias $bias"
     # setting verbose > 0 here can lead to crazy large output files (~10-100GB!) because of getting
     # stuck in negative yield areas
     combine -M FitDiagnostics --trackParameters r --trackErrors r --justFit \
     -m 125 -n "bias${bias}" -d ${wsm_snapshot}.root --rMin "-15" --rMax 15 \
-    --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal $bias \
-    ${unblindedparams},r=$bias --floatParameters ${freezeparamsblinded} \
-    --robustFit=1 -t $numtoys -s $seed \
-    --X-rtd MINIMIZER_MaxCalls=1000000 --cminDefaultMinimizerTolerance $mintol 2>&1 | tee $outsdir/bias${bias}seed${seed}.txt
+    --snapshotName MultiDimFit --bypassFrequentistFit --toysFrequentist --expectSignal "$bias" \
+    "${unblindedparams},r=$bias" --floatParameters "${freezeparamsblinded}" \
+    --robustFit=1 -t "$numtoys" -s "$seed" \
+    --X-rtd MINIMIZER_MaxCalls=1000000 --cminDefaultMinimizerTolerance "$mintol" 2>&1 | tee "$outsdir/bias${bias}seed${seed}.txt"
 fi

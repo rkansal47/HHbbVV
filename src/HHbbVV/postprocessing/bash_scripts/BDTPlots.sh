@@ -1,3 +1,5 @@
+#!/bin/bash
+
 MAIN_DIR="../../.."
 TAG=23Nov7BDTSculpting
 

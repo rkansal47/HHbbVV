@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2154
 
 law run PlotPullsAndImpacts \
     --version "$VERSION" \
@@ -15,7 +16,7 @@ law run PlotPullsAndImpacts \
     --campaign run2 \
     --page 0 \
     --pull-range 3 \
-    --unblinded $UNBLINDED \
+    --unblinded "$UNBLINDED" \
     --remove-output 0,a,y
     # --print-command 2 \
     # --use-snapshot True \  # for (fit to data) after unblinding
