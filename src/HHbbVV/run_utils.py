@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 from string import Template
 
@@ -67,9 +68,10 @@ def check_branch(git_branch: str, allow_diff_local_repo: bool = False):
         print(f"Local commit hash: {local_hash}")
         print(f"Remote commit hash: {remote_hash}")
         if allow_diff_local_repo:
-            print("Proceeding anyway...")
+            print_red("Proceeding anyway...")
         else:
             print_red("Exiting! Use the --allow-diff-local-repo option to override this.")
+            sys.exit(1)
 
 
 # for Dask executor
