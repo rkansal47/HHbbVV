@@ -1399,7 +1399,7 @@ def control_plots(
     bb_masks: Dict[str, pd.DataFrame],
     sig_keys: List[str],
     control_plot_vars: List[ShapeVar],
-    plot_dir: str,
+    plot_dir: Path,
     year: str,
     weight_key: str = "finalWeight",
     hists: Dict = {},
@@ -1446,7 +1446,7 @@ def control_plots(
     if HEM2d and year == "2018":
         hists["HEM2d"] = hists_HEM2d(events_dict, bb_masks, weight_key, selection)
 
-    with open(f"{plot_dir}/hists.pkl", "wb") as f:
+    with (plot_dir / "hists.pkl").open("wb") as f:
         pickle.dump(hists, f)
 
     if sig_splits is None:
