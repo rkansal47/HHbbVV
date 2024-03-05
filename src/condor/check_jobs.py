@@ -12,9 +12,9 @@ from os import listdir
 from pathlib import Path
 
 import numpy as np
-from colorama import Fore, Style
 
 from HHbbVV import run_utils
+from HHbbVV.run_utils import print_red
 
 parser = argparse.ArgumentParser()
 run_utils.parse_common_args(parser)
@@ -54,10 +54,6 @@ jdl_dict = {
     + 1
     for sample in samples
 }
-
-
-def print_red(s):
-    return print(f"{Fore.RED}{s}{Style.RESET_ALL}")
 
 
 running_jobs = []

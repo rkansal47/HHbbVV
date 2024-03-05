@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
+import time
 from pathlib import Path
 from string import Template
+
+from colorama import Fore, Style
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
@@ -32,6 +34,10 @@ def write_template(templ_file: str, out_file: Path, templ_args: dict):
         f.write(templ.substitute(templ_args))
 
 
+def print_red(s):
+    return print(f"{Fore.RED}{s}{Style.RESET_ALL}")
+
+
 def add_mixins(nanoevents):
     # for running on condor
     nanoevents.PFNanoAODSchema.nested_index_items["FatJetAK15_pFCandsIdxG"] = (
@@ -53,7 +59,15 @@ def check_branch_exists(git_branch: str):
         )
     ), f"Branch {git_branch} does not exist"
 
-    logging.info(f"{git_branch} branch does exist. Important!! Did you push your change to github?")
+    print(f"Using the {git_branch} branch.")
+    print_red("-----------Important!------------")
+    print_red("-----------Important!------------")
+    print_red("-----------Important!------------")
+    print_red("Did you push your changes to github?")
+    print_red("-----------Important!------------")
+    print_red("-----------Important!------------")
+    print_red("-----------Important!------------")
+    time.sleep(5)
 
 
 # for Dask executor
