@@ -41,7 +41,7 @@ See https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/
 """
 pog_correction_path = "/cvmfs/cms.cern.ch/rsync/cms-nanoAOD/jsonpog-integration/"
 pog_jsons = {
-    "muon": ["MUO", "muon_Z_v2.json.gz"],
+    "muon": ["MUO", "muon_Z.json.gz"],
     "electron": ["EGM", "electron.json.gz"],
     "pileup": ["LUM", "puWeights.json.gz"],
     "btagging": ["BTV", "btagging.json.gz"],

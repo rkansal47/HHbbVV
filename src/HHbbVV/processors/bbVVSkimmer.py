@@ -704,12 +704,12 @@ class bbVVSkimmer(SkimmerABC):
                             selected_sfs[key] = get_lund_SFs(
                                 year,
                                 events[sel_all][selector],
+                                fatjets[sel_all][selector],
                                 (
                                     i
                                     if self._save_all
-                                    else skimmed_events["ak8FatJetHVV"][selector][:, 1]
+                                    else np.array(skimmed_events["ak8FatJetHVV"][selector][:, 1])
                                 ),  # giving HVV jet index if only doing LP SFs for HVV jet
-                                fatjets[sel_all][selector],
                                 num_prongs,
                                 gen_quarks[selector],
                                 trunc_gauss=False,
