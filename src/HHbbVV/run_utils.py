@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from string import Template
 
@@ -41,6 +42,15 @@ def add_mixins(nanoevents):
     nanoevents.PFNanoAODSchema.mixins["SubJet"] = "FatJet"
     nanoevents.PFNanoAODSchema.mixins["PFCands"] = "PFCand"
     nanoevents.PFNanoAODSchema.mixins["SV"] = "PFCand"
+
+
+def check_branch_exists(git_branch: str):
+    """Check that specified git branch exists in the repo"""
+    assert not bool(
+        os.system(
+            f'git ls-remote --exit-code --heads "https://github.com/rkansal47/HHbbVV" "{git_branch}"'
+        )
+    ), f"Branch {git_branch} does not exist"
 
 
 # for Dask executor

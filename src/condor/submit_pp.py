@@ -137,6 +137,7 @@ samples = [
 
 def main(args):
     username, t2_local_prefix, t2_prefix, proxy = submit.get_site_vars(args.site)
+    run_utils.check_branch_exists(args.git_branch)
 
     local_dir = f"condor/postprocessing/{args.tag}"
     homedir = f"/store/user/{username}/bbVV/templates/"
@@ -152,7 +153,7 @@ def main(args):
 
     # and eos directory
     eosoutput_dir = f"{t2_prefix}/{outdir}/"
-    os.system(f"mkdir -p {t2_local_prefix}/{outdir}/")
+    (t2_local_prefix / outdir).mkdir(parents=True, exist_ok=True)
 
     jdl_templ = "src/condor/submit_pp.templ.jdl"
     sh_templ = "src/condor/submit_pp.templ.sh"
@@ -175,7 +176,12 @@ def main(args):
         run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
         localsh = f"{local_dir}/{prefix}_{j}.sh"
-        sh_args = {"samples": run_samples, "eosout": eosoutput_dir}
+        sh_args = {
+            "branch": args.git_branch,
+            "samples": run_samples,
+            "eosout": eosoutput_dir,
+            "eosoutgithash": f"{eosoutput_dir}/githashes/commithash_{j}.txt",
+        }
         run_utils.write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
 

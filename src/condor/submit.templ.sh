@@ -8,6 +8,16 @@
 # make dir for output
 mkdir outfiles
 
+# shallow clone of single branch (keep repo size as small as possible)
+git clone --single-branch --branch $branch --depth=1 https://github.com/rkansal47/HHbbVV/
+cd HHbbVV || exit
+
+commithash=$(git rev-parse HEAD)
+echo "https://github.com/rkansal47/HHbbVV/commit/${commithash}" > commithash.txt
+xrdcp -f commithash.txt $eosoutgithash
+
+pip install -e .
+
 # run code
 # pip install --user onnxruntime
 python -u -W ignore $script --year $year --starti $starti --endi $endi --samples $sample --subsamples $subsample --processor $processor --maxchunks $maxchunks --chunksize $chunksize --label $label --njets $njets ${save_ak15} ${save_systematics} ${inference} ${save_all} ${lp_sfs}
@@ -19,3 +29,4 @@ xrdcp -f ./*.root $eosoutroot
 
 rm ./*.parquet
 rm ./*.root
+rm commithash.txt

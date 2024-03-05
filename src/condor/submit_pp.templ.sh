@@ -1,7 +1,17 @@
 #!/bin/bash
-# shellcheck disable=SC2154
+# shellcheck disable=SC2154,SC2086
 
-cd HHbbVV/postprocessing/ || exit
+# shallow clone of single branch (keep repo size as small as possible)
+git clone --single-branch --branch $branch --depth=1 https://github.com/rkansal47/HHbbVV/
+cd HHbbVV || exit
+
+commithash=$(git rev-parse HEAD)
+echo "https://github.com/rkansal47/HHbbVV/commit/${commithash}" > commithash.txt
+xrdcp -f commithash.txt $eosoutgithash
+
+pip install -e .
+
+cd src/HHbbVV/postprocessing/ || exit
 
 # make dir for output
 mkdir condor_templates

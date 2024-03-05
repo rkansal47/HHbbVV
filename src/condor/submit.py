@@ -38,6 +38,7 @@ def get_site_vars(site):
 
 
 def main(args):
+    run_utils.check_branch_exists(args.git_branch)
     username, t2_local_prefix, t2_prefix, proxy = get_site_vars(args.site)
 
     homedir = Path(f"store/user/{username}/bbVV/{args.processor}/")
@@ -83,6 +84,7 @@ def main(args):
 
                 localsh = f"{local_dir}/{prefix}_{j}.sh"
                 sh_args = {
+                    "branch": args.git_branch,
                     "script": args.script,
                     "year": args.year,
                     "starti": j * args.files_per_job,
@@ -97,6 +99,7 @@ def main(args):
                     "eosoutpkl": f"{eosoutput_dir}/pickles/out_{j}.pkl",
                     "eosoutparquet": f"{eosoutput_dir}/parquet/out_{j}.parquet",
                     "eosoutroot": f"{eosoutput_dir}/root/nano_skim_{j}.root",
+                    "eosoutgithash": f"{eosoutput_dir}/githashes/commithash_{j}.txt",
                     "save_ak15": "--save-ak15" if args.save_ak15 else "--no-save-ak15",
                     "save_all": "--save-all" if args.save_all else "--no-save-all",
                     "lp_sfs": "--lp-sfs" if args.lp_sfs else "--no-lp-sfs",
@@ -121,7 +124,8 @@ def main(args):
 
 
 def parse_args(parser):
-    parser.add_argument("--script", default="run.py", help="script to run", type=str)
+    parser.add_argument("--git-branch", required=True, help="git branch to use", type=str)
+    parser.add_argument("--script", default="src/run.py", help="script to run", type=str)
     parser.add_argument(
         "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
     )
