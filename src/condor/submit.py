@@ -38,7 +38,7 @@ def get_site_vars(site):
 
 
 def main(args):
-    run_utils.check_branch_exists(args.git_branch)
+    run_utils.check_branch(args.git_branch, args.allow_diff_local_repo)
     username, t2_local_prefix, t2_prefix, proxy = get_site_vars(args.site)
 
     homedir = Path(f"store/user/{username}/bbVV/{args.processor}/")
@@ -149,6 +149,14 @@ def parse_args(parser):
 
     run_utils.add_bool_arg(
         parser, "submit", default=False, help="submit files as well as create them"
+    )
+
+    run_utils.add_bool_arg(
+        parser,
+        "allow-diff-local-repo",
+        default=False,
+        help="Allow the local repo to be different from the specified remote repo (not recommended!)."
+        "If false, submit script will exit if the latest commits locally and on Github are different.",
     )
 
 

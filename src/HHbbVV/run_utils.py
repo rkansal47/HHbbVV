@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import os
-import time
+import subprocess
 from pathlib import Path
 from string import Template
 
@@ -51,23 +51,25 @@ def add_mixins(nanoevents):
     nanoevents.PFNanoAODSchema.mixins["SV"] = "PFCand"
 
 
-def check_branch_exists(git_branch: str):
-    """Check that specified git branch exists in the repo"""
+def check_branch(git_branch: str, allow_diff_local_repo: bool = False):
+    """Check that specified git branch exists in the repo, and local repo is up-to-date"""
     assert not bool(
         os.system(
             f'git ls-remote --exit-code --heads "https://github.com/rkansal47/HHbbVV" "{git_branch}"'
         )
     ), f"Branch {git_branch} does not exist"
 
-    print(f"Using the {git_branch} branch.")
-    print_red("-----------Important!------------")
-    print_red("-----------Important!------------")
-    print_red("-----------Important!------------")
-    print_red("Did you push your changes to github?")
-    print_red("-----------Important!------------")
-    print_red("-----------Important!------------")
-    print_red("-----------Important!------------")
-    time.sleep(5)
+    remote_hash = subprocess.getoutput(f"git show origin/{git_branch} | head -n 1").split(" ")[1]
+    local_hash = subprocess.getoutput("git rev-parse HEAD")
+
+    if remote_hash != local_hash:
+        print_red("Latest local and github commits do not match!")
+        print(f"Local commit hash: {local_hash}")
+        print(f"Remote commit hash: {remote_hash}")
+        if allow_diff_local_repo:
+            print("Proceeding anyway...")
+        else:
+            print_red("Exiting! Use the --allow-diff-local-repo option to override this.")
 
 
 # for Dask executor

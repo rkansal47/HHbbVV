@@ -137,7 +137,7 @@ samples = [
 
 def main(args):
     username, t2_local_prefix, t2_prefix, proxy = submit.get_site_vars(args.site)
-    run_utils.check_branch_exists(args.git_branch)
+    run_utils.check_branch(args.git_branch, args.allow_diff_local_repo)
 
     local_dir = f"condor/postprocessing/{args.tag}"
     homedir = f"/store/user/{username}/bbVV/templates/"
