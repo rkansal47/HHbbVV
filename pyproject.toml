@@ -139,6 +139,7 @@ ignore = [
   "EM101",  # Error message
   "EM102",
   "G002",   # Logging statement format
+  "G003",   # Logging statement format
   "G004",
   "PLE1205", # logging format string
   "E722",   # bare except

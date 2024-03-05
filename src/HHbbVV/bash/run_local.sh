@@ -12,7 +12,7 @@
 year=2017
 processor=skimmer
 extraargs=""
-extraargs="--no-inference"
+# extraargs="--no-inference"
 
 OUTPUTDIR="tmp/test_outputs/$year"
 mkdir -p $OUTPUTDIR

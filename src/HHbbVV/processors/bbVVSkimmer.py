@@ -652,15 +652,18 @@ class bbVVSkimmer(SkimmerABC):
         ################
 
         if isSignal and self._systematics and self._lp_sfs:
-            # TODO: remember to add new LP variables
+            # (var, # columns)
             items = [
                 ("lp_sf_lnN", 101),
+                ("lp_sf_pt_extrap_vars", 100),
                 ("lp_sf_sys_down", 1),
                 ("lp_sf_sys_up", 1),
                 ("lp_sf_double_matched_event", 1),
+                ("lp_sf_boundary_quarks", 1),
                 ("lp_sf_unmatched_quarks", 1),
-                ("lp_sf_num_sjpt_gt350", 1),
             ]
+
+            logging.info("Starting LP SFs and saving: " + str(items))
 
             if len(skimmed_events["weight"]):
                 genbb = genbb[sel_all]

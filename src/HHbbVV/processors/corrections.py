@@ -136,7 +136,7 @@ def add_VJets_kFactors(weights, genpart, dataset):
     """Revised version of add_VJets_NLOkFactor, for both NLO EW and ~NNLO QCD"""
 
     vjets_kfactors = correctionlib.CorrectionSet.from_file(
-        package_path / "corrections/ULvjets_corrections.json"
+        str(package_path / "corrections/ULvjets_corrections.json")
     )
 
     def get_vpt(genpart, check_offshell=False):
@@ -689,7 +689,7 @@ def _get_lund_lookups(year: str, seed: int = 42, lnN: bool = True, trunc_gauss: 
     import uproot
 
     # initialize lund plane scale factors lookups
-    f = uproot.open(package_path / f"/corrections/lp_ratios/ratio_{year[:4]}.root")
+    f = uproot.open(package_path / f"corrections/lp_ratios/ratio_{year[:4]}.root")
 
     # 3D histogram: [subjet_pt, ln(0.8/Delta), ln(kT/GeV)]
     ratio_nom = f["ratio_nom"].to_numpy()
@@ -842,10 +842,6 @@ def _get_lund_arrays(
     # get post-JEC / pre-JEC pT ratios, to apply to subjets
     nojec_fatjets_pt = events.FatJet.pt[np.arange(len(jec_fatjets)), fatjet_idx]
     jec_correction = (jec_fatjets.pt / nojec_fatjets_pt)[:, np.newaxis]
-
-    print("nojec fatjet pt", nojec_fatjets_pt)
-    print("jec fatjet pt", jec_fatjets.pt)
-    print("jec correction", jec_correction)
 
     dR = 0.8
     cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
