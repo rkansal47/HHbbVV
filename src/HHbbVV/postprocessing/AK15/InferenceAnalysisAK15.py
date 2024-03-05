@@ -4,21 +4,21 @@ Takes the skimmed parquet files (output of bbVVSkimmer) and evaluates the HWW Ta
 Author(s): Raghav Kansal
 """
 
-import numpy as np
-import pandas as pd
+from __future__ import annotations
+
+import contextlib
+import pickle
+import time
+from os import listdir
+
 import matplotlib.pyplot as plt
 import mplhep as hep
+import numpy as np
+import pandas as pd
 
 plt.rcParams.update({"font.size": 16})
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
-
-from os import listdir
-import pickle
-
-import time
-import contextlib
-
 
 # MAIN_DIR = "../../../"
 MAIN_DIR = "./"
@@ -376,8 +376,12 @@ plt.legend()
 plt.savefig(f"{plot_dir}/thvv4qmdfatjetpnetscore.pdf", bbox_inches="tight")
 
 
-def rocCurve(fpr, tpr, title=None, xlim=[0, 0.4], ylim=[1e-6, 1e-2], plotdir="", name=""):
+def rocCurve(fpr, tpr, title=None, xlim=None, ylim=None, plotdir="", name=""):
     """Plots a ROC curve"""
+    if ylim is None:
+        ylim = [1e-06, 0.01]
+    if xlim is None:
+        xlim = [0, 0.4]
     plt.figure(figsize=(12, 12))
     plt.plot(tpr, fpr)
     plt.yscale("log")
@@ -389,7 +393,7 @@ def rocCurve(fpr, tpr, title=None, xlim=[0, 0.4], ylim=[1e-6, 1e-2], plotdir="",
     plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
 
 
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve
 
 fpr = {"th4q": {}, "thvv4q": {}}
 tpr = {"th4q": {}, "thvv4q": {}}

@@ -4,31 +4,30 @@ Skimmer for ParticleNet tagger inputs.
 Author(s): Cristina Mantilla Suarez, Raghav Kansal
 """
 
-import numpy as np
+from __future__ import annotations
+
+import itertools
+import json
+from pathlib import Path
+
 import awkward as ak
+import numpy as np
 import pandas as pd
 import uproot
-
-from coffea.processor import ProcessorABC, dict_accumulator
 from coffea.analysis_tools import PackedSelection
+from coffea.processor import dict_accumulator
 
-from .utils import add_selection_no_cutflow, PAD_VAL
+from HHbbVV.processors import SkimmerABC
+
+from .GenSelection import tagger_gen_matching
 from .TaggerInference import (
-    get_pfcands_features,
-    get_svs_features,
     get_lep_features,
     get_met_features,
+    get_pfcands_features,
+    get_svs_features,
+    runInferenceTriton,
 )
-from .GenSelection import tagger_gen_matching
-from .TaggerInference import runInferenceTriton
-
-from typing import Dict
-
-import os
-import pathlib
-import json
-import itertools
-
+from .utils import PAD_VAL, add_selection_no_cutflow
 
 P4 = {
     "eta": "eta",
@@ -38,7 +37,7 @@ P4 = {
 }
 
 
-class TaggerInputSkimmer(ProcessorABC):
+class TaggerInputSkimmer(SkimmerABC):
     """
     Produces a flat training ntuple from PFNano.
     """
@@ -89,8 +88,8 @@ class TaggerInputSkimmer(ProcessorABC):
 
         fj_H_VV_taunuqq: ( (fj_H_VV_leptauelvqq == 1) | (fj_H_VV_leptaumuvqq == 1) | (fj_H_VV_hadtauvqq == 1) )
 
-        label_Top_bWqq_0c: ( (fj_Top_2q==1) & (fj_nprongs == 2)  & (fj_Top_bmerged==1) & (fj_ncquarks==0) ) 
-        label_Top_bWqq_1c: ( (fj_Top_2q==1) & (fj_nprongs == 2) & (fj_Top_bmerged==1) & (fj_ncquarks==1) ) 
+        label_Top_bWqq_0c: ( (fj_Top_2q==1) & (fj_nprongs == 2)  & (fj_Top_bmerged==1) & (fj_ncquarks==0) )
+        label_Top_bWqq_1c: ( (fj_Top_2q==1) & (fj_nprongs == 2) & (fj_Top_bmerged==1) & (fj_ncquarks==1) )
         label_Top_bWq_0c: ( (fj_Top_2q==1) & (fj_nprongs == 1) & (fj_Top_bmerged==1) & (fj_ncquarks==0) )
         label_Top_bWq_1c: ( (fj_Top_2q==1) & fj_nprongs == 1) & (fj_Top_bmerged==1) & (fj_ncquarks==1) )
         label_Top_bWev: ( (fj_Top_elenu==1) & (fj_Top_bmerged==1) )
@@ -98,7 +97,7 @@ class TaggerInputSkimmer(ProcessorABC):
         label_Top_bWtauhv: ( (fj_Top_hadtauvqq==1) & (fj_Top_bmerged==1) )
         label_Top_bWtauev: ( (fj_Top_leptauelvnu==1) & (fj_Top_bmerged==1) )
         label_Top_bWtaumv: ( (fj_Top_leptaumuvnu==1) & (fj_Top_bmerged==1) )
-        
+
         fj_Top_taunu: ( (fj_Top_leptauelvnu == 1) | (fj_Top_leptaumuvnu == 1) | (fj_Top_hadtauvqq == 1) )
         fj_Top_2q_1q: ( (fj_Top_2q == 1) & (fj_nprongs == 1) ) # with or without b merged
         fj_Top_2q_2q: ( (fj_Top_2q == 1) & (fj_nprongs == 2) ) # with or without b merged
@@ -107,7 +106,7 @@ class TaggerInputSkimmer(ProcessorABC):
         fj_Vqq_1q: ((fj_V_2q==1) & (fj_nprongs==1))
         fj_Vqq_2q: ((fj_V_2q==1) & (fj_nprongs==2))
         label_Wqq_jets_1c: ((fj_V_2q==1) & (fj_ncquarks==0) )
-        label_Wqq_jets_0c: ((fj_V_2q==1) & (fj_ncquarks==1) ) 
+        label_Wqq_jets_0c: ((fj_V_2q==1) & (fj_ncquarks==1) )
         fj_wjets_label: ((fj_V_2q==1) | (fj_V_elenu==1) | (fj_V_munu==1) | (fj_V_taunu==1))
 
         Note: for two-prong decays make sure you require two prongs, e.g.:
@@ -265,10 +264,6 @@ class TaggerInputSkimmer(ProcessorABC):
             },
         }
 
-        self.tagger_resources_path = (
-            str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
-        )
-
         self.ak15 = "AK15" in self.label
         self.fatjet_label = "FatJetAK15" if self.ak15 else "FatJet"
         self.subjet_label = "FatJetAK15SubJet" if self.ak15 else "SubJet"
@@ -281,11 +276,9 @@ class TaggerInputSkimmer(ProcessorABC):
         self.num_subjets = 2
         self.match_dR = 1.0  # max dR for object-jet-matching
 
-        self.tagger_resources_path = (
-            str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
-        )
+        self.tagger_resources_path = Path(__file__).parent.resolve() / "tagger_resources"
 
-        with open(f"{self.tagger_resources_path}/pyg_ef_ul_cw_8_2_preprocess.json") as f:
+        with (self.tagger_resources_path / "pyg_ef_ul_cw_8_2_preprocess.json").open() as f:
             self.tagger_vars = json.load(f)
 
         self._accumulator = dict_accumulator({})
@@ -294,33 +287,18 @@ class TaggerInputSkimmer(ProcessorABC):
     def accumulator(self):
         return self._accumulator
 
-    def dump_table(self, pddf: pd.DataFrame, fname: str) -> None:
-        """
-        Saves pandas dataframe events to './outparquet'
-        """
-        import pyarrow.parquet as pq
-        import pyarrow as pa
-
-        local_dir = os.path.abspath(os.path.join(".", "outparquet"))
-        os.system(f"mkdir -p {local_dir}")
-
-        # need to write with pyarrow as pd.to_parquet doesn't support different types in
-        # multi-index column names
-        table = pa.Table.from_pandas(pddf)
-        pq.write_table(table, f"{local_dir}/{fname}")
-
-    def dump_root(self, jet_vars: Dict[str, np.array], fname: str) -> None:
+    def dump_root(self, jet_vars: dict[str, np.array], fname: str) -> None:
         """
         Saves ``jet_vars`` dict as a rootfile to './outroot'
         """
-        local_dir = os.path.abspath(os.path.join(".", "outroot"))
-        os.system(f"mkdir -p {local_dir}")
+        local_dir = (Path() / "outroot").resolve()
+        local_dir.mkdir(parents=True, exist_ok=True)
 
         with uproot.recreate(f"{local_dir}/{fname}", compression=uproot.LZ4(4)) as rfile:
             rfile["Events"] = ak.Array(jet_vars)
             # rfile["Events"].show()
 
-    def to_pandas_lists(self, events: Dict[str, np.array]) -> pd.DataFrame:
+    def to_pandas_lists(self, events: dict[str, np.array]) -> pd.DataFrame:
         """
         Convert our dictionary of numpy arrays into a pandas data frame.
         Uses lists for numpy arrays with >1 dimension
@@ -334,18 +312,6 @@ class TaggerInputSkimmer(ProcessorABC):
                 output[field] = ak.to_numpy(ak.flatten(events[field], axis=None))
 
         return output
-
-    def to_pandas(self, events: Dict[str, np.array]) -> pd.DataFrame:
-        """
-        Convert our dictionary of numpy arrays into a pandas data frame.
-        Uses multi-index columns for numpy arrays with >1 dimension
-        (e.g. FatJet arrays with two columns)
-        """
-        return pd.concat(
-            [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in events.items()],
-            axis=1,
-            keys=list(events.keys()),
-        )
 
     def process(self, events: ak.Array):
         import time
@@ -430,7 +396,7 @@ class TaggerInputSkimmer(ProcessorABC):
                 ),
             }
 
-            LepVars = {
+            {
                 **get_lep_features(
                     self.skim_vars["Lep"],
                     events,
@@ -562,12 +528,12 @@ class TaggerInputSkimmer(ProcessorABC):
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_")
 
         # convert output to pandas
-        df = self.to_pandas(jet_vars)
+        pddf = self.to_pandas(jet_vars)
 
         print(f"convert: {time.time() - start:.1f}s")
 
         # save to parquet
-        self.dump_table(df, fname + ".parquet")
+        self.dump_table(pddf, fname + ".parquet")
 
         print(f"dumped: {time.time() - start:.1f}s")
 

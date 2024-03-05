@@ -66,8 +66,8 @@ def run(p: processor, fileset: dict, args):
     run_utils.add_mixins(nanoevents)  # update nanoevents schema
 
     # outputs are saved here as pickles
-    outdir = "./outfiles"
-    os.system(f"mkdir -p {outdir}")
+    outdir = Path("outfiles")
+    outdir.mkdir(exist_ok=True)
 
     if args.processor in ["skimmer", "input", "ttsfs"]:
         # these processors store intermediate files in the "./outparquet" local directory
@@ -96,7 +96,7 @@ def run(p: processor, fileset: dict, args):
 
     out, metrics = run(fileset, "Events", processor_instance=p)
 
-    with Path(f"{outdir}/{args.starti}-{args.endi}.pkl").open("wb") as f:
+    with (outdir / f"{args.starti}-{args.endi}.pkl").open("wb") as f:
         pickle.dump(out, f)
 
     print(out)

@@ -4,8 +4,9 @@ Collection of variables useful for the nonresonant analysis.
 Author: Raghav Kansal
 """
 
-from collections import OrderedDict
+from __future__ import annotations
 
+from collections import OrderedDict
 
 years = ["2016APV", "2016", "2017", "2018"]
 
@@ -45,8 +46,8 @@ samples = OrderedDict(
 
 data_key = "Data"
 qcd_key = "QCD"
-bg_keys = [key for key in samples.keys() if key != data_key]
-hbb_bg_keys = [key for key in samples.keys() if "Hbb" in key]
+bg_keys = [key for key in samples if key != data_key]
+hbb_bg_keys = [key for key in samples if "Hbb" in key]
 
 # change HHbbVV to hbbhVV
 nonres_samples = OrderedDict(

@@ -2,12 +2,14 @@
 Filter skimmed data further and save in a new directory
 """
 
-import pandas as pd
-import pyarrow.parquet as pq
-import pyarrow as pa
+from __future__ import annotations
 
-from os import listdir
 import os
+from os import listdir
+
+import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 eos_dir = "/eos/uscms/store/user/rkansal/bbVV/skimmer/Jul27"
 new_dir = "/eos/uscms/store/user/rkansal/bbVV/skimmer/Jul27_TxbbCut"

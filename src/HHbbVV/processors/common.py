@@ -1,10 +1,4 @@
-# TODO: Check if this is correct for JetHT
-LUMI = {  # in pb^-1
-    "2016": 16830.0,
-    "2016APV": 19500.0,
-    "2017": 41480.0,
-    "2018": 59830.0,
-}
+from __future__ import annotations
 
 HLTs = {
     "2016": [
@@ -87,53 +81,3 @@ btagWPs = {
         },
     }
 }
-
-
-jecs = {
-    "JES": "JES_jes",
-    "JER": "JER",
-}
-
-jmsr = {
-    "JMS": "JMS",
-    "JMR": "JMR",
-}
-
-jec_shifts = []
-for key in jecs:
-    for shift in ["up", "down"]:
-        jec_shifts.append(f"{key}_{shift}")
-
-jmsr_shifts = []
-for key in jmsr:
-    for shift in ["up", "down"]:
-        jmsr_shifts.append(f"{key}_{shift}")
-
-# variables affected by JECs
-jec_vars = [
-    "bbFatJetPt",
-    "VVFatJetPt",
-    "DijetEta",
-    "DijetPt",
-    "DijetMass",
-    "bbFatJetPtOverDijetPt",
-    "VVFatJetPtOverDijetPt",
-    "VVFatJetPtOverbbFatJetPt",
-    "BDTScore",
-]
-
-
-# variables affected by JMS/R
-jmsr_vars = [
-    "bbFatJetMsd",
-    "bbFatJetParticleNetMass",
-    "VVFatJetMsd",
-    "VVFatJetParticleNetMass",
-    "DijetEta",
-    "DijetPt",
-    "DijetMass",
-    "bbFatJetPtOverDijetPt",
-    "VVFatJetPtOverDijetPt",
-    "VVFatJetPtOverbbFatJetPt",
-    "BDTScore",
-]

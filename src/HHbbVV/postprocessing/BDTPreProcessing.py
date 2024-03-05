@@ -1,30 +1,25 @@
-from collections import OrderedDict
-from typing import Dict
-import utils
-import plotting
-import postprocessing
-import numpy as np
+from __future__ import annotations
+
+import os
 import warnings
+from collections import OrderedDict
+from pathlib import Path
+
 import pandas as pd
+import postprocessing
+import utils
 from pandas.errors import SettingWithCopyWarning
-from hh_vars import (
-    samples,
-    res_samples,
-    nonres_samples,
-    nonres_sig_keys,
-    res_sig_keys,
-    data_key,
+
+from HHbbVV.hh_vars import (
     jec_shifts,
-    jmsr_shifts,
     jec_vars,
+    jmsr_shifts,
     jmsr_vars,
+    nonres_sig_keys,
 )
-import os, sys
 
 # ignore these because they don't seem to apply
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
-
-from copy import deepcopy
 
 
 BDT_data_vars = [
@@ -105,12 +100,12 @@ def _make_dirs(args):
 
 
 def save_bdt_data(
-    events_dict: Dict[str, pd.DataFrame],
-    bb_masks: Dict[str, pd.DataFrame],
+    events_dict: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame],
     out_file: str,
 ):
-    import pyarrow.parquet as pq
     import pyarrow as pa
+    import pyarrow.parquet as pq
 
     jec_jmsr_vars = []
 
@@ -125,7 +120,7 @@ def save_bdt_data(
 
     bdt_events_dict = []
     bdt_sample_order = []
-    for key in events_dict.keys():
+    for key in events_dict:
         save_vars = BDT_data_vars + jec_jmsr_vars if key != "Data" else BDT_data_vars
         events = pd.DataFrame(
             {var: utils.get_feat(events_dict[key], var, bb_masks[key]) for var in save_vars}
@@ -142,7 +137,7 @@ def save_bdt_data(
         [(sample, len(bdt_events_dict[sample])) for sample in bdt_sample_order]
     )
 
-    with open(out_file.replace("bdt_data.parquet", "sample_order.txt"), "w") as f:
+    with Path(out_file.replace("bdt_data.parquet", "sample_order.txt")).open("w") as f:
         f.write(str(sample_order_dict))
 
 

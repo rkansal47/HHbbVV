@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from string import Template
 
 
 def add_bool_arg(parser, name, help, default=False, no_name=None):
@@ -17,6 +18,16 @@ def add_bool_arg(parser, name, help, default=False, no_name=None):
         no_help = help
     group.add_argument("--" + no_name, dest=varname, action="store_false", help=no_help)
     parser.set_defaults(**{varname: default})
+
+
+def write_template(templ_file: str, out_file: Path, templ_args: dict):
+    """Write to ``out_file`` based on template from ``templ_file`` using ``templ_args``"""
+
+    with Path(templ_file).open() as f:
+        templ = Template(f.read())
+
+    with Path(out_file).open("w") as f:
+        f.write(templ.substitute(templ_args))
 
 
 def add_mixins(nanoevents):

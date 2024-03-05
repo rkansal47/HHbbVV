@@ -11,19 +11,8 @@ import argparse
 import os
 from math import ceil
 from pathlib import Path
-from string import Template
 
 from HHbbVV import run_utils
-
-
-def write_template(templ_file: str, out_file: Path, templ_args: dict):
-    """Write to ``out_file`` based on template from ``templ_file`` using ``templ_args``"""
-
-    with Path(templ_file).open() as f:
-        templ = Template(f.read())
-
-    with Path(out_file).open("w") as f:
-        f.write(templ.substitute(templ_args))
 
 
 def get_site_vars(site):
@@ -90,7 +79,7 @@ def main(args):
                 local_jdl = Path(f"{local_dir}/{prefix}_{j}.jdl")
                 local_log = Path(f"{local_dir}/{prefix}_{j}.log")
                 jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": j, "proxy": proxy}
-                write_template(jdl_templ, local_jdl, jdl_args)
+                run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
                 localsh = f"{local_dir}/{prefix}_{j}.sh"
                 sh_args = {
@@ -116,7 +105,7 @@ def main(args):
                     ),
                     "inference": "--inference" if args.inference else "--no-inference",
                 }
-                write_template(sh_templ, localsh, sh_args)
+                run_utils.write_template(sh_templ, localsh, sh_args)
                 os.system(f"chmod u+x {localsh}")
 
                 if local_log.exists():

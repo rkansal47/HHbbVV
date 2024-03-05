@@ -1,25 +1,17 @@
-import itertools
-import numpy as np
+from __future__ import annotations
+
 import hist
-from hist import Hist
-
-
-LUMI = {  # in pb^-1
-    "2016": 16830.0,
-    "2016APV": 19500.0,
-    "2017": 41480.0,
-    "2018": 59830.0,
-}
+import numpy as np
 
 
 # from https://gist.github.com/kdlong/d697ee691c696724fc656186c25f8814
 def rebin_hist(h, axis_name, edges):
-    if type(edges) == int:
+    if isinstance(edges, int):
         return h[{axis_name: hist.rebin(edges)}]
 
     ax = h.axes[axis_name]
     ax_idx = [a.name for a in h.axes].index(axis_name)
-    if not all([np.isclose(x, ax.edges).any() for x in edges]):
+    if not all(np.isclose(x, ax.edges).any() for x in edges):
         raise ValueError(
             f"Cannot rebin histogram due to incompatible edges for axis '{ax.name}'\n"
             f"Edges of histogram are {ax.edges}, requested rebinning to {edges}"

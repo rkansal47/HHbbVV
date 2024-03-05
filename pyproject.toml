@@ -104,6 +104,7 @@ line-length = 100
 
 [tool.ruff]
 src = ["src"]
+exclude = ["src/HHbbVV/postprocessing/pickle_scripts", "src/HHbbVV/postprocessing/AK15", "src/HHbbVV/triton/ParticleTransformer*", "src/runCoffeaCasa.py"]
 
 [tool.ruff.lint]
 extend-select = [
@@ -139,13 +140,16 @@ ignore = [
   "EM102",
   "G002",   # Logging statement format
   "G004",
+  "PLE1205", # logging format string
   "E722",   # bare except
+  "E741",   # ambiguous variable name
   "RUF005", # iterable unpacking
   "RUF013", # implicit 'Optional' type
   "PGH001", # eval
   "RET503",
   "RET504", # unnecessary assignment before return
   "RET505", # unnecessary else after return statement
+  "NPY002", # np.random.rand -> np.random.Generator
 ]
 
 isort.required-imports = ["from __future__ import annotations"]

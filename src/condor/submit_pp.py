@@ -14,6 +14,8 @@ from pathlib import Path
 
 import submit
 
+from HHbbVV import run_utils
+
 samples = [
     # "NMSSM_XToYHTo2W2BTo4Q2B_MX-1000_MY-100",
     "NMSSM_XToYHTo2W2BTo4Q2B_MX-1000_MY-125",
@@ -170,11 +172,11 @@ def main(args):
         local_log = Path(f"{local_dir}/{prefix}_{j}.log")
 
         jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": j, "proxy": proxy}
-        submit.write_template(jdl_templ, local_jdl, jdl_args)
+        run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
         localsh = f"{local_dir}/{prefix}_{j}.sh"
         sh_args = {"samples": run_samples, "eosout": eosoutput_dir}
-        submit.write_template(sh_templ, localsh, sh_args)
+        run_utils.write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
 
         if local_log.exists():
