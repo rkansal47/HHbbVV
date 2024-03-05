@@ -1,5 +1,5 @@
 #!/bin/bash
-# shellcheck disable=SC2154,SC2086
+# shellcheck disable=SC2154,SC2086,SC2034,SC1036,SC1088
 
 # make sure this is installed
 # python3 -m pip install correctionlib==2.0.0rc6
@@ -12,8 +12,8 @@ mkdir outfiles
 git clone --single-branch --branch $branch --depth=1 https://github.com/rkansal47/HHbbVV/
 cd HHbbVV || exit
 
-commithash=$(git rev-parse HEAD)
-echo "https://github.com/rkansal47/HHbbVV/commit/${commithash}" > commithash.txt
+commithash=$$(git rev-parse HEAD)
+echo "https://github.com/rkansal47/HHbbVV/commit/$${commithash}" > commithash.txt
 xrdcp -f commithash.txt $eosoutgithash
 
 pip install -e .

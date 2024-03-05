@@ -30,7 +30,7 @@
               "NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250",
               "NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150",
             ],
-          "files_per_job": 20,
+          "files_per_job": 10,
         },
       # "QCD":
       #     {

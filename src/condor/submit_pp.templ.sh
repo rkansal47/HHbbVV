@@ -1,12 +1,12 @@
 #!/bin/bash
-# shellcheck disable=SC2154,SC2086
+# shellcheck disable=SC2154,SC2086,SC2034,SC1036,SC1088
 
 # shallow clone of single branch (keep repo size as small as possible)
 git clone --single-branch --branch $branch --depth=1 https://github.com/rkansal47/HHbbVV/
 cd HHbbVV || exit
 
-commithash=$(git rev-parse HEAD)
-echo "https://github.com/rkansal47/HHbbVV/commit/${commithash}" > commithash.txt
+commithash=$$(git rev-parse HEAD)
+echo "https://github.com/rkansal47/HHbbVV/commit/$${commithash}" > commithash.txt
 xrdcp -f commithash.txt $eosoutgithash
 
 pip install -e .

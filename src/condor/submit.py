@@ -66,7 +66,9 @@ def main(args):
     nsubmit = 0
     for sample in fileset:
         for subsample, tot_files in fileset[sample].items():
-            print("Submitting " + subsample)
+            if args.submit:
+                print("Submitting " + subsample)
+
             (eos_local_dir / args.year / subsample).mkdir(parents=True, exist_ok=True)
             eosoutput_dir = f"{t2_prefix}//{outdir}/{args.year}/{subsample}/"
 
@@ -114,9 +116,10 @@ def main(args):
                 if local_log.exists():
                     local_log.unlink()
 
-                print("To submit ", local_jdl)
                 if args.submit:
                     os.system(f"condor_submit {local_jdl}")
+                else:
+                    print("To submit ", local_jdl)
 
                 nsubmit = nsubmit + 1
 

@@ -173,8 +173,8 @@ def get_processor(
 def parse_common_args(parser):
     parser.add_argument(
         "--processor",
-        default="trigger",
-        help="Trigger processor",
+        required=True,
+        help="Which processor to run",
         type=str,
         choices=["trigger", "trigger4d", "skimmer", "input", "ttsfs", "xhy"],
     )
