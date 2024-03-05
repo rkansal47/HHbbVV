@@ -1221,7 +1221,7 @@ def get_lpsf_all_years(
 
         bb_masks = bb_VV_assignment(events_dict)
 
-        if "finalWeight_noTrigEffs" not in events_dict[sig_key]:
+        if "weight_noTrigEffs" not in events_dict[sig_key]:
             apply_weights(events_dict, year)
             derive_variables(events_dict)
 
@@ -1636,9 +1636,13 @@ def get_templates(
 
         # make selection, taking JEC/JMC variations into account
         sel, cf = utils.make_selection(
-            region.cuts, events_dict, bb_masks, prev_cutflow=prev_cutflow, jshift=jshift
+            region.cuts,
+            events_dict,
+            bb_masks,
+            prev_cutflow=prev_cutflow,
+            jshift=jshift,
+            weight_key=weight_key,
         )
-        # print(cf)
 
         if template_dir != "":
             cf.to_csv(f"{template_dir}/cutflows/{year}/{rname}_cutflow{jlabel}.csv")
@@ -1658,9 +1662,9 @@ def get_templates(
             sig_bb_mask = bb_masks[sig_key][sel[sig_key]]
 
             if pass_region:
-                # scale signal by LP SF
+                # scale all signal weights by LP SF
                 if lpsfs:
-                    for wkey in [weight_key, f"{weight_key}_noTrigEffs"]:
+                    for wkey in utils.get_all_weights(sig_events[sig_key]):
                         sig_events[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
 
                 corrections.apply_txbb_sfs(sig_events[sig_key], sig_bb_mask, year, weight_key)
@@ -1672,7 +1676,7 @@ def get_templates(
         hist_samples = list(events_dict.keys())
 
         if not do_jshift:
-            # set up weight-based variations
+            # add all weight-based variations to histogram axis
             for shift in ["down", "up"]:
                 if pass_region:
                     for sig_key in sig_keys:
@@ -1730,7 +1734,7 @@ def get_templates(
                                 nom_vals = h[sample, :].values()
                                 abs_unc = np.linalg.norm(
                                     (whists.values() - nom_vals), axis=0
-                                ) / np.sqrt(103)
+                                )  # / np.sqrt(103)
                                 # cap at 100% uncertainty
                                 rel_unc = np.clip(abs_unc / nom_vals, 0, 1)
                                 shape_up = nom_vals * (1 + rel_unc)
@@ -1802,7 +1806,6 @@ def get_templates(
                     plot_params = {
                         "hists": h.project(0, i + 1),
                         "sig_keys": p_sig_keys,
-                        "bg_keys": p_bg_keys,
                         "sig_scale_dict": (
                             {key: sig_scale_dict[key] for key in p_sig_keys}
                             if pass_region
@@ -1822,6 +1825,7 @@ def get_templates(
 
                     plotting.ratioHistPlot(
                         **plot_params,
+                        bg_keys=bg_keys,
                         title=title,
                         name=f"{plot_name}{jlabel}.pdf",
                     )
@@ -1834,6 +1838,7 @@ def get_templates(
                         for wshift, wsyst in weight_shifts.items():
                             plotting.ratioHistPlot(
                                 **plot_params,
+                                bg_keys=bg_keys,
                                 syst=(wshift, wsyst.samples),
                                 title=f"{region.label} Region {wsyst.label} Unc.",
                                 name=f"{plot_name}_{wshift}.pdf",
@@ -1842,15 +1847,18 @@ def get_templates(
                             for skey, shift in [("Down", "down"), ("Up", "up")]:
                                 plotting.ratioHistPlot(
                                     **plot_params,
+                                    bg_keys=p_bg_keys,  # don't plot QCD
                                     syst=(wshift, wsyst.samples),
                                     variation=shift,
                                     title=f"{region.label} Region {wsyst.label} Unc. {skey} Shapes",
                                     name=f"{plot_name}_{wshift}_{shift}.pdf",
+                                    plot_ratio=False,
                                 )
 
                         if pass_region:
                             plotting.ratioHistPlot(
                                 **plot_params,
+                                bg_keys=bg_keys,
                                 sig_err="txbb",
                                 title=rf"{region.label} Region $T_{{Xbb}}$ Shapes",
                                 name=f"{plot_name}_txbb.pdf",
