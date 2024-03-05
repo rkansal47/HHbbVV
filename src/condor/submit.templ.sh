@@ -8,8 +8,16 @@
 # make dir for output
 mkdir outfiles
 
-# shallow clone of single branch (keep repo size as small as possible)
-git clone --single-branch --branch $branch --depth=1 https://github.com/rkansal47/HHbbVV/
+# try 3 times in case of network errors
+(
+    r=3
+    # shallow clone of single branch (keep repo size as small as possible)
+    while ! git clone --single-branch --branch $branch --depth=1 https://github.com/rkansal47/HHbbVV/
+    do
+        ((--r)) || exit
+        sleep 60
+    done
+)
 cd HHbbVV || exit
 
 commithash=$$(git rev-parse HEAD)
