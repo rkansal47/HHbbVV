@@ -17,6 +17,7 @@ from HHbbVV.hh_vars import (
     jmsr_vars,
     nonres_sig_keys,
 )
+from HHbbVV.run_utils import add_bool_arg
 
 # ignore these because they don't seem to apply
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
@@ -186,13 +187,11 @@ if __name__ == "__main__":
         type=str,
     )
 
-    utils.add_bool_arg(parser, "data", "include data", default=True)
-    utils.add_bool_arg(
-        parser, "read-sig-samples", "read signal samples from directory", default=False
-    )
-    utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
-    utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
-    utils.add_bool_arg(parser, "bdt-data", "save bdt training data", default=False)
+    add_bool_arg(parser, "data", "include data", default=True)
+    add_bool_arg(parser, "read-sig-samples", "read signal samples from directory", default=False)
+    add_bool_arg(parser, "control-plots", "make control plots", default=False)
+    add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
+    add_bool_arg(parser, "bdt-data", "save bdt training data", default=False)
 
     args = parser.parse_args()
     main(args)

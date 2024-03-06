@@ -51,6 +51,7 @@ from HHbbVV.hh_vars import (
     txbb_wps,
     years,
 )
+from HHbbVV.run_utils import add_bool_arg
 
 # ignore these because they don't seem to apply
 # warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
@@ -69,53 +70,51 @@ class Region:
     label: str = None
 
 
-# Both Jet's Regressed Mass above 50, electron veto included in new samples
-# TODO: JMSR shifts!
-new_filters = [
+# Both Jet's Regressed Mass above 50
+load_filters = [
     [
         ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
         ("('ak8FatJetParticleNetMass', '1')", ">=", 50),
-    ],
-]
-
-# TODO: remove electron veto!!
-old_filters = [
-    [
-        ("('ak8FatJetParticleNetMass', '0')", ">=", 50),
-        ("('ak8FatJetParticleNetMass', '1')", ">=", 50),
-        ("('nGoodElectrons', '0')", "==", 0),
     ],
 ]
 
 # {var: (bins, label)}
 control_plot_vars = [
-    # ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[20, 0, 300]),
-    # ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[20, -8, 8]),
-    # ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[20, 0, 750]),
-    # ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[20, 600, 4000]),
-    # ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[20, -2.4, 2.4]),
-    # ShapeVar(
-    #     var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[20, 300, 2300], significance_dir="right"
-    # ),
-    # ShapeVar(
-    #     var="bbFatJetParticleNetMass",
-    #     label=r"$m^{bb}_{reg}$ (GeV)",
-    #     bins=[20, 50, 250],
-    #     significance_dir="bin",
-    # ),
-    # ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[20, 0, 300]),
-    # ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[20, 0.8, 1]),
-    # ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[20, -2.4, 2.4]),
-    # ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[20, 300, 2300]),
-    # ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
-    # ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[20, 50, 250]),
-    # ShapeVar(var="VVFatJetParticleNet_Th4q", label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)", bins=[20, 0, 1]),
-    # ShapeVar(var="VVFatJetParTMD_THWW4q", label=r"Prob($H \to VV \to 4q$) vs Prob(QCD) (Mass-Decorrelated)", bins=[20, 0, 1]),
-    # ShapeVar(var="VVFatJetParTMD_probT", label=r"Prob(Top) (Mass-Decorrelated)", bins=[20, 0, 1]),
-    # ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[20, 0, 1]),
-    # ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[20, 0, 40]),
-    # ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[20, 0, 40]),
-    # ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[20, 0.4, 2.0]),
+    ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[20, 0, 300]),
+    ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[20, -8, 8]),
+    ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[20, 0, 750]),
+    ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[20, 600, 4000]),
+    ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[20, -2.4, 2.4]),
+    ShapeVar(
+        var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[20, 300, 2300], significance_dir="right"
+    ),
+    ShapeVar(
+        var="bbFatJetParticleNetMass",
+        label=r"$m^{bb}_{reg}$ (GeV)",
+        bins=[20, 50, 250],
+        significance_dir="bin",
+    ),
+    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[20, 0, 300]),
+    ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[20, 0.8, 1]),
+    ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[20, -2.4, 2.4]),
+    ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[20, 300, 2300]),
+    ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
+    ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[20, 50, 250]),
+    ShapeVar(
+        var="VVFatJetParticleNet_Th4q",
+        label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)",
+        bins=[20, 0, 1],
+    ),
+    ShapeVar(
+        var="VVFatJetParTMD_THWW4q",
+        label=r"Prob($H \to VV \to 4q$) vs Prob(QCD) (Mass-Decorrelated)",
+        bins=[20, 0, 1],
+    ),
+    ShapeVar(var="VVFatJetParTMD_probT", label=r"Prob(Top) (Mass-Decorrelated)", bins=[20, 0, 1]),
+    ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[20, 0, 1]),
+    ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[20, 0, 40]),
+    ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[20, 0, 40]),
+    ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[20, 0.4, 2.0]),
     ShapeVar(var="nGoodMuonsHbb", label=r"# of Muons", bins=[3, 0, 3]),
     ShapeVar(var="nGoodMuonsHH", label=r"# of Muons", bins=[3, 0, 3]),
     ShapeVar(var="nGoodElectronsHbb", label=r"# of Electrons", bins=[3, 0, 3]),
@@ -161,7 +160,6 @@ def get_nonres_selection_regions(
     }
 
 
-# TODO: fill out VBF selection
 def get_nonres_vbf_selection_regions(
     year: str,
     txbb_wp: str = "HP",
@@ -304,7 +302,6 @@ nonres_shape_vars = [
 
 
 # templates saved in bb regressed mass for nonresonant VBF
-# TODO: edit as needed
 nonres_vbf_shape_vars = [
     ShapeVar(
         "bbFatJetParticleNetMass",
@@ -435,6 +432,12 @@ def main(args):
     # Control plots
     if args.control_plots:
         print("\nMaking control plots\n")
+        if len(args.control_plot_vars):
+            for var in control_plot_vars.copy():
+                if var.var not in args.control_plot_vars:
+                    control_plot_vars.remove(var)
+
+        print("Plotting: ", [var.var for var in control_plot_vars])
 
         control_plots(
             events_dict,
@@ -724,7 +727,7 @@ def _process_samples(args, BDT_sample_order: list[str] = None):
             sig_samples = tsig_samples
 
     bg_samples = deepcopy(samples)
-    for bg_key in bg_samples:
+    for bg_key in list(bg_samples.keys()):
         if bg_key not in args.bg_keys and bg_key != data_key:
             del bg_samples[bg_key]
 
@@ -950,9 +953,8 @@ def _check_load_systematics(systs_file: str, year: str):
     return systematics
 
 
-def _load_samples(args, samples, sig_samples, cutflow, filters=None):
-    if filters is None:
-        filters = old_filters if args.old_processor else new_filters
+def _load_samples(args, samples, sig_samples, cutflow):
+    filters = load_filters if args.filters else None
 
     events_dict = {}
     for d in args.signal_data_dirs:
@@ -1212,7 +1214,7 @@ def get_lpsf_all_years(
 
     for year in years:
         events_dict = utils.load_samples(
-            data_dir, {sig_key: samples[sig_key]}, year, new_filters, column_labels
+            data_dir, {sig_key: samples[sig_key]}, year, load_filters, column_labels
         )
 
         # print weighted sample yields
@@ -1941,17 +1943,17 @@ if __name__ == "__main__":
         type=str,
     )
 
-    utils.add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
-    utils.add_bool_arg(parser, "vbf", "non-resonant VBF or inclusive", default=False)
-    utils.add_bool_arg(parser, "control-plots", "make control plots", default=False)
-    utils.add_bool_arg(parser, "bdt-plots", "make bdt sculpting plots", default=False)
-    utils.add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
-    utils.add_bool_arg(
+    add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
+    add_bool_arg(parser, "vbf", "non-resonant VBF or inclusive", default=False)
+    add_bool_arg(parser, "control-plots", "make control plots", default=False)
+    add_bool_arg(parser, "bdt-plots", "make bdt sculpting plots", default=False)
+    add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
+    add_bool_arg(
         parser, "overwrite-template", "if template file already exists, overwrite it", default=False
     )
-    utils.add_bool_arg(parser, "do-jshifts", "Do JEC/JMC variations", default=True)
-    utils.add_bool_arg(parser, "plot-shifts", "Plot systematic variations as well", default=False)
-    utils.add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
+    add_bool_arg(parser, "do-jshifts", "Do JEC/JMC variations", default=True)
+    add_bool_arg(parser, "plot-shifts", "Plot systematic variations as well", default=False)
+    add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
 
     parser.add_argument(
         "--sig-samples",
@@ -1965,21 +1967,24 @@ if __name__ == "__main__":
         "--bg-keys",
         help="specify background samples",
         nargs="*",
-        default=["QCD", "TT", "ST", "V+Jets", "Diboson"],
+        default=bg_keys,
         type=str,
     )
 
-    utils.add_bool_arg(
-        parser, "read-sig-samples", "read signal samples from directory", default=False
-    )
+    add_bool_arg(parser, "read-sig-samples", "read signal samples from directory", default=False)
 
-    utils.add_bool_arg(parser, "data", "include data", default=True)
-    utils.add_bool_arg(parser, "hem-cleaning", "perform hem cleaning for 2018", default=None)
-    utils.add_bool_arg(
-        parser, "HEM2d", "fatjet phi v eta plots to check HEM cleaning", default=False
-    )
+    add_bool_arg(parser, "data", "include data", default=True)
+    add_bool_arg(parser, "hem-cleaning", "perform hem cleaning for 2018", default=False)
+    add_bool_arg(parser, "HEM2d", "fatjet phi v eta plots to check HEM cleaning", default=False)
+    add_bool_arg(parser, "filters", "apply filters", default=True)
 
-    utils.add_bool_arg(parser, "old-processor", "temp arg for old processed samples", default=False)
+    parser.add_argument(
+        "--control-plot-vars",
+        help="Specify control plot variables to plot. By default plots all.",
+        default=[],
+        nargs="*",
+        type=str,
+    )
 
     parser.add_argument(
         "--nonres-txbb-wp",

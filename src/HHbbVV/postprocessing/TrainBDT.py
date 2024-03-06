@@ -29,6 +29,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
 from HHbbVV.hh_vars import data_key, jec_shifts, jec_vars, jmsr_shifts, jmsr_vars, years
+from HHbbVV.run_utils import add_bool_arg
 
 # ignore these because they don't seem to apply
 # warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
@@ -651,10 +652,8 @@ if __name__ == "__main__":
         type=str,
         required=True,
     )
-    utils.add_bool_arg(parser, "load-data", "Load pre-processed data if done already", default=True)
-    utils.add_bool_arg(
-        parser, "save-data", "Save pre-processed data if loading the data", default=True
-    )
+    add_bool_arg(parser, "load-data", "Load pre-processed data if done already", default=True)
+    add_bool_arg(parser, "save-data", "Save pre-processed data if loading the data", default=True)
 
     parser.add_argument(
         "--num-events",
@@ -669,21 +668,19 @@ if __name__ == "__main__":
 
     parser.add_argument("--rem-feats", default=3, help="remove N lowest importance feats", type=int)
 
-    utils.add_bool_arg(parser, "multiclass", "Classify each background separately", default=True)
+    add_bool_arg(parser, "multiclass", "Classify each background separately", default=True)
 
-    utils.add_bool_arg(
-        parser, "use-sample-weights", "Use properly scaled event weights", default=True
-    )
-    utils.add_bool_arg(
+    add_bool_arg(parser, "use-sample-weights", "Use properly scaled event weights", default=True)
+    add_bool_arg(
         parser,
         "absolute-weights",
         "Use absolute weights if using sample weights (if false, will remove negative weights)",
         default=True,
     )
-    utils.add_bool_arg(
+    add_bool_arg(
         parser, "equalize-weights", "Equalise total signal and background weights", default=True
     )
-    utils.add_bool_arg(
+    add_bool_arg(
         parser,
         "equalize-weights-per-process",
         "Equalise each backgrounds' weights too",
@@ -702,11 +699,9 @@ if __name__ == "__main__":
     parser.add_argument("--test-size", default=0.3, help="testing/training split", type=float)
     parser.add_argument("--seed", default=4, help="seed for testing/training split", type=int)
 
-    utils.add_bool_arg(parser, "evaluate-only", "Only evaluation, no training", default=False)
-    utils.add_bool_arg(parser, "inference-only", "Only inference, no training", default=False)
-    utils.add_bool_arg(
-        parser, "test", "Testing BDT Training - run on a small sample", default=False
-    )
+    add_bool_arg(parser, "evaluate-only", "Only evaluation, no training", default=False)
+    add_bool_arg(parser, "inference-only", "Only inference, no training", default=False)
+    add_bool_arg(parser, "test", "Testing BDT Training - run on a small sample", default=False)
 
     args = parser.parse_args()
 
