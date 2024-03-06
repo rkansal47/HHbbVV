@@ -33,32 +33,36 @@ args = parser.parse_args()
 trigger_processor = args.processor.startswith("trigger")
 
 eosdir = f"/eos/uscms/store/user/{args.user}/bbVV/{args.processor}/{args.tag}/{args.year}/"
+user_condor_dir = f"/uscms/home/{args.user}/nobackup/HHbbVV/condor/"
 
 samples = listdir(eosdir)
 jdls = [
     jdl
-    for jdl in listdir(
-        f"/uscms/home/{args.user}/nobackup/HHbbVV/condor/{args.processor}/{args.tag}/"
-    )
+    for jdl in listdir(f"{user_condor_dir}/{args.processor}/{args.tag}/")
     if jdl.endswith(".jdl")
 ]
 
-jdl_dict = {
-    sample: np.sort(
+# get the highest numbered .jdl file to know how many output files there should be
+jdl_dict = {}
+for sample in samples.copy():
+    sorted_jdls = np.sort(
         [
             int(jdl[:-4].split("_")[-1])
             for jdl in jdls
             if jdl.split("_")[0] == args.year and "_".join(jdl.split("_")[1:-1]) == sample
         ]
-    )[-1]
-    + 1
-    for sample in samples
-}
+    )
+
+    if len(sorted_jdls):
+        jdl_dict[sample] = sorted_jdls[-1] + 1
+    else:
+        # if for some reason a folder exists in EOS but no .jdl file
+        samples.remove(sample)
 
 
 running_jobs = []
 if args.check_running:
-    os.system("condor_q | awk '{print $9}' > running_jobs.txt")
+    os.system(f"condor_q {args.user}" "| awk '{print $9}' > running_jobs.txt")
     with Path("running_jobs.txt").open() as f:
         lines = f.readlines()
 
@@ -81,8 +85,10 @@ for sample in samples:
                     print(f"Job #{i} for sample {sample} is running.")
                     continue
 
-                jdl_file = f"condor/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
-                err_file = f"condor/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
+                jdl_file = (
+                    f"{user_condor_dir}/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
+                )
+                err_file = f"{user_condor_dir}/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
                 print(jdl_file)
                 missing_files.append(jdl_file)
                 err_files.append(err_file)
@@ -114,8 +120,10 @@ for sample in samples:
                 continue
 
             print_red(f"Missing output pickle #{i} for sample {sample}")
-            jdl_file = f"condor/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
-            err_file = f"condor/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
+            jdl_file = f"{user_condor_dir}/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
+            err_file = (
+                f"{user_condor_dir}/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
+            )
             missing_files.append(jdl_file)
             err_files.append(err_file)
             if args.submit_missing:

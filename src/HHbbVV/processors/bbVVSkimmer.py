@@ -504,7 +504,7 @@ class bbVVSkimmer(SkimmerABC):
 
         metfilters = np.ones(len(events), dtype="bool")
         metfilterkey = "data" if isData else "mc"
-        for mf in self.metfilters[year][metfilterkey]:
+        for mf in self.metfilters[year[:4]][metfilterkey]:
             if mf in events.Flag.fields:
                 metfilters = metfilters & events.Flag[mf]
 
