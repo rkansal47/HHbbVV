@@ -388,15 +388,20 @@ def main(args):
     _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
     cutflow = pd.DataFrame(index=all_samples)  # save cutflow as pandas table
 
-    # utils.remove_empty_parquets(samples_dir, year)
-    events_dict = _load_samples(args, bg_samples, sig_samples, cutflow)
+    # only need to worry about variations if making templates
+    events_dict = _load_samples(args, bg_samples, sig_samples, cutflow, variations=args.templates)
     bb_masks = bb_VV_assignment(events_dict)
 
     # QCD xsec normalization for plots
     qcd_sf(events_dict, cutflow)
 
     # THWW score vs Top (if not already from processor)
-    derive_variables(events_dict)
+    derive_variables(
+        events_dict,
+        bb_masks,
+        nonres_vars=not args.resonant or args.control_plots,
+        vbf_vars=args.vbf,
+    )
 
     # args has attr if --control-plots arg was set
     if hasattr(args, "control_plots_dir"):
@@ -417,27 +422,6 @@ def main(args):
     else:
         if control_plot_vars[-1].var == "BDTScore":
             control_plot_vars = control_plot_vars[:-1]
-
-    # Load VBF Variables (edits events_dict so that all of the events have the appropriate variables and stuff) TODO:
-    if args.vbf:
-        pt_labels = ["JES", "JER"]
-        m_labels = ["JMS", "JMR"]
-        for key, df in events_dict.items():
-            bb_mask = (
-                df[("ak8FatJetParticleNetMD_Txbb", 0)] > df[("ak8FatJetParticleNetMD_Txbb", 1)]
-            )
-            _add_vbf_columns(df, bb_mask, ptlabel="", mlabel="")
-
-            if key == "Data":
-                continue
-
-            for var in pt_labels:
-                for direction in ["down", "up"]:
-                    _add_vbf_columns(df, bb_mask, ptlabel=f"_{var}_{direction}", mlabel="")
-
-            for var in m_labels:
-                for direction in ["down", "up"]:
-                    _add_vbf_columns(df, bb_mask, ptlabel="", mlabel=f"_{var}_{direction}")
 
     # Control plots
     if args.control_plots:
@@ -583,36 +567,23 @@ def _init(args):
 
 
 # adds all necessary columns to dataframes from events_dict
-def _add_vbf_columns(df, bb_mask, ptlabel, mlabel):
+def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
+    """Variables needed for ggF and/or VBF BDTs"""
+
+    bbJet = utils.make_vector(df, "bbFatJet", bb_mask, ptlabel=ptlabel, mlabel=mlabel)
+    VVJet = utils.make_vector(df, "VVFatJet", bb_mask, ptlabel=ptlabel, mlabel=mlabel)
+    Dijet = bbJet + VVJet
+
+    if f"DijetPt{ptlabel}{mlabel}" not in df.columns:
+        df[f"DijetMass{ptlabel}{mlabel}"] = Dijet.mass
+    df[f"DijetPt{ptlabel}{mlabel}"] = Dijet.pt
+    df[f"VVFatJetPtOverbbFatJetPt{ptlabel}{mlabel}"] = VVJet.pt / bbJet.pt
+    df[f"VVFatJetPtOverDijetPt{ptlabel}{mlabel}"] = VVJet.pt / df[f"DijetPt{ptlabel}{mlabel}"]
+
+    if not vbf_vars:
+        return
+
     import vector
-
-    bbJet = vector.array(
-        {
-            "pt": np.where(bb_mask, df[f"ak8FatJetPt{ptlabel}"][0], df[f"ak8FatJetPt{ptlabel}"][1]),
-            "phi": np.where(bb_mask, df["ak8FatJetPhi"][0], df["ak8FatJetPhi"][1]),
-            "eta": np.where(bb_mask, df["ak8FatJetEta"][0], df["ak8FatJetEta"][1]),
-            "M": np.where(
-                bb_mask,
-                df[f"ak8FatJetParticleNetMass{mlabel}"][0],
-                df[f"ak8FatJetParticleNetMass{mlabel}"][1],
-            ),
-        }
-    )
-
-    VVJet = vector.array(
-        {
-            "pt": np.where(
-                ~bb_mask, df[f"ak8FatJetPt{ptlabel}"][0], df[f"ak8FatJetPt{ptlabel}"][1]
-            ),
-            "phi": np.where(~bb_mask, df["ak8FatJetPhi"][0], df["ak8FatJetPhi"][1]),
-            "eta": np.where(~bb_mask, df["ak8FatJetEta"][0], df["ak8FatJetEta"][1]),
-            "M": np.where(
-                ~bb_mask,
-                df[f"ak8FatJetParticleNetMass{mlabel}"][0],
-                df[f"ak8FatJetParticleNetMass{mlabel}"][1],
-            ),
-        }
-    )
 
     vbf1 = vector.array(
         {
@@ -822,7 +793,9 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
         args.bdt_preds_dir = Path(args.bdt_preds_dir)
 
 
-def _normalize_weights(events: pd.DataFrame, totals: dict, sample: str, isData: bool):
+def _normalize_weights(
+    events: pd.DataFrame, totals: dict, sample: str, isData: bool, variations: bool = True
+):
     """Normalize weights and all the variations"""
     # don't need any reweighting for data
     if isData:
@@ -842,6 +815,9 @@ def _normalize_weights(events: pd.DataFrame, totals: dict, sample: str, isData: 
         events["weight_noTrigEffs"] /= totals["np_nominal"]
     else:
         events["weight"] /= totals["np_nominal"]
+
+    if not variations:
+        return
 
     # normalize all the variations
     for wvar in weight_shifts:
@@ -874,7 +850,8 @@ def _normalize_weights(events: pd.DataFrame, totals: dict, sample: str, isData: 
     # normalize scale and PDF weights
     for wkey in ["scale_weights", "pdf_weights"]:
         if wkey in events:
-            events[wkey] /= totals[f"np_{wkey}"]
+            # .to_numpy() makes it way faster
+            events[wkey] = events[wkey].to_numpy() / totals[f"np_{wkey}"]
 
 
 def load_samples(
@@ -884,6 +861,7 @@ def load_samples(
     filters: list = None,
     columns: list = None,
     hem_cleaning: bool = True,
+    variations: bool = True,
 ) -> dict[str, pd.DataFrame]:
     """
     Loads events with an optional filter.
@@ -896,6 +874,7 @@ def load_samples(
         filters (List): Optional filters when loading data.
         columns (List): Optional columns to load.
         hem_cleaning (bool): Whether to apply HEM cleaning to 2018 data.
+        variations (bool): Normalize variations as well (saves time to not do so). Defaults to True.
 
     Returns:
         Dict[str, pd.DataFrame]: ``events_dict`` dictionary of events dataframe for each sample.
@@ -936,7 +915,9 @@ def load_samples(
 
             # normalize by total events
             totals = utils.get_pickles(pickles_path, year, sample)["totals"]
-            _normalize_weights(events, totals, sample, isData=label == data_key)
+            _normalize_weights(
+                events, totals, sample, isData=label == data_key, variations=variations
+            )
 
             if year == "2018" and hem_cleaning:
                 events = utils._hem_cleaning(sample, events)
@@ -966,34 +947,39 @@ def _check_load_systematics(systs_file: str, year: str):
     return systematics
 
 
-def _load_samples(args, samples, sig_samples, cutflow):
+def _load_samples(args, samples, sig_samples, cutflow, variations=True):
+    """Wrapper for load_samples function"""
     filters = load_filters if args.filters else None
 
     events_dict = {}
     for d in args.signal_data_dirs:
         events_dict = {
             **events_dict,
-            **load_samples(d, sig_samples, args.year, filters, hem_cleaning=args.hem_cleaning),
+            **load_samples(
+                d,
+                sig_samples,
+                args.year,
+                filters,
+                hem_cleaning=args.hem_cleaning,
+                variations=variations,
+            ),
         }
 
     if args.data_dir:
         events_dict = {
             **events_dict,
             **load_samples(
-                args.data_dir, samples, args.year, filters, hem_cleaning=args.hem_cleaning
+                args.data_dir,
+                samples,
+                args.year,
+                filters,
+                hem_cleaning=args.hem_cleaning,
+                variations=variations,
             ),
         }
 
-    print("Samples: ", list(events_dict.keys()))
-
     utils.add_to_cutflow(events_dict, "Pre-selection", "finalWeight", cutflow)
-
-    print("")
-    # print weighted sample yields
-    wkey = "finalWeight" if "finalWeight" in next(iter(events_dict.values())) else "weight"
-    for sample in events_dict:
-        tot_weight = np.sum(events_dict[sample][wkey].to_numpy())
-        print(f"Pre-selection {sample} yield: {tot_weight:.2f}")
+    print(cutflow)
 
     return events_dict
 
@@ -1095,26 +1081,28 @@ def bb_VV_assignment(events_dict: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
     return bb_masks
 
 
-def derive_variables(events_dict: dict[str, pd.DataFrame]):
-    """Add HWW vs (QCD + Top) discriminant"""
+def derive_variables(
+    events_dict: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame],
+    nonres_vars: bool = True,
+    vbf_vars: bool = False,
+):
+    """Add Dijet variables"""
     for sample, events in events_dict.items():
-        if "VVFatJetParTMD_THWWvsT" in events or "ak8FatJetParTMD_THWWvsT" in events:
+        if not nonres_vars:
             continue
 
-        if "ak8FatJetParTMD_probT" not in events:
-            warnings.warn(f"ParT variables missing in {sample}!", stacklevel=1)
+        bb_mask = bb_masks[sample]
+        _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars)
+
+        if sample == data_key:
             continue
 
-        h4qvst = (events["ak8FatJetParTMD_probHWW3q"] + events["ak8FatJetParTMD_probHWW4q"]) / (
-            events["ak8FatJetParTMD_probHWW3q"]
-            + events["ak8FatJetParTMD_probHWW4q"]
-            + events["ak8FatJetParTMD_probQCD"]
-            + events["ak8FatJetParTMD_probT"]
-        )
+        for var in jec_shifts:
+            _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars, ptlabel=f"_{var}")
 
-        events_dict[sample] = pd.concat(
-            [events, pd.concat([h4qvst], axis=1, keys=["ak8FatJetParTMD_THWWvsT"])], axis=1
-        )
+        for var in jmsr_shifts:
+            _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars, mlabel=f"_{var}")
 
 
 def load_bdt_preds(
@@ -1875,9 +1863,8 @@ def save_templates(
     print("Saved templates to", template_file)
 
 
-if __name__ == "__main__":
+def parse_args():
     parser = argparse.ArgumentParser()
-
     parser.add_argument(
         "--data-dir",
         default=None,
@@ -2066,4 +2053,9 @@ if __name__ == "__main__":
         args.control_plots = True
         args.filters = False
 
+    return args
+
+
+if __name__ == "__main__":
+    args = parse_args()
     main(args)
