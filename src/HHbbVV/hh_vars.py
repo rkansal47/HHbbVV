@@ -253,3 +253,13 @@ jmsr_vars = [
     "VVFatJetPtOverbbFatJetPt",
     "BDTScore",
 ]
+
+lp_sf_vars = [
+    ("lp_sf_lnN", 101),
+    ("lp_sf_pt_extrap_vars", 100),
+    ("lp_sf_sys_down", 1),
+    ("lp_sf_sys_up", 1),
+    ("lp_sf_double_matched_event", 1),
+    ("lp_sf_boundary_quarks", 1),
+    ("lp_sf_unmatched_quarks", 1),
+]

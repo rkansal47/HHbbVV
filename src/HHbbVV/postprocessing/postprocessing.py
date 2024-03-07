@@ -36,6 +36,7 @@ from corrections import get_lpsf, postprocess_lpsfs
 from hist import Hist
 from utils import CUT_MAX_VAL, ShapeVar
 
+from HHbbVV import hh_vars
 from HHbbVV.hh_vars import (
     bg_keys,
     data_key,
@@ -1198,25 +1199,9 @@ def get_lpsf_all_years(
         ("ak8FatJetHVVNumProngs", 1),
         ("ak8FatJetParticleNetMD_Txbb", 2),
         ("VVFatJetParTMD_THWWvsT", 1),
-        ("lp_sf_lnN", 101),
-        ("lp_sf_sys_down", 1),
-        ("lp_sf_sys_up", 1),
-        ("lp_sf_double_matched_event", 1),
-        ("lp_sf_unmatched_quarks", 1),
-        ("lp_sf_num_sjpt_gt350", 1),
     ]
 
-    # nonresonant samples use old skimmer #TODO: update!!!
-    if bdt_preds_dir is not None:
-        load_columns.remove(("weight_noTrigEffs", 1))
-        load_columns.remove(("VVFatJetParTMD_THWWvsT", 1))
-
-        load_columns += [
-            ("ak8FatJetParTMD_probHWW3q", 2),
-            ("ak8FatJetParTMD_probHWW4q", 2),
-            ("ak8FatJetParTMD_probQCD", 2),
-            ("ak8FatJetParTMD_probT", 2),
-        ]
+    load_columns += hh_vars.lp_sf_vars
 
     # reformat into ("column name", "idx") format for reading multiindex columns
     column_labels = []
@@ -1225,20 +1210,16 @@ def get_lpsf_all_years(
             column_labels.append(f"('{key}', '{i}')")
 
     for year in years:
-        events_dict = utils.load_samples(
+        events_dict = load_samples(
             data_dir, {sig_key: samples[sig_key]}, year, load_filters, column_labels
         )
 
         # print weighted sample yields
-        wkey = "finalWeight" if "finalWeight" in next(iter(events_dict.values())) else "weight"
+        wkey = "finalWeight"
         print(np.sum(events_dict[sig_key][wkey].to_numpy()))
 
         bb_masks = bb_VV_assignment(events_dict)
-
-        if "weight_noTrigEffs" not in events_dict[sig_key]:
-            apply_weights(events_dict, year)
-            derive_variables(events_dict)
-
+        derive_variables(events_dict)
         events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
 
         if bdt_preds_dir is not None:

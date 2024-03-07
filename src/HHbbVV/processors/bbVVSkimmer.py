@@ -653,17 +653,7 @@ class bbVVSkimmer(SkimmerABC):
 
         if isSignal and self._systematics and self._lp_sfs:
             # (var, # columns)
-            items = [
-                ("lp_sf_lnN", 101),
-                ("lp_sf_pt_extrap_vars", 100),
-                ("lp_sf_sys_down", 1),
-                ("lp_sf_sys_up", 1),
-                ("lp_sf_double_matched_event", 1),
-                ("lp_sf_boundary_quarks", 1),
-                ("lp_sf_unmatched_quarks", 1),
-            ]
-
-            logging.info("Starting LP SFs and saving: " + str(items))
+            logging.info("Starting LP SFs and saving: " + str(hh_vars.lp_sf_vars))
 
             if len(skimmed_events["weight"]):
                 genbb = genbb[sel_all]
@@ -719,7 +709,7 @@ class bbVVSkimmer(SkimmerABC):
                     sf_dict = {}
 
                     # collect all the scale factors, fill in 1s for unmatched jets
-                    for key, shape in items:
+                    for key, shape in hh_vars.lp_sf_vars:
                         arr = np.ones((np.sum(sel_all), shape))
 
                         for select_key, (selector, _, _) in selectors.items():
@@ -735,7 +725,7 @@ class bbVVSkimmer(SkimmerABC):
             else:
                 logging.info("No signal events selected")
                 sf_dicts = {}
-                for key, shape in items:
+                for key, shape in hh_vars.lp_sf_vars:
                     arr = np.ones((np.sum(sel_all), shape))
                     sf_dicts[key] = arr
 
