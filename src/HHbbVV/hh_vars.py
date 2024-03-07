@@ -29,7 +29,7 @@ samples = OrderedDict(
         ("W+Jets", "WJets"),
         ("Z+Jets", "ZJets"),
         ("Diboson", ("WW", "WZ", "ZZ")),
-        # break this down into production modes for combination
+        # breaking single Higgs down into production modes for combination
         # https://gitlab.cern.ch/hh/naming-conventions#single-h-backgrounds
         ("ggFHbb", "GluGluHToBB"),
         ("VBFHbb", "VBFHToBB"),
@@ -56,7 +56,6 @@ nonres_samples = OrderedDict(
         ("ggHH_kl_2p45_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH2p45"),
         ("ggHH_kl_5_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH5"),
         ("ggHH_kl_0_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH0"),
-        ("qqHH_CV_1_C2V_1_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_1"),
         ("VBFHHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_1"),
         ("qqHH_CV_1_C2V_0_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_0_C3_1"),
         ("qqHH_CV_1p5_C2V_1_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_5_C2V_1_C3_1"),
@@ -192,6 +191,7 @@ for mX, mY in res_mps:
 res_sig_keys = list(res_samples.keys())
 
 all_mc = nonres_sig_keys + res_sig_keys + bg_keys
+BDT_sample_order = nonres_sig_keys + bg_keys + [data_key]
 
 # from https://cms.cern.ch/iCMS/jsp/db_notes/noteInfo.jsp?cmsnoteid=CMS%20AN-2021/005
 txbb_wps = {
