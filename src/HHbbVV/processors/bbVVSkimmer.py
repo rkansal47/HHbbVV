@@ -128,6 +128,7 @@ class bbVVSkimmer(SkimmerABC):
         "ak8FatJetHVV",
         "ak8FatJetHVVNumProngs",
         "ak8FatJetParticleNetMD_Txbb",
+        "ak8FatJetParticleNet_Th4q",
         "VVFatJetParTMD_probQCD",
         "VVFatJetParTMD_probHWW3q",
         "VVFatJetParTMD_probHWW4q",
