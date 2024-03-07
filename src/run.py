@@ -113,6 +113,7 @@ def run(p: processor, fileset: dict, args):
         if args.processor in ["skimmer", "ttsfs"]:
             # need to write with pyarrow as pd.to_parquet doesn't support different types in
             # multi-index column names
+            print(list(pddf.columns))
             table = pa.Table.from_pandas(pddf)
             pq.write_table(table, f"{local_dir}/{args.starti}-{args.endi}.parquet")
 
