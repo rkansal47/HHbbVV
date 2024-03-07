@@ -23,13 +23,17 @@ import plotting
 import utils
 import xgboost as xgb
 from hist import Hist
-from pandas.errors import SettingWithCopyWarning
 from sklearn.metrics import roc_curve
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
 from HHbbVV.hh_vars import data_key, jec_shifts, jec_vars, jmsr_shifts, jmsr_vars, years
 from HHbbVV.run_utils import add_bool_arg
+
+try:
+    from pandas.errors import SettingWithCopyWarning
+except:
+    from pandas.core.common import SettingWithCopyWarning
 
 # ignore these because they don't seem to apply
 warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
