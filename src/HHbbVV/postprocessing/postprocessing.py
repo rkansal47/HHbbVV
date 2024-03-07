@@ -193,6 +193,9 @@ def get_nonres_vbf_selection_regions(
                 "ak8FatJetEta1": [-2.4, 2.4],
                 "DijetdEta": [0, 2.0],
                 "DijetdPhi": [2.6, 10000],
+                "bbFatJetParticleNetMass": [50, 250],
+                "nGoodElectronsHbb": [0, 0.9],
+                "nGoodMuonsHbb": [0, 0.9],
             },
             label="Pass",
         ),
@@ -208,6 +211,9 @@ def get_nonres_vbf_selection_regions(
                 "ak8FatJetEta1": [-2.4, 2.4],
                 "DijetdEta": [0, 2.0],
                 "DijetdPhi": [2.6, 10000],
+                "bbFatJetParticleNetMass": [50, 250],
+                "nGoodElectronsHbb": [0, 0.9],
+                "nGoodMuonsHbb": [0, 0.9],
             },
             label="Fail",
         ),
@@ -781,11 +787,11 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
         if scan:
             for wps in scan_wps:
                 cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
-                (args.template_dir / f"{cutstr}/{args.templates_name}/cutflows/{args.year}").mkdir(
+                Path(f"{args.template_dir}/{args.templates_name}/cutflows/{args.year}").mkdir(
                     parents=True, exist_ok=True
                 )
         else:
-            (args.template_dir / f"{args.templates_name}/cutflows/{args.year}").mkdir(
+            Path(f"{args.template_dir}/{args.templates_name}/cutflows/{args.year}").mkdir(
                 parents=True, exist_ok=True
             )
 
@@ -1044,7 +1050,7 @@ def apply_weights(
     year: str,
     cutflow: pd.DataFrame = None,
     trigger_effs: bool = True,
-    qcd_sf: bool = True,
+    do_qcd_sf: bool = True,
 ):
     """
     Applies (1) 2D trigger scale factors, (2) QCD scale facotr.
@@ -1057,7 +1063,7 @@ def apply_weights(
     if trigger_effs:
         apply_trigger_weights(events_dict, year, cutflow)
 
-    if qcd_sf:
+    if do_qcd_sf:
         qcd_sf(events_dict, cutflow)
 
 
