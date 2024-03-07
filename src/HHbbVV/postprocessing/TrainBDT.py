@@ -8,9 +8,8 @@ from __future__ import annotations
 
 import argparse
 import pickle
+import warnings
 from collections import OrderedDict
-
-# from pandas.errors import SettingWithCopyWarning
 from copy import deepcopy
 from pathlib import Path
 
@@ -24,6 +23,7 @@ import plotting
 import utils
 import xgboost as xgb
 from hist import Hist
+from pandas.errors import SettingWithCopyWarning
 from sklearn.metrics import roc_curve
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -32,7 +32,7 @@ from HHbbVV.hh_vars import data_key, jec_shifts, jec_vars, jmsr_shifts, jmsr_var
 from HHbbVV.run_utils import add_bool_arg
 
 # ignore these because they don't seem to apply
-# warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
+warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
@@ -43,7 +43,7 @@ plt.rcParams.update({"font.size": 28})
 
 weight_key = "finalWeight"
 sig_key = "HHbbVV"
-bg_keys = ["QCD", "TT", "V+Jets"]
+bg_keys = ["QCD", "TT", "Z+Jets"]
 training_keys = [sig_key] + bg_keys
 
 # if doing multiclass classification, encode each process separately
@@ -52,27 +52,24 @@ label_encoder.fit(training_keys)
 
 
 # only vars used for training, ordered by importance
-# bdtVars = [
-#     # "VVFatJetParTMD_THWW4q",
-#     "VVFatJetParTMD_probHWW3q",
-#     "VVFatJetParTMD_probQCD",
-#     "VVFatJetParTMD_probHWW4q",
-#     "VVFatJetParticleNetMass",
-#     "DijetMass",
-#     "VVFatJetParTMD_probT",
-#     "VVFatJetPtOverDijetPt",
-#     "DijetPt",
-#     "bbFatJetPt",
-#     "VVFatJetPt",
-#     "VVFatJetPtOverbbFatJetPt",
-#     "MET_pt",
-#     "bbFatJetPtOverDijetPt",
-#     "VVFatJetEta",
-#     "DijetEta",
-# ]
+AllTaggerBDTVars = [
+    # "VVFatJetParTMD_THWW4q",
+    "VVFatJetParTMD_probHWW3q",
+    "VVFatJetParTMD_probQCD",
+    "VVFatJetParTMD_probHWW4q",
+    "VVFatJetParticleNetMass",
+    "DijetMass",
+    "VVFatJetParTMD_probT",
+    "VVFatJetPtOverDijetPt",
+    "DijetPt",
+    "bbFatJetPt",
+    "VVFatJetPt",
+    "VVFatJetPtOverbbFatJetPt",
+    "MET_pt",
+]
 
 
-bdtVars = [
+SingleTaggerBDTVars = [
     "VVFatJetParTMD_THWWvsT",
     "VVFatJetParticleNetMass",
     "DijetMass",
@@ -108,7 +105,12 @@ var_label_map = {
 }
 
 
-def get_X(data_dict: dict[str, pd.DataFrame], jec_shift: str = None, jmsr_shift: str = None):
+def get_X(
+    data_dict: dict[str, pd.DataFrame],
+    bdtVars: list[str],
+    jec_shift: str = None,
+    jmsr_shift: str = None,
+):
     """
     Gets variables for BDT for all samples in ``data``.
     Optionally gets shifted variables (in which returns only MC samples).
@@ -208,7 +210,7 @@ def load_data(data_path: str, year: str, all_years: bool):
 
 
 def main(args):
-    global bdtVars  # noqa: PLW0603
+    bdtVars = AllTaggerBDTVars if args.all_tagger_vars else SingleTaggerBDTVars
 
     early_stopping_callback = xgb.callback.EarlyStopping(
         rounds=args.early_stopping_rounds, min_delta=args.early_stopping_min_delta
@@ -217,7 +219,7 @@ def main(args):
     classifier_params = {
         "max_depth": args.max_depth,
         "min_child_weight": args.min_child_weight,
-        "learning_rate": 0.1,
+        "learning_rate": args.learning_rate,
         "n_estimators": args.n_estimators,
         "verbosity": 2,
         "n_jobs": 4,
@@ -285,26 +287,14 @@ def main(args):
                     for year, data in data_dict.items()
                 ]
             )
-            # 100 signal, 100 bg events
+
+            # 50 events from each training process
             training_data_dict = OrderedDict(
                 [
                     (
                         year,
                         pd.concat(
-                            (
-                                data[:150],
-                                data[
-                                    np.sum(data["Dataset"] == sig_key) : np.sum(
-                                        data["Dataset"] == sig_key
-                                    )
-                                    + 50
-                                ],
-                                data[
-                                    np.sum(data["Dataset"] == "V+Jets")
-                                    - 50 : np.sum(data["Dataset"] == "V+Jets")
-                                ],
-                                data[-50:],
-                            ),
+                            [data[data["Dataset"] == key][:50] for key in training_samples],
                             axis=0,
                         ),
                     )
@@ -345,12 +335,13 @@ def main(args):
     else:
         args.model_dir.mkdir(exist_ok=True, parents=True)
         model = train_model(
-            get_X(train),
-            get_X(test),
+            get_X(train, bdtVars),
+            get_X(test, bdtVars),
             get_Y(train, args.multiclass),
             get_Y(test, args.multiclass),
             get_weights(train, args.absolute_weights),
             get_weights(test, args.absolute_weights),
+            bdtVars,
             args.model_dir,
             use_sample_weights=args.use_sample_weights,
             **classifier_params,
@@ -364,11 +355,12 @@ def main(args):
             test,
             args.test_size,
             args.equalize_weights,
+            bdtVars,
             multiclass=args.multiclass,
         )
 
     if not args.evaluate_only:
-        do_inference(model, args.model_dir, data_dict, multiclass=args.multiclass)
+        do_inference(model, args.model_dir, data_dict, bdtVars, multiclass=args.multiclass)
 
 
 def plot_losses(trained_model: xgb.XGBClassifier, model_dir: Path):
@@ -395,6 +387,7 @@ def train_model(
     y_test: np.ndarray,
     weights_train: np.ndarray,
     weights_test: np.ndarray,
+    bdtVars: list[str],
     model_dir: Path,
     use_sample_weights: bool = False,
     **classifier_params,
@@ -434,6 +427,7 @@ def evaluate_model(
     test: dict[str, pd.DataFrame],
     test_size: float,
     equalize_sig_bg: bool,
+    bdtVars: list[str],
     txbb_threshold: float = 0.98,
     multiclass: bool = False,
 ):
@@ -469,7 +463,7 @@ def evaluate_model(
         Y = get_Y(data)
         weights_test = get_weights(data)
 
-        preds = model.predict_proba(get_X(data))
+        preds = model.predict_proba(get_X(data, bdtVars))
         preds = preds[:, 0] if multiclass else preds[:, 1]
         add_preds(data, preds)
 
@@ -531,6 +525,9 @@ def evaluate_model(
     # combined ROC curve with thresholds
     rocs["train"]["label"] = "Train"
     rocs["test"]["label"] = "Test"
+    plotting.multiROCCurveGrey(
+        rocs, sig_effs=[0.05, 0.1, 0.15, 0.2], plot_dir=model_dir, name="roc"
+    )
     plotting.multiROCCurve(rocs, plotdir=model_dir, name="roc_combined_thresholds")
     plotting.multiROCCurve(rocs, thresholds=[], plotdir=model_dir, name="roc_combined")
 
@@ -595,6 +592,7 @@ def do_inference(
     model: xgb.XGBClassifier,
     model_dir: str,
     data_dict: dict[str, pd.DataFrame],
+    bdtVars: list[str],
     jec_jmsr_shifts: bool = True,
     multiclass: bool = False,
 ):
@@ -615,7 +613,7 @@ def do_inference(
             f.write(str(sample_order_dict))
 
         print("Running inference")
-        X = get_X(year_data_dict)
+        X = get_X(year_data_dict, bdtVars)
         model.get_booster().feature_names = bdtVars
 
         start = time.time()
@@ -627,7 +625,7 @@ def do_inference(
         if jec_jmsr_shifts:
             for jshift in jec_shifts:
                 print("Running inference for", jshift)
-                X, mcvars = get_X(year_data_dict, jec_shift=jshift)
+                X, mcvars = get_X(year_data_dict, bdtVars, jec_shift=jshift)
                 # have to change model's feature names since we're passing in a dataframe
                 model.get_booster().feature_names = mcvars
                 preds = model.predict_proba(X)
@@ -636,7 +634,7 @@ def do_inference(
 
             for jshift in jmsr_shifts:
                 print("Running inference for", jshift)
-                X, mcvars = get_X(year_data_dict, jmsr_shift=jshift)
+                X, mcvars = get_X(year_data_dict, bdtVars, jmsr_shift=jshift)
                 # have to change model's feature names since we're passing in a dataframe
                 model.get_booster().feature_names = mcvars
                 preds = model.predict_proba(X)
@@ -675,6 +673,7 @@ if __name__ == "__main__":
         type=int,
     )
 
+    parser.add_argument("--learning-rate", default=0.1, help="learning rate", type=float)
     """
     hyperparam optimizations show max depth 3 or 4 is optimal:
     https://hhbbvv.nrp-nautilus.io/bdt/23_11_02_rem_feats_3_min_delta_0.0005_max_depth_3/
@@ -692,7 +691,7 @@ if __name__ == "__main__":
         "--min-child-weight",
         default=1,
         help="minimum weight required to keep splitting (higher is more conservative)",
-        type=int,
+        type=float,
     )
     """
     this just needs to be higher than the # rounds needed for early-stopping to kick in
@@ -703,6 +702,9 @@ if __name__ == "__main__":
 
     parser.add_argument("--rem-feats", default=0, help="remove N lowest importance feats", type=int)
 
+    add_bool_arg(
+        parser, "all-tagger-vars", "Use all tagger outputs vs. single THWWvsT score", default=True
+    )
     add_bool_arg(parser, "multiclass", "Classify each background separately", default=True)
 
     add_bool_arg(parser, "use-sample-weights", "Use properly scaled event weights", default=True)

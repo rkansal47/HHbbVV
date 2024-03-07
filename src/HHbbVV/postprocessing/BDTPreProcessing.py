@@ -31,10 +31,10 @@ BDT_data_vars = [
     "VVFatJetPt",
     "VVFatJetParticleNetMass",
     "VVFatJetParTMD_THWWvsT",
-    # "VVFatJetParTMD_probQCD",  # TODO: add back in with new skimmer!!!
-    # "VVFatJetParTMD_probHWW3q",
-    # "VVFatJetParTMD_probHWW4q",
-    # "VVFatJetParTMD_probT",
+    "VVFatJetParTMD_probQCD",
+    "VVFatJetParTMD_probHWW3q",
+    "VVFatJetParTMD_probHWW4q",
+    "VVFatJetParTMD_probT",
     "bbFatJetParticleNetMass",  # just for checking training vs testing dists
     "bbFatJetParticleNetMD_Txbb",
     # "bbFatJetPtOverDijetPt",  # no improvement on BDT

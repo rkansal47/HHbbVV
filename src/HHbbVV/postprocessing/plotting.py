@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from copy import deepcopy
+from pathlib import Path
 
 import hist
 import matplotlib as mpl
@@ -723,6 +724,44 @@ def _find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array - value)).argmin()
     return idx
+
+
+def multiROCCurveGrey(
+    rocs: dict, sig_effs: list[float], plot_dir: Path, name: str = "", show: bool = False
+):
+    xlim = [0, 1]
+    ylim = [1e-6, 1]
+    line_style = {"colors": "lightgrey", "linestyles": "dashed"}
+
+    plt.figure(figsize=(12, 12))
+    for roc in rocs.values():
+        plt.plot(
+            roc["tpr"],
+            roc["fpr"],
+            label=roc["label"],
+            linewidth=2,
+        )
+
+        for sig_eff in sig_effs:
+            y = roc["fpr"][np.searchsorted(roc["tpr"], sig_eff)]
+            plt.hlines(y=y, xmin=0, xmax=sig_eff, **line_style)
+            plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
+
+    hep.cms.label(data=False, rlabel="")
+    plt.yscale("log")
+    plt.xlabel("Signal efficiency")
+    plt.ylabel("Background efficiency")
+    plt.xlim(*xlim)
+    plt.ylim(*ylim)
+    plt.legend(loc="upper left")
+
+    if len(name):
+        plt.savefig(plot_dir / f"{name}.pdf", bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
 
 
 def multiROCCurve(

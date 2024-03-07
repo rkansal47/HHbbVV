@@ -7,7 +7,7 @@
 ####################################################################################################
 
 MAIN_DIR="../../.."
-data_dir="$MAIN_DIR/../data/skimmer/24Mar5AllYears"
+data_dir="$MAIN_DIR/../data/skimmer/24Mar6AllYearsBDTVars"
 
 for year in 2016APV 2016 2017 2018
 do
