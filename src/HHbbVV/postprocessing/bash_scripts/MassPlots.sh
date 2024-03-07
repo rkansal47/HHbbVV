@@ -46,11 +46,11 @@ if [[ -z $TAG ]]; then
 fi
 
 # for year in 2016APV 2016 2017 2018
-for year in 2016APV
+for year in 2016
 do
     python -u postprocessing.py --control-plots --year $year --resonant \
     --data-dir "${MAIN_DIR}/../data/skimmer/24Mar5AllYears" \
     --sig-samples $samples \
     --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" \
-    --no-filters --control-plot-vars "bbFatJetParticleNetMass" "bbFatJetMsd" "VVFatJetParticleNetMass" "VVFatJetMsd"
+    --mass-plots
 done

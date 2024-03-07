@@ -94,7 +94,7 @@ control_plot_vars = [
         bins=[20, 50, 250],
         significance_dir="bin",
     ),
-    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[20, 0, 300]),
+    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[20, 50, 250]),
     ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[20, 0.8, 1]),
     ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[20, -2.4, 2.4]),
     ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[20, 300, 2300]),
@@ -121,6 +121,15 @@ control_plot_vars = [
     ShapeVar(var="nGoodElectronsHH", label=r"# of Electrons", bins=[3, 0, 3]),
     # removed if not ggF nonresonant - needs to be the last variable!
     ShapeVar(var="BDTScore", label=r"BDT Score", bins=[50, 0, 1]),
+]
+
+
+# for msd vs mreg comparison plots only
+mass_plot_vars = [
+    ShapeVar(var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[30, 0, 300]),
+    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[30, 0, 300]),
+    ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[30, 0, 300]),
+    ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[30, 0, 300]),
 ]
 
 
@@ -432,24 +441,26 @@ def main(args):
     # Control plots
     if args.control_plots:
         print("\nMaking control plots\n")
+        plot_vars = mass_plot_vars if args.mass_plots else control_plot_vars
         if len(args.control_plot_vars):
-            for var in control_plot_vars.copy():
+            for var in plot_vars.copy():
                 if var.var not in args.control_plot_vars:
-                    control_plot_vars.remove(var)
+                    plot_vars.remove(var)
 
-        print("Plotting: ", [var.var for var in control_plot_vars])
+        print("Plotting: ", [var.var for var in plot_vars])
 
         control_plots(
             events_dict,
             bb_masks,
             sig_keys,
-            control_plot_vars,
+            plot_vars,
             args.control_plots_dir,
             args.year,
             bg_keys=args.bg_keys,
             sig_scale_dict={"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | {key: 2e4 for key in res_sig_keys},
             # sig_splits=sig_splits,
             HEM2d=args.HEM2d,
+            same_ylim=args.mass_plots,
             show=False,
         )
 
@@ -910,7 +921,11 @@ def load_samples(
 
             # no parquet directory?
             if not parquet_path.exists():
-                warnings.warn(f"No parquet directory for {sample}!", stacklevel=1)
+                if not (
+                    (year == "2016" and sample.endswith("HIPM"))
+                    or (year == "2016APV" and not sample.endswith("HIPM"))
+                ):  # don't complain about 2016/HIPM mismatch
+                    warnings.warn(f"No parquet directory for {sample}!", stacklevel=1)
                 continue
 
             # print(f"Loading {sample}")
@@ -973,7 +988,7 @@ def _load_samples(args, samples, sig_samples, cutflow):
 
     print("Samples: ", list(events_dict.keys()))
 
-    utils.add_to_cutflow(events_dict, "Pre-selection", "weight", cutflow)
+    utils.add_to_cutflow(events_dict, "Pre-selection", "finalWeight", cutflow)
 
     print("")
     # print weighted sample yields
@@ -1406,6 +1421,7 @@ def control_plots(
     combine_pdf: bool = True,
     HEM2d: bool = False,
     plot_significance: bool = False,
+    same_ylim: bool = False,
     show: bool = False,
     log: tuple[bool, str] = "both",
 ):
@@ -1416,6 +1432,9 @@ def control_plots(
         control_plot_vars (Dict[str, Tuple]): Dictionary of variables to plot, formatted as
           {var1: ([num bins, min, max], label), var2...}.
         sig_splits: split up signals into different plots (in case there are too many for one)
+        HEM2d: whether to plot 2D hists of FatJet phi vs eta for bb and VV jets as a check for HEM cleaning.
+        plot_significance: whether to plot the significance as well as the ratio plot.
+        same_ylim: whether to use the same y-axis limits for all plots.
         log: True or False if plot on log scale or not - or "both" if both.
     """
 
@@ -1439,6 +1458,8 @@ def control_plots(
             hists[shape_var.var] = utils.singleVarHist(
                 events_dict, shape_var, bb_masks, weight_key=weight_key, selection=selection
             )
+
+    ylim = np.max([h.values() for h in hists.values()]) if same_ylim else None
 
     if HEM2d and year == "2018":
         hists["HEM2d"] = hists_HEM2d(events_dict, bb_masks, weight_key, selection)
@@ -1474,7 +1495,7 @@ def control_plots(
                     significance_dir=shape_var.significance_dir,
                     show=show,
                     log=log,
-                    ylim=None if not log else 1e15,
+                    ylim=ylim if not log else 1e15,
                 )
                 merger_control_plots.append(name)
 
@@ -1946,6 +1967,12 @@ if __name__ == "__main__":
     add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
     add_bool_arg(parser, "vbf", "non-resonant VBF or inclusive", default=False)
     add_bool_arg(parser, "control-plots", "make control plots", default=False)
+    add_bool_arg(
+        parser,
+        "mass-plots",
+        "make mass comparison plots (filters will automatically be turned off)",
+        default=False,
+    )
     add_bool_arg(parser, "bdt-plots", "make bdt sculpting plots", default=False)
     add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
     add_bool_arg(
@@ -2070,5 +2097,9 @@ if __name__ == "__main__":
     if args.hem_cleaning is None:
         # can't do HEM cleaning for non-resonant until BDT is re-inferenced
         args.hem_cleaning = bool(args.resonant or args.vbf)
+
+    if args.mass_plots:
+        args.control_plots = True
+        args.filters = False
 
     main(args)
