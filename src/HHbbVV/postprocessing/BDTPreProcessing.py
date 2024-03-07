@@ -59,7 +59,9 @@ def main(args):
     )
     postprocessing.qcd_sf(events_dict, cutflow)
     bb_masks = postprocessing.bb_VV_assignment(events_dict)
-    postprocessing.derive_variables(events_dict, bb_masks, nonres_vars=True, vbf_vars=False)
+    postprocessing.derive_variables(
+        events_dict, bb_masks, nonres_vars=True, vbf_vars=False, do_jshifts=True
+    )
 
     bdt_data_dir = args.data_dir / "bdt_data"
     bdt_data_dir.mkdir(exist_ok=True)

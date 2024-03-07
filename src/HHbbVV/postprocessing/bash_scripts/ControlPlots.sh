@@ -57,10 +57,11 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-for year in 2016APV 2016 2017 2018
+# for year in 2016APV 2016 2017 2018
+for year in 2018
 do
     python -u postprocessing.py --control-plots --year $year ${resonant} ${hem2d} \
-    --data-dir "${MAIN_DIR}/../data/skimmer/24Mar4AllYears" \
+    --data-dir "${MAIN_DIR}/../data/skimmer/24Mar5AllYears" \
     --sig-samples $samples \
     --bdt-preds-dir "${MAIN_DIR}/../data/skimmer/Feb24/23_05_12_multiclass_rem_feats_3/inferences" \
     --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG"

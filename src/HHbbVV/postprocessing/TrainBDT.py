@@ -52,23 +52,36 @@ label_encoder.fit(training_keys)
 
 
 # only vars used for training, ordered by importance
+# bdtVars = [
+#     # "VVFatJetParTMD_THWW4q",
+#     "VVFatJetParTMD_probHWW3q",
+#     "VVFatJetParTMD_probQCD",
+#     "VVFatJetParTMD_probHWW4q",
+#     "VVFatJetParticleNetMass",
+#     "DijetMass",
+#     "VVFatJetParTMD_probT",
+#     "VVFatJetPtOverDijetPt",
+#     "DijetPt",
+#     "bbFatJetPt",
+#     "VVFatJetPt",
+#     "VVFatJetPtOverbbFatJetPt",
+#     "MET_pt",
+#     "bbFatJetPtOverDijetPt",
+#     "VVFatJetEta",
+#     "DijetEta",
+# ]
+
+
 bdtVars = [
-    # "VVFatJetParTMD_THWW4q",
-    "VVFatJetParTMD_probHWW3q",
-    "VVFatJetParTMD_probQCD",
-    "VVFatJetParTMD_probHWW4q",
+    "VVFatJetParTMD_THWWvsT",
     "VVFatJetParticleNetMass",
     "DijetMass",
-    "VVFatJetParTMD_probT",
     "VVFatJetPtOverDijetPt",
     "DijetPt",
     "bbFatJetPt",
     "VVFatJetPt",
     "VVFatJetPtOverbbFatJetPt",
     "MET_pt",
-    "bbFatJetPtOverDijetPt",
-    "VVFatJetEta",
-    "DijetEta",
 ]
 
 
@@ -84,6 +97,7 @@ var_label_map = {
     "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$ (GeV)"),
     "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$ (GeV)"),
     # "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$ (GeV)"),
+    "VVFatJetParTMD_THWWvsT": ([50, 0, 1], r"ParT $T_{HWW}$"),
     "VVFatJetParTMD_probT": ([50, 0, 1], r"ParT $Prob(Top)^{VV}$"),
     "VVFatJetParTMD_probQCD": ([50, 0, 1], r"ParT $Prob(QCD)^{VV}$"),
     "VVFatJetParTMD_probHWW3q": ([50, 0, 1], r"ParT $Prob(HWW3q)^{VV}$"),
@@ -547,7 +561,6 @@ def evaluate_model(
                 for key in training_keys:
                     # scale signal down by ~equalizing scale factor
                     sf = data_sf / 1e6 if (key == sig_key and equalize_sig_bg) else data_sf
-                    print(f"Scaling {label} {key} by {sf}")
                     data = dataset[year][dataset[year]["Dataset"] == key]
                     fill_data = {shape_var.var: data[shape_var.var]}
                     h.fill(Data=label, Sample=key, **fill_data, weight=data[weight_key] * sf)
@@ -662,11 +675,33 @@ if __name__ == "__main__":
         type=int,
     )
 
-    parser.add_argument("--max-depth", default=6, help="xgboost param", type=int)
-    parser.add_argument("--min-child-weight", default=1, help="xgboost param", type=int)
-    parser.add_argument("--n-estimators", default=1000, help="xgboost param", type=int)
+    """
+    hyperparam optimizations show max depth 3 or 4 is optimal:
+    https://hhbbvv.nrp-nautilus.io/bdt/23_11_02_rem_feats_3_min_delta_0.0005_max_depth_3/
+    https://hhbbvv.nrp-nautilus.io/bdt/23_11_02_rem_feats_3_min_delta_0.0005_max_depth_4/
+    https://hhbbvv.nrp-nautilus.io/bdt/23_11_02_rem_feats_3_min_delta_0.0005_max_depth_5/
+    unclear if gain from 4 is enough to justify increasing complexity
+    """
+    parser.add_argument("--max-depth", default=3, help="max depth of each tree", type=int)
+    """
+    hyperparam optimizations show min child weight has ~no effect
+    https://hhbbvv.nrp-nautilus.io/bdt/23_05_10_multiclass_max_depth_3_min_child_1_n_1000/
+    https://hhbbvv.nrp-nautilus.io/bdt/23_05_10_multiclass_max_depth_3_min_child_5_n_1000/
+    """
+    parser.add_argument(
+        "--min-child-weight",
+        default=1,
+        help="minimum weight required to keep splitting (higher is more conservative)",
+        type=int,
+    )
+    """
+    this just needs to be higher than the # rounds needed for early-stopping to kick in
+    """
+    parser.add_argument(
+        "--n-estimators", default=1000, help="max number of trees to keep adding", type=int
+    )
 
-    parser.add_argument("--rem-feats", default=3, help="remove N lowest importance feats", type=int)
+    parser.add_argument("--rem-feats", default=0, help="remove N lowest importance feats", type=int)
 
     add_bool_arg(parser, "multiclass", "Classify each background separately", default=True)
 

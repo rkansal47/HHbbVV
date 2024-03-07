@@ -82,7 +82,7 @@ load_filters = [
 # {var: (bins, label)}
 control_plot_vars = [
     ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[20, 0, 300]),
-    ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[20, -8, 8]),
+    # ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[20, -8, 8]),
     ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[20, 0, 750]),
     ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[20, 600, 4000]),
     ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[20, -2.4, 2.4]),
@@ -101,19 +101,19 @@ control_plot_vars = [
     ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[20, 300, 2300]),
     ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
     ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[20, 50, 250]),
-    ShapeVar(
-        var="VVFatJetParticleNet_Th4q",
-        label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)",
-        bins=[20, 0, 1],
-    ),
-    ShapeVar(
-        var="VVFatJetParTMD_THWW4q",
-        label=r"Prob($H \to VV \to 4q$) vs Prob(QCD) (Mass-Decorrelated)",
-        bins=[20, 0, 1],
-    ),
-    ShapeVar(var="VVFatJetParTMD_probT", label=r"Prob(Top) (Mass-Decorrelated)", bins=[20, 0, 1]),
+    # ShapeVar(
+    #     var="VVFatJetParticleNet_Th4q",
+    #     label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)",
+    #     bins=[20, 0, 1],
+    # ),
+    # ShapeVar(
+    #     var="VVFatJetParTMD_THWW4q",
+    #     label=r"Prob($H \to VV \to 4q$) vs Prob(QCD) (Mass-Decorrelated)",
+    #     bins=[20, 0, 1],
+    # ),
+    # ShapeVar(var="VVFatJetParTMD_probT", label=r"Prob(Top) (Mass-Decorrelated)", bins=[20, 0, 1]),
     ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[20, 0, 1]),
-    ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[20, 0, 40]),
+    # ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[20, 0, 40]),
     ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[20, 0, 40]),
     ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[20, 0.4, 2.0]),
     ShapeVar(var="nGoodMuonsHbb", label=r"# of Muons", bins=[3, 0, 3]),
@@ -407,6 +407,7 @@ def main(args):
         bb_masks,
         nonres_vars=not args.resonant or args.control_plots,
         vbf_vars=args.vbf,
+        do_jshifts=args.templates,  # only need shifts if making templates
     )
 
     # args has attr if --control-plots arg was set
@@ -1092,6 +1093,7 @@ def derive_variables(
     bb_masks: dict[str, pd.DataFrame],
     nonres_vars: bool = True,
     vbf_vars: bool = False,
+    do_jshifts: bool = True,
 ):
     """Add Dijet variables"""
     for sample, events in events_dict.items():
@@ -1101,7 +1103,7 @@ def derive_variables(
         bb_mask = bb_masks[sample]
         _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars)
 
-        if sample == data_key:
+        if sample == data_key or not do_jshifts:
             continue
 
         for var in jec_shifts:
@@ -1213,7 +1215,7 @@ def get_lpsf_all_years(
         print(np.sum(events_dict[sig_key][wkey].to_numpy()))
 
         bb_masks = bb_VV_assignment(events_dict)
-        derive_variables(events_dict)
+        derive_variables(events_dict, bb_masks, nonres_vars=False, do_jshifts=False)
         events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
 
         if bdt_preds_dir is not None:
@@ -1481,7 +1483,7 @@ def control_plots(
         name = f"{plot_dir}/HEM2d.pdf"
         # plot keys
         plotting.plot_HEM2d(
-            hists["HEM2d"], ["Data", "QCD", "TT", "HHbbVV", "X[3000]->H(bb)Y[250](VV)"], year, name
+            hists["HEM2d"], ["Data", "QCD", "TT", "HHbbVV", "X[900]->H(bb)Y[80](VV)"], year, name
         )
 
     return hists
