@@ -504,9 +504,6 @@ def main(args):
                 args.signal_data_dirs[0],
             )
 
-            # Check for 0 weights - would be an issue for weight shifts
-            check_weights(events_dict)
-
             print("\nMaking templates")
             templates = {}
 
@@ -1459,7 +1456,7 @@ def control_plots(
                 events_dict, shape_var, bb_masks, weight_key=weight_key, selection=selection
             )
 
-    ylim = np.max([h.values() for h in hists.values()]) if same_ylim else None
+    ylim = np.max([h.values() for h in hists.values()]) * 1.05 if same_ylim else None
 
     if HEM2d and year == "2018":
         hists["HEM2d"] = hists_HEM2d(events_dict, bb_masks, weight_key, selection)
@@ -1551,20 +1548,6 @@ def plot_bdt_sculpting(
                 f"{year}_BDT{var}Cuts_{shape_var.var}_{key}",
                 show=show,
             )
-
-
-def check_weights(events_dict):
-    # Check for 0 weights - would be an issue for weight shifts
-    print(
-        "\nAny 0 weights:",
-        np.any(
-            [
-                np.any(events["weight_nonorm"] == 0)
-                for key, events in events_dict.items()
-                if key != data_key
-            ]
-        ),
-    )
 
 
 def _get_fill_data(

@@ -15,6 +15,7 @@
 MAIN_DIR="../../.."
 TAG=""
 samples="HHbbVV VBFHHbbVV NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80 NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190 NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250 NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150"
+# samples="HHbbVV VBFHHbbVV NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80"
 
 options=$(getopt -o "" --long "tag:" -- "$@")
 eval set -- "$options"
@@ -45,8 +46,7 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-# for year in 2016APV 2016 2017 2018
-for year in 2016
+for year in 2016APV 2016 2017 2018
 do
     python -u postprocessing.py --control-plots --year $year --resonant \
     --data-dir "${MAIN_DIR}/../data/skimmer/24Mar5AllYears" \
