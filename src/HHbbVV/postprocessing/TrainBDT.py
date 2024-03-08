@@ -677,15 +677,22 @@ if __name__ == "__main__":
         type=int,
     )
 
+    """
+    Varying between 0.01 - 1 showed no significant difference
+    https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_lr_0.01/
+    https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_nestimators_10000/
+    https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_lr_1/
+    """
     parser.add_argument("--learning-rate", default=0.1, help="learning rate", type=float)
     """
-    hyperparam optimizations show max depth 3 or 4 is optimal:
-    https://hhbbvv.nrp-nautilus.io/bdt/23_11_02_rem_feats_3_min_delta_0.0005_max_depth_3/
-    https://hhbbvv.nrp-nautilus.io/bdt/23_11_02_rem_feats_3_min_delta_0.0005_max_depth_4/
-    https://hhbbvv.nrp-nautilus.io/bdt/23_11_02_rem_feats_3_min_delta_0.0005_max_depth_5/
+    hyperparam optimizations show max depth 5 is optimal:
+    https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_nestimators_10000/
+    https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_max_depth_4/
+    https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_max_depth_5/
+    https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_max_depth_6/
     unclear if gain from 4 is enough to justify increasing complexity
     """
-    parser.add_argument("--max-depth", default=3, help="max depth of each tree", type=int)
+    parser.add_argument("--max-depth", default=5, help="max depth of each tree", type=int)
     """
     hyperparam optimizations show min child weight has ~no effect
     https://hhbbvv.nrp-nautilus.io/bdt/23_05_10_multiclass_max_depth_3_min_child_1_n_1000/
@@ -697,15 +704,17 @@ if __name__ == "__main__":
         help="minimum weight required to keep splitting (higher is more conservative)",
         type=float,
     )
-    """
-    this just needs to be higher than the # rounds needed for early-stopping to kick in
-    """
+    # This just needs to be higher than the # rounds needed for early-stopping to kick in
     parser.add_argument(
-        "--n-estimators", default=1000, help="max number of trees to keep adding", type=int
+        "--n-estimators", default=1 - 000, help="max number of trees to keep adding", type=int
     )
 
     parser.add_argument("--rem-feats", default=0, help="remove N lowest importance feats", type=int)
 
+    """
+    Slightly worse to use a single tagger score
+    https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_single_tagger_var
+    """
     add_bool_arg(
         parser, "all-tagger-vars", "Use all tagger outputs vs. single THWWvsT score", default=True
     )
@@ -731,6 +740,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--early-stopping-rounds", default=5, help="early stopping rounds", type=int
     )
+    """
+    Increasing this consistently decreased performance
+    e.g. https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_min_delta_0.0001/
+    """
     parser.add_argument(
         "--early-stopping-min-delta",
         default=0.0,

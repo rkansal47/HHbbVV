@@ -17,8 +17,7 @@
 MAIN_DIR="../../.."
 TAG=""
 resonant="--resonant"
-# samples="HHbbVV VBFHHbbVV NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80 NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190 NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250 NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150"
-samples="HHbbVV VBFHHbbVV NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80"
+samples="HHbbVV VBFHHbbVV NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80 NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190 NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250 NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150"
 hem2d="--HEM2d"
 
 options=$(getopt -o "" --long "nonresonant,nohem2d,tag:" -- "$@")
@@ -28,7 +27,7 @@ while true; do
     case "$1" in
         --nonresonant)
             resonant=""
-            samples="HHbbVV qqHH_CV_1_C2V_1_kl_1_HHbbVV"
+            samples="HHbbVV VBFHHbbVV"
             ;;
         --nohem2d)
             hem2d=""

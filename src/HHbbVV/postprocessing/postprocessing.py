@@ -405,9 +405,9 @@ def main(args):
     derive_variables(
         events_dict,
         bb_masks,
-        nonres_vars=not args.resonant or args.control_plots,
+        nonres_vars=args.vbf or args.control_plots,
         vbf_vars=args.vbf,
-        do_jshifts=args.templates,  # only need shifts if making templates
+        do_jshifts=False,  # only need shifts for BDT pre-processing
     )
 
     # args has attr if --control-plots arg was set
@@ -440,16 +440,27 @@ def main(args):
                     plot_vars.remove(var)
 
         print("Plotting: ", [var.var for var in plot_vars])
+        if args.resonant:
+            p_sig_keys = sig_keys
+            sig_scale_dict = {"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | {key: 2e4 for key in res_sig_keys}
+        else:
+            p_sig_keys = plot_sig_keys_nonres
+            sig_scale_dict = {
+                "HHbbVV": 1e5,
+                "VBFHHbbVV": 2e5,
+                "qqHH_CV_1_C2V_0_kl_1_HHbbVV": 2e3,
+                "qqHH_CV_1_C2V_2_kl_1_HHbbVV": 2e3,
+            }
 
         control_plots(
             events_dict,
             bb_masks,
-            sig_keys,
+            p_sig_keys,
             plot_vars,
             args.control_plots_dir,
             args.year,
             bg_keys=args.bg_keys,
-            sig_scale_dict={"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | {key: 2e4 for key in res_sig_keys},
+            sig_scale_dict=sig_scale_dict,
             # sig_splits=sig_splits,
             HEM2d=args.HEM2d,
             same_ylim=args.mass_plots,
@@ -464,6 +475,11 @@ def main(args):
         )
 
     if args.templates:
+        if args.resonant:
+            sig_scale_dict = None
+        else:
+            sig_scale_dict = {key: 10 for key in plot_sig_keys_nonres}
+
         for wps in scan_wps:  # if not scanning, this will just be a single WP
             cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)]) if scan else ""
             template_dir = args.template_dir / cutstr / args.templates_name
@@ -503,7 +519,7 @@ def main(args):
             for jshift in jshifts:
                 print(jshift)
                 plot_dir = (
-                    args.templates_plots_dir / cutstr / f"{'jshifts/' if jshift != '' else ''}"
+                    args.templates_plots_dir / cutstr / f"{'jshifts' if jshift != '' else ''}"
                     if args.plot_dir != ""
                     else ""
                 )
@@ -521,6 +537,7 @@ def main(args):
                     plot_dir=plot_dir,
                     prev_cutflow=cutflow,
                     # sig_splits=sig_splits,
+                    sig_scale_dict=sig_scale_dict,
                     weight_shifts=weight_shifts,
                     jshift=jshift,
                     blind_pass=bool(args.resonant),
@@ -795,9 +812,6 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
             Path(f"{args.template_dir}/{args.templates_name}/cutflows/{args.year}").mkdir(
                 parents=True, exist_ok=True
             )
-
-    if args.bdt_preds_dir != "" and args.bdt_preds_dir is not None:
-        args.bdt_preds_dir = Path(args.bdt_preds_dir)
 
 
 def _normalize_weights(
@@ -2047,6 +2061,9 @@ def parse_args():
 
     if not args.signal_data_dirs:
         args.signal_data_dirs = [args.data_dir]
+
+    if args.bdt_preds_dir != "" and args.bdt_preds_dir is not None:
+        args.bdt_preds_dir = Path(args.bdt_preds_dir)
 
     if args.bdt_preds_dir == "" and not args.resonant:
         args.bdt_preds_dir = f"{args.data_dir}/inferences/"
