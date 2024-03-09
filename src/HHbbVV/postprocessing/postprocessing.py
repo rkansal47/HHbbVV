@@ -138,9 +138,25 @@ def get_nonres_selection_regions(
     year: str,
     txbb_wp: str = "MP",
     bdt_wp: float = 0.998,
+    lepton_veto="None",
 ):
     pt_cuts = [300, CUT_MAX_VAL]
     txbb_cut = txbb_wps[year][txbb_wp]
+
+    if lepton_veto == "None":
+        lepton_cuts = {}
+    elif lepton_veto == "Hbb":
+        lepton_cuts = {
+            "nGoodElectronsHbb": [0, 0.9],
+            "nGoodMuonsHbb": [0, 0.9],
+        }
+    elif lepton_veto == "HH":
+        lepton_cuts = {
+            "nGoodElectronsHH": [0, 0.9],
+            "nGoodMuonsHH": [0, 0.9],
+        }
+    else:
+        raise ValueError(f"Invalid lepton veto: {lepton_veto}")
 
     return {
         # {label: {cutvar: [min, max], ...}, ...}
@@ -150,6 +166,7 @@ def get_nonres_selection_regions(
                 "VVFatJetPt": pt_cuts,
                 "BDTScore": [bdt_wp, CUT_MAX_VAL],
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
+                **lepton_cuts,
             },
             label="Pass",
         ),
@@ -158,6 +175,7 @@ def get_nonres_selection_regions(
                 "bbFatJetPt": pt_cuts,
                 "VVFatJetPt": pt_cuts,
                 "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
+                **lepton_cuts,
             },
             label="Fail",
         ),
@@ -478,7 +496,12 @@ def main(args):
         if args.resonant:
             sig_scale_dict = None
         else:
-            sig_scale_dict = {key: 10 for key in plot_sig_keys_nonres}
+            sig_scale_dict = {
+                "HHbbVV": 50,
+                "VBFHHbbVV": 1000,
+                "qqHH_CV_1_C2V_0_kl_1_HHbbVV": 10,
+                "qqHH_CV_1_C2V_2_kl_1_HHbbVV": 10,
+            }
 
         for wps in scan_wps:  # if not scanning, this will just be a single WP
             cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)]) if scan else ""
@@ -518,11 +541,7 @@ def main(args):
             jshifts = [""] + jec_shifts + jmsr_shifts if args.do_jshifts else [""]
             for jshift in jshifts:
                 print(jshift)
-                plot_dir = (
-                    args.templates_plots_dir / cutstr / f"{'jshifts' if jshift != '' else ''}"
-                    if args.plot_dir != ""
-                    else ""
-                )
+                plot_dir = args.templates_plots_dir / cutstr if args.plot_dir != "" else ""
                 temps = get_templates(
                     events_dict,
                     bb_masks,
@@ -577,8 +596,12 @@ def _init(args):
         scan_cuts = res_scan_cuts
         shape_vars = res_shape_vars
     elif not args.vbf:
-        scan = len(args.nonres_txbb_wp) > 1 or len(args.nonres_bdt_wp) > 1
-        scan_wps = list(itertools.product(args.nonres_txbb_wp, args.nonres_bdt_wp))
+        scan = (
+            len(args.nonres_txbb_wp) > 1 or len(args.nonres_bdt_wp) > 1 or len(args.lepton_veto) > 1
+        )
+        scan_wps = list(
+            itertools.product(args.nonres_txbb_wp, args.nonres_bdt_wp, args.lepton_veto)
+        )
         scan_cuts = nonres_scan_cuts
         shape_vars = nonres_shape_vars
     else:
@@ -2051,6 +2074,14 @@ def parse_args():
         default=[300],
         nargs="*",
         type=float,
+    )
+
+    parser.add_argument(
+        "--lepton-veto",
+        help="lepton vetoes: None, Hbb, or HH",
+        default=["None"],
+        nargs="*",
+        type=str,
     )
 
     args = parser.parse_args()

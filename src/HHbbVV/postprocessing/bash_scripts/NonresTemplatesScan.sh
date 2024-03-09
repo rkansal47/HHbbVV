@@ -2,7 +2,7 @@
 # shellcheck disable=SC2086,SC2043
 
 ####################################################################################################
-# Script for creating nonresonant templates + BDT score control plots
+# Script for creating nonresonant templates scanning over variables
 # Author: Raghav Kansal
 ####################################################################################################
 
@@ -40,12 +40,9 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-# for year in 2016APV 2016 2017 2018
-for year in 2016 2017 2018
+for year in 2016APV 2016 2017 2018
 do
     python -u postprocessing.py --year $year --data-dir "$data_dir" --templates \
     --bdt-preds-dir "$MAIN_DIR/../data/skimmer/24Mar6AllYearsBDTVars/24_03_07_new_samples_max_depth_5/inferences" \
-    --control-plots --control-plot-vars "BDTScore" \
-    --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" \
-    --template-dir "templates/$TAG" --plot-shifts
+    --template-dir "templates/$TAG" --no-do-jshifts --lepton-veto "None Hbb HH"
 done

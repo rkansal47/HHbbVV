@@ -129,7 +129,7 @@ mc_samples = OrderedDict(
     ]
 )
 
-# TODO: float VJets normalization!
+# TODO: float VJets normalization?
 
 bg_keys = list(mc_samples.keys())
 nonres_sig_keys_ggf = [
@@ -145,7 +145,7 @@ nonres_sig_keys_vbf = [
     "qqHH_CV_1_C2V_1_kl_2_HHbbVV",
     "qqHH_CV_1_C2V_2_kl_1_HHbbVV",
     "qqHH_CV_1_C2V_1_kl_0_HHbbVV",
-    "qqHH_CV_0p5_C2V_1_kl_1_HHbbVV",
+    # "qqHH_CV_0p5_C2V_1_kl_1_HHbbVV",
 ]
 
 if args.only_sm:
@@ -222,7 +222,7 @@ nuisance_params = {
     "pdf_qqbar": Syst(prior="lnN", samples=["ST"], value=1.027),
     "pdf_Higgs_ggHH": Syst(prior="lnN", samples=nonres_sig_keys_ggf, value=1.030),
     "pdf_Higgs_qqHH": Syst(prior="lnN", samples=nonres_sig_keys_vbf, value=1.021),
-    # TODO: add these for single Higgs backgrounds
+    # TODO: add these if fitting single Higgs backgrounds
     # "pdf_Higgs_gg": Syst(prior="lnN", samples=ggfh_keys, value=1.019),
     "QCDscale_ttbar": Syst(
         prior="lnN",
