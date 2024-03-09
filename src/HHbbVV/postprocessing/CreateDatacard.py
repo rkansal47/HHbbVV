@@ -268,7 +268,7 @@ nuisance_params_dict = {
     param: rl.NuisanceParameter(param, syst.prior) for param, syst in nuisance_params.items()
 }
 
-# TODO: pileupID, ECal firing, lepton IDs
+# TODO: pileupID, lepton IDs
 
 # dictionary of correlated shape systematics: name in templates -> name in cards, etc.
 corr_year_shape_systs = {
@@ -300,9 +300,12 @@ corr_year_shape_systs = {
 uncorr_year_shape_systs = {
     "pileup": Syst(name="CMS_pileup", prior="shape", samples=all_mc),
     # TODO: add 2016APV template into this
-    # "L1EcalPrefiring": Syst(
-    #     name="CMS_l1_ecal_prefiring", prior="shape", samples=all_mc, uncorr_years=["2016", "2017"]
-    # ),
+    "L1EcalPrefiring": Syst(
+        name="CMS_l1_ecal_prefiring",
+        prior="shape",
+        samples=all_mc,
+        uncorr_years=["2016APV", "2016", "2017"],
+    ),
     "JER": Syst(name="CMS_res_j", prior="shape", samples=all_mc),
     "JMS": Syst(name=f"{CMS_PARAMS_LABEL}_jms", prior="shape", samples=all_mc),
     "JMR": Syst(name=f"{CMS_PARAMS_LABEL}_jmr", prior="shape", samples=all_mc),

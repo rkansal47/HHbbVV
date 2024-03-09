@@ -138,25 +138,25 @@ def get_nonres_selection_regions(
     year: str,
     txbb_wp: str = "MP",
     bdt_wp: float = 0.998,
-    lepton_veto="None",
+    lepton_veto_wp="None",
 ):
     pt_cuts = [300, CUT_MAX_VAL]
     txbb_cut = txbb_wps[year][txbb_wp]
 
-    if lepton_veto == "None":
+    if lepton_veto_wp == "None":
         lepton_cuts = {}
-    elif lepton_veto == "Hbb":
+    elif lepton_veto_wp == "Hbb":
         lepton_cuts = {
             "nGoodElectronsHbb": [0, 0.9],
             "nGoodMuonsHbb": [0, 0.9],
         }
-    elif lepton_veto == "HH":
+    elif lepton_veto_wp == "HH":
         lepton_cuts = {
             "nGoodElectronsHH": [0, 0.9],
             "nGoodMuonsHH": [0, 0.9],
         }
     else:
-        raise ValueError(f"Invalid lepton veto: {lepton_veto}")
+        raise ValueError(f"Invalid lepton veto: {lepton_veto_wp}")
 
     return {
         # {label: {cutvar: [min, max], ...}, ...}
@@ -363,7 +363,7 @@ res_shape_vars = [
     ),
 ]
 
-nonres_scan_cuts = ["txbb", "bdt"]
+nonres_scan_cuts = ["txbb", "bdt", "lepton_veto"]
 nonres_vbf_scan_cuts = ["txbb", "thww"]  # TODO: add more cuts being scanned over
 res_scan_cuts = ["txbb", "thww", "leadingpt", "subleadingpt"]
 
@@ -506,6 +506,7 @@ def main(args):
         for wps in scan_wps:  # if not scanning, this will just be a single WP
             cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)]) if scan else ""
             template_dir = args.template_dir / cutstr / args.templates_name
+            (template_dir / "cutflows" / args.year).mkdir(parents=True, exist_ok=True)
 
             cutargs = {f"{cut}_wp": wp for cut, wp in zip(scan_cuts, wps)}
             if args.resonant:
@@ -904,7 +905,7 @@ def load_samples(
     year: str,
     filters: list = None,
     columns: list = None,
-    hem_cleaning: bool = True,
+    hem_cleaning: bool = False,
     variations: bool = True,
 ) -> dict[str, pd.DataFrame]:
     """
@@ -1192,7 +1193,7 @@ def load_bdt_preds(
                 events["BDTScore"] = bdt_preds[i : i + num_events, 0]
                 events["BDTScoreQCD"] = bdt_preds[i : i + num_events, 1]
                 events["BDTScoreTT"] = bdt_preds[i : i + num_events, 2]
-                events["BDTScoreVJets"] = 1 - np.sum(bdt_preds[i : i + num_events], axis=1)
+                events["BDTScoreZJets"] = 1 - np.sum(bdt_preds[i : i + num_events], axis=1)
 
             if jec_jmsr_shifts and sample != data_key:
                 for jshift in jec_shifts + jmsr_shifts:
@@ -1202,7 +1203,7 @@ def load_bdt_preds(
                         events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events, 0]
                         events["BDTScoreQCD_" + jshift] = shift_preds[jshift][i : i + num_events, 1]
                         events["BDTScoreTT_" + jshift] = shift_preds[jshift][i : i + num_events, 2]
-                        events["BDTScoreVJets_" + jshift] = 1 - np.sum(
+                        events["BDTScoreZJets_" + jshift] = 1 - np.sum(
                             shift_preds[jshift][i : i + num_events], axis=1
                         )
 

@@ -44,5 +44,5 @@ for year in 2016APV 2016 2017 2018
 do
     python -u postprocessing.py --year $year --data-dir "$data_dir" --templates \
     --bdt-preds-dir "$MAIN_DIR/../data/skimmer/24Mar6AllYearsBDTVars/24_03_07_new_samples_max_depth_5/inferences" \
-    --template-dir "templates/$TAG" --no-do-jshifts --lepton-veto "None Hbb HH"
+    --template-dir "templates/$TAG" --no-do-jshifts --lepton-veto "None" "Hbb" "HH" --sig-samples HHbbVV
 done
