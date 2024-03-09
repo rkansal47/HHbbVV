@@ -274,13 +274,13 @@ nuisance_params_dict = {
 corr_year_shape_systs = {
     "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=all_mc),
     "ISRPartonShower": Syst(name="ps_isr", prior="shape", samples=all_mc),
-    "scaleacc": Syst(
+    "scale": Syst(
         name=f"{CMS_PARAMS_LABEL}_QCDScaleacc",
         prior="shape",
         samples=nonres_sig_keys,
         samples_corr=False,
     ),
-    "pdfacc": Syst(
+    "pdf": Syst(
         name=f"{CMS_PARAMS_LABEL}_PDFacc",
         prior="shape",
         samples=nonres_sig_keys,
@@ -675,7 +675,10 @@ def fill_regions(
                 effect_up, effect_down = get_effect_updown(
                     values_nominal, values_up, values_down, mask, logger, args.epsilon
                 )
-                sample.setParamEffect(shape_systs_dict[skey], effect_up, effect_down)
+
+                # separate syst if not correlated across samples
+                sdkey = skey if syst.samples_corr else f"{skey}_{card_name}"
+                sample.setParamEffect(shape_systs_dict[sdkey], effect_up, effect_down)
 
             # uncorrelated shape systematics
             for skey, syst in uncorr_year_shape_systs.items():
