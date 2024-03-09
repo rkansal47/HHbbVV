@@ -64,6 +64,7 @@ def apply_txbb_sfs(
     bb_mask: pd.DataFrame,
     year: str,
     weight_key: str = "finalWeight",
+    do_shifts: bool = True,
 ):
     """Applies nominal values to ``weight_key`` and stores up down variations"""
     if year not in txbb_sf_lookups:
@@ -72,17 +73,19 @@ def apply_txbb_sfs(
     bb_txbb = utils.get_feat(events, "bbFatJetParticleNetMD_Txbb", bb_mask)
     bb_pt = utils.get_feat(events, "bbFatJetPt", bb_mask)
 
-    for var in ["up", "down"]:
-        if len(events[weight_key]):
-            events[f"{weight_key}_txbb_{var}"] = events[weight_key] * txbb_sf_lookups[year][var](
-                bb_txbb, bb_pt
-            )
-        else:
-            events[f"{weight_key}_txbb_{var}"] = events[weight_key]
+    if do_shifts:
+        for var in ["up", "down"]:
+            if len(events[weight_key]):
+                events[f"{weight_key}_txbb_{var}"] = events[weight_key] * txbb_sf_lookups[year][
+                    var
+                ](bb_txbb, bb_pt)
+            else:
+                events[f"{weight_key}_txbb_{var}"] = events[weight_key]
 
     if len(events[weight_key]):
         txbb_nom = txbb_sf_lookups[year]["nom"](bb_txbb, bb_pt)
-        for wkey in utils.get_all_weights(events):
+        scale_wkeys = utils.get_all_weights(events) if do_shifts else [weight_key]
+        for wkey in scale_wkeys:
             if len(events[wkey].shape) > 1:
                 events[wkey] *= txbb_nom[:, np.newaxis]
             else:

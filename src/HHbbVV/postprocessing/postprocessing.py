@@ -1640,6 +1640,10 @@ def get_templates(
         Dict[str, Hist]: dictionary of templates, saved as hist.Hist objects.
 
     """
+    import time
+
+    start = time.time()
+
     if weight_shifts is None:
         weight_shifts = {}
     do_jshift = jshift != ""
@@ -1651,6 +1655,8 @@ def get_templates(
 
         if rname == "lpsf":
             continue
+
+        print(f"{rname} Region: {time.time() - start:.2f}")
 
         if not do_jshift:
             print(rname)
@@ -1664,6 +1670,7 @@ def get_templates(
             jshift=jshift,
             weight_key=weight_key,
         )
+        print(f"Selection: {time.time() - start:.2f}")
 
         if template_dir != "":
             cf.to_csv(f"{template_dir}/cutflows/{year}/{rname}_cutflow{jlabel}.csv")
@@ -1683,12 +1690,21 @@ def get_templates(
             sig_bb_mask = bb_masks[sig_key][sel[sig_key]]
 
             if pass_region:
-                # scale all signal weights by LP SF
+                # scale all signal weights by LP SF (if not doing a j shift)
                 if lpsfs:
-                    for wkey in utils.get_all_weights(sig_events[sig_key]):
+                    scale_wkeys = (
+                        utils.get_all_weights(sig_events[sig_key])
+                        if not do_jshift
+                        else [weight_key]
+                    )
+                    for wkey in scale_wkeys:
                         sig_events[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
 
-                corrections.apply_txbb_sfs(sig_events[sig_key], sig_bb_mask, year, weight_key)
+                corrections.apply_txbb_sfs(
+                    sig_events[sig_key], sig_bb_mask, year, weight_key, do_shifts=not do_jshift
+                )
+
+        print(f"Tagger SFs: {time.time() - start:.2f}")
 
         # if not do_jshift:
         #     print("\nCutflow:\n", cf)
@@ -1768,6 +1784,8 @@ def get_templates(
                                 utils.get_key_index(h, f"{sample}_{wshift}_down"), :
                             ] = shape_down
 
+        print(f"Histograms: {time.time() - start:.2f}")
+
         if pass_region:
             # blind signal mass windows in pass region in data
             for i, shape_var in enumerate(shape_vars):
@@ -1797,6 +1815,7 @@ def get_templates(
         ################################
 
         if plot_dir != "" and (not do_jshift or plot_shifts):
+            print(f"Plotting templates: {time.time() - start:.2f}")
             if plot_sig_keys is None:
                 plot_sig_keys = sig_keys
 
@@ -2080,7 +2099,7 @@ def parse_args():
     parser.add_argument(
         "--lepton-veto",
         help="lepton vetoes: None, Hbb, or HH",
-        default=["None"],
+        default=["Hbb"],
         nargs="*",
         type=str,
     )
