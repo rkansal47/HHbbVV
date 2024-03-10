@@ -13,7 +13,7 @@ law run PlotPullsAndImpacts \
     --labels "nuisance_renames.py" \
     --skip-parameters "*dataResidual_Bin*" \
     --campaign run2 \
-    --page 0 \
+    --page -1 \
     --pull-range 3 \
     --unblinded $UNBLINDED \
     --remove-output 0,a,y
