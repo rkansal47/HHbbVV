@@ -1,10 +1,13 @@
+from __future__ import annotations
+
+import copy
 import math
 import random
 import warnings
-import copy
+from functools import partial
+
 import torch
 import torch.nn as nn
-from functools import partial
 
 # from weaver.utils.logger import _logger
 
@@ -405,7 +408,7 @@ class ParticleTransformer(nn.Module):
         trim=True,
         for_inference=False,
         use_amp=False,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
 
@@ -538,7 +541,7 @@ class ParticleTransformerTagger(nn.Module):
         trim=True,
         for_inference=False,
         use_amp=False,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
 

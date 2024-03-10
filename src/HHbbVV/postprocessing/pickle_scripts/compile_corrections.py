@@ -1,6 +1,8 @@
 #!/usr/bin/env python
-import uproot
+from __future__ import annotations
+
 import numpy as np
+import uproot
 from coffea.lookup_tools import dense_lookup
 
 corrections = {}
@@ -340,7 +342,12 @@ mc_pu["2018"] = np.array(
 )
 
 pileup_corr = {}
-norm = lambda x: x / x.sum()
+
+
+def norm(x):
+    return x / x.sum()
+
+
 for year, pdict in pu.items():
     pileup_corr[year] = {}
     data_pu = {}
@@ -351,12 +358,12 @@ for year, pdict in pu.items():
             data_pu_edges[var] = norm(ifile["pileup"].axis().edges())
 
     mask = mc_pu[year] > 0.0
-    for var in data_pu.keys():
+    for var in data_pu:
         corr = data_pu[var].copy()
         corr[mask] /= mc_pu[year][mask]
         pileup_corr[year][var] = dense_lookup.dense_lookup(corr, data_pu_edges[var])
 
-for year in pileup_corr.keys():
+for year in pileup_corr:
     pileup_corr[year]["central"]._values = np.minimum(5, pileup_corr[year]["central"]._values)
     pileup_corr[year]["up"]._values = np.minimum(5, pileup_corr[year]["up"]._values)
     pileup_corr[year]["down"]._values = np.minimum(5, pileup_corr[year]["down"]._values)
@@ -365,8 +372,8 @@ for year in pileup_corr.keys():
     corrections["%s_pileupweight_puUp" % year] = pileup_corr[year]["up"]
     corrections["%s_pileupweight_puDown" % year] = pileup_corr[year]["down"]
 
-import pickle
 import gzip
+import pickle
 
 with gzip.open("data/corrections.pkl.gz", "wb") as f:
     pickle.dump(corrections, f, -1)

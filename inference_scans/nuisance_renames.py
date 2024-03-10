@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 def rename_nuisance(nuisance: str):
     if nuisance.startswith("CMS_bbWW_hadronic_"):
         nuisance = nuisance.split("CMS_bbWW_hadronic_")[1]

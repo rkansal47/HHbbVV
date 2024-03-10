@@ -3,42 +3,46 @@ Skimmer for bbVV analysis.
 Author(s): Raghav Kansal, Cristina Suarez
 """
 
-import numpy as np
-import awkward as ak
-import pandas as pd
+from __future__ import annotations
 
-from coffea import processor
-from coffea.analysis_tools import Weights, PackedSelection
-from coffea.nanoevents.methods.nanoaod import JetArray
-import vector
-
-import pathlib
-import pickle, json, gzip
-import os
-
-from typing import Dict
+import json
+import logging
 from collections import OrderedDict
+from pathlib import Path
 
-from .GenSelection import gen_selection_HHbbVV, gen_selection_HH4V, gen_selection_HYbbVV, G_PDGID
-from .TaggerInference import runInferenceTriton
-from .utils import pad_val, add_selection, concatenate_dicts, select_dicts, P4
+import awkward as ak
+import numpy as np
+import vector
+from coffea import processor
+from coffea.analysis_tools import PackedSelection
+
+import HHbbVV
+from HHbbVV import hh_vars
+from HHbbVV.hh_vars import jec_shifts, jmsr_shifts
+
+from . import utils
+from .common import HLTs
 from .corrections import (
+    add_lepton_id_weights,
     add_pileup_weight,
     add_pileupid_weights,
-    add_VJets_kFactors,
-    add_top_pt_weight,
     add_ps_weight,
-    add_pdf_weight,
-    add_scalevar_7pt,
     add_trig_effs,
-    get_jec_key,
+    add_VJets_kFactors,
     get_jec_jets,
     get_jmsr,
     get_lund_SFs,
+    get_pdf_weights,
+    get_scale_weights,
 )
-from .common import LUMI, HLTs, btagWPs, jec_shifts, jmsr_shifts
-from . import common
-
+from .GenSelection import (
+    gen_selection_HH4V,
+    gen_selection_HHbbVV,
+    gen_selection_HYbbVV,
+)
+from .SkimmerABC import SkimmerABC
+from .TaggerInference import runInferenceTriton
+from .utils import P4, Weights, add_selection, concatenate_dicts, pad_val
 
 # mapping samples to the appropriate function for doing gen-level selections
 gen_selection_dict = {
@@ -52,14 +56,12 @@ gen_selection_dict = {
     "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
 }
 
-
-import logging
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger("bbVVSkimmer")
+# logger.setLevel(logging.INFO)
 
 
-class bbVVSkimmer(processor.ProcessorABC):
+class bbVVSkimmer(SkimmerABC):
     """
     Skims nanoaod files, saving selected branches and events passing preselection cuts
     (and triggers for data), for preliminary cut-based analysis and BDT studies.
@@ -71,7 +73,7 @@ class bbVVSkimmer(processor.ProcessorABC):
     """
 
     # key is name in nano files, value will be the name in the skimmed output
-    skim_vars = {
+    skim_vars = {  # noqa: RUF012
         "FatJet": {
             **P4,
             "msoftdrop": "Msd",
@@ -85,7 +87,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         "other": {"MET_pt": "MET_pt", "MET_phi": "MET_phi"},
     }
 
-    preselection = {
+    preselection = {  # noqa: RUF012
         "pt": 300.0,
         "eta": 2.4,
         "VVmsd": 50,
@@ -99,7 +101,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         # "nGoodElectrons": 0,
     }
 
-    ak4_jet_selection = {
+    ak4_jet_selection = {  # noqa: RUF012
         "pt": 25,
         "eta": 2.7,
         "jetId": "tight",
@@ -108,29 +110,40 @@ class bbVVSkimmer(processor.ProcessorABC):
         "dR_fatjetVV": 0.8,
     }
 
-    jecs = common.jecs
+    jecs = hh_vars.jecs
 
     # only the branches necessary for templates and post processing
-    min_branches = [
+    min_branches = [  # noqa: RUF012
         "ak8FatJetPhi",
         "ak8FatJetEta",
         "ak8FatJetPt",
         "ak8FatJetMsd",
         "ak8FatJetParticleNetMass",
-        "DijetMass",
         "VBFJetEta",
         "VBFJetPt",
         "VBFJetPhi",
         "VBFJetMass",
+        "nGoodVBFJets",
         "ak8FatJetHbb",
         "ak8FatJetHVV",
         "ak8FatJetHVVNumProngs",
         "ak8FatJetParticleNetMD_Txbb",
+        "ak8FatJetParticleNet_Th4q",
+        "VVFatJetParTMD_probQCD",
+        "VVFatJetParTMD_probHWW3q",
+        "VVFatJetParTMD_probHWW4q",
+        "VVFatJetParTMD_probT",
         "VVFatJetParTMD_THWWvsT",
         "MET_pt",
         "MET_phi",
-        "nGoodElectrons",
-        "nGoodMuons",
+        "nGoodElectronsHH",
+        "nGoodElectronsHbb",
+        "nGoodMuonsHH",
+        "nGoodMuonsHbb",
+        "ak8FatJetNumWTagged",
+        "ak8FatJetLowestWTaggedTxbb",
+        "ak8FatJetWTaggedMsd",
+        "ak8FatJetWTaggedParticleNetMass",
     ]
 
     for shift in jec_shifts:
@@ -144,14 +157,16 @@ class bbVVSkimmer(processor.ProcessorABC):
 
     def __init__(
         self,
-        xsecs={},
+        xsecs=None,
         save_ak15=False,
         save_systematics=True,
+        lp_sfs=True,
         inference=True,
         save_all=False,
-        vbf_search=True,
     ):
-        super(bbVVSkimmer, self).__init__()
+        if xsecs is None:
+            xsecs = {}
+        super().__init__()
 
         self.XSECS = xsecs  # in pb
         self.save_ak15 = save_ak15
@@ -159,61 +174,29 @@ class bbVVSkimmer(processor.ProcessorABC):
         # save systematic variations
         self._systematics = save_systematics
 
+        # save LP SFs
+        self._lp_sfs = lp_sfs
+
         # run inference
         self._inference = inference
 
         # save all branches or only necessary ones
         self._save_all = save_all
 
-        # search for VBF production events
-        self._vbf_search = vbf_search
-
         # for tagger model and preprocessing dict
-        self.tagger_resources_path = (
-            str(pathlib.Path(__file__).parent.resolve()) + "/tagger_resources/"
-        )
+        self.tagger_resources_path = Path(__file__).parent.resolve() / "tagger_resources"
 
         # MET filters
         # https://twiki.cern.ch/twiki/bin/view/CMS/MissingETOptionalFiltersRun2
-        package_path = str(pathlib.Path(__file__).parent.parent.resolve())
-        with open(package_path + "/data/metfilters.json", "rb") as filehandler:
+        package_path = Path(__file__).parent.parent.resolve()
+        with (package_path / "data/metfilters.json").open("rb") as filehandler:
             self.metfilters = json.load(filehandler)
 
         self._accumulator = processor.dict_accumulator({})
 
-        logger.info(
-            f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all} and VBF search {self._vbf_search}"
+        logging.info(
+            f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all}."
         )
-
-    def to_pandas(self, events: Dict[str, np.array]):
-        """
-        Convert our dictionary of numpy arrays into a pandas data frame
-        Uses multi-index columns for numpy arrays with >1 dimension
-        (e.g. FatJet arrays with two columns)
-        """
-        return pd.concat(
-            # [pd.DataFrame(v.reshape(v.shape[0], -1)) for k, v in events.items()],
-            [pd.DataFrame(v) for k, v in events.items()],
-            axis=1,
-            keys=list(events.keys()),
-        )
-
-    def dump_table(self, pddf: pd.DataFrame, fname: str, odir_str: str = None) -> None:
-        """
-        Saves pandas dataframe events to './outparquet'
-        """
-        import pyarrow.parquet as pq
-        import pyarrow as pa
-
-        local_dir = os.path.abspath(os.path.join(".", "outparquet"))
-        if odir_str:
-            local_dir += odir_str
-        os.system(f"mkdir -p {local_dir}")
-
-        # need to write with pyarrow as pd.to_parquet doesn't support different types in
-        # multi-index column names
-        table = pa.Table.from_pandas(pddf)
-        pq.write_table(table, f"{local_dir}/{fname}")
 
     @property
     def accumulator(self):
@@ -227,12 +210,15 @@ class bbVVSkimmer(processor.ProcessorABC):
         dataset = "_".join(events.metadata["dataset"].split("_")[1:])
 
         isData = "JetHT" in dataset
-        isQCD = "QCD" in dataset
         isSignal = (
             "GluGluToHHTobbVV" in dataset
             or "XToYHTo2W2BTo4Q2B" in dataset
             or "VBF_HHTobbVV" in dataset
         )
+
+        if not isData:
+            # remove events with pileup weights un-physically large
+            events = self.pileup_cutoff(events, year, cutoff=4)
 
         if isSignal:
             # only signs for HH
@@ -245,14 +231,13 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         n_events = len(events) if isData else np.sum(gen_weights)
         selection = PackedSelection()
-        weights = Weights(len(events), storeIndividual=True)
 
         cutflow = OrderedDict()
         cutflow["all"] = n_events
 
         selection_args = (selection, cutflow, isData, gen_weights)
 
-        num_jets = 2 if not dataset == "GluGluHToWWTo4q_M-125" else 1
+        num_jets = 2
         num_ak4_jets = 2
         fatjets, jec_shifted_vars = get_jec_jets(events, year, isData, self.jecs, fatjets=True)
 
@@ -273,6 +258,14 @@ class bbVVSkimmer(processor.ProcessorABC):
                     events, fatjets, selection, cutflow, gen_weights, P4
                 )
                 skimmed_events = {**skimmed_events, **vars_dict}
+
+        # used for normalization to cross section below
+        gen_selected = (
+            selection.all(*selection.names)
+            if len(selection.names)
+            else np.ones(len(events)).astype(bool)
+        )
+        logging.info(f"Passing gen selection: {np.sum(gen_selected)} / {len(events)}")
 
         # FatJet vars
 
@@ -336,8 +329,6 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         # VBF ak4 jet vars
 
-        ak4_jet_vars = {}
-
         jets, _ = get_jec_jets(events, year, isData, self.jecs, fatjets=False)
 
         # dR_fatjetVV = 0.8 used from last two cells of VBFgenInfoTests.ipynb with data generated from SM signal vbf
@@ -388,14 +379,6 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         skimmed_events["nGoodVBFJets"] = np.array(ak.sum(vbf_jet_mask, axis=1))
 
-        # VBF ak4 Jet vars (pt, eta, phi, M, nGoodJets)
-        # if self._vbf_search:
-        #     isGen = "VBF_HHTobbVV" in dataset
-        #     ak4JetVars = {
-        #         **self.getVBFVars(events, jets, ak8FatJetVars, bb_mask, isGen=isGen)
-        #     }
-        #     skimmed_events = {**skimmed_events, **ak4JetVars}
-
         otherVars = {
             key: events[var.split("_")[0]]["_".join(var.split("_")[1:])].to_numpy()
             for (var, key) in self.skim_vars["other"].items()
@@ -411,7 +394,7 @@ class bbVVSkimmer(processor.ProcessorABC):
         if isData:
             for trigger in HLTs[year_nosuffix]:
                 if trigger not in events.HLT.fields:
-                    logger.warning(f"Missing HLT {trigger}!")
+                    logging.warning(f"Missing HLT {trigger}!")
 
             HLT_triggered = np.any(
                 np.array(
@@ -491,24 +474,30 @@ class bbVVSkimmer(processor.ProcessorABC):
                 # else for MC randomly cut based on lumi fraction of C&D
                 | ((np.random.rand(len(events)) < 0.632) & ~isData)
             ) & (
-                ak.any(
-                    (
-                        (check_fatjets.pt > 30.0)
-                        & (check_fatjets.eta > -3.2)
-                        & (check_fatjets.eta < -1.3)
-                        & (check_fatjets.phi > -1.57)
-                        & (check_fatjets.phi < -0.87)
+                ak.fill_none(
+                    ak.any(
+                        (
+                            (check_fatjets.pt > 30.0)
+                            & (check_fatjets.eta > -3.2)
+                            & (check_fatjets.eta < -1.3)
+                            & (check_fatjets.phi > -1.57)
+                            & (check_fatjets.phi < -0.87)
+                        ),
+                        -1,
                     ),
-                    -1,
+                    False,
                 )
-                | ak.any(
-                    (
-                        (vbf_jets.eta > -3.2)
-                        & (vbf_jets.eta < -1.3)
-                        & (vbf_jets.phi > -1.57)
-                        & (vbf_jets.phi < -0.87)
+                | ak.fill_none(
+                    ak.any(
+                        (
+                            (vbf_jets.eta > -3.2)
+                            & (vbf_jets.eta < -1.3)
+                            & (vbf_jets.phi > -1.57)
+                            & (vbf_jets.phi < -0.87)
+                        ),
+                        -1,
                     ),
-                    -1,
+                    False,
                 )
                 | ((events.MET.phi > -1.62) & (events.MET.pt < 470.0) & (events.MET.phi < -0.62))
             )
@@ -519,7 +508,7 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         metfilters = np.ones(len(events), dtype="bool")
         metfilterkey = "data" if isData else "mc"
-        for mf in self.metfilters[year][metfilterkey]:
+        for mf in self.metfilters[year[:4]][metfilterkey]:
             if mf in events.Flag.fields:
                 metfilters = metfilters & events.Flag[mf]
 
@@ -542,27 +531,76 @@ class bbVVSkimmer(processor.ProcessorABC):
 
         electrons, muons = events.Electron, events.Muon
 
-        # selection from https://github.com/jennetd/hbb-coffea/blob/85bc3692be9e0e0a0c82ae3c78e22cdf5b3e4d68/boostedhiggs/vhbbprocessor.py#L283-L307
+        # VBF Hbb selection from https://github.com/jennetd/hbb-coffea/blob/85bc3692be9e0e0a0c82ae3c78e22cdf5b3e4d68/boostedhiggs/vhbbprocessor.py#L283-L307
         # https://indico.cern.ch/event/1154430/#b-471403-higgs-meeting-special
 
-        goodelectron = (
-            (events.Electron.pt > 20)
-            & (abs(events.Electron.eta) < 2.5)
-            & (events.Electron.miniPFRelIso_all < 0.4)
-            & (events.Electron.cutBased >= events.Electron.LOOSE)
+        goodelectronHbb = (
+            (electrons.pt > 20)
+            & (abs(electrons.eta) < 2.5)
+            & (electrons.miniPFRelIso_all < 0.4)
+            & (electrons.cutBased >= electrons.LOOSE)
         )
-        nelectrons = ak.sum(goodelectron, axis=1)
+        nelectronsHbb = ak.sum(goodelectronHbb, axis=1)
+        goodelectronsHbb = electrons[goodelectronHbb]
 
-        goodmuon = (
-            (events.Muon.pt > 15)
-            & (abs(events.Muon.eta) < 2.4)
-            & (events.Muon.miniPFRelIso_all < 0.4)
-            & events.Muon.looseId
+        goodmuonHbb = (
+            (muons.pt > 10) & (abs(muons.eta) < 2.4) & (muons.pfRelIso04_all < 0.25) & muons.looseId
         )
-        nmuons = ak.sum(goodmuon, axis=1)
+        nmuonsHbb = ak.sum(goodmuonHbb, axis=1)
+        goodmuonsHbb = muons[goodmuonHbb]
 
-        skimmed_events["nGoodMuons"] = nmuons.to_numpy()
-        skimmed_events["nGoodElectrons"] = nelectrons.to_numpy()
+        # HH4b lepton vetoes:
+        # https://cms.cern.ch/iCMS/user/noteinfo?cmsnoteid=CMS%20AN-2020/231 Section 7.1.2
+        # In order to be considered in the lepton veto step, a muon (electron) is required to to pass the selections described in Section 5.2, and to have pT > 15 GeV (pT > 20 GeV), and |η| < 2.4 (2.5).
+        # A muon is also required to pass loose identification criteria as detailed in [35] and mini-isolation
+        # (miniPFRelIso all < 0.4). An electron is required to pass mvaFall17V2noIso WP90 identification as well as mini-isolation (miniPFRelIso all < 0.4).
+
+        goodelectronHH = (
+            (electrons.pt > 20)
+            & (abs(electrons.eta) < 2.5)
+            & (electrons.miniPFRelIso_all < 0.4)
+            & (electrons.mvaFall17V2noIso_WP90)
+        )
+        nelectronsHH = ak.sum(goodelectronHH, axis=1)
+        goodelectronsHH = electrons[goodelectronHH]
+
+        goodmuonHH = (
+            (muons.pt > 15)
+            & (abs(muons.eta) < 2.4)
+            & (muons.miniPFRelIso_all < 0.4)
+            & muons.looseId
+        )
+        nmuonsHH = ak.sum(goodmuonHH, axis=1)
+        goodmuonsHH = muons[goodmuonHH]
+
+        skimmed_events["nGoodElectronsHbb"] = nelectronsHbb.to_numpy()
+        skimmed_events["nGoodElectronsHH"] = nelectronsHH.to_numpy()
+        skimmed_events["nGoodMuonsHbb"] = nmuonsHbb.to_numpy()
+        skimmed_events["nGoodMuonsHH"] = nmuonsHH.to_numpy()
+
+        # XHY->bbWW semi-resolved channel veto
+        Wqq_score = (fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc) / (
+            fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc + fatjets.particleNetMD_QCD
+        )
+
+        skimmed_events["ak8FatJetNumWTagged"] = ak.sum(Wqq_score[:, :3] >= 0.8, axis=1).to_numpy()
+
+        sorted_wqq_score = np.argsort(pad_val(Wqq_score, 3, 0, 1), axis=1)
+
+        # get TXbb score of the lowest-Wqq-tagged jet
+        skimmed_events["ak8FatJetLowestWTaggedTxbb"] = pad_val(fatjets["Txbb"], 3, 0, 1)[
+            np.arange(len(fatjets)), sorted_wqq_score[:, 0]
+        ]
+
+        # save both SD and regressed masses of the two W-tagged AK8 jets
+        # Amitav will optimize mass cut soon
+
+        mass_dict = {"particleNet_mass": "ParticleNetMass", "msoftdrop": "Msd"}
+        for mkey, mlabel in mass_dict.items():
+            mass_vals = pad_val(fatjets[mkey], 3, 0, 1)
+            mv_fj1 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 2]]
+            mv_fj2 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 1]]
+            skimmed_events[f"ak8FatJetWTagged{mlabel}"] = np.stack([mv_fj1, mv_fj2]).T
 
         ######################
         # Remove branches
@@ -578,78 +616,32 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Weights
         ######################
 
+        totals_dict = {"nevents": n_events}
+
         if isData:
             skimmed_events["weight"] = np.ones(n_events)
         else:
-            weights.add("genweight", gen_weights)
+            weights_dict, totals_temp = self.add_weights(
+                events,
+                year,
+                dataset,
+                gen_weights,
+                fatjets,
+                num_jets,
+                vbf_jets,
+                gen_selected,
+                goodelectronsHbb,
+                goodelectronsHH,
+                goodmuonsHbb,
+                goodmuonsHH,
+            )
+            skimmed_events = {**skimmed_events, **weights_dict}
+            totals_dict = {**totals_dict, **totals_temp}
 
-            add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
-            add_pileupid_weights(weights, year, vbf_jets, events.GenJet, wp="M")  # this gives error
-            add_VJets_kFactors(weights, events.GenPart, dataset)
+        ##############################
+        # Reshape and apply selections
+        ##############################
 
-            # if dataset.startswith("TTTo"):
-            #     # TODO: need to add uncertainties and rescale yields (?)
-            #     add_top_pt_weight(weights, events)
-
-            add_ps_weight(weights, events.PSWeight)
-
-            if "GluGluToHHTobbVV" in dataset:
-                if "LHEPdfWeight" in events.fields:
-                    add_pdf_weight(weights, events.LHEPdfWeight)
-                else:
-                    add_pdf_weight(weights, [])
-                if "LHEScaleWeight" in events.fields:
-                    add_scalevar_7pt(weights, events.LHEScaleWeight)
-                else:
-                    add_scalevar_7pt(weights, [])
-
-            if year in ("2016APV", "2016", "2017"):
-                weights.add(
-                    "L1EcalPrefiring",
-                    events.L1PreFiringWeight.Nom,
-                    events.L1PreFiringWeight.Up,
-                    events.L1PreFiringWeight.Dn,
-                )
-
-            add_trig_effs(weights, fatjets, year, num_jets)
-
-            # xsec and luminosity and normalization
-            # this still needs to be normalized with the acceptance of the pre-selection (done in post processing)
-            if dataset in self.XSECS or "XToYHTo2W2BTo4Q2B" in dataset:
-                # 1 fb xsec for now for resonant signal
-                xsec = self.XSECS[dataset] if dataset in self.XSECS else 1e-3  # in pb
-
-                weight_norm = xsec * LUMI[year]
-            else:
-                logger.warning("Weight not normalized to cross section")
-                weight_norm = 1
-
-            systematics = ["", "notrigeffs"]
-
-            if self._systematics:
-                systematics += list(weights.variations)
-
-            # TODO: need to be careful about the sum of gen weights used for the LHE/QCDScale uncertainties
-            logger.debug("weights ", weights._weights.keys())
-            for systematic in systematics:
-                if systematic in weights.variations:
-                    weight = weights.weight(modifier=systematic)
-                    weight_name = f"weight_{systematic}"
-                elif systematic == "":
-                    weight = weights.weight()
-                    weight_name = "weight"
-                elif systematic == "notrigeffs":
-                    weight = weights.partial_weight(exclude=["trig_effs"])
-                    weight_name = "weight_noTrigEffs"
-
-                # includes genWeight (or signed genWeight)
-                skimmed_events[weight_name] = weight * weight_norm
-
-                if systematic == "":
-                    # to check in postprocessing for xsec & lumi normalisation
-                    skimmed_events["weight_noxsec"] = weight
-
-        # reshape and apply selections
         sel_all = selection.all(*selection.names)
 
         skimmed_events = {
@@ -663,16 +655,9 @@ class bbVVSkimmer(processor.ProcessorABC):
         # Lund plane SFs
         ################
 
-        if isSignal and self._systematics:
-            # TODO: remember to add new LP variables
-            items = [
-                ("lp_sf_lnN", 101),
-                ("lp_sf_sys_down", 1),
-                ("lp_sf_sys_up", 1),
-                ("lp_sf_double_matched_event", 1),
-                ("lp_sf_unmatched_quarks", 1),
-                ("lp_sf_num_sjpt_gt350", 1),
-            ]
+        if isSignal and self._systematics and self._lp_sfs:
+            # (var, # columns)
+            logging.info("Starting LP SFs and saving: " + str(hh_vars.lp_sf_vars))
 
             if len(skimmed_events["weight"]):
                 genbb = genbb[sel_all]
@@ -710,12 +695,15 @@ class bbVVSkimmer(processor.ProcessorABC):
 
                     for key, (selector, gen_quarks, num_prongs) in selectors.items():
                         if np.sum(selector) > 0:
-                            sel_events = events[sel_all][selector]
                             selected_sfs[key] = get_lund_SFs(
-                                sel_events,
-                                i
-                                if self._save_all
-                                else skimmed_events["ak8FatJetHVV"][selector][:, 1],
+                                year,
+                                events[sel_all][selector],
+                                fatjets[sel_all][selector],
+                                (
+                                    i
+                                    if self._save_all
+                                    else np.array(skimmed_events["ak8FatJetHVV"][selector][:, 1])
+                                ),  # giving HVV jet index if only doing LP SFs for HVV jet
                                 num_prongs,
                                 gen_quarks[selector],
                                 trunc_gauss=False,
@@ -725,7 +713,7 @@ class bbVVSkimmer(processor.ProcessorABC):
                     sf_dict = {}
 
                     # collect all the scale factors, fill in 1s for unmatched jets
-                    for key, shape in items:
+                    for key, shape in hh_vars.lp_sf_vars:
                         arr = np.ones((np.sum(sel_all), shape))
 
                         for select_key, (selector, _, _) in selectors.items():
@@ -739,9 +727,9 @@ class bbVVSkimmer(processor.ProcessorABC):
                 sf_dicts = concatenate_dicts(sf_dicts)
 
             else:
-                print("No signal events selected")
+                logging.info("No signal events selected")
                 sf_dicts = {}
-                for key, shape in items:
+                for key, shape in hh_vars.lp_sf_vars:
                     arr = np.ones((np.sum(sel_all), shape))
                     sf_dicts[key] = arr
 
@@ -780,284 +768,137 @@ class bbVVSkimmer(processor.ProcessorABC):
                     **{key: val for (key, val) in pnet_vars.items() if key in self.min_branches},
                 }
 
-        df = self.to_pandas(skimmed_events)
+        pddf = self.to_pandas(skimmed_events)
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
-        self.dump_table(df, fname)
+        self.dump_table(pddf, fname)
 
-        return {year: {dataset: {"nevents": n_events, "cutflow": cutflow}}}
+        return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
 
     def postprocess(self, accumulator):
         return accumulator
 
-    def getVBFVars(
+    def add_weights(
         self,
-        events: ak.Array,
-        jets: JetArray,
-        ak8FatJetVars: Dict,
-        bb_mask: np.ndarray,
-        isGen: bool = False,
-        skim_vars: dict = None,
-        pt_shift: str = None,
-        mass_shift: str = None,
-    ) -> Dict:
-        """
-        Computes selections on VBF jet candidates based on B2G-22-003.
-        Sorts jets by pt after applying base cuts and fatjet exclusion.
-        Stores nGoodVBFJets, an int list encoding cuts, and kinematic variables of VBF jet candidates.
+        events,
+        year,
+        dataset,
+        gen_weights,
+        fatjets,
+        num_jets,
+        vbf_jets,
+        gen_selected,
+        goodelectronsHbb,
+        goodelectronsHH,
+        goodmuonsHbb,
+        goodmuonsHH,
+    ) -> tuple[dict, dict]:
+        """Adds weights and variations, saves totals for all norm preserving weights and variations"""
+        weights = Weights(len(events), storeIndividual=True)
+        weights.add("genweight", gen_weights)
 
-        TODO:
-            - Implement the use of pt_shift, mass_shift, skim_vars.
-            - Study selection parameters that provide the best sensitivity.
-            - Decide best way to compute vbf variables (vector or by hand)
+        add_pileup_weight(weights, year, events.Pileup.nPU.to_numpy())
+        add_pileupid_weights(weights, year, vbf_jets, events.GenJet, wp="M")  # needs awkward 1.10
+        add_VJets_kFactors(weights, events.GenPart, dataset)
+        add_ps_weight(weights, events.PSWeight)
+        add_trig_effs(weights, fatjets, year, num_jets)
 
-        Args:
-            events (ak.Array): Event array.
-            jets (JetArray): Array of ak4 jets **with JECs already applied**.
-            ak8FatJetVars (Dict): AK8 Fat Jet variables.
-            bb_mask (np.ndarray): BB mask array.
-            isGen (bool, optional): Flag for generation-level. Defaults to False.
-            skim_vars (dict, optional): Skim variables. Defaults to None.
-            pt_shift (str, optional): PT shift. Defaults to None.
-            mass_shift (str, optional): Mass shift. Defaults to None.
-
-        Returns:
-            Dict: VBF variables dictionary.
-
-        """
-        vbfVars = {}
-
-        # AK4 jets definition: 5.4 B2G-22-003
-        ak4_jet_mask = (
-            jets.isTight
-            & (jets.pt > self.ak4_jet_selection["pt"])
-            & (np.abs(jets.eta) < 4.7)
-            # medium puId https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJetIDUL
-            & ((jets.pt > 50) | ((jets.puId & 2) == 2))
-        )
-
-        # VBF selections: 7.1.4 B2G-22-003
-
-        # Mask for electron/muon overlap
-        # electrons, muons = events.Electron[events.Electron.pt < 5], events.Muon[events.Muon.pt < 7]
-        # e_pairs = ak.cartesian([jets, electrons], nested=True)
-        # e_pairs_mask = np.abs(e_pairs.slot0.delta_r(e_pairs.slot1)) < 0.4
-        # m_pairs = ak.cartesian([jets, muons], nested=True)
-        # m_pairs_mask = np.abs(m_pairs.slot0.delta_r(m_pairs.slot1)) < 0.4
-
-        # electron_muon_overlap_mask = ~(
-        #     ak.any(e_pairs_mask, axis=-1) | ak.any(m_pairs_mask, axis=-1)
-        # )
-
-        # Fatjet Definition for ∆R calculations: same definition as in getDijetVars() (not included so we can study its effects in the output.)
-        ptlabel = pt_shift if pt_shift is not None else ""
-        mlabel = mass_shift if mass_shift is not None else ""
-        bbJet = vector.array(
-            {
-                "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][bb_mask],
-                "phi": ak8FatJetVars["ak8FatJetPhi"][bb_mask],
-                "eta": ak8FatJetVars["ak8FatJetEta"][bb_mask],
-                "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][bb_mask],
-            }
-        )
-
-        VVJet = vector.array(
-            {
-                "pt": ak8FatJetVars[f"ak8FatJetPt{ptlabel}"][~bb_mask],
-                "phi": ak8FatJetVars["ak8FatJetPhi"][~bb_mask],
-                "eta": ak8FatJetVars["ak8FatJetEta"][~bb_mask],
-                "M": ak8FatJetVars[f"ak8FatJetMsd{mlabel}"][~bb_mask],
-                # TODO: change this to ParticleNetMass for next run
-                # "M": ak8FatJetVars[f"ak8FatJetParticleNetMass{mlabel}"][~bb_mask],
-            }
-        )
-
-        # this might not work due to types
-        fatjet_overlap_mask = (np.abs(jets.delta_r(bbJet)) > 1.2) & (
-            np.abs(jets.delta_r(VVJet)) > 0.8
-        )
-
-        # Apply base masks, sort, and calculate vbf dijet (jj) cuts
-        vbfJets_mask = ak4_jet_mask  # & electron_muon_overlap_mask & fatjet_overlap_mask
-        vbfJets = jets[vbfJets_mask]
-
-        vbfJets_sorted_pt = vbfJets[ak.argsort(vbfJets.pt, ascending=False)]
-        # this is the only which does not guarantee two guys. in the other sorts, the entries are specifically None.
-        vbfJets_sorted_pt = ak.pad_none(vbfJets_sorted_pt, 2, clip=True)
-
-        # pt sorted eta and dijet mass mask
-        vbf1 = vector.array(
-            {
-                "pt": ak.flatten(pad_val(vbfJets_sorted_pt[:, 0:1].pt, 1, axis=1)),
-                "phi": ak.flatten(pad_val(vbfJets_sorted_pt[:, 0:1].phi, 1, axis=1)),
-                "eta": ak.flatten(pad_val(vbfJets_sorted_pt[:, 0:1].eta, 1, axis=1)),
-                "M": ak.flatten(pad_val(vbfJets_sorted_pt[:, 0:1].mass, 1, axis=1)),
-            }
-        )
-
-        vbf2 = vector.array(
-            {
-                "pt": ak.flatten(pad_val(vbfJets_sorted_pt[:, 1:2].pt, 1, axis=1)),
-                "phi": ak.flatten(pad_val(vbfJets_sorted_pt[:, 1:2].phi, 1, axis=1)),
-                "eta": ak.flatten(pad_val(vbfJets_sorted_pt[:, 1:2].eta, 1, axis=1)),
-                "M": ak.flatten(pad_val(vbfJets_sorted_pt[:, 1:2].mass, 1, axis=1)),
-            }
-        )
-
-        jj = vbf1 + vbf2
-
-        mass_jj_cut_sorted_pt = jj.mass > 500
-        eta_jj_cut_sorted_pt = np.abs(vbf1.eta - vbf2.eta) > 4.0
-
-        # uncomment these last two to include dijet cuts
-        vbfJets_mask_sorted_pt = vbfJets_mask  # * mass_jj_cut_sorted_pt * eta_jj_cut_sorted_pt
-        n_good_vbf_jets_sorted_pt = ak.fill_none(ak.sum(vbfJets_mask_sorted_pt, axis=1), 0)
-
-        # add vbf gen quark info
-        if isGen:  # add | True when debugging with local files
-            vbfGenJets = events.GenPart[events.GenPart.hasFlags(["isHardProcess"])][:, 4:6]
-
-            vbfVars[f"vbfptGen"] = pad_val(vbfGenJets.pt, 2, axis=1)
-            vbfVars[f"vbfetaGen"] = pad_val(vbfGenJets.eta, 2, axis=1)
-            vbfVars[f"vbfphiGen"] = pad_val(vbfGenJets.phi, 2, axis=1)
-            vbfVars[f"vbfMGen"] = pad_val(vbfGenJets.mass, 2, axis=1)
-
-            jet_pairs = ak.cartesian({"reco": vbfJets_sorted_pt[:, 0:2], "gen": vbfGenJets[:, 0:2]})
-
-            # Calculate delta eta and delta phi for each pair
-            delta_eta = jet_pairs["reco"].eta - jet_pairs["gen"].eta
-            delta_phi = np.pi - np.abs(np.abs(jet_pairs["reco"].phi - jet_pairs["gen"].phi) - np.pi)
-
-            # Calculate delta R for each pair
-            delta_R = np.sqrt(delta_eta**2 + delta_phi**2)
-
-            # Apply a mask for a low delta R value
-            mask_low_delta_R = delta_R < 0.4
-            num_per_event = ak.sum(mask_low_delta_R, axis=-1)  # miscounts 0's since some are empty
-
-            # Combine masks with logical 'and' operation
-            total_mask = n_good_vbf_jets_sorted_pt > 1
-
-            # set event that fail to have 0 for num of events.
-            num_per_event = ak.where(total_mask, num_per_event, 0)
-            vbfVars[f"vbfNumMatchedGen"] = num_per_event.to_numpy()
-
-            # adds data about R1 R2 selection efficiencies.
-            graphingR1R2 = False
-            if (
-                graphingR1R2 == True
-            ):  # compute fatjet mask many times, execute dijet selection and associated cuts. add to datafram label with R1 R2 info in it and ngoodjets for this configuration
-                for R1 in np.arange(0.3, 2, 0.1):
-                    for R2 in np.arange(0.3, 2, 0.1):
-                        fatjet_overlap_mask = (np.abs(jets.delta_r(bbJet)) > R1) & (
-                            np.abs(jets.delta_r(VVJet)) > R2
-                        )
-
-                        # compute n_good_vbf_jets + incorporate eta_jj > 4.0
-                        vbfJets_mask = (
-                            ak4_jet_mask  # & electron_muon_overlap_mask & fatjet_overlap_mask
-                        )
-
-                        # vbfJets_mask = fatjet_overlap_mask # this is for unflitered events
-                        vbfJets = jets[vbfJets_mask]
-                        vbfJets_sorted_pt = vbfJets[ak.argsort(vbfJets.pt, ascending=False)]
-                        vbfJets_sorted_pt = ak.pad_none(vbfJets_sorted_pt, 2, clip=True)
-                        jj_sorted_pt = vbfJets_sorted_pt[:, 0:1] + vbfJets_sorted_pt[:, 1:2]
-                        mass_jj_cut_sorted_pt = jj_sorted_pt.mass > 500
-                        eta_jj_cut_sorted_pt = (
-                            np.abs(vbfJets_sorted_pt[:, 0:1].eta - vbfJets_sorted_pt[:, 1:2].eta)
-                            > 4.0
-                        )
-                        vbfJets_mask_sorted_pt = (
-                            vbfJets_mask * mass_jj_cut_sorted_pt * eta_jj_cut_sorted_pt
-                        )
-                        num_sorted_pt = ak.fill_none(ak.sum(vbfJets_mask_sorted_pt, axis=1), 0)
-
-                        # here we can print some information about the jets so that we can study the selections a bit.
-                        # jet_pairs = ak.cartesian({"reco": vbfJets, "gen": vbfGenJets[:,0:2]}) # this is only for unfiltered events
-                        jet_pairs = ak.cartesian(
-                            {"reco": vbfJets_sorted_pt[:, 0:2], "gen": vbfGenJets[:, 0:2]}
-                        )
-
-                        # Calculate delta eta and delta phi for each pair
-                        delta_eta = jet_pairs["reco"].eta - jet_pairs["gen"].eta
-                        delta_phi = np.pi - np.abs(
-                            np.abs(jet_pairs["reco"].phi - jet_pairs["gen"].phi) - np.pi
-                        )
-
-                        # Calculate delta R for each pair
-                        delta_R = np.sqrt(delta_eta**2 + delta_phi**2)
-
-                        # Apply a mask for a low delta R value
-                        mask_low_delta_R = delta_R < 0.4
-                        num_per_event = ak.sum(
-                            mask_low_delta_R, axis=-1
-                        )  # miscounts 0's since some are empty
-
-                        # Combine masks with logical 'and' operation
-                        total_mask = num_sorted_pt > 1
-
-                        # set event that fail to have 0 for num of events.
-                        num_per_event = ak.where(total_mask, num_per_event, 0)
-                        vbfVars[f"vbfR1{R1:.1f}R2{R2:.1f}"] = num_per_event.to_numpy()
-
-                        # note later when we have the pd dataframe, we need to apply mask, then turn data into graph.
-                        # and df = df[selection_mask & (df[('nGoodMuons', 0)] == 0) & (df[('nGoodElectrons', 0)] == 0) & (df[('nGoodVBFJets', 0)] >= 1)& (df[('nGoodJets', 0)] == 0)]
-
-        vbfVars[f"vbfpt"] = pad_val(vbfJets_sorted_pt.pt, 2, axis=1)
-        vbfVars[f"vbfeta"] = pad_val(vbfJets_sorted_pt.eta, 2, axis=1)
-        vbfVars[f"vbfphi"] = pad_val(vbfJets_sorted_pt.phi, 2, axis=1)
-        vbfVars[f"vbfM"] = pad_val(vbfJets_sorted_pt.mass, 2, axis=1)
-
-        # int list representing the number of passing vbf jets per event
-        vbfVars[f"nGoodVBFJets"] = n_good_vbf_jets_sorted_pt.to_numpy()
-
-        adding_bdt_vars = True
-        if adding_bdt_vars == True:
-            # Adapted from HIG-20-005 ggF_Killer 6.2.2
-            # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.PtEtaPhiMLorentzVector.html
-            # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.LorentzVector.html
-            # Adding variables defined in HIG-20-005 that show strong differentiation for VBF signal events and background
-
-            # seperation between both ak8 higgs jets
-            vbfVars[f"vbf_dR_HH"] = VVJet.deltaR(bbJet)
-
-            vbfVars[f"vbf_dR_j0_HVV"] = vbf1.deltaR(VVJet)
-            vbfVars[f"vbf_dR_j1_HVV"] = vbf2.deltaR(VVJet)
-            vbfVars[f"vbf_dR_j0_Hbb"] = vbf1.deltaR(bbJet)
-            vbfVars[f"vbf_dR_j1_Hbb"] = vbf2.deltaR(bbJet)
-            vbfVars[f"vbf_dR_jj"] = vbf1.deltaR(vbf2)
-            vbfVars[f"vbf_Mass_jj"] = jj.M
-            vbfVars[f"vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
-
-            # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
-            # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
-            system_4vec = vbf1 + vbf2 + VVJet + bbJet
-            j1_CMF = vbf1.boostCM_of_p4(system_4vec)
-
-            # Leading VBF-jet cos(θ) in the HH+2j center of mass frame:
-            thetab1 = 2 * np.arctan(np.exp(-j1_CMF.eta))
-            thetab1 = np.cos(thetab1)  # 12
-            vbfVars[f"vbf_cos_j1"] = np.abs(thetab1)
-
-            # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
-            j2_CMF = vbf2.boostCM_of_p4(system_4vec)
-            thetab2 = 2 * np.arctan(np.exp(-j2_CMF.eta))
-            thetab2 = np.cos(thetab2)
-            vbfVars[f"vbf_cos_j2"] = np.abs(thetab2)
-
-            # H1-centrality * H2-centrality:
-            delta_eta = vbf1.eta - vbf2.eta
-            avg_eta = (vbf1.eta + vbf2.eta) / 2
-            prod_centrality = np.exp(
-                -np.power((VVJet.eta - avg_eta) / delta_eta, 2)
-                - np.power((bbJet.eta - avg_eta) / delta_eta, 2)
+        if year in ("2016APV", "2016", "2017"):
+            weights.add(
+                "L1EcalPrefiring",
+                events.L1PreFiringWeight.Nom,
+                events.L1PreFiringWeight.Up,
+                events.L1PreFiringWeight.Dn,
             )
-            vbfVars[f"vbf_prod_centrality"] = prod_centrality
 
-        return vbfVars
+        logging.debug("weights ", weights._weights.keys())
+
+        ###################### Save all the weights and variations ######################
+
+        # these weights should not change the overall normalization, so are saved separately
+        norm_preserving_weights = HHbbVV.hh_vars.norm_preserving_weights
+
+        # dictionary of all weights and variations
+        weights_dict = {}
+        # dictionary of total # events for norm preserving variations for normalization in postprocessing
+        totals_dict = {}
+
+        # nominal
+        weights_dict["weight"] = weights.weight()
+
+        # without trigger efficiencies (in case they need to be revised later)
+        weights_dict["weight_noTrigEffs"] = weights.partial_weight(exclude=["trig_effs"])
+
+        # norm preserving weights, used to do normalization in post-processing
+        weight_np = weights.partial_weight(include=norm_preserving_weights)
+        totals_dict["np_nominal"] = np.sum(weight_np[gen_selected])
+
+        # variations
+        if self._systematics:
+            for systematic in list(weights.variations):
+                weights_dict[f"weight_{systematic}"] = weights.weight(modifier=systematic)
+
+                if utils.remove_variation_suffix(systematic) in norm_preserving_weights:
+                    var_weight = weights.partial_weight(
+                        include=norm_preserving_weights, modifier=systematic
+                    )
+
+                    # need to save total # events for each variation for normalization in post-processing
+                    totals_dict[f"np_{systematic}"] = np.sum(var_weight[gen_selected])
+
+        ###################### alpha_S and PDF variations ######################
+
+        # alpha_s variations, only for HH and ttbar
+        if "GluGluToHHTobbVV" in dataset or "VBF_HHTobbVV" in dataset or dataset.startswith("TTTo"):
+            scale_weights = get_scale_weights(events)
+            weights_dict["scale_weights"] = scale_weights * weights_dict["weight"][:, np.newaxis]
+            totals_dict["np_scale_weights"] = np.sum(
+                (scale_weights * weight_np[:, np.newaxis])[gen_selected], axis=0
+            )
+
+        if "GluGluToHHTobbVV" in dataset or "VBF_HHTobbVV" in dataset:
+            pdf_weights = get_pdf_weights(events)
+            weights_dict["pdf_weights"] = pdf_weights * weights_dict["weight"][:, np.newaxis]
+            totals_dict["np_pdf_weights"] = np.sum(
+                (pdf_weights * weight_np[:, np.newaxis])[gen_selected], axis=0
+            )
+
+        ###################### Normalization (Step 1) ######################
+
+        weight_norm = self.get_dataset_norm(year, dataset)
+        # normalize all the weights to xsec, needs to be divided by totals in Step 2 in post-processing
+        for key, val in weights_dict.items():
+            weights_dict[key] = val * weight_norm
+
+        # save the unnormalized weight, to confirm that it's been normalized in post-processing
+        weights_dict["weight_noxsec"] = weights.weight()
+        # save pileup weight for debugging
+        weights_dict["single_weight_pileup"] = weights.partial_weight(include=["pileup"])
+
+        ###################### Separate Lepton ID Scale Factors ######################
+
+        # saved separately for now TODO: incorporate above next time if lepton vetoes are useful
+        lepton_weights = Weights(len(events), storeIndividual=True)
+        add_lepton_id_weights(
+            lepton_weights, year, goodelectronsHbb, "electron", "Loose", label="_hbb"
+        )
+        add_lepton_id_weights(
+            lepton_weights, year, goodelectronsHH, "electron", "wp90noiso", label="_hh"
+        )
+        add_lepton_id_weights(lepton_weights, year, goodmuonsHbb, "muon", "Loose", label="_hbb")
+        add_lepton_id_weights(lepton_weights, year, goodmuonsHH, "muon", "Loose", label="_hh")
+
+        lepton_weights_dict = {
+            f"single_weight_{key}": val
+            for key, val in list(lepton_weights._weights.items())
+            + list(lepton_weights._modifiers.items())
+        }
+
+        weights_dict = {**weights_dict, **lepton_weights_dict}
+
+        return weights_dict, totals_dict
 
     def getDijetVars(
-        self, ak8FatJetVars: Dict, bb_mask: np.ndarray, pt_shift: str = None, mass_shift: str = None
+        self, ak8FatJetVars: dict, bb_mask: np.ndarray, pt_shift: str = None, mass_shift: str = None
     ):
         """Calculates Dijet variables for given pt / mass JEC / JMS/R variation"""
         dijetVars = {}

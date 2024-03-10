@@ -1,14 +1,15 @@
+from __future__ import annotations
+
 from collections import OrderedDict
+
 import awkward as ak
-from coffea import processor
-from hist import Hist
 import numpy as np
-
+from coffea import processor
 from coffea.analysis_tools import PackedSelection
+from hist import Hist
 
-from .utils import add_selection
 from .common import HLTs
-
+from .utils import add_selection
 
 muon_HLTs = {
     "2016": ["IsoMu24", "IsoTkMu24", "Mu50"],
@@ -43,7 +44,7 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
     """Accumulates two 2D (pT, msd) histograms from all input events: 1) before triggers, and 2) after triggers"""
 
     def __init__(self, ak15=False):
-        super(JetHTTriggerEfficienciesProcessor, self).__init__()
+        super().__init__()
         self.ak15 = ak15
 
     def process(self, events):
@@ -98,7 +99,7 @@ class JetHTTriggerEfficienciesProcessor(processor.ProcessorABC):
         )
 
         fatjets = ak.pad_none(fatjets[fatjet_selector], num_jets, axis=1)[:, :num_jets]
-        fatjet_idx = ak.argmax(fatjet_selector, axis=1)  # gets first index which is true
+        ak.argmax(fatjet_selector, axis=1)  # gets first index which is true
         fatjet_selector = ak.any(fatjet_selector, axis=1)
 
         add_selection("ak8_jet", fatjet_selector, *selection_args)
@@ -147,7 +148,7 @@ class JetHT4DTriggerEfficienciesProcessor(processor.ProcessorABC):
     """Accumulates two 2D (pT, msd) histograms from all input events: 1) before triggers, and 2) after triggers"""
 
     def __init__(self, ak15=False):
-        super(JetHT4DTriggerEfficienciesProcessor, self).__init__()
+        super().__init__()
         self.ak15 = ak15
 
     def process(self, events):
@@ -254,7 +255,7 @@ class JetHTHybrid3DTriggerEfficienciesProcessor(processor.ProcessorABC):
     """Accumulates two 2D (pT, msd) histograms from all input events: 1) before triggers, and 2) after triggers"""
 
     def __init__(self):
-        super(JetHTHybrid3DTriggerEfficienciesProcessor, self).__init__()
+        super().__init__()
 
         self.muon_HLTs = {2017: ["IsoMu27", "Mu50"]}
 

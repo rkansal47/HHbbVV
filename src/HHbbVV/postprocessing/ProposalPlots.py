@@ -4,12 +4,19 @@ Plots for proposal.
 Author(s): Raghav Kansal
 """
 
-import pickle
+from __future__ import annotations
 
-import numpy as np
+import pickle
+from pathlib import Path
+
 import matplotlib.pyplot as plt
-import mplhep as hep
 import matplotlib.ticker as mticker
+import mplhep as hep
+import numpy as np
+from hist import Hist
+from hist.intervals import ratio_uncertainty
+
+from HHbbVV.hh_vars import data_key, sig_key
 
 plt.rcParams.update({"font.size": 16})
 plt.style.use(hep.style.CMS)
@@ -17,35 +24,28 @@ hep.style.use("CMS")
 formatter = mticker.ScalarFormatter(useMathText=True)
 formatter.set_powerlimits((-3, 3))
 
-from hist import Hist
-from hist.intervals import ratio_uncertainty
-
-from typing import Dict, List
-
-from hh_vars import sig_key, data_key
 
 colours = {"darkblue": "#1f78b4", "lightblue": "#a6cee3", "red": "#e31a1c", "orange": "#ff7f00"}
 bg_colours = {"QCD": "lightblue", "TT": "darkblue", "ST": "orange"}
 sig_colour = "red"
 
 MAIN_DIR = "../../../"
-plot_dir = f"{MAIN_DIR}/plots/ControlPlots/Jun27/"
+plot_dir = Path(f"{MAIN_DIR}/plots/ControlPlots/Jun27/")
 
 sample_names = {"HHbbVV": r"$H\to VV\to 4q$", "QCD": "QCD", "TT": r"$t\bar{t}$"}
 
 
 # load hists
-with open(f"{plot_dir}/hists.pkl", "rb") as f:
+with (plot_dir / "hists.pkl").open("rb") as f:
     hists = pickle.load(f)
 
 
 # control plots
 def ratioHistPlot(
     hists: Hist,
-    bg_keys: List[str],
-    bg_colours: Dict[str, str] = bg_colours,
+    bg_keys: list[str],
+    bg_colours: dict[str, str] = bg_colours,
     sig_colour: str = sig_colour,
-    blind_region: list = None,
     name: str = "",
     sig_scale: float = 1.0,
 ):
@@ -55,7 +55,7 @@ def ratioHistPlot(
     """
 
     fig, (ax, rax) = plt.subplots(
-        2, 1, figsize=(12, 14), gridspec_kw=dict(height_ratios=[3, 1], hspace=0), sharex=True
+        2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
     )
 
     ax.set_ylabel("Events")
@@ -71,9 +71,11 @@ def ratioHistPlot(
         hists[sig_key, :] * sig_scale,
         ax=ax,
         histtype="step",
-        label=f"{sample_names[sig_key]} $\\times$ ${formatter.format_data(float(f'{sig_scale:.3g}'))}$"
-        if sig_scale != 1
-        else sig_key,
+        label=(
+            f"{sample_names[sig_key]} $\\times$ ${formatter.format_data(float(f'{sig_scale:.3g}'))}$"
+            if sig_scale != 1
+            else sig_key
+        ),
         color=colours[sig_colour],
     )
     hep.histplot(
@@ -120,7 +122,7 @@ for var in hist_vars:
 
 
 # ROCs
-plot_dir = f"{MAIN_DIR}/plots/TaggerAnalysis/Jun27/"
+plot_dir = Path(f"{MAIN_DIR}/plots/TaggerAnalysis/Jun27/")
 
 cut_labels = {
     "pt_300_1500_msoftdrop_20_320": "$p_T$: [300, 1500] GeV\n$m_{SD}$: [20, 320] GeV",
@@ -142,7 +144,7 @@ roc_plot_vars = {
 }
 
 # load rocs
-with open(f"{plot_dir}/rocs.pkl", "rb") as f:
+with (plot_dir / "rocs.pkl").open("rb") as f:
     rocs = pickle.load(f)
 
 xlim = [0, 0.6]

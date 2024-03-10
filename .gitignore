@@ -1,85 +1,196 @@
-*
-*/**
-!*.py
-!*.ipynb
-!figure.png
-!requirements.txt
-!environment.yml
 
-!src
-src/*
-!src/*.py
-!src/*.ipynb
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
 
-!src/HHbbVV
-!src/HHbbVV/processors
-!src/HHbbVV/processors/**
+# C extensions
+*.so
 
-!src/HHbbVV/corrections
-!src/HHbbVV/corrections/*
-!src/HHbbVV/corrections/*/**
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-!src/HHbbVV/data
-!src/HHbbVV/data/*
-!src/HHbbVV/data/*/**
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
 
-!src/condor
-!src/condor/*
-!src/condor/submit_configs/*
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
 
-!src/binder
-!src/binder/*.ipynb
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
 
-!src/HHbbVV/postprocessing
-!src/HHbbVV/postprocessing/**
-src/HHbbVV/postprocessing/data/*
-src/HHbbVV/postprocessing/*.pkl
-src/HHbbVV/postprocessing/*.txt
-src/HHbbVV/postprocessing/cards
-src/HHbbVV/postprocessing/templates_old
-src/HHbbVV/postprocessing/condor_templates
-src/HHbbVV/postprocessing/outs
+# Translations
+*.mo
+*.pot
 
-!src/HHbbVV/resonant_studies
-!src/HHbbVV/resonant_studies/**
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
 
-!src/HHbbVV/scale_factors
-!src/HHbbVV/scale_factors/**
+# Flask stuff:
+instance/
+.webassets-cache
 
-!src/HHbbVV/triton
-!src/HHbbVV/triton/**
+# Scrapy stuff:
+.scrapy
 
-!src/HHbbVV/combine
-!src/HHbbVV/combine/**
+# Sphinx documentation
+docs/_build/
 
-!src/HHbbVV/tagger
-!src/HHbbVV/tagger/**
+# PyBuilder
+.pybuilder/
+target/
 
-!src/HHbbVV/VBF_binder
-!src/HHbbVV/VBF_binder/**
+# Jupyter Notebook
+.ipynb_checkpoints
 
-!data
-!data/*
-!data/*/**
+# IPython
+profile_default/
+ipython_config.py
 
-!paper
-!paper/**
+# pyenv
+#   For a library or package, you might want to ignore these files since the code is
+#   intended to run in multiple environments; otherwise, check them in:
+# .python-version
 
-!inference_scans
-!inference_scans/**
+# pipenv
+#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
+#   However, in case of collaboration, if having platform-specific dependencies or dependencies
+#   having no cross-platform support, pipenv may install dependencies that don't work, or not
+#   install all needed dependencies.
+#Pipfile.lock
 
-!.gitignore
-!.github
-!.github/**
-!pyproject.toml
-!.pre-commit-config.yaml
-!LICENSE
-!*.md
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# setuptools_scm
+src/*/_version.py
+
+
+# ruff
+.ruff_cache/
+
+# OS specific stuff
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Common editor files
+*~
+*.swp
+
+*.root
+*.parquet
+**/__pycache__
+**/.DS_Store
+outfiles
+/plots
+cards
+docker_stderror
+*.jdl
+*.err
+*.out
+*.log
+.vscode
+.jupyter
+.local
+/condor
+running_jobs.txt
+.bashrc
 
 **/.ipynb_checkpoints
-**/*test*
-!**/*F_test*
-!**/*ftest*
 **/__pycache__
 **/.DS_Store
 .DS_Store
+tau_check.ipynb
+
+# testing
+*test*.ipynb
+*test.py
+src/HHbbVV/postprocessing/testBDT
+src/HHbbVV/postprocessing/templates/*test*
+src/HHbbVV/postprocessing/templates/*Test*
+tmp
+
+# logs
+src/HHbbVV/postprocessing/outs
+src/HHbbVV/postprocessing/templates_old

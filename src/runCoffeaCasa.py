@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dask.distributed import Client
 
 client = Client("tls://localhost:8786")
@@ -7,7 +9,7 @@ print(client)
 from os import listdir
 
 # TODO: replace with UL sample once we have it
-with open("data/2017_preUL_nano/HHToBBVVToBBQQQQ_cHHH1.txt", "r") as file:
+with open("data/2017_preUL_nano/HHToBBVVToBBQQQQ_cHHH1.txt") as file:
     filelist = [
         f[:-1].replace("/eos/uscms/", "root://xcache//") for f in file.readlines()
     ]  # need to use xcache redirector at Nebraksa coffea-casa
@@ -23,7 +25,7 @@ ignore_samples = [
 
 for sample in listdir("data/2017_UL_nano/"):
     if sample[-4:] == ".txt" and sample[:-4] not in ignore_samples:
-        with open(f"data/2017_UL_nano/{sample}", "r") as file:
+        with open(f"data/2017_UL_nano/{sample}") as file:
             replace_string = "/hadoop/cms/" if "JetHT" in sample else "/eos/uscms/"
             filelist = [
                 f[:-1].replace(replace_string, "root://xcache//") for f in file.readlines()
@@ -44,7 +46,7 @@ for key, value in xsecs.items():
 
 
 # check that we have xsecs for all samples
-for key in fileset.keys():
+for key in fileset:
     if "JetHT" not in key:
         dname = key.split("2017_")[1]
         if dname not in xsecs:
@@ -54,14 +56,13 @@ for key in fileset.keys():
 
 
 # run processor
-from coffea import processor
-from coffea.nanoevents import NanoAODSchema
+# need to upload processors to all nodes
+import shutil
 import time
 
 import processors
-
-# need to upload processors to all nodes
-import shutil
+from coffea import processor
+from coffea.nanoevents import NanoAODSchema
 
 shutil.make_archive("processors", "zip", base_dir="processors")
 client.upload_file("processors.zip")
@@ -99,7 +100,6 @@ print(f"Finished in {elapsed:.1f}s")
 
 # finally, save output
 import pickle
-from os.path import exists
 
 out_file = "outPickles/out_skimmed.pickle"  # make sure to change!!
 

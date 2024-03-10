@@ -4,10 +4,12 @@ Common functions for the analysis.
 Author(s): Raghav Kansal
 """
 
-from hist import Hist
-import numpy as np
+from __future__ import annotations
+
 from copy import deepcopy
 
+import numpy as np
+from hist import Hist
 
 background_keys = ["V", "Top", "QCD"]
 sig_key = "HHbbVV4q"
@@ -115,9 +117,11 @@ def make_vector(events: dict, name: str, mask=None):
                 "pt": events[f"{name}Pt"][mask],
                 "phi": events[f"{name}Phi"][mask],
                 "eta": events[f"{name}Eta"][mask],
-                "M": events[f"{name}Msd"][mask]
-                if f"{name}Msd" in events
-                else events[f"{name}Mass"][mask],
+                "M": (
+                    events[f"{name}Msd"][mask]
+                    if f"{name}Msd" in events
+                    else events[f"{name}Mass"][mask]
+                ),
             }
         )
 
@@ -228,10 +232,7 @@ def make_selection(
     """
     from coffea.processor import PackedSelection
 
-    if selection is None:
-        selection = {}
-    else:
-        selection = deepcopy(selection)
+    selection = {} if selection is None else deepcopy(selection)
 
     if cutflow is None:
         cutflow = {}

@@ -4,19 +4,17 @@ Checks that there is an output for each job submitted.
 Author: Raghav Kansal
 """
 
+from __future__ import annotations
+
+import argparse
 import os
 from os import listdir
-from os.path import exists
-import sys
+from pathlib import Path
+
 import numpy as np
-import argparse
-from colorama import Fore, Style
 
-# needed to import run_utils from parent directory
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-
-import run_utils
-
+from HHbbVV import run_utils
+from HHbbVV.run_utils import print_red
 
 parser = argparse.ArgumentParser()
 run_utils.parse_common_args(parser)
@@ -35,37 +33,37 @@ args = parser.parse_args()
 trigger_processor = args.processor.startswith("trigger")
 
 eosdir = f"/eos/uscms/store/user/{args.user}/bbVV/{args.processor}/{args.tag}/{args.year}/"
+user_condor_dir = f"/uscms/home/{args.user}/nobackup/HHbbVV/condor/"
 
 samples = listdir(eosdir)
 jdls = [
     jdl
-    for jdl in listdir(
-        f"/uscms/home/{args.user}/nobackup/HHbbVV/condor/{args.processor}/{args.tag}/"
-    )
+    for jdl in listdir(f"{user_condor_dir}/{args.processor}/{args.tag}/")
     if jdl.endswith(".jdl")
 ]
 
-jdl_dict = {
-    sample: np.sort(
+# get the highest numbered .jdl file to know how many output files there should be
+jdl_dict = {}
+for sample in samples.copy():
+    sorted_jdls = np.sort(
         [
             int(jdl[:-4].split("_")[-1])
             for jdl in jdls
             if jdl.split("_")[0] == args.year and "_".join(jdl.split("_")[1:-1]) == sample
         ]
-    )[-1]
-    + 1
-    for sample in samples
-}
+    )
 
-
-def print_red(s):
-    return print(f"{Fore.RED}{s}{Style.RESET_ALL}")
+    if len(sorted_jdls):
+        jdl_dict[sample] = sorted_jdls[-1] + 1
+    else:
+        # if for some reason a folder exists in EOS but no .jdl file
+        samples.remove(sample)
 
 
 running_jobs = []
 if args.check_running:
-    os.system("condor_q | awk '{print $9}' > running_jobs.txt")
-    with open("running_jobs.txt", "r") as f:
+    os.system(f"condor_q {args.user}" "| awk '{print $9}' > running_jobs.txt")
+    with Path("running_jobs.txt").open() as f:
         lines = f.readlines()
 
     running_jobs = [s[:-4] for s in lines if s.endswith(".sh\n")]
@@ -79,7 +77,7 @@ for sample in samples:
     print(f"Checking {sample}")
 
     if not trigger_processor:
-        if not exists(f"{eosdir}/{sample}/parquet"):
+        if not Path(f"{eosdir}/{sample}/parquet").exists():
             print_red(f"No parquet directory for {sample}!")
 
             for i in range(jdl_dict[sample]):
@@ -87,8 +85,10 @@ for sample in samples:
                     print(f"Job #{i} for sample {sample} is running.")
                     continue
 
-                jdl_file = f"condor/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
-                err_file = f"condor/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
+                jdl_file = (
+                    f"{user_condor_dir}/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
+                )
+                err_file = f"{user_condor_dir}/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
                 print(jdl_file)
                 missing_files.append(jdl_file)
                 err_files.append(err_file)
@@ -102,7 +102,7 @@ for sample in samples:
         ]
         print(f"Out parquets: {outs_parquet}")
 
-    if not exists(f"{eosdir}/{sample}/pickles"):
+    if not Path(f"{eosdir}/{sample}/pickles").exists():
         print_red(f"No pickles directory for {sample}!")
         continue
 
@@ -120,22 +120,23 @@ for sample in samples:
                 continue
 
             print_red(f"Missing output pickle #{i} for sample {sample}")
-            jdl_file = f"condor/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
-            err_file = f"condor/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
+            jdl_file = f"{user_condor_dir}/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
+            err_file = (
+                f"{user_condor_dir}/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
+            )
             missing_files.append(jdl_file)
             err_files.append(err_file)
             if args.submit_missing:
                 os.system(f"condor_submit {jdl_file}")
 
-        if not trigger_processor:
-            if i not in outs_parquet:
-                print_red(f"Missing output parquet #{i} for sample {sample}")
+        if not trigger_processor and i not in outs_parquet:
+            print_red(f"Missing output parquet #{i} for sample {sample}")
 
 
 print(f"{len(missing_files)} files to re-run:")
 for f in missing_files:
     print(f)
 
-print(f"\nError files:")
+print("\nError files:")
 for f in err_files:
     print(f)

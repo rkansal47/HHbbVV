@@ -5,35 +5,20 @@ Splits the total fileset and creates condor job submission files for the specifi
 
 Author(s): Cristina Mantilla Suarez, Raghav Kansal
 """
+from __future__ import annotations
 
 import argparse
 import os
 from math import ceil
-from string import Template
-import json
+from pathlib import Path
 
-import sys
-
-# needed to import run_utils from parent directory
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-
-import run_utils
+from HHbbVV import run_utils
 
 
-def write_template(templ_file: str, out_file: str, templ_args: dict):
-    """Write to ``out_file`` based on template from ``templ_file`` using ``templ_args``"""
-
-    with open(templ_file, "r") as f:
-        templ = Template(f.read())
-
-    with open(out_file, "w") as f:
-        f.write(templ.substitute(templ_args))
-
-
-def main(args):
+def get_site_vars(site):
     username = os.environ["USER"]
-    if args.site == "lpc":
-        t2_local_prefix = "/eos/uscms/"
+    if site == "lpc":
+        t2_local_prefix = Path("/eos/uscms/")
         t2_prefix = "root://cmseos.fnal.gov"
 
         try:
@@ -41,25 +26,32 @@ def main(args):
         except:
             print("No valid proxy. Exiting.")
             exit(1)
-    elif args.site == "ucsd":
-        t2_local_prefix = "/ceph/cms/"
+    elif site == "ucsd":
+        t2_local_prefix = Path("/ceph/cms/")
         t2_prefix = "root://redirector.t2.ucsd.edu:1095"
         if username == "rkansal":
             proxy = "/home/users/rkansal/x509up_u31735"
         elif username == "annava":
             proxy = "/home/users/annava/projects/HHbbVV/test"
 
-    local_dir = f"condor/{args.processor}/{args.tag}"
-    homedir = f"/store/user/{username}/bbVV/{args.processor}/"
-    outdir = homedir + args.tag + "/"
+    return username, t2_local_prefix, t2_prefix, proxy
+
+
+def main(args):
+    run_utils.check_branch(args.git_branch, args.allow_diff_local_repo)
+    username, t2_local_prefix, t2_prefix, proxy = get_site_vars(args.site)
+
+    homedir = Path(f"store/user/{username}/bbVV/{args.processor}/")
+    outdir = homedir / args.tag
+    eos_local_dir = t2_local_prefix / outdir
+    eos_local_dir.mkdir(parents=True, exist_ok=True)
+    print("EOS outputs dir: ", eos_local_dir)
 
     # make local directory
-    logdir = local_dir + "/logs"
-    os.system(f"mkdir -p {logdir}")
-
-    # and condor directory
-    print("CONDOR work dir: " + outdir)
-    os.system(f"mkdir -p {t2_local_prefix}/{outdir}")
+    local_dir = Path(f"condor/{args.processor}/{args.tag}")
+    logdir = local_dir / "logs"
+    logdir.mkdir(parents=True, exist_ok=True)
+    print("CONDOR work dir: ", local_dir)
 
     fileset = run_utils.get_fileset(
         args.processor, args.year, args.samples, args.subsamples, get_num_files=True
@@ -74,24 +66,27 @@ def main(args):
     nsubmit = 0
     for sample in fileset:
         for subsample, tot_files in fileset[sample].items():
-            print("Submitting " + subsample)
-            os.system(f"mkdir -p {t2_local_prefix}/{outdir}/{args.year}/{subsample}")
+            if args.submit:
+                print("Submitting " + subsample)
+
+            (eos_local_dir / args.year / subsample).mkdir(parents=True, exist_ok=True)
+            eosoutput_dir = f"{t2_prefix}//{outdir}/{args.year}/{subsample}/"
 
             njobs = ceil(tot_files / args.files_per_job)
-
-            eosoutput_dir = f"{t2_prefix}/{outdir}/{args.year}/{subsample}/"
 
             for j in range(njobs):
                 if args.test and j == 2:
                     break
 
                 prefix = f"{args.year}_{subsample}"
-                localcondor = f"{local_dir}/{prefix}_{j}.jdl"
+                local_jdl = Path(f"{local_dir}/{prefix}_{j}.jdl")
+                local_log = Path(f"{local_dir}/{prefix}_{j}.log")
                 jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": j, "proxy": proxy}
-                write_template(jdl_templ, localcondor, jdl_args)
+                run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
                 localsh = f"{local_dir}/{prefix}_{j}.sh"
                 sh_args = {
+                    "branch": args.git_branch,
                     "script": args.script,
                     "year": args.year,
                     "starti": j * args.files_per_job,
@@ -106,35 +101,35 @@ def main(args):
                     "eosoutpkl": f"{eosoutput_dir}/pickles/out_{j}.pkl",
                     "eosoutparquet": f"{eosoutput_dir}/parquet/out_{j}.parquet",
                     "eosoutroot": f"{eosoutput_dir}/root/nano_skim_{j}.root",
+                    "eosoutgithash": f"{eosoutput_dir}/githashes/commithash_{j}.txt",
                     "save_ak15": "--save-ak15" if args.save_ak15 else "--no-save-ak15",
                     "save_all": "--save-all" if args.save_all else "--no-save-all",
-                    "vbf_search": "--vbf-search" if args.vbf_search else "--no-vbf-search",
-                    "save_systematics": "--save-systematics"
-                    if args.save_systematics
-                    else "--no-save-systematics",
+                    "lp_sfs": "--lp-sfs" if args.lp_sfs else "--no-lp-sfs",
+                    "save_systematics": (
+                        "--save-systematics" if args.save_systematics else "--no-save-systematics"
+                    ),
                     "inference": "--inference" if args.inference else "--no-inference",
                 }
-                write_template(sh_templ, localsh, sh_args)
+                run_utils.write_template(sh_templ, localsh, sh_args)
                 os.system(f"chmod u+x {localsh}")
 
-                if os.path.exists(f"{localcondor}.log"):
-                    os.system(f"rm {localcondor}.log")
+                if local_log.exists():
+                    local_log.unlink()
 
-                print("To submit ", localcondor)
                 if args.submit:
-                    os.system("condor_submit %s" % localcondor)
+                    os.system(f"condor_submit {local_jdl}")
+                else:
+                    print("To submit ", local_jdl)
+
                 nsubmit = nsubmit + 1
 
     print(f"Total {nsubmit} jobs")
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    run_utils.parse_common_args(parser)
-    parser.add_argument("--script", default="run.py", help="script to run", type=str)
-    parser.add_argument(
-        "--outdir", dest="outdir", default="outfiles", help="directory for output files", type=str
-    )
+def parse_args(parser):
+    parser.add_argument("--git-branch", required=True, help="git branch to use", type=str)
+    parser.add_argument("--script", default="src/run.py", help="script to run", type=str)
+    parser.add_argument("--outdir", default="outfiles", help="directory for output files", type=str)
     parser.add_argument(
         "--site",
         default="lpc",
@@ -154,6 +149,18 @@ if __name__ == "__main__":
         parser, "submit", default=False, help="submit files as well as create them"
     )
 
-    args = parser.parse_args()
+    run_utils.add_bool_arg(
+        parser,
+        "allow-diff-local-repo",
+        default=False,
+        help="Allow the local repo to be different from the specified remote repo (not recommended!)."
+        "If false, submit script will exit if the latest commits locally and on Github are different.",
+    )
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    run_utils.parse_common_args(parser)
+    parse_args(parser)
+    args = parser.parse_args()
     main(args)

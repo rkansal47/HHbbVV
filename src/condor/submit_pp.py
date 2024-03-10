@@ -5,34 +5,16 @@ Splits the total fileset and creates condor job submission files for the specifi
 
 Author(s): Cristina Mantilla Suarez, Raghav Kansal
 """
+from __future__ import annotations
 
 import argparse
 import os
 from math import ceil
-from string import Template
-import json
+from pathlib import Path
 
-import sys
+import submit
 
-# needed to import run_utils from parent directory
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-
-import run_utils
-
-
-def write_template(templ_file: str, out_file: str, templ_args: dict):
-    """Write to ``out_file`` based on template from ``templ_file`` using ``templ_args``"""
-
-    with open(templ_file, "r") as f:
-        templ = Template(f.read())
-
-    with open(out_file, "w") as f:
-        f.write(
-            templ.safe_substitute(
-                templ_args,
-            )
-        )
-
+from HHbbVV import run_utils
 
 samples = [
     # "NMSSM_XToYHTo2W2BTo4Q2B_MX-1000_MY-100",
@@ -154,21 +136,9 @@ samples = [
 
 
 def main(args):
-    if args.site == "lpc":
-        t2_local_prefix = "/eos/uscms/"
-        t2_prefix = "root://cmseos.fnal.gov"
+    username, t2_local_prefix, t2_prefix, proxy = submit.get_site_vars(args.site)
+    run_utils.check_branch(args.git_branch, args.allow_diff_local_repo)
 
-        try:
-            proxy = os.environ["X509_USER_PROXY"]
-        except:
-            print("No valid proxy. Exiting.")
-            exit(1)
-    elif args.site == "ucsd":
-        t2_local_prefix = "/ceph/cms/"
-        t2_prefix = "root://redirector.t2.ucsd.edu:1095"
-        proxy = "/home/users/rkansal/x509up_u31735"
-
-    username = os.environ["USER"]
     local_dir = f"condor/postprocessing/{args.tag}"
     homedir = f"/store/user/{username}/bbVV/templates/"
     outdir = homedir + args.tag + "/"
@@ -183,7 +153,7 @@ def main(args):
 
     # and eos directory
     eosoutput_dir = f"{t2_prefix}/{outdir}/"
-    os.system(f"mkdir -p {t2_local_prefix}/{outdir}/")
+    (t2_local_prefix / outdir).mkdir(parents=True, exist_ok=True)
 
     jdl_templ = "src/condor/submit_pp.templ.jdl"
     sh_templ = "src/condor/submit_pp.templ.sh"
@@ -198,21 +168,29 @@ def main(args):
         run_samples = " ".join(samples[j * args.files_per_job : (j + 1) * args.files_per_job])
 
         prefix = "templates"
-        localcondor = f"{local_dir}/{prefix}_{j}.jdl"
+
+        local_jdl = Path(f"{local_dir}/{prefix}_{j}.jdl")
+        local_log = Path(f"{local_dir}/{prefix}_{j}.log")
+
         jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": j, "proxy": proxy}
-        write_template(jdl_templ, localcondor, jdl_args)
+        run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
         localsh = f"{local_dir}/{prefix}_{j}.sh"
-        sh_args = {"samples": run_samples, "eosout": eosoutput_dir}
-        write_template(sh_templ, localsh, sh_args)
+        sh_args = {
+            "branch": args.git_branch,
+            "samples": run_samples,
+            "eosout": eosoutput_dir,
+            "eosoutgithash": f"{eosoutput_dir}/githashes/commithash_{j}.txt",
+        }
+        run_utils.write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
 
-        if os.path.exists(f"{localcondor}.log"):
-            os.system(f"rm {localcondor}.log")
+        if local_log.exists():
+            local_log.unlink()
 
-        print("To submit ", localcondor)
+        print("To submit ", local_jdl)
         if args.submit:
-            os.system("condor_submit %s" % localcondor)
+            os.system(f"condor_submit {local_jdl}")
 
         nsubmit = nsubmit + 1
 
@@ -221,20 +199,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    submit.parse_args(parser)
     parser.add_argument("--tag", default="Test", help="process tag", type=str)
-    parser.add_argument(
-        "--site",
-        default="lpc",
-        help="computing cluster we're running this on",
-        type=str,
-        choices=["lpc", "ucsd"],
-    )
-    parser.add_argument("--files-per-job", default=5, help="# files per condor job", type=int)
-
-    run_utils.add_bool_arg(
-        parser, "submit", default=False, help="submit files as well as create them"
-    )
-
     args = parser.parse_args()
-
     main(args)

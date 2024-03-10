@@ -4,18 +4,17 @@ Analyzes and makes plots of the hybrid policy.
 Author(s): Raghav Kansal
 """
 
-import numpy as np
-import awkward as ak
-
-import plotting
-import utils
+from __future__ import annotations
 
 # import importlib
 # importlib.reload(utils)
-
 # load the data
-
 import pickle
+
+import awkward as ak
+import numpy as np
+import plotting
+import utils
 
 sig = "HHbbVV4q"
 sig_pickle_path = f"../../data/2017_combined/{sig}.pkl"

@@ -2,7 +2,6 @@
 
 executable              = $dir/${prefix}_$jobid.sh
 should_transfer_files   = YES
-transfer_input_files    = src/HHbbVV,src/run.py,src/run_utils.py,data
 when_to_transfer_output = ON_EXIT_OR_EVICT
 request_memory          = 4500
 use_x509userproxy       = true
@@ -12,6 +11,6 @@ output                  = $dir/logs/${prefix}_$jobid.out
 error                   = $dir/logs/${prefix}_$jobid.err
 log                     = $dir/logs/${prefix}_$jobid.log
 
-+SingularityImage = "/cvmfs/unpacked.cern.ch/registry.hub.docker.com/coffeateam/coffea-dask:latest"
++SingularityImage = "/cvmfs/unpacked.cern.ch/registry.hub.docker.com/coffeateam/coffea-dask:latest-py3.8"
 
 Queue 1

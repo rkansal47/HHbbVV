@@ -1,15 +1,15 @@
-from typing import Dict, List, Tuple, Union
-from dataclasses import dataclass, field
+from __future__ import annotations
+
 import logging
+from dataclasses import dataclass, field
 from string import Template
 
-import numpy as np
 import hist
+import numpy as np
 from hist import Hist
-import utils
 
-from hh_vars import years as all_years
-
+from HHbbVV import common_utils
+from HHbbVV.hh_vars import years as all_years
 
 #################################################
 # Common
@@ -25,22 +25,23 @@ class Syst:
 
     # float if same value in all regions/samples, dictionary of values per region/sample if not
     # if both, region should be the higher level of the dictionary
-    value: Union[float, Dict[str, float]] = None
-    value_down: Union[float, Dict[str, float]] = None  # if None assumes symmetric effect
+    value: float | dict[str, float] = None
+    value_down: float | dict[str, float] = None  # if None assumes symmetric effect
 
     # if the value is different for different regions or samples
     diff_regions: bool = False
     diff_samples: bool = False
 
-    samples: List[str] = None  # samples affected by it
+    samples: list[str] = None  # samples affected by it
+    samples_corr: bool = True  # if it's correlated between samples
     # in case of uncorrelated unc., which years to split into
-    uncorr_years: List[str] = field(default_factory=lambda: all_years)
+    uncorr_years: list[str] = field(default_factory=lambda: all_years)
     pass_only: bool = False  # is it applied only in the pass regions
 
     def __post_init__(self):
         if isinstance(self.value, dict) and not (self.diff_regions or self.diff_samples):
             raise RuntimeError(
-                f"Value for systematic is a dictionary but neither ``diff_regions`` nor ``diff_samples`` is set."
+                "Value for systematic is a dictionary but neither ``diff_regions`` nor ``diff_samples`` is set."
             )
 
 
@@ -78,18 +79,18 @@ def add_bool_arg(parser, name, help, default=False, no_name=None):
 #################################################
 
 
-def combine_last_two_bins(templates_dict: Dict, years: List[str]):
+def combine_last_two_bins(templates_dict: dict, years: list[str]):
     for year in years:
         for region in templates_dict[year]:
-            templates_dict[year][region] = utils.rebin_hist(
+            templates_dict[year][region] = common_utils.rebin_hist(
                 templates_dict[year][region],
                 "bbFatJetParticleNetMass",
                 list(range(50, 240, 10)) + [250],
             )
 
 
-def rem_neg(template_dict: Dict):
-    for sample, template in template_dict.items():
+def rem_neg(template_dict: dict):
+    for _sample, template in template_dict.items():
         template.values()[template.values() < 0] = 0
 
     return template_dict
@@ -118,10 +119,10 @@ def _match_samples(template: Hist, match_template: Hist) -> Hist:
     return h
 
 
-def sum_templates(template_dict: Dict, years: List[str]):
+def sum_templates(template_dict: dict, years: list[str]):
     """Sum templates across years"""
 
-    ttemplate = list(template_dict.values())[0]  # sample templates to extract values from
+    ttemplate = next(iter(template_dict.values()))  # sample templates to extract values from
     combined = {}
 
     for region in ttemplate:
@@ -139,8 +140,8 @@ def sum_templates(template_dict: Dict, years: List[str]):
 
 
 def combine_templates(
-    bg_templates: Dict[str, Hist], sig_templates: List[Dict[str, Hist]]
-) -> Dict[str, Hist]:
+    bg_templates: dict[str, Hist], sig_templates: list[dict[str, Hist]]
+) -> dict[str, Hist]:
     """
     Combines BG and signal templates into a single Hist (per region).
 
@@ -204,27 +205,21 @@ def _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down
         np.abs(prob_down - prob_nominal) / (np.abs(prob_down) + np.abs(prob_nominal))
     )
 
-    valid = True
     if np.allclose(effect_up, 1.0) and np.allclose(effect_down, 1.0):
-        valid = False
         logger.warning("No shape effect")
     elif np.allclose(effect_up, effect_down):
-        valid = False
         logger.warning("Up is the same as Down, but different from nominal")
     elif np.allclose(effect_up, 1.0) or np.allclose(effect_down, 1.0):
-        valid = False
         logger.warning("Up or Down is the same as nominal (one-sided)")
     elif shapeEffect_up < 0.001 and shapeEffect_down < 0.001:
-        valid = False
         logger.warning("No genuine shape effect (just norm)")
     elif (norm_up > norm_nominal and norm_down > norm_nominal) or (
         norm_up < norm_nominal and norm_down < norm_nominal
     ):
-        valid = False
         logger.warning("Up and Down vary norm in the same direction")
 
 
-def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
+def get_effect_updown(values_nominal, values_up, values_down, mask, logger, epsilon):
     effect_up = np.ones_like(values_nominal)
     effect_down = np.ones_like(values_nominal)
 
@@ -237,14 +232,14 @@ def get_effect_updown(values_nominal, values_up, values_down, mask, logger):
     zero_up = values_up == 0
     zero_down = values_down == 0
 
-    effect_up[mask_up & zero_up] = values_nominal[mask_up & zero_up] * args.epsilon
-    effect_down[mask_down & zero_down] = values_nominal[mask_down & zero_down] * args.epsilon
+    effect_up[mask_up & zero_up] = values_nominal[mask_up & zero_up] * epsilon
+    effect_down[mask_down & zero_down] = values_nominal[mask_down & zero_down] * epsilon
 
     _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger)
 
-    logging.debug("nominal   : {nominal}".format(nominal=values_nominal))
-    logging.debug("effect_up  : {effect_up}".format(effect_up=effect_up))
-    logging.debug("effect_down: {effect_down}".format(effect_down=effect_down))
+    logging.debug(f"nominal   : {values_nominal}")
+    logging.debug(f"effect_up  : {effect_up}")
+    logging.debug(f"effect_down: {effect_down}")
 
     return effect_up, effect_down
 
@@ -258,18 +253,18 @@ abcd_datacard_template = Template(
     """
 imax $num_bins
 jmax $num_bgs
-kmax * 
---------------- 
+kmax *
+---------------
 bin                 $bins
 observation         $observations
------------------------------- 
-bin                                                         $bins_x_processes       
-process                                                     $processes_per_bin 
+------------------------------
+bin                                                         $bins_x_processes
+process                                                     $processes_per_bin
 process                                                     $processes_index
 rate                                                        $processes_rates
------------------------------- 
+------------------------------
 $systematics
-single_A    rateParam       $binA     $qcdlabel       (@0*@2/@1)       single_B,single_C,single_D 
+single_A    rateParam       $binA     $qcdlabel       (@0*@2/@1)       single_B,single_C,single_D
 single_B    rateParam       $binB     $qcdlabel       $dataqcdB
 single_C    rateParam       $binC     $qcdlabel       $dataqcdC
 single_D    rateParam       $binD     $qcdlabel       $dataqcdD
@@ -283,14 +278,14 @@ def join_with_padding(items, padding: int = 40):
     return ret.format(*items)
 
 
-def rebin_channels(templates: Dict, axis_name: str, mass_window: List[float]):
+def rebin_channels(templates: dict, axis_name: str, mass_window: list[float]):
     """Convert templates into single-bin hists per ABCD channel"""
     rebinning_edges = [50] + mass_window + [250]  # [0] [1e4]
 
     channels = {}
     for region, template in templates.items():
         # rebin into [left sideband, mass window, right window]
-        rebinned = utils.rebin_hist(template, axis_name, rebinning_edges)
+        rebinned = common_utils.rebin_hist(template, axis_name, rebinning_edges)
         channels[region] = rebinned[..., 1]
         # sum sidebands
         channels[f"{region}_sidebands"] = rebinned[..., 0] + rebinned[..., 2]
@@ -298,7 +293,7 @@ def rebin_channels(templates: Dict, axis_name: str, mass_window: List[float]):
     return channels
 
 
-def get_channels(templates_dict: Dict, templates_summed: Dict, shape_var: ShapeVar):
+def get_channels(templates_dict: dict, templates_summed: dict, shape_var: ShapeVar):
     """Convert templates into single-bin hists per ABCD channel"""
 
     mass_window = [100, 150]
