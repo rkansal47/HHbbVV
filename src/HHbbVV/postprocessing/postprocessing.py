@@ -425,7 +425,7 @@ def main(args):
         bb_masks,
         nonres_vars=args.vbf or args.control_plots,
         vbf_vars=args.vbf,
-        do_jshifts=False,  # only need shifts for BDT pre-processing
+        do_jshifts=args.vbf,  # only need shifts for BDT pre-processing
     )
 
     # args has attr if --control-plots arg was set
