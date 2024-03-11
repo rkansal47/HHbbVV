@@ -323,6 +323,8 @@ for skey, syst in corr_year_shape_systs.items():
     if not syst.samples_corr:
         # separate nuisance param for each affected sample (TODO: propagate below)
         for sample in syst.samples:
+            if sample not in mc_samples:
+                continue
             shape_systs_dict[f"{skey}_{sample}"] = rl.NuisanceParameter(
                 f"{syst.name}_{mc_samples[sample]}", "shape"
             )
