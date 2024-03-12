@@ -123,6 +123,7 @@ class bbVVSkimmer(SkimmerABC):
         "VBFJetPt",
         "VBFJetPhi",
         "VBFJetMass",
+        "DijetMass",
         "nGoodVBFJets",
         "ak8FatJetHbb",
         "ak8FatJetHVV",

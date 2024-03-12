@@ -83,7 +83,7 @@ load_filters = [
 control_plot_vars = [
     ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[20, 0, 300]),
     # ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[20, -8, 8]),
-    ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[20, 0, 750]),
+    # ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[20, 0, 750]),
     ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[20, 600, 4000]),
     ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[20, -2.4, 2.4]),
     ShapeVar(
@@ -114,12 +114,12 @@ control_plot_vars = [
     # ShapeVar(var="VVFatJetParTMD_probT", label=r"Prob(Top) (Mass-Decorrelated)", bins=[20, 0, 1]),
     ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[20, 0, 1]),
     # ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[20, 0, 40]),
-    ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[20, 0, 40]),
-    ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[20, 0.4, 2.0]),
+    # ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[20, 0, 40]),
+    # ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[20, 0.4, 2.0]),
     ShapeVar(var="nGoodMuonsHbb", label=r"# of Muons", bins=[3, 0, 3]),
-    ShapeVar(var="nGoodMuonsHH", label=r"# of Muons", bins=[3, 0, 3]),
+    # ShapeVar(var="nGoodMuonsHH", label=r"# of Muons", bins=[3, 0, 3]),
     ShapeVar(var="nGoodElectronsHbb", label=r"# of Electrons", bins=[3, 0, 3]),
-    ShapeVar(var="nGoodElectronsHH", label=r"# of Electrons", bins=[3, 0, 3]),
+    # ShapeVar(var="nGoodElectronsHH", label=r"# of Electrons", bins=[3, 0, 3]),
     # removed if not ggF nonresonant - needs to be the last variable!
     ShapeVar(var="BDTScore", label=r"BDT Score", bins=[50, 0, 1]),
 ]
@@ -415,7 +415,6 @@ def main(args):
     # only need to worry about variations if making templates
     events_dict = _load_samples(args, bg_samples, sig_samples, cutflow, variations=args.templates)
     bb_masks = bb_VV_assignment(events_dict)
-
     # QCD xsec normalization for plots
     qcd_sf(events_dict, cutflow)
 
@@ -424,6 +423,7 @@ def main(args):
         events_dict,
         bb_masks,
         nonres_vars=args.vbf or args.control_plots,
+        # nonres_vars=args.vbf,
         vbf_vars=args.vbf,
         do_jshifts=args.vbf,  # only need shifts for BDT pre-processing
     )
@@ -622,7 +622,7 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
     VVJet = utils.make_vector(df, "VVFatJet", bb_mask, ptlabel=ptlabel, mlabel=mlabel)
     Dijet = bbJet + VVJet
 
-    if f"DijetPt{ptlabel}{mlabel}" not in df.columns:
+    if f"DijetMass{ptlabel}{mlabel}" not in df.columns:
         df[f"DijetMass{ptlabel}{mlabel}"] = Dijet.mass
     df[f"DijetPt{ptlabel}{mlabel}"] = Dijet.pt
     df[f"VVFatJetPtOverbbFatJetPt{ptlabel}{mlabel}"] = VVJet.pt / bbJet.pt

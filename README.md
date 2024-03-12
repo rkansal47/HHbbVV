@@ -36,7 +36,7 @@ using the [coffea](https://coffeateam.github.io/coffea/) and
     - [BDT Pre-Processing](#bdt-pre-processing)
     - [BDT Trainings](#bdt-trainings)
     - [Post-Processing](#post-processing-1)
-      - [Control plots with resonant and nonresonant samples](#control-plots-with-resonant-and-nonresonant-samples)
+      - [Control plots](#control-plots)
       - [BDT sculpting plots](#bdt-sculpting-plots)
       - [Making separate background and signal templates for scan and bias tests (resonant)](#making-separate-background-and-signal-templates-for-scan-and-bias-tests-resonant)
     - [Create Datacard](#create-datacard)
@@ -325,6 +325,9 @@ python TrainBDT.py  --data-path "../../../../data/skimmer/Feb24/bdt_data" --year
 
 ### Post-Processing
 
+**Important:** If running on a Mac, make sure to install `gnu-getopt` first for
+bash scripts, see [here.](#getopt-for-mac)
+
 ```bash
 python postprocessing.py --templates --year "2017" --template-dir "templates/$TAG/" --plot-dir "../../../plots/PostProcessing/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" (--resonant --signal-data-dir "" --control-plots)
 ```
@@ -332,22 +335,22 @@ python postprocessing.py --templates --year "2017" --template-dir "templates/$TA
 All years (non-resonant):
 
 ```bash
-for year in 2016 2016APV 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/Jun14" --data-dir "../../../../data/skimmer/Feb24" --signal-data-dir "../../../../data/skimmer/Jun10" --bdt-preds-dir "../../../../data/skimmer/Feb24/23_05_12_multiclass_rem_feats_3/inferences"; done
+./bash_scripts/NonresTemplates.sh --tag $TAG  # remember to change data_dir as needed!
 ```
 
 Scan (non-resonant):
 
 ```bash
-for year in 2016 2016APV 2017 2018; do python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --data-dir "../../../../data/skimmer/Feb24/" --old-processor --nonres-txbb-wp "LP" "MP" "HP" --nonres-bdt-wp 0.995 0.998 0.999 --no-do-jshifts; done
+./bash_scripts/NonresTemplatesScan.sh --tag $TAG  # remember to change data_dir as needed!
 ```
 
-#### Control plots with resonant and nonresonant samples
+#### Control plots
 
-Run `postprocessing/bash_scripts/ControlPlots.sh` from inside
-`postprocessing folder`.
-
-**Important:** If running on a Mac, make sure to install `gnu-getopt` first, see
-[here.](#getopt-for-mac)
+```bash
+./bash_scripts/ControlPlot.sh --tag $TAG  # w/ resonant and nonresonant samples and all control plot variables in postprocessing.py script by default
+./bash_scripts/ControlPlots.sh --tag $TAG --nonresonant --controlplotvars BDTScore --nohem2d  # BDT score only
+./bash_scripts/MassPlots.sh --tag $TAG  # mSD vs mReg plots
+```
 
 #### BDT sculpting plots
 
