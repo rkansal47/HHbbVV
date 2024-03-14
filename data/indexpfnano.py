@@ -33,6 +33,7 @@ folders_to_index = [
     "/store/user/lpcpfnano/cmantill/v2_3/2016/JetHT2016",
     "/store/user/lpcpfnano/cmantill/v2_3/2017/JetHT2017",
     "/store/user/lpcpfnano/cmantill/v2_3/2018/JetHT2018",
+    # recovering missing data from ^:
     "/store/user/lpcpfnano/rkansal/v2_3/2016/JetHT2016",
     "/store/user/lpcpfnano/rkansal/v2_3/2017/JetHT2017",
     "/store/user/lpcpfnano/rkansal/v2_3/2018/JetHT2018",
@@ -136,8 +137,7 @@ ignore_files = [
 # ignore_subsamples = ["SingleMuon_Run2016B_ver1_HIPM"]
 ignore_subsamples = []
 
-# for pyear in ["2016", "2016APV", "2017", "2018"]:
-for pyear in ["2016", "2016APV"]:
+for pyear in ["2016", "2016APV", "2017", "2018"]:
     print(pyear)
     index = {}
     for f1 in folders_to_index:
