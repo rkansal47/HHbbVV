@@ -47,12 +47,6 @@ plt.rcParams.update({"font.size": 28})
 
 weight_key = "finalWeight"
 sig_key = "HHbbVV"
-bg_keys = ["QCD", "TT", "Z+Jets"]
-training_keys = [sig_key] + bg_keys
-
-# if doing multiclass classification, encode each process separately
-label_encoder = LabelEncoder()
-label_encoder.fit(training_keys)
 
 
 # only vars used for training, ordered by importance
@@ -145,7 +139,9 @@ def get_X(
     return pd.concat(X, axis=0), mc_vars
 
 
-def get_Y(data_dict: dict[str, pd.DataFrame], multiclass: bool = False):
+def get_Y(
+    data_dict: dict[str, pd.DataFrame], multiclass: bool = False, label_encoder: LabelEncoder = None
+):
     Y = []
     for _year, data in data_dict.items():
         if multiclass:
@@ -179,7 +175,10 @@ def remove_neg_weights(data: pd.DataFrame):
 
 
 def equalize_weights(
-    data: pd.DataFrame, equalize_sig_bg: bool = True, equalize_per_process: bool = False
+    data: pd.DataFrame,
+    bg_keys: list[str],
+    equalize_sig_bg: bool = True,
+    equalize_per_process: bool = False,
 ):
     """
     If `equalize_sig_bg`: scales signal such that total signal = total background
@@ -214,6 +213,15 @@ def load_data(data_path: str, year: str, all_years: bool):
 
 
 def main(args):
+    bg_keys = ["QCD", "TT", "Z+Jets"]
+    if args.wjets_training:
+        bg_keys += ["W+Jets"]
+    training_keys = [sig_key] + bg_keys
+
+    # if doing multiclass classification, encode each process separately
+    label_encoder = LabelEncoder()
+    label_encoder.fit(training_keys)
+
     bdtVars = AllTaggerBDTVars if args.all_tagger_vars else SingleTaggerBDTVars
 
     early_stopping_callback = xgb.callback.EarlyStopping(
@@ -314,7 +322,9 @@ def main(args):
                         f'{np.sum(data[data["Dataset"] == key][weight_key])}'
                     )
 
-                equalize_weights(data, args.equalize_weights, args.equalize_weights_per_process)
+                equalize_weights(
+                    data, bg_keys, args.equalize_weights, args.equalize_weights_per_process
+                )
 
                 for key in training_keys:
                     print(
@@ -341,8 +351,8 @@ def main(args):
         model = train_model(
             get_X(train, bdtVars),
             get_X(test, bdtVars),
-            get_Y(train, args.multiclass),
-            get_Y(test, args.multiclass),
+            get_Y(train, args.multiclass, label_encoder),
+            get_Y(test, args.multiclass, label_encoder),
             get_weights(train, args.absolute_weights),
             get_weights(test, args.absolute_weights),
             bdtVars,
@@ -358,6 +368,7 @@ def main(args):
             train,
             test,
             args.test_size,
+            training_keys,
             args.equalize_weights,
             bdtVars,
             multiclass=args.multiclass,
@@ -430,6 +441,7 @@ def evaluate_model(
     train: dict[str, pd.DataFrame],
     test: dict[str, pd.DataFrame],
     test_size: float,
+    training_keys: list[str],
     equalize_sig_bg: bool,
     bdtVars: list[str],
     txbb_threshold: float = 0.98,
@@ -677,6 +689,8 @@ if __name__ == "__main__":
         type=int,
     )
 
+    add_bool_arg(parser, "wjets-training", "Include W+Jets in training", default=False)
+
     """
     Varying between 0.01 - 1 showed no significant difference
     https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_lr_0.01/
@@ -704,9 +718,10 @@ if __name__ == "__main__":
         help="minimum weight required to keep splitting (higher is more conservative)",
         type=float,
     )
+
     # This just needs to be higher than the # rounds needed for early-stopping to kick in
     parser.add_argument(
-        "--n-estimators", default=1 - 000, help="max number of trees to keep adding", type=int
+        "--n-estimators", default=10000, help="max number of trees to keep adding", type=int
     )
 
     parser.add_argument("--rem-feats", default=0, help="remove N lowest importance feats", type=int)

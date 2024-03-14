@@ -264,7 +264,7 @@ process                                                     $processes_index
 rate                                                        $processes_rates
 ------------------------------
 $systematics
-single_A    rateParam       $binA     $qcdlabel       (@0*@2/@1)       single_B,single_C,single_D
+single_A    rateParam       $binA     $qcdlabel       (@0*@1/@2)       single_B,single_C,single_D
 single_B    rateParam       $binB     $qcdlabel       $dataqcdB
 single_C    rateParam       $binC     $qcdlabel       $dataqcdC
 single_D    rateParam       $binD     $qcdlabel       $dataqcdD
