@@ -459,7 +459,6 @@ def add_lepton_id_weights(
 
     # add weights (for now only the nominal weight)
     weights.add(f"{lepton_type}{label}_id_{wp}", values["nominal"], values["up"], values["down"])
-    # breakpoint()
 
 
 TOP_PDGID = 6

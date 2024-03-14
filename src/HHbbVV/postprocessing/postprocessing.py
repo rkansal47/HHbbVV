@@ -81,26 +81,28 @@ load_filters = [
 
 # {var: (bins, label)}
 control_plot_vars = [
-    ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[20, 0, 300]),
+    # ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[20, 0, 300]),
     # ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[20, -8, 8]),
     # ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[20, 0, 750]),
-    ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[20, 600, 4000]),
-    ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[20, -2.4, 2.4]),
-    ShapeVar(
-        var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[20, 300, 2300], significance_dir="right"
-    ),
-    ShapeVar(
-        var="bbFatJetParticleNetMass",
-        label=r"$m^{bb}_{reg}$ (GeV)",
-        bins=[20, 50, 250],
-        significance_dir="bin",
-    ),
-    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[20, 50, 250]),
-    ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[20, 0.8, 1]),
-    ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[20, -2.4, 2.4]),
-    ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[20, 300, 2300]),
-    ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
-    ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[20, 600, 4000]),
+    # ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[20, -2.4, 2.4]),
+    ShapeVar(var="bbFatJetPhi", label=r"$\varphi^{bb}$", bins=[20, -3, 3]),
+    # ShapeVar(
+    #     var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[20, 300, 2300], significance_dir="right"
+    # ),
+    # ShapeVar(
+    #     var="bbFatJetParticleNetMass",
+    #     label=r"$m^{bb}_{reg}$ (GeV)",
+    #     bins=[20, 50, 250],
+    #     significance_dir="bin",
+    # ),
+    # ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[20, 0.8, 1]),
+    # ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[20, -2.4, 2.4]),
+    ShapeVar(var="VVFatJetPhi", label=r"$\varphi^{VV}$", bins=[20, -3, 3]),
+    # ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[20, 300, 2300]),
+    # ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[20, 50, 250]),
     # ShapeVar(
     #     var="VVFatJetParticleNet_Th4q",
     #     label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)",
@@ -112,16 +114,16 @@ control_plot_vars = [
     #     bins=[20, 0, 1],
     # ),
     # ShapeVar(var="VVFatJetParTMD_probT", label=r"Prob(Top) (Mass-Decorrelated)", bins=[20, 0, 1]),
-    ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[20, 0, 1]),
+    # ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[20, 0, 1]),
     # ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[20, 0, 40]),
     # ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[20, 0, 40]),
     # ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[20, 0.4, 2.0]),
-    ShapeVar(var="nGoodMuonsHbb", label=r"# of Muons", bins=[3, 0, 3]),
+    # ShapeVar(var="nGoodMuonsHbb", label=r"# of Muons", bins=[3, 0, 3]),
     # ShapeVar(var="nGoodMuonsHH", label=r"# of Muons", bins=[3, 0, 3]),
-    ShapeVar(var="nGoodElectronsHbb", label=r"# of Electrons", bins=[3, 0, 3]),
+    # ShapeVar(var="nGoodElectronsHbb", label=r"# of Electrons", bins=[3, 0, 3]),
     # ShapeVar(var="nGoodElectronsHH", label=r"# of Electrons", bins=[3, 0, 3]),
     # removed if not ggF nonresonant - needs to be the last variable!
-    ShapeVar(var="BDTScore", label=r"BDT Score", bins=[50, 0, 1]),
+    # ShapeVar(var="BDTScore", label=r"BDT Score", bins=[50, 0, 1]),
 ]
 
 
