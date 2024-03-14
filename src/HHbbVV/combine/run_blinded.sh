@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC2086
+
 
 ####################################################################################################
 # Script for fits
@@ -163,7 +165,7 @@ if [ $resonant = 0 ]; then
 
     # remove last comma
     setparamsblinded=${setparamsblinded%,}
-    freezeparamsblinded=${setparamsblinded%,}
+    freezeparamsblinded=${freezeparamsblinded%,}
 
 
     # floating parameters using var{} floats a bunch of parameters which shouldn't be floated,
@@ -238,7 +240,7 @@ ulimit -s unlimited
 
 if [ $workspace = 1 ]; then
     echo "Combining cards"
-    combineCards.py "$ccargs" > $ws.txt
+    combineCards.py $ccargs > $ws.txt
 
     echo "Running text2workspace"
     # text2workspace.py -D $dataset $ws.txt --channel-masks -o $wsm.root 2>&1 | tee $outsdir/text2workspace.txt
@@ -253,7 +255,7 @@ fi
 
 
 if [ $bfit = 1 ]; then
-    echo "Blinded background-only fit"
+    echo "Blinded background-only fit (MC Blinded)"
     combine -D $dataset -M MultiDimFit --saveWorkspace -m 125 -d ${wsm}.root -v 9 \
     --cminDefaultMinimizerStrategy 1 --cminDefaultMinimizerTolerance "$mintol" --X-rtd MINIMIZER_MaxCalls=400000 \
     --setParameters "${maskunblindedargs},${setparamsblinded},r=0"  \
@@ -268,16 +270,16 @@ fi
 
 
 if [ $limits = 1 ]; then
-    echo "Expected limits"
+    echo "Expected limits (MC Unblinded)"
     combine -M AsymptoticLimits -m 125 -n "" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v 9 \
     --saveWorkspace --saveToys --bypassFrequentistFit \
-    "${unblindedparams},r=0" -s "$seed" \
+    ${unblindedparams},r=0 -s "$seed" \
     --floatParameters "${freezeparamsblinded},r" --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
 fi
 
 
 if [ $significance = 1 ]; then
-    echo "Expected significance"
+    echo "Expected significance (MC Unblinded)"
     combine -M Significance -d ${wsm_snapshot}.root -n "" --significance -m 125 --snapshotName MultiDimFit -v 9 \
     -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit \
     "${unblindedparams},r=1" \
@@ -286,7 +288,7 @@ fi
 
 
 if [ $dfit = 1 ]; then
-    echo "Fit Diagnostics"
+    echo "Fit Diagnostics (MC Blinded)"
     combine -M FitDiagnostics -m 125 -d ${wsm}.root \
     --setParameters "${maskunblindedargs},${setparamsblinded}" \
     --freezeParameters "${freezeparamsblinded}" \
@@ -301,7 +303,7 @@ fi
 
 
 if [ $dfit_asimov = 1 ]; then
-    echo "Fit Diagnostics on Asimov dataset"
+    echo "Fit Diagnostics on Asimov dataset (MC Unblinded)"
     combine -M FitDiagnostics -m 125 -d ${wsm_snapshot}.root --snapshotName MultiDimFit \
     -t -1 --expectSignal=1 --toysFrequentist --bypassFrequentistFit --saveWorkspace --saveToys \
     "${unblindedparams}" --floatParameters "${freezeparamsblinded},r" \

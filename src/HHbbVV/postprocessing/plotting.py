@@ -120,13 +120,13 @@ def _combine_hbb_bgs(hists, bg_keys):
     h = Hist(
         hist.axis.StrCategory(list(hists.axes[0]) + ["Hbb"], name="Sample"),
         *hists.axes[1:],
-        storage="weight",
+        storage="double" if hists.storage_type == hist.storage.Double else "weight",
     )
 
     for i, sample in enumerate(hists.axes[0]):
         h.view()[i] = hists[sample, ...].view()
 
-    h.view()[-1] = hbb_hist
+    h.view()[-1] = hbb_hist.view()
 
     return h, bg_keys
 

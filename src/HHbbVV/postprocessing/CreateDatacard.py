@@ -172,7 +172,7 @@ else:
             if key == "HHbbVV":
                 mc_samples["HHbbVV"] = "ggHH_kl_1_kt_1_hbbhww"
             elif key == "VBFHHbbVV":
-                mc_samples["VBFHHbbVV"] = "qqHH_CV_1_C2V_1_kl_1_HHbbww"
+                mc_samples["VBFHHbbVV"] = "qqHH_CV_1_C2V_1_kl_1_hbbhww"
             else:
                 mc_samples[key] = key.replace("HHbbVV", "hbbhww")
 
@@ -268,7 +268,7 @@ nuisance_params_dict = {
     param: rl.NuisanceParameter(param, syst.prior) for param, syst in nuisance_params.items()
 }
 
-# TODO: pileupID, lepton IDs
+# TODO: pileupID, lepton IDs (probably not necessary)
 
 # dictionary of correlated shape systematics: name in templates -> name in cards, etc.
 corr_year_shape_systs = {
@@ -679,7 +679,7 @@ def fill_regions(
                 )
 
                 # separate syst if not correlated across samples
-                sdkey = skey if syst.samples_corr else f"{skey}_{card_name}"
+                sdkey = skey if syst.samples_corr else f"{skey}_{sample_name}"
                 sample.setParamEffect(shape_systs_dict[sdkey], effect_up, effect_down)
 
             # uncorrelated shape systematics
@@ -954,13 +954,15 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
     # Save model
     ##############################################
 
-    logging.info("rendering combine model")
+    logging.info("Rendering combine model")
 
     out_dir = args.cards_dir / args.model_name if args.model_name is not None else args.cards_dir
     model.renderCombine(out_dir)
 
     with (out_dir / "model.pkl").open("wb") as fout:
         pickle.dump(model, fout, 2)  # use python 2 compatible protocol
+
+    logging.info(f"Wrote model to {out_dir}")
 
 
 def fill_yields(channels, channels_summed):
@@ -1213,6 +1215,8 @@ def main(args):
     ]
 
     args.cards_dir.mkdir(parents=True, exist_ok=True)
+    with (args.cards_dir / "templates.txt").open("w") as f:
+        f.write(str(args.templates_dir.absolute()))
 
     dc_args = [args, templates_dict, templates_summed, shape_vars]
     if args.vbf:
