@@ -7,7 +7,7 @@
 ####################################################################################################
 
 MAIN_DIR="../../.."
-data_dir="$MAIN_DIR/../data/skimmer/24Mar6AllYearsBDTVars"
+data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
 TAG=""
 
 
@@ -40,10 +40,11 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-for year in 2016APV 2016 2017 2018
+# for year in 2016APV 2016 2017 2018
+for year in 2017 2018 2016APV 2016
 do
     python -u postprocessing.py --year $year --data-dir "$data_dir" --templates \
-    --bdt-preds-dir "$MAIN_DIR/../data/skimmer/24Mar6AllYearsBDTVars/24_03_07_new_samples_max_depth_5/inferences" \
+    --bdt-preds-dir "$data_dir/24_03_07_new_samples_max_depth_5/inferences" \
     --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" \
     --template-dir "templates/$TAG" --plot-shifts
     # --control-plots --control-plot-vars "BDTScore" \

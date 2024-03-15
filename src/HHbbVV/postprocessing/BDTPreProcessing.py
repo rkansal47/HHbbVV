@@ -92,7 +92,6 @@ def save_bdt_data(
 
     bdt_events_dict = []
     for key in BDT_sample_order:
-        print(key)
         save_vars = BDT_data_vars + jec_jmsr_vars if key != "Data" else BDT_data_vars
         events = pd.DataFrame(
             {var: utils.get_feat(events_dict[key], var, bb_masks[key]) for var in save_vars}

@@ -1136,9 +1136,15 @@ def derive_variables(
     do_jshifts: bool = True,
 ):
     """Add Dijet variables"""
+    import time
+
+    start = time.time()
+
     for sample, events in events_dict.items():
         if not nonres_vars:
             continue
+
+        print(f"Deriving variables for {sample} {time.time() - start:.2f}s")
 
         bb_mask = bb_masks[sample]
         _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars)
