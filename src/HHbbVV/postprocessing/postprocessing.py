@@ -1970,7 +1970,7 @@ def parse_args():
     parser.add_argument(
         "--bdt-preds-dir",
         help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
-        default="",
+        default=None,
         type=str,
     )
 
