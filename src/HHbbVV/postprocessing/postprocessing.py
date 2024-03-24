@@ -424,7 +424,7 @@ def main(args):
     derive_variables(
         events_dict,
         bb_masks,
-        nonres_vars=args.vbf or args.control_plots,
+        nonres_vars=args.vbf or (args.control_plots and not args.mass_plots),
         # nonres_vars=args.vbf,
         vbf_vars=args.vbf,
         do_jshifts=args.vbf,  # only need shifts for BDT pre-processing
@@ -437,7 +437,7 @@ def main(args):
     print("\nCutflow", cutflow)
 
     # Load BDT Scores
-    if not args.resonant and not args.vbf:
+    if not args.resonant and not args.vbf and not args.mass_plots:
         print("\nLoading BDT predictions")
         load_bdt_preds(
             events_dict,
@@ -466,10 +466,10 @@ def main(args):
         else:
             p_sig_keys = plot_sig_keys_nonres
             sig_scale_dict = {
-                "HHbbVV": 1e5,
-                "VBFHHbbVV": 2e5,
-                "qqHH_CV_1_C2V_0_kl_1_HHbbVV": 2e3,
-                "qqHH_CV_1_C2V_2_kl_1_HHbbVV": 2e3,
+                "HHbbVV": 3e5,
+                "VBFHHbbVV": 3e6,
+                "qqHH_CV_1_C2V_0_kl_1_HHbbVV": 6e3,
+                "qqHH_CV_1_C2V_2_kl_1_HHbbVV": 6e3,
             }
 
         control_plots(
@@ -483,6 +483,7 @@ def main(args):
             sig_scale_dict=sig_scale_dict,
             # sig_splits=sig_splits,
             HEM2d=args.HEM2d,
+            plot_ratio=not args.mass_plots,  # don't need data/MC ratio for mreg vs msd comparison
             same_ylim=args.mass_plots,
             show=False,
         )
@@ -1069,6 +1070,9 @@ def apply_trigger_weights(events_dict: dict[str, pd.DataFrame], year: str, cutfl
 
 def qcd_sf(events_dict: dict[str, pd.DataFrame], cutflow: pd.DataFrame):
     """Applies a QCD scale factor."""
+    if qcd_key not in events_dict:
+        return
+
     trig_yields = cutflow.iloc[:, -1]
     non_qcd_bgs_yield = np.sum(
         [
@@ -1440,6 +1444,7 @@ def control_plots(
     sig_scale_dict: dict[str, float] = None,
     combine_pdf: bool = True,
     HEM2d: bool = False,
+    plot_ratio: bool = True,
     plot_significance: bool = False,
     same_ylim: bool = False,
     show: bool = False,
@@ -1453,6 +1458,7 @@ def control_plots(
           {var1: ([num bins, min, max], label), var2...}.
         sig_splits: split up signals into different plots (in case there are too many for one)
         HEM2d: whether to plot 2D hists of FatJet phi vs eta for bb and VV jets as a check for HEM cleaning.
+        plot_ratio: whether to plot the data/MC ratio.
         plot_significance: whether to plot the significance as well as the ratio plot.
         same_ylim: whether to use the same y-axis limits for all plots.
         log: True or False if plot on log scale or not - or "both" if both.
@@ -1516,6 +1522,7 @@ def control_plots(
                     show=show,
                     log=log,
                     ylim=ylim if not log else 1e15,
+                    plot_ratio=plot_ratio,
                 )
                 merger_control_plots.append(name)
 

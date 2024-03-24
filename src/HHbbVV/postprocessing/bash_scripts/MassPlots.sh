@@ -13,15 +13,20 @@
 ####################################################################################################
 
 MAIN_DIR="../../.."
+data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
 TAG=""
 samples="HHbbVV VBFHHbbVV NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80 NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190 NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250 NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150"
-# samples="HHbbVV VBFHHbbVV NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80"
+resonant="--resonant"
 
-options=$(getopt -o "" --long "tag:" -- "$@")
+options=$(getopt -o "" --long "nonresonant,tag:" -- "$@")
 eval set -- "$options"
 
 while true; do
     case "$1" in
+        --nonresonant)
+            resonant=""
+            samples="HHbbVV VBFHHbbVV qqHH_CV_1_C2V_0_kl_1_HHbbVV qqHH_CV_1_C2V_2_kl_1_HHbbVV"
+            ;;
         --tag)
             shift
             TAG=$1
@@ -46,11 +51,13 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-for year in 2016APV 2016 2017 2018
+# for year in 2016APV 2016 2017 2018
+for year in 2016APV 2016 2017
 do
-    python -u postprocessing.py --control-plots --year $year --resonant \
-    --data-dir "${MAIN_DIR}/../data/skimmer/24Mar5AllYears" \
+    python -u postprocessing.py --control-plots --year $year $resonant \
+    --data-dir $data_dir \
     --sig-samples $samples \
     --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" \
+    --bdt-preds-dir "$data_dir/24_03_07_new_samples_max_depth_5/inferences" \
     --mass-plots
 done
