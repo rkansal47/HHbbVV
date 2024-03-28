@@ -2,13 +2,12 @@
 # shellcheck disable=SC2086,SC2043
 
 ####################################################################################################
-# BDT Sculpting plots
+# Script for creating VBF templates
 # Author: Raghav Kansal
 ####################################################################################################
 
 MAIN_DIR="../../.."
-data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
-bdt_preds_dir="$data_dir/24_03_07_new_samples_max_depth_5/inferences"
+data_dir="/ceph/cms/store/user/annava/projects/HHbbVV/24Mar5AllYears/"
 TAG=""
 
 
@@ -43,7 +42,7 @@ fi
 
 for year in 2016APV 2016 2017 2018
 do
-    python postprocessing.py --year $year --data-dir $data_dir --bdt-preds-dir $bdt_preds_dir --no-lp-sf-all-years \
-    --sig-samples GluGluToHHTobbVV_node_cHHH1 --bg-keys QCD TT "Z+Jets" \
-    --bdt-plots --plot-dir "$MAIN_DIR/plots/PostProcessing/$TAG"
+    python -u postprocessing.py --year $year --data-dir "$data_dir" --templates \
+    --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" \
+    --template-dir "templates/$TAG" --plot-shifts --vbf --nonres-vbf-thww-wp 0.945
 done

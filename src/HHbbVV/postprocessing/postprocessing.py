@@ -1554,7 +1554,7 @@ def plot_bdt_sculpting(
     cuts = [0, 0.1, 0.5, 0.9, 0.95]
     # bdtvars = ["", "TT", "VJets"]
     bdtvars = [""]
-    plot_keys = ["QCD", "HHbbVV"]
+    plot_keys = ["QCD", "TT", "Z+Jets", "HHbbVV"]
 
     shape_var = ShapeVar(
         var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[20, 50, 250]
