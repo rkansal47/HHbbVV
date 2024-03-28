@@ -408,22 +408,12 @@ python PlotFits.py --fit-file "cards/test_tied_stats/fitDiagnosticsBlindedBkgOnl
 ### CMSSW + Combine Quickstart
 
 ```bash
-cmsrel CMSSW_11_2_0
-cd CMSSW_11_2_0/src
-cmsenv
-git clone -b py3 https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
-git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
-scramv1 b clean; scramv1 b
-```
-
-New version:
-
-```bash
 cmsrel CMSSW_11_3_4
 cd CMSSW_11_3_4/src
 cmsenv
-# need my fork until regex for float parameters is merged into the main repo
-git clone -b regex-float-parameters https://github.com/rkansal47/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
+# git clone -b regex-float-parameters https://github.com/rkansal47/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
+# float regex PR was merged so we should be able to switch to the main branch now:
+git clone -b v9.2.0 https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit.git HiggsAnalysis/CombinedLimit
 git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git CombineHarvester
 # Important: this scram has to be run from src dir
 scramv1 b clean; scramv1 b
