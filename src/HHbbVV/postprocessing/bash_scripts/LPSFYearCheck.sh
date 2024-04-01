@@ -2,13 +2,12 @@
 # shellcheck disable=SC2086,SC2043
 
 ####################################################################################################
-# BDT Sculpting plots
+# Checking LP SF for each year
 # Author: Raghav Kansal
 ####################################################################################################
 
 MAIN_DIR="../../.."
 data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
-bdt_preds_dir="$data_dir/24_03_07_new_samples_max_depth_5/inferences"
 TAG=""
 
 
@@ -43,7 +42,10 @@ fi
 
 for year in 2016APV 2016 2017 2018
 do
-    python postprocessing.py --year $year --data-dir $data_dir --bdt-preds-dir $bdt_preds_dir --no-lp-sf-all-years \
-    --sig-samples GluGluToHHTobbVV_node_cHHH1 --bg-keys QCD TT "Z+Jets" \
-    --bdt-plots --plot-dir "$MAIN_DIR/plots/PostProcessing/$TAG"
+    # --sig-samples qqHH_CV_1_C2V_1_kl_2_HHbbVV --bg-keys "" --no-data \
+    python -u postprocessing.py --year $year --data-dir "$data_dir" --templates \
+    --no-lp-sf-all-years \
+    --bdt-preds-dir "$data_dir/24_03_07_new_samples_max_depth_5/inferences" \
+    --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" \
+    --template-dir "test_templates/$TAG$year" --no-do-jshifts --vbf
 done

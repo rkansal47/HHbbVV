@@ -40,8 +40,7 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-# for year in 2016APV 2016 2017 2018
-for year in 2017 2018 2016APV 2016
+for year in 2016APV 2016 2017 2018
 do
     python -u postprocessing.py --year $year --data-dir "$data_dir" --templates \
     --bdt-preds-dir "$data_dir/24_03_07_new_samples_max_depth_5/inferences" \

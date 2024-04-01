@@ -286,8 +286,6 @@ corr_year_shape_systs = {
         samples=nonres_sig_keys,
         samples_corr=False,
     ),
-    # TODO: separate into individual
-    "JES": Syst(name="CMS_scale_j", prior="shape", samples=all_mc),
     "txbb": Syst(
         name=f"{CMS_PARAMS_LABEL}_PNetHbbScaleFactors_correlated",
         prior="shape",
@@ -306,6 +304,8 @@ uncorr_year_shape_systs = {
         samples=all_mc,
         uncorr_years=["2016APV", "2016", "2017"],
     ),
+    # TODO: separate into individual
+    "JES": Syst(name="CMS_scale_j", prior="shape", samples=all_mc),
     "JER": Syst(name="CMS_res_j", prior="shape", samples=all_mc),
     "JMS": Syst(name=f"{CMS_PARAMS_LABEL}_jms", prior="shape", samples=all_mc),
     "JMR": Syst(name=f"{CMS_PARAMS_LABEL}_jmr", prior="shape", samples=all_mc),
