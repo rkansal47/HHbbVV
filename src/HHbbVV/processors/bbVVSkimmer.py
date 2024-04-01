@@ -196,7 +196,7 @@ class bbVVSkimmer(SkimmerABC):
         self._accumulator = processor.dict_accumulator({})
 
         logging.info(
-            f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all}."
+            f"Running skimmer with inference {self._inference} + systematics {self._systematics} + save all {self._save_all} + LP SFs {self._lp_sfs}."
         )
 
     @property
@@ -205,6 +205,10 @@ class bbVVSkimmer(SkimmerABC):
 
     def process(self, events: ak.Array):
         """Runs event processor for different types of jets"""
+
+        # import time
+
+        # start = time.time()
 
         year = events.metadata["dataset"].split("_")[0]
         year_nosuffix = year.replace("APV", "")
