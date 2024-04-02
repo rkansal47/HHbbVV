@@ -1701,6 +1701,7 @@ def get_templates(
         # ParticleNetMD Txbb and ParT LP SFs
         sig_events = {}
         for sig_key in sig_keys:
+            print(sig_key)
             sig_events[sig_key] = deepcopy(events_dict[sig_key][sel[sig_key]])
             sig_bb_mask = bb_masks[sig_key][sel[sig_key]]
 
@@ -1715,9 +1716,12 @@ def get_templates(
                     for wkey in scale_wkeys:
                         sig_events[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
 
+                print(f"LP SFs: {time.time() - start:.2f}")
                 corrections.apply_txbb_sfs(
                     sig_events[sig_key], sig_bb_mask, year, weight_key, do_shifts=not do_jshift
                 )
+
+                print(f"Txbb SFs: {time.time() - start:.2f}")
 
         print(f"Tagger SFs: {time.time() - start:.2f}")
 
