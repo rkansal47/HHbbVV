@@ -27,7 +27,15 @@ from sklearn.metrics import roc_curve
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
-from HHbbVV.hh_vars import data_key, jec_shifts, jec_vars, jmsr_shifts, jmsr_vars, years
+from HHbbVV.hh_vars import (
+    data_key,
+    jec_shifts,
+    jec_vars,
+    jmsr_shifts,
+    jmsr_vars,
+    nonres_samples,
+    years,
+)
 from HHbbVV.run_utils import add_bool_arg
 
 try:
@@ -236,10 +244,13 @@ def main(args):
     bg_keys = ["QCD", "TT", "Z+Jets"]
     if args.wjets_training:
         bg_keys += ["W+Jets"]
-    sig_keys = ["HHbbVV"]
-    if args.k2v0_training:
-        assert args.multiclass, "k2v=0 training only supported for multiclass"
-        sig_keys += ["qqHH_CV_1_C2V_0_kl_1_HHbbVV"]
+
+    sig_keys = args.sig_keys
+    if len(sig_keys) > 1:
+        assert args.multiclass, "need --multiclass training for multiple sig keys"
+    for sig_key in sig_keys:
+        assert sig_key in nonres_samples, f"{sig_key} is not a valid signal key"
+
     training_keys = sig_keys + bg_keys
 
     # if doing multiclass classification, encode each process separately
@@ -737,7 +748,9 @@ if __name__ == "__main__":
         type=int,
     )
 
-    add_bool_arg(parser, "k2v0-training", "Include k2v=0 VBF sample in training", default=False)
+    parser.add_argument(
+        "--sig-keys", default=["HHbbVV"], help="which signals to train on", type=str, nargs="+"
+    )
     add_bool_arg(parser, "wjets-training", "Include W+Jets in training", default=False)
 
     """
