@@ -46,7 +46,6 @@ plt.rcParams.update({"font.size": 28})
 
 
 weight_key = "finalWeight"
-sig_key = "HHbbVV"
 
 
 # only vars used for training, ordered by importance
@@ -140,7 +139,10 @@ def get_X(
 
 
 def get_Y(
-    data_dict: dict[str, pd.DataFrame], multiclass: bool = False, label_encoder: LabelEncoder = None
+    data_dict: dict[str, pd.DataFrame],
+    sig_key: list[str] = None,
+    multiclass: bool = False,
+    label_encoder: LabelEncoder = None,
 ):
     Y = []
     for _year, data in data_dict.items():
@@ -152,11 +154,15 @@ def get_Y(
     return pd.concat(Y, axis=0)
 
 
-def add_preds(data_dict: dict[str, pd.DataFrame], preds: np.ndarray):
+def add_preds(data_dict: dict[str, pd.DataFrame], preds: np.ndarray, sig_keys: list[str]):
     """Adds BDT predictions to ``data_dict``."""
     count = 0
     for _year, data in data_dict.items():
-        data["BDTScore"] = preds[count : count + len(data)]
+        if len(sig_keys) == 1:
+            data["BDTScore"] = preds[count : count + len(data)]
+        else:
+            for i, sig_key in enumerate(sig_keys):
+                data[f"BDTScore{sig_key}"] = preds[count : count + len(data), i]
         count += len(data)
 
     return data_dict
@@ -176,19 +182,27 @@ def remove_neg_weights(data: pd.DataFrame):
 
 def equalize_weights(
     data: pd.DataFrame,
+    sig_keys: list[str],
     bg_keys: list[str],
     equalize_sig_bg: bool = True,
     equalize_per_process: bool = False,
+    equalize_sig_total: bool = True,  # TODO: add arg
 ):
     """
     If `equalize_sig_bg`: scales signal such that total signal = total background
     If `equalize_per_process`: scales each background process separately to be equal as well
         If `equalize_sig_bg` is False: signal scaled to match the individual bg process yields
         instead of total.
+    if `equalize_sig_total`: all signals combined equal total background, otherwise, each signal matched total background
     """
-    sig_total = np.sum(data[data["Dataset"] == sig_key][weight_key])
 
     if equalize_per_process:
+        if len(sig_keys) > 1:
+            raise NotImplementedError("Equalize per process implemented yet for multiple sig keys")
+
+        sig_key = sig_keys[0]
+        sig_total = np.sum(data[data["Dataset"] == sig_keys[0]][weight_key])
+
         qcd_total = np.sum(data[data["Dataset"] == "QCD"][weight_key])
         for bg_key in bg_keys:
             if bg_key != "QCD":
@@ -199,8 +213,14 @@ def equalize_weights(
             data[weight_key].loc[data["Dataset"] == sig_key] *= qcd_total / sig_total
 
     if equalize_sig_bg:
-        bg_total = np.sum(data[data["Dataset"] != sig_key][weight_key])
-        data[weight_key].loc[data["Dataset"] == sig_key] *= bg_total / sig_total
+        bg_total = np.sum(
+            data[np.all([data["Dataset"] != sig_key for sig_key in sig_keys], axis=0)][weight_key]
+        )
+
+        sig_factor = 1.0 / len(sig_keys) if equalize_sig_total else 1.0
+        for sig_key in sig_keys:
+            sig_total = np.sum(data[data["Dataset"] == sig_key][weight_key])
+            data[weight_key].loc[data["Dataset"] == sig_key] *= bg_total / sig_total * sig_factor
 
 
 def load_data(data_path: str, year: str, all_years: bool):
@@ -216,7 +236,11 @@ def main(args):
     bg_keys = ["QCD", "TT", "Z+Jets"]
     if args.wjets_training:
         bg_keys += ["W+Jets"]
-    training_keys = [sig_key] + bg_keys
+    sig_keys = ["HHbbVV"]
+    if args.k2v0_training:
+        assert args.multiclass, "k2v=0 training only supported for multiclass"
+        sig_keys += ["qqHH_CV_1_C2V_0_kl_1_HHbbVV"]
+    training_keys = sig_keys + bg_keys
 
     # if doing multiclass classification, encode each process separately
     label_encoder = LabelEncoder()
@@ -271,7 +295,7 @@ def main(args):
                 (
                     year,
                     data[
-                        # select only signal and `bg_keys` backgrounds for training - rest are only inferenced
+                        # select only signals and `bg_keys` backgrounds for training - rest are only inferenced
                         np.sum(
                             [data["Dataset"] == key for key in training_keys],
                             axis=0,
@@ -323,7 +347,12 @@ def main(args):
                     )
 
                 equalize_weights(
-                    data, bg_keys, args.equalize_weights, args.equalize_weights_per_process
+                    data,
+                    sig_keys,
+                    bg_keys,
+                    args.equalize_weights,
+                    args.equalize_weights_per_process,
+                    args.equalize_sig_total,
                 )
 
                 for key in training_keys:
@@ -351,8 +380,8 @@ def main(args):
         model = train_model(
             get_X(train, bdtVars),
             get_X(test, bdtVars),
-            get_Y(train, args.multiclass, label_encoder),
-            get_Y(test, args.multiclass, label_encoder),
+            get_Y(train, sig_keys[0], args.multiclass, label_encoder),
+            get_Y(test, sig_keys[0], args.multiclass, label_encoder),
             get_weights(train, args.absolute_weights),
             get_weights(test, args.absolute_weights),
             bdtVars,
@@ -368,6 +397,7 @@ def main(args):
             train,
             test,
             args.test_size,
+            sig_keys,
             training_keys,
             args.equalize_weights,
             bdtVars,
@@ -435,12 +465,26 @@ def _txbb_thresholds(test: dict[str, pd.DataFrame], txbb_threshold: float):
     return pd.concat(t, axis=0)
 
 
+def _get_bdt_scores(preds, sig_keys, multiclass):
+    """Helper function to calculate which BDT outputs to use"""
+    if not multiclass:
+        return preds[:, 1:]
+    else:
+        if len(sig_keys) == 1:
+            return preds[:, :1]
+        else:
+            # Relevant score is signal score / (signal score + all background scores)
+            bg_tot = np.sum(preds[:, len(sig_keys) :], axis=1, keepdims=True)
+            return preds[:, : len(sig_keys)] / (preds[:, : len(sig_keys)] + bg_tot)
+
+
 def evaluate_model(
     model: xgb.XGBClassifier,
     model_dir: str,
     train: dict[str, pd.DataFrame],
     test: dict[str, pd.DataFrame],
     test_size: float,
+    sig_keys: list[str],
     training_keys: list[str],
     equalize_sig_bg: bool,
     bdtVars: list[str],
@@ -472,47 +516,46 @@ def evaluate_model(
     # make and save ROCs for training and testing data
     rocs = OrderedDict()
 
+    ttlabelmap = {"train": "Train", "test": "Test"}
     for data, label in [(train, "train"), (test, "test")]:
         save_model_dir = model_dir / f"rocs_{label}"
         save_model_dir.mkdir(exist_ok=True, parents=True)
 
-        Y = get_Y(data)
         weights_test = get_weights(data)
 
         preds = model.predict_proba(get_X(data, bdtVars))
-        preds = preds[:, 0] if multiclass else preds[:, 1]
-        add_preds(data, preds)
+        preds = _get_bdt_scores(preds, sig_keys, multiclass)
+        add_preds(data, preds, sig_keys)
 
         sig_effs = [0.15, 0.2]
 
-        fpr, tpr, thresholds = roc_curve(Y, preds, sample_weight=weights_test)
+        rocs[label] = {}
 
-        rocs[label] = {
-            "fpr": fpr,
-            "tpr": tpr,
-            "thresholds": thresholds,
-        }
+        for i, sig_key in enumerate(sig_keys):
+            print(sig_key)
+            Y = get_Y(data, sig_key, multiclass=False)
+            fpr, tpr, thresholds = roc_curve(Y, preds[:, i], sample_weight=weights_test)
+
+            rocs[label][sig_key] = {
+                "fpr": fpr,
+                "tpr": tpr,
+                "thresholds": thresholds,
+                "label": f"{ttlabelmap[label]} {plotting.sample_label_map[sig_key]}",
+            }
+
+            for sig_eff in sig_effs:
+                thresh = thresholds[np.searchsorted(tpr, sig_eff)]
+                print(f"Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
 
         with (save_model_dir / "roc_dict.pkl").open("wb") as f:
             pickle.dump(rocs[label], f)
 
-        plotting.rocCurve(
-            fpr,
-            tpr,
-            # auc(fpr, tpr),
-            sig_eff_lines=sig_effs,
-            title=None,
-            plotdir=save_model_dir,
-            name="roc",
+        plotting.multiROCCurveGrey(
+            {label: rocs[label]}, sig_effs=sig_effs, plot_dir=save_model_dir, name="roc"
         )
+        plotting.multiROCCurve({label: rocs[label]}, plot_dir=save_model_dir, name="roc_thresholds")
 
-        plotting.multiROCCurve({label: rocs[label]}, plotdir=save_model_dir, name="roc_thresholds")
-
-        for sig_eff in sig_effs:
-            thresh = thresholds[np.searchsorted(tpr, sig_eff)]
-            print(f"Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
-
-        if txbb_threshold > 0:
+        if txbb_threshold > 0 and len(sig_keys) == 1:
             preds_txbb_thresholded = preds.copy()
             preds_txbb_thresholded[_txbb_thresholds(data, txbb_threshold)] = 0
 
@@ -526,7 +569,7 @@ def evaluate_model(
                 # auc(fpr_txbb_threshold, tpr_txbb_threshold),
                 sig_eff_lines=sig_effs,
                 title=f"Including Txbb > {txbb_threshold} Cut",
-                plotdir=save_model_dir,
+                plot_dir=save_model_dir,
                 name="bdtroc_txbb_cut",
             )
 
@@ -539,22 +582,24 @@ def evaluate_model(
                 print(f"Incl Txbb Threshold at {sig_eff} sig_eff: {thresh:0.4f}")
 
     # combined ROC curve with thresholds
-    rocs["train"]["label"] = "Train"
-    rocs["test"]["label"] = "Test"
     plotting.multiROCCurveGrey(
         rocs, sig_effs=[0.05, 0.1, 0.15, 0.2], plot_dir=model_dir, name="roc"
     )
-    plotting.multiROCCurve(rocs, plotdir=model_dir, name="roc_combined_thresholds")
-    plotting.multiROCCurve(rocs, thresholds=[], plotdir=model_dir, name="roc_combined")
+    plotting.multiROCCurve(rocs, plot_dir=model_dir, name="roc_combined_thresholds")
+    plotting.multiROCCurve(rocs, thresholds=[], plot_dir=model_dir, name="roc_combined")
 
     # BDT score shapes
-    plot_vars = [
-        utils.ShapeVar("BDTScore", "BDT Score", [20, 0, 1]),
-        utils.ShapeVar("BDTScore", "BDT Score", [20, 0.4, 1]),
-        utils.ShapeVar("BDTScore", "BDT Score", [20, 0.8, 1]),
-        utils.ShapeVar("BDTScore", "BDT Score", [20, 0.9, 1]),
-        utils.ShapeVar("BDTScore", "BDT Score", [20, 0.98, 1]),
-    ]
+    bins = [[20, 0, 1], [20, 0.4, 1], [20, 0.8, 1], [20, 0.9, 1], [20, 0.98, 1]]
+
+    if len(sig_keys) == 1:
+        scores = [("BDTScore", "BDT Score")]
+    else:
+        scores = [
+            (f"BDTScore{sig_key}", f"BDT Score {plotting.sample_label_map[sig_key]}")
+            for sig_key in sig_keys
+        ]
+
+    plot_vars = [utils.ShapeVar(*score, tbins) for score in scores for tbins in bins]
 
     save_model_dir = model_dir / "hists"
     save_model_dir.mkdir(exist_ok=True, parents=True)
@@ -572,8 +617,8 @@ def evaluate_model(
                 # Normalize the two distributions
                 data_sf = (0.5 / test_size) if label == "Test" else (0.5 / (1 - test_size))
                 for key in training_keys:
-                    # scale signal down by ~equalizing scale factor
-                    sf = data_sf / 1e6 if (key == sig_key and equalize_sig_bg) else data_sf
+                    # scale signals back down to normal by ~equalizing scale factor
+                    sf = data_sf / 1e6 if (key in sig_keys and equalize_sig_bg) else data_sf
                     data = dataset[year][dataset[year]["Dataset"] == key]
                     fill_data = {shape_var.var: data[shape_var.var]}
                     h.fill(Data=label, Sample=key, **fill_data, weight=data[weight_key] * sf)
@@ -635,7 +680,8 @@ def do_inference(
         start = time.time()
         preds = model.predict_proba(X)
         print(f"Finished in {time.time() - start:.2f}s")
-        preds = preds[:, :-1] if multiclass else preds[:, 1]  # save n-1 probs to save space
+        # preds = preds[:, :-1] if multiclass else preds[:, 1]  # save n-1 probs to save space
+        preds = preds if multiclass else preds[:, 1]
         np.save(f"{model_dir}/inferences/{year}/preds.npy", preds)
 
         if jec_jmsr_shifts:
@@ -689,6 +735,7 @@ if __name__ == "__main__":
         type=int,
     )
 
+    add_bool_arg(parser, "k2v0-training", "Include k2v=0 VBF sample in training", default=False)
     add_bool_arg(parser, "wjets-training", "Include W+Jets in training", default=False)
 
     """
@@ -749,6 +796,12 @@ if __name__ == "__main__":
         parser,
         "equalize-weights-per-process",
         "Equalise each backgrounds' weights too",
+        default=False,
+    )
+    add_bool_arg(
+        parser,
+        "equalize-sig-total",
+        "Total signal = total bg, rather than each signal's total equals the total background (only matters for multiple signals)",
         default=False,
     )
 

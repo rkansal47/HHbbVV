@@ -58,6 +58,7 @@ colours = {
     "forestgreen": "#2E933C",
     "darkgreen": "#064635",
     "purple": "#9381FF",
+    "darkpurple": "#7F2CCB",
     "slategray": "#63768D",
     "deeppurple": "#36213E",
     "ashgrey": "#ACBFA4",
@@ -82,6 +83,7 @@ BG_COLOURS = {
     "HWW": "lightred",
     "HH": "ashgrey",
     "HHbbVV": "red",
+    "qqHH_CV_1_C2V_0_kl_1_HHbbVV": "darkpurple",
 }
 
 sig_colour = "red"
@@ -144,7 +146,7 @@ def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, sy
 
     sig_labels = OrderedDict()
     for sig_key, sig_scale in sig_scale_dict.items():
-        label = sig_key if sig_key not in sample_label_map else sample_label_map[sig_key]
+        label = sample_label_map.get(sig_key, sig_key)
 
         if sig_scale != 1:
             if sig_scale <= 100:
@@ -463,10 +465,7 @@ def ratioHistPlot(
             [(_asimov_significance(sig, bg_tot), edges) for sig in sigs],
             ax=sax,
             histtype="step",
-            label=[
-                sig_key if sig_key not in sample_label_map else sample_label_map[sig_key]
-                for sig_key in sig_scale_dict
-            ],
+            label=[sample_label_map.get(sig_key, sig_key) for sig_key in sig_scale_dict],
             color=sig_colours[: len(sig_keys)],
         )
 
@@ -685,7 +684,7 @@ def rocCurve(
     title=None,
     xlim=None,
     ylim=None,
-    plotdir="",
+    plot_dir="",
     name="",
 ):
     """Plots a ROC curve"""
@@ -695,6 +694,7 @@ def rocCurve(
         xlim = [0, 0.8]
     if sig_eff_lines is None:
         sig_eff_lines = []
+
     line_style = {"colors": "lightgrey", "linestyles": "dashed"}
 
     plt.figure(figsize=(12, 12))
@@ -717,7 +717,7 @@ def rocCurve(
     plt.xlim(*xlim)
     plt.ylim(*ylim)
     hep.cms.label(data=False, rlabel="")
-    plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+    plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
 
 
 def _find_nearest(array, value):
@@ -734,18 +734,19 @@ def multiROCCurveGrey(
     line_style = {"colors": "lightgrey", "linestyles": "dashed"}
 
     plt.figure(figsize=(12, 12))
-    for roc in rocs.values():
-        plt.plot(
-            roc["tpr"],
-            roc["fpr"],
-            label=roc["label"],
-            linewidth=2,
-        )
+    for roc_sigs in rocs.values():
+        for roc in roc_sigs.values():
+            plt.plot(
+                roc["tpr"],
+                roc["fpr"],
+                label=roc["label"],
+                linewidth=2,
+            )
 
-        for sig_eff in sig_effs:
-            y = roc["fpr"][np.searchsorted(roc["tpr"], sig_eff)]
-            plt.hlines(y=y, xmin=0, xmax=sig_eff, **line_style)
-            plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
+            for sig_eff in sig_effs:
+                y = roc["fpr"][np.searchsorted(roc["tpr"], sig_eff)]
+                plt.hlines(y=y, xmin=0, xmax=sig_eff, **line_style)
+                plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
 
     hep.cms.label(data=False, rlabel="")
     plt.yscale("log")
@@ -770,7 +771,7 @@ def multiROCCurve(
     title=None,
     xlim=None,
     ylim=None,
-    plotdir="",
+    plot_dir="",
     name="",
     show=False,
 ):
@@ -792,53 +793,61 @@ def multiROCCurve(
         "#a70000",
     ]
 
-    roc_colours = ["blue", "#23CE6B"][-len(rocs) :]
+    roc_colours = ["#23CE6B", "blue", "#ff5252", "#ffbaba"]
 
     plt.rcParams.update({"font.size": 24})
 
     plt.figure(figsize=(12, 12))
-    for i, roc in enumerate(rocs.values()):
-        plt.plot(
-            roc["tpr"],
-            roc["fpr"],
-            label=roc["label"] if len(rocs) > 1 else None,
-            linewidth=2,
-            color=roc_colours[i],
-        )
-
-        pths = {th: [[], []] for th in thresholds}
-        for th in thresholds:
-            idx = _find_nearest(roc["thresholds"], th)
-            pths[th][0].append(roc["tpr"][idx])
-            pths[th][1].append(roc["fpr"][idx])
-
-        for k, th in enumerate(thresholds):
-            plt.scatter(
-                *pths[th],
-                marker="o",
-                s=40,
-                label=f"BDT Score > {th}" if i == len(rocs) - 1 else None,
-                color=th_colours[k],
-                zorder=100,
+    for i, roc_sigs in enumerate(rocs.values()):
+        for (
+            j,
+            roc,
+        ) in enumerate(roc_sigs.values()):
+            plt.plot(
+                roc["tpr"],
+                roc["fpr"],
+                label=roc["label"],
+                linewidth=2,
+                color=roc_colours[i * len(rocs) + j],
             )
 
-            plt.vlines(
-                x=pths[th][0],
-                ymin=0,
-                ymax=pths[th][1],
-                color=th_colours[k],
-                linestyles="dashed",
-                alpha=0.5,
-            )
+            pths = {th: [[], []] for th in thresholds}
+            for th in thresholds:
+                idx = _find_nearest(roc["thresholds"], th)
+                pths[th][0].append(roc["tpr"][idx])
+                pths[th][1].append(roc["fpr"][idx])
 
-            plt.hlines(
-                y=pths[th][1],
-                xmin=0,
-                xmax=pths[th][0],
-                color=th_colours[k],
-                linestyles="dashed",
-                alpha=0.5,
-            )
+            for k, th in enumerate(thresholds):
+                plt.scatter(
+                    *pths[th],
+                    marker="o",
+                    s=40,
+                    label=(
+                        f"BDT Score > {th}"
+                        if i == len(rocs) - 1 and j == len(roc_sigs) - 1
+                        else None
+                    ),
+                    color=th_colours[k],
+                    zorder=100,
+                )
+
+                plt.vlines(
+                    x=pths[th][0],
+                    ymin=0,
+                    ymax=pths[th][1],
+                    color=th_colours[k],
+                    linestyles="dashed",
+                    alpha=0.5,
+                )
+
+                plt.hlines(
+                    y=pths[th][1],
+                    xmin=0,
+                    xmax=pths[th][0],
+                    color=th_colours[k],
+                    linestyles="dashed",
+                    alpha=0.5,
+                )
 
     hep.cms.label(data=False, rlabel="")
     plt.yscale("log")
@@ -850,7 +859,7 @@ def multiROCCurve(
     plt.title(title)
 
     if len(name):
-        plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+        plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
 
     if show:
         plt.show()
@@ -889,7 +898,7 @@ def ratioTestTrain(
     training_keys: list[str],
     shape_var: utils.ShapeVar,
     year: str,
-    plotdir="",
+    plot_dir="",
     name="",
     show=False,
 ):
@@ -912,6 +921,7 @@ def ratioTestTrain(
         2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
     )
 
+    labels = [sample_label_map.get(key, key) for key in training_keys]
     for data in ["Train", "Test"]:
         plot_hists = [h[data, sample, :] for sample in training_keys]
 
@@ -920,7 +930,7 @@ def ratioTestTrain(
             plot_hists,
             ax=ax,
             histtype="step",
-            label=[data + " " + key for key in training_keys],
+            label=[data + " " + label for label in labels],
             color=[colours[BG_COLOURS[sample]] for sample in training_keys],
             yerr=True,
             **style[data],
@@ -962,7 +972,7 @@ def ratioTestTrain(
     hep.cms.label(data=False, year=year, ax=ax, lumi=f"{LUMI[year] / 1e3:.0f}")
 
     if len(name):
-        plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+        plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
 
     if show:
         plt.show()
@@ -979,7 +989,7 @@ def cutsLinePlot(
     cuts: list[float],
     year: str,
     weight_key: str,
-    plotdir: str = "",
+    plot_dir: str = "",
     name: str = "",
     show: bool = False,
 ):
@@ -1010,7 +1020,7 @@ def cutsLinePlot(
     hep.cms.label(ax=ax, data=False, year=year, lumi=round(LUMI[year] / 1e3))
 
     if len(name):
-        plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+        plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
 
     if show:
         plt.show()
