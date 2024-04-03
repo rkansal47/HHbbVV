@@ -410,6 +410,7 @@ def main(args):
             args.test_size,
             sig_keys,
             training_keys,
+            label_encoder,
             args.equalize_weights,
             bdtVars,
             multiclass=args.multiclass,
@@ -497,6 +498,7 @@ def evaluate_model(
     test_size: float,
     sig_keys: list[str],
     training_keys: list[str],
+    label_encoder: LabelEncoder,
     equalize_sig_bg: bool,
     bdtVars: list[str],
     txbb_threshold: float = 0.98,
@@ -532,7 +534,7 @@ def evaluate_model(
         save_model_dir = model_dir / f"rocs_{label}"
         save_model_dir.mkdir(exist_ok=True, parents=True)
 
-        weights_test = get_weights(data)
+        weights = get_weights(data)
 
         preds = model.predict_proba(get_X(data, bdtVars))
         print("pre preds", preds[:10])
@@ -544,10 +546,23 @@ def evaluate_model(
 
         rocs[label] = {}
 
+        # needed to make sure only BGs and single signal are considered for ROC curves
+        if multiclass:
+            fullY = get_Y(data, multiclass=True, label_encoder=label_encoder)
+            bgs = fullY >= len(sig_keys)
+
         for i, sig_key in enumerate(sig_keys):
             print(sig_key)
+
+            if multiclass:
+                # selecting only this signal + BGs for ROC curves
+                sigs = fullY == i
+                sel = np.logical_or(sigs, bgs).to_numpy().squeeze()
+            else:
+                sel = np.ones(len(data), dtype=bool)
+
             Y = get_Y(data, sig_key, multiclass=False)
-            fpr, tpr, thresholds = roc_curve(Y, preds[:, i], sample_weight=weights_test)
+            fpr, tpr, thresholds = roc_curve(Y[sel], preds[sel][:, i], sample_weight=weights[sel])
 
             rocs[label][sig_key] = {
                 "fpr": fpr,
@@ -573,7 +588,7 @@ def evaluate_model(
             preds_txbb_thresholded[_txbb_thresholds(data, txbb_threshold)] = 0
 
             fpr_txbb_threshold, tpr_txbb_threshold, thresholds_txbb_threshold = roc_curve(
-                Y, preds_txbb_thresholded, sample_weight=weights_test
+                Y, preds_txbb_thresholded, sample_weight=weights
             )
 
             plotting.rocCurve(

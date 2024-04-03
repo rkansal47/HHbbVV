@@ -958,7 +958,7 @@ def ratioTestTrain(
         plot_hists,
         ax=rax,
         histtype="errorbar",
-        label=training_keys,
+        label=labels,
         color=[colours[BG_COLOURS[sample]] for sample in training_keys],
         yerr=np.abs([err[i] * plot_hists[i].values() for i in range(len(plot_hists))]),
     )
