@@ -24,10 +24,10 @@ while true; do
             ;;
         --bdt)
             # bdt_cut="--nonres-bdt-wp 0.99 0.997 0.998 0.999"
-            bdt_cut="--nonres-bdt-wp 0.9995 0.9999"
+            bdt_cut="--nonres-bdt-wp 0.9997"
             ;;
         --txbb)
-            txbb_cut="--nonres-txbb-wp HP"
+            txbb_cut="--nonres-txbb-wp MP HP"
             ;;
         --tag)
             shift
@@ -53,8 +53,7 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-# for year in 2016APV 2016 2017 2018
-for year in 2017
+for year in 2016APV 2016 2017 2018
 do
     python -u postprocessing.py --year $year --data-dir "$data_dir" --bdt-preds-dir $bdt_preds_dir \
     --templates --template-dir "templates/$TAG" --no-do-jshifts \

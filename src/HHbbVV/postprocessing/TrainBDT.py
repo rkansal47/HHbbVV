@@ -253,9 +253,9 @@ def main(args):
 
     training_keys = sig_keys + bg_keys
 
-    # if doing multiclass classification, encode each process separately
+    # for multiclass classification, encoding each process separately
     label_encoder = LabelEncoder()
-    label_encoder.fit(training_keys)
+    label_encoder.classes_ = np.array(training_keys)  # need this to maintain training keys order
 
     bdtVars = AllTaggerBDTVars if args.all_tagger_vars else SingleTaggerBDTVars
 
