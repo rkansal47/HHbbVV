@@ -459,7 +459,6 @@ def add_lepton_id_weights(
 
     # add weights (for now only the nominal weight)
     weights.add(f"{lepton_type}{label}_id_{wp}", values["nominal"], values["up"], values["down"])
-    # breakpoint()
 
 
 TOP_PDGID = 6
@@ -599,9 +598,7 @@ jmsValues["particleNet_mass"] = {
 }
 
 
-def get_jmsr(
-    fatjets: FatJetArray, num_jets: int, year: str, isData: bool = False, seed: int = 42
-) -> dict:
+def get_jmsr(fatjets: FatJetArray, num_jets: int, year: str, isData: bool = False) -> dict:
     """Calculates post JMS/R masses and shifts"""
     jmsr_shifted_vars = {}
 
@@ -613,7 +610,7 @@ def get_jmsr(
         if isData:
             tdict[""] = mass
         else:
-            np.random.seed(seed)
+            # np.random.seed(seed)
             smearing = np.random.normal(size=mass.shape)
             # scale to JMR nom, down, up (minimum at 0)
             jmr_nom, jmr_down, jmr_up = (
