@@ -23,7 +23,8 @@ while true; do
             lepton_veto="--lepton-veto None Hbb HH"
             ;;
         --bdt)
-            bdt_cut="--nonres-bdt-wp 0.99 0.997 0.998 0.999"
+            # bdt_cut="--nonres-bdt-wp 0.99 0.997 0.998 0.999"
+            bdt_cut="--nonres-bdt-wp 0.9995 0.9999 0.99999"
             ;;
         --txbb)
             txbb_cut="--nonres-txbb-wp MP HP"

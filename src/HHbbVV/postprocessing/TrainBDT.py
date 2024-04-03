@@ -524,7 +524,9 @@ def evaluate_model(
         weights_test = get_weights(data)
 
         preds = model.predict_proba(get_X(data, bdtVars))
+        print("pre preds", preds[:10])
         preds = _get_bdt_scores(preds, sig_keys, multiclass)
+        print("post preds", preds[:10])
         add_preds(data, preds, sig_keys)
 
         sig_effs = [0.15, 0.2]
