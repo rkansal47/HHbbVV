@@ -1,20 +1,24 @@
 #!/bin/bash
-# shellcheck disable=SC2086,SC2043
+# shellcheck disable=SC2086,SC2043,SC2206
 
 ####################################################################################################
 # Script for creating nonresonant templates scanning over variables
 # Author: Raghav Kansal
 ####################################################################################################
 
+years=("2016APV" "2016" "2017" "2018")
+
 MAIN_DIR="../../.."
 data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
-bdt_preds_dir="$data_dir/24_03_07_new_samples_max_depth_5/inferences"
+bdt_preds_dir="$data_dir/24_04_03_k2v0_training_eqsig_vbf_vars/inferences"
+# sig_samples="HHbbVV qqHH_CV_1_C2V_0_kl_1_HHbbVV"
+sig_samples="qqHH_CV_1_C2V_0_kl_1_HHbbVV"
 TAG=""
 lepton_veto=""
 txbb_cut=""
 bdt_cut=""
 
-options=$(getopt -o "" --long "lveto,bdt,txbb,tag:" -- "$@")
+options=$(getopt -o "" --long "lveto,bdt,txbb,year:,tag:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -23,11 +27,15 @@ while true; do
             lepton_veto="--lepton-veto None Hbb HH"
             ;;
         --bdt)
-            # bdt_cut="--nonres-bdt-wp 0.99 0.997 0.998 0.999"
-            bdt_cut="--nonres-bdt-wp 0.9997"
+            # bdt_cut="--nonres-bdt-wp 0.99 0.997 0.998 0.999 0.9997 0.9999"
+            bdt_cut="--nonres-bdt-wp 0.997 0.998 0.999 0.9997 0.9999"
             ;;
         --txbb)
             txbb_cut="--nonres-txbb-wp MP HP"
+            ;;
+        --year)
+            shift
+            years=($1)
             ;;
         --tag)
             shift
@@ -53,9 +61,11 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-for year in 2016APV 2016 2017 2018
+for year in "${years[@]}"
 do
+    echo $year
     python -u postprocessing.py --year $year --data-dir "$data_dir" --bdt-preds-dir $bdt_preds_dir \
     --templates --template-dir "templates/$TAG" --no-do-jshifts \
-    $lepton_veto $bdt_cut $txbb_cut --sig-samples HHbbVV qqHH_CV_1_C2V_0_kl_1_HHbbVV
+    --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" --no-plot-shifts \
+    $lepton_veto $bdt_cut $txbb_cut --sig-samples $sig_samples --bdtv "vbf" # --bg-keys "" --no-data
 done

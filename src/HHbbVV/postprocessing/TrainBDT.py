@@ -111,10 +111,10 @@ var_label_map = {
     "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
     "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
     "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.0], r"$p^{VV}_T / p^{bb}_T$"),
-    "DijetdEta": ([50, 0, 8], r"$\Delta\eta^{jj}$"),
-    "DijetdPhi": ([50, 0, 8], r"$\Delta\varphi^{jj}$"),
+    "DijetdEta": ([50, 0, 8], r"$|\Delta\eta^{jj}|$"),
+    "DijetdPhi": ([50, 0, 8], r"$|\Delta\varphi^{jj}|$"),
     "vbf_Mass_jj": ([50, 0, 5000], r"$m^{jj}_{VBF}$"),
-    "vbf_dEta_jj": ([50, 0, 8], r"$\Delta\eta^{jj}_{VBF}$"),
+    "vbf_dEta_jj": ([50, 0, 8], r"$|\Delta\eta^{jj}_{VBF}|$"),
 }
 
 
@@ -783,6 +783,10 @@ if __name__ == "__main__":
     https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_lr_0.01/
     https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_nestimators_10000/
     https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_lr_1/
+
+    New with k2v0 training: clear decrease in performance going from 0.1 -> 1
+    0.1: https://hhbbvv.nrp-nautilus.io/bdt/24_04_03_k2v0_training_eqsig_vbf_vars/rocs_test/roc.pdf
+    1: https://hhbbvv.nrp-nautilus.io/bdt/24_04_04_k2v0_training_eqsig_vbf_vars_lr1/rocs_test/roc.pdf
     """
     parser.add_argument("--learning-rate", default=0.1, help="learning rate", type=float)
     """

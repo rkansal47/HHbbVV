@@ -1034,6 +1034,9 @@ def get_systematics_abcd(channels, channels_dict, channels_summed, rates_dict):
         channel_systs_dict[region]["mcstats"] = {}
 
         for sample_name, _card_name in mc_samples.items():
+            if rates_dict[region][sample_name].value == 0:
+                continue
+
             systs_dict = {}
             channel_systs_dict[region][sample_name] = systs_dict
 

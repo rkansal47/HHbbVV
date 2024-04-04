@@ -86,7 +86,7 @@ control_plot_vars = [
     # ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[20, 0, 750]),
     # ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[20, 600, 4000]),
     # ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[20, -2.4, 2.4]),
-    ShapeVar(var="bbFatJetPhi", label=r"$\varphi^{bb}$", bins=[20, -3, 3]),
+    # ShapeVar(var="bbFatJetPhi", label=r"$\varphi^{bb}$", bins=[20, -3, 3]),
     # ShapeVar(
     #     var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[20, 300, 2300], significance_dir="right"
     # ),
@@ -99,7 +99,7 @@ control_plot_vars = [
     # ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[20, 50, 250]),
     # ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[20, 0.8, 1]),
     # ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[20, -2.4, 2.4]),
-    ShapeVar(var="VVFatJetPhi", label=r"$\varphi^{VV}$", bins=[20, -3, 3]),
+    # ShapeVar(var="VVFatJetPhi", label=r"$\varphi^{VV}$", bins=[20, -3, 3]),
     # ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[20, 300, 2300]),
     # ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
     # ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[20, 50, 250]),
@@ -122,8 +122,13 @@ control_plot_vars = [
     # ShapeVar(var="nGoodMuonsHH", label=r"# of Muons", bins=[3, 0, 3]),
     # ShapeVar(var="nGoodElectronsHbb", label=r"# of Electrons", bins=[3, 0, 3]),
     # ShapeVar(var="nGoodElectronsHH", label=r"# of Electrons", bins=[3, 0, 3]),
-    # removed if not ggF nonresonant - needs to be the last variable!
-    # ShapeVar(var="BDTScore", label=r"BDT Score", bins=[50, 0, 1]),
+    ShapeVar(var="DijetdEta", label=r"$|\Delta\eta^{jj}|$", bins=[16, 0, 4]),
+    ShapeVar(var="DijetdPhi", label=r"$|\Delta\varphi^{jj}|$", bins=[16, 0, 3.2]),
+    ShapeVar(var="vbf_Mass_jj", label=r"$m^{jj}_{VBF}$", bins=[20, 0, 3000]),
+    ShapeVar(var="vbf_dEta_jj", label=r"$|\Delta\eta^{jj}_{VBF}|$", bins=[20, 0, 9]),
+    # removed if not ggF nonresonant
+    ShapeVar(var="BDTScore", label=r"BDT Score (ggF)", bins=[50, 0, 1]),
+    ShapeVar(var="BDTScoreVBF", label=r"BDT Score (VBF $\kappa_{2V} = 0$)", bins=[50, 0, 1]),
 ]
 
 
@@ -138,12 +143,15 @@ mass_plot_vars = [
 
 def get_nonres_selection_regions(
     year: str,
+    bdt: str = "ggf",
     txbb_wp: str = "MP",
     bdt_wp: float = 0.998,
     lepton_veto_wp="None",
 ):
     pt_cuts = [300, CUT_MAX_VAL]
     txbb_cut = txbb_wps[year][txbb_wp]
+    bdt_key = "BDTScore" if bdt == "ggf" else "BDTScoreVBF"
+    print("Using BDT key:", bdt_key)
 
     if lepton_veto_wp == "None":
         lepton_cuts = {}
@@ -166,7 +174,7 @@ def get_nonres_selection_regions(
             cuts={
                 "bbFatJetPt": pt_cuts,
                 "VVFatJetPt": pt_cuts,
-                "BDTScore": [bdt_wp, CUT_MAX_VAL],
+                bdt_key: [bdt_wp, CUT_MAX_VAL],
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
                 **lepton_cuts,
             },
@@ -183,7 +191,7 @@ def get_nonres_selection_regions(
         ),
         "lpsf": Region(
             cuts={  # cut for which LP SF is calculated
-                "BDTScore": [bdt_wp, CUT_MAX_VAL],
+                bdt_key: [bdt_wp, CUT_MAX_VAL],
             },
             label="LP SF Cut",
         ),
@@ -406,8 +414,6 @@ plot_sig_keys_nonres = [
 
 
 def main(args):
-    global control_plot_vars  # noqa: PLW0603
-
     shape_vars, scan, scan_cuts, scan_wps = _init(args)
     sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args)
     all_samples = sig_keys + bg_keys
@@ -443,12 +449,13 @@ def main(args):
             events_dict,
             args.year,
             args.bdt_preds_dir,
-            jec_jmsr_shifts=True,
+            jec_jmsr_shifts=args.templates and args.do_jshifts,
         )
         print("Loaded BDT preds\n")
     else:
-        if control_plot_vars[-1].var == "BDTScore":
-            control_plot_vars = control_plot_vars[:-1]
+        for var in control_plot_vars.copy():
+            if var.var.startswith("BDTScore"):
+                control_plot_vars.remove(var)
 
     # Control plots
     if args.control_plots:
@@ -457,6 +464,7 @@ def main(args):
         if len(args.control_plot_vars):
             for var in plot_vars.copy():
                 if var.var not in args.control_plot_vars:
+                    print("Removing: ", var.var)
                     plot_vars.remove(var)
 
         print("Plotting: ", [var.var for var in plot_vars])
@@ -467,9 +475,9 @@ def main(args):
             p_sig_keys = plot_sig_keys_nonres
             sig_scale_dict = {
                 "HHbbVV": 3e5,
-                "VBFHHbbVV": 3e6,
-                "qqHH_CV_1_C2V_0_kl_1_HHbbVV": 6e3,
-                "qqHH_CV_1_C2V_2_kl_1_HHbbVV": 6e3,
+                "VBFHHbbVV": 6e6,
+                "qqHH_CV_1_C2V_0_kl_1_HHbbVV": 2e4,
+                "qqHH_CV_1_C2V_2_kl_1_HHbbVV": 2e4,
             }
 
         control_plots(
@@ -517,7 +525,7 @@ def main(args):
             elif args.vbf:
                 selection_regions = get_nonres_vbf_selection_regions(args.year, **cutargs)
             else:
-                selection_regions = get_nonres_selection_regions(args.year, **cutargs)
+                selection_regions = get_nonres_selection_regions(args.year, args.bdtv, **cutargs)
 
             # load pre-calculated systematics and those for different years if saved already
             systs_file = template_dir / "systematics.json"
@@ -556,7 +564,11 @@ def main(args):
                     systematics,
                     template_dir,
                     bg_keys=bg_keys,
-                    plot_sig_keys=plot_sig_keys_nonres if not args.resonant else sig_keys,
+                    plot_sig_keys=(
+                        list(set(plot_sig_keys_nonres).intersection(sig_keys))
+                        if not args.resonant
+                        else sig_keys
+                    ),
                     plot_dir=plot_dir,
                     prev_cutflow=cutflow,
                     # sig_splits=sig_splits,
@@ -663,7 +675,7 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
     if "DijetdEta" not in df.columns:
         df["DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
     if "DijetdPhi" not in df.columns:
-        df["DijetdPhi"] = np.abs(bbJet.delta_phi(VVJet))
+        df["DijetdPhi"] = np.abs(bbJet.deltaphi(VVJet))
     if f"vbf_Mass_jj{ptlabel}" not in df.columns:
         df[f"vbf_Mass_jj{ptlabel}"] = jj.M
     if "vbf_dEta_jj" not in df.columns:
@@ -700,7 +712,7 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
     if "DijetdEta" not in df.columns:
         df["DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
     if "DijetdPhi" not in df.columns:
-        df["DijetdPhi"] = np.abs(bbJet.delta_phi(VVJet))
+        df["DijetdPhi"] = np.abs(bbJet.deltaphi(VVJet))
 
     # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
     # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
@@ -1181,11 +1193,47 @@ def derive_variables(
             _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars, mlabel=f"_{var}")
 
 
+def _add_bdt_scores(
+    events: pd.DataFrame,
+    sample_bdt_preds: np.ndarray,
+    multiclass: bool,
+    multisig: bool,
+    all_outs: bool = True,
+    jshift: str = "",
+):
+    if jshift != "":
+        jshift = "_" + jshift
+
+    if not multiclass:
+        events[f"BDTScore{jshift}"] = sample_bdt_preds
+    else:
+        if multisig:
+            num_sigs = 2
+            bg_tot = np.sum(sample_bdt_preds[:, num_sigs:], axis=1)
+            ggf_score = sample_bdt_preds[:, 0]
+            vbf_score = sample_bdt_preds[:, 1]
+
+            events[f"BDTScore{jshift}"] = ggf_score / (ggf_score + bg_tot)
+            events[f"BDTScoreVBF{jshift}"] = vbf_score / (vbf_score + bg_tot)
+
+            if all_outs:
+                events[f"BDTScoreQCD{jshift}"] = sample_bdt_preds[:, num_sigs]
+                events[f"BDTScoreTT{jshift}"] = sample_bdt_preds[:, num_sigs + 1]
+                events[f"BDTScoreZjets{jshift}"] = sample_bdt_preds[:, num_sigs + 2]
+        else:
+            events[f"BDTScore{jshift}"] = sample_bdt_preds[:, 0]
+            if all_outs:
+                events[f"BDTScoreQCD{jshift}"] = sample_bdt_preds[:, 1]
+                events[f"BDTScoreTT{jshift}"] = sample_bdt_preds[:, 2]
+                events[f"BDTScoreZJets{jshift}"] = 1 - np.sum(sample_bdt_preds, axis=1)
+
+
 def load_bdt_preds(
     events_dict: dict[str, pd.DataFrame],
     year: str,
     bdt_preds_dir: Path,
     jec_jmsr_shifts: bool = False,
+    all_outs: bool = True,
 ):
     """
     Loads the BDT scores for each event and saves in the dataframe in the "BDTScore" column.
@@ -1202,7 +1250,7 @@ def load_bdt_preds(
     bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
 
     multiclass = len(bdt_preds.shape) > 1
-    multisig = len(bdt_preds.shape) > 3
+    multisig = multiclass and bdt_preds.shape[1] > 3
 
     if jec_jmsr_shifts:
         shift_preds = {
@@ -1213,67 +1261,21 @@ def load_bdt_preds(
     i = 0
     for sample, num_events in sample_order_dict.items():
         if sample in events_dict:
+            print(sample)
             events = events_dict[sample]
             assert num_events == len(
                 events
             ), f"# of BDT predictions does not match # of events for sample {sample}"
 
-            if not multiclass:
-                events["BDTScore"] = bdt_preds[i : i + num_events]
-            else:
-                if multisig:
-                    num_sigs = 2
-                    bg_tot = np.sum(bdt_preds[i : i + num_events][num_sigs:], axis=1)
-                    ggf_score = bdt_preds[i : i + num_events, 0]
-                    vbf_score = bdt_preds[i : i + num_events, 1]
-
-                    events["BDTScore"] = ggf_score / (ggf_score + bg_tot)
-                    events["BDTScoreVBF"] = vbf_score / (vbf_score + bg_tot)
-                    events["BDTScoreQCD"] = bdt_preds[i : i + num_events, num_sigs]
-                    events["BDTScoreTT"] = bdt_preds[i : i + num_events, num_sigs + 1]
-                    events["BDTScoreZjets"] = bdt_preds[i : i + num_events, num_sigs + 2]
-                else:
-                    events["BDTScore"] = bdt_preds[i : i + num_events, 0]
-                    events["BDTScoreQCD"] = bdt_preds[i : i + num_events, 1]
-                    events["BDTScoreTT"] = bdt_preds[i : i + num_events, 2]
-                    events["BDTScoreZJets"] = 1 - np.sum(bdt_preds[i : i + num_events], axis=1)
+            sample_bdt_preds = bdt_preds[i : i + num_events]
+            _add_bdt_scores(events, sample_bdt_preds, multiclass, multisig, all_outs)
 
             if jec_jmsr_shifts and sample != data_key:
                 for jshift in jec_shifts + jmsr_shifts:
-                    if not multiclass:
-                        events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events]
-                    else:
-                        if multisig:
-                            bg_tot = np.sum(
-                                shift_preds[jshift][i : i + num_events][num_sigs:], axis=1
-                            )
-                            ggf_score = shift_preds[jshift][i : i + num_events, 0]
-                            vbf_score = shift_preds[jshift][i : i + num_events, 1]
-
-                            events["BDTScore_" + jshift] = ggf_score / (ggf_score + bg_tot)
-                            events["BDTScoreVBF_" + jshift] = vbf_score / (vbf_score + bg_tot)
-                            events["BDTScoreQCD_" + jshift] = shift_preds[jshift][
-                                i : i + num_events, num_sigs
-                            ]
-                            events["BDTScoreTT_" + jshift] = shift_preds[jshift][
-                                i : i + num_events, num_sigs + 1
-                            ]
-                            events["BDTScoreZJets_" + jshift] = shift_preds[jshift][
-                                i : i + num_events, num_sigs + 2
-                            ]
-                        else:
-                            events["BDTScore_" + jshift] = shift_preds[jshift][
-                                i : i + num_events, 0
-                            ]
-                            events["BDTScoreQCD_" + jshift] = shift_preds[jshift][
-                                i : i + num_events, 1
-                            ]
-                            events["BDTScoreTT_" + jshift] = shift_preds[jshift][
-                                i : i + num_events, 2
-                            ]
-                            events["BDTScoreZJets_" + jshift] = 1 - np.sum(
-                                shift_preds[jshift][i : i + num_events], axis=1
-                            )
+                    sample_bdt_preds = shift_preds[jshift][i : i + num_events]
+                    _add_bdt_scores(
+                        events, sample_bdt_preds, multiclass, multisig, all_outs, jshift=jshift
+                    )
 
         i += num_events
 
@@ -1325,27 +1327,7 @@ def get_lpsf_all_years(
         events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
 
         if bdt_preds_dir is not None:
-            with (bdt_preds_dir / year / "sample_order.txt").open() as f:
-                sample_order_dict = eval(f.read())
-
-            # load bdt preds for sig only
-            bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
-            multiclass = len(bdt_preds.shape) > 1
-            i = 0
-            for sample, num_events in sample_order_dict.items():
-                if sample != sig_key:
-                    i += num_events
-                    continue
-
-                events = events_dict[sample]
-                assert num_events == len(
-                    events
-                ), f"# of BDT predictions does not match # of events for sample {sample}"
-                if not multiclass:
-                    events["BDTScore"] = bdt_preds[i : i + num_events]
-                else:
-                    events["BDTScore"] = bdt_preds[i : i + num_events, 0]
-                break
+            load_bdt_preds(events_dict, year, bdt_preds_dir, all_outs=False)
 
         sel, _ = utils.make_selection(lp_region.cuts, events_dict, bb_masks)
 
@@ -1757,7 +1739,6 @@ def get_templates(
         # ParticleNetMD Txbb and ParT LP SFs
         sig_events = {}
         for sig_key in sig_keys:
-            print(sig_key)
             sig_events[sig_key] = deepcopy(events_dict[sig_key][sel[sig_key]])
             sig_bb_mask = bb_masks[sig_key][sel[sig_key]]
 
@@ -1772,12 +1753,12 @@ def get_templates(
                     for wkey in scale_wkeys:
                         sig_events[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
 
-                print(f"LP SFs: {time.time() - start:.2f}")
+                # print(f"LP SFs: {time.time() - start:.2f}")
                 corrections.apply_txbb_sfs(
                     sig_events[sig_key], sig_bb_mask, year, weight_key, do_shifts=not do_jshift
                 )
 
-                print(f"Txbb SFs: {time.time() - start:.2f}")
+                # print(f"Txbb SFs: {time.time() - start:.2f}")
 
         print(f"Tagger SFs: {time.time() - start:.2f}")
 
@@ -2101,6 +2082,14 @@ def parse_args():
         help="Specify control plot variables to plot. By default plots all.",
         default=[],
         nargs="*",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--bdtv",
+        help="BDT variable - ggf or vbf",
+        default="ggf",
+        choices=["ggf", "vbf"],
         type=str,
     )
 
