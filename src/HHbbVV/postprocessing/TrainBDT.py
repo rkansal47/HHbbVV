@@ -71,6 +71,10 @@ AllTaggerBDTVars = [
     "VVFatJetPt",
     "VVFatJetPtOverbbFatJetPt",
     "MET_pt",
+    "DijetdEta",
+    "DijetdPhi",  # TODO: current dPhi is buggy
+    "vbf_Mass_jj",
+    "vbf_dEta_jj",
 ]
 
 
@@ -89,16 +93,16 @@ SingleTaggerBDTVars = [
 
 # ignore bins
 var_label_map = {
-    "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
+    "MET_pt": ([50, 0, 250], r"$p^{miss}_T$"),
     "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
-    "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
-    "DijetMass": ([50, 500, 3000], r"$m^{jj}$ (GeV)"),
+    "DijetPt": ([50, 0, 750], r"$p_T^{jj}$"),
+    "DijetMass": ([50, 500, 3000], r"$m^{jj}$"),
     "bbFatJetEta": ([50, -2.4, 2.4], r"$\eta^{bb}$"),
-    "bbFatJetPt": ([50, 300, 1300], r"$p^{bb}_T$ (GeV)"),
+    "bbFatJetPt": ([50, 300, 1300], r"$p^{bb}_T$"),
     "VVFatJetEta": ([50, -2.4, 2.4], r"$\eta^{VV}$"),
-    "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$ (GeV)"),
-    "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$ (GeV)"),
-    # "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$ (GeV)"),
+    "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$"),
+    "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$"),
+    # "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$"),
     "VVFatJetParTMD_THWWvsT": ([50, 0, 1], r"ParT $T_{HWW}$"),
     "VVFatJetParTMD_probT": ([50, 0, 1], r"ParT $Prob(Top)^{VV}$"),
     "VVFatJetParTMD_probQCD": ([50, 0, 1], r"ParT $Prob(QCD)^{VV}$"),
@@ -107,6 +111,10 @@ var_label_map = {
     "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
     "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
     "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.0], r"$p^{VV}_T / p^{bb}_T$"),
+    "DijetdEta": ([50, 0, 8], r"$\Delta\eta^{jj}$"),
+    "DijetdPhi": ([50, 0, 8], r"$\Delta\varphi^{jj}$"),
+    "vbf_Mass_jj": ([50, 0, 5000], r"$m^{jj}_{VBF}$"),
+    "vbf_dEta_jj": ([50, 0, 8], r"$\Delta\eta^{jj}_{VBF}$"),
 }
 
 
@@ -828,11 +836,17 @@ if __name__ == "__main__":
         "Equalise each backgrounds' weights too",
         default=False,
     )
+
+    """
+    VERY minor improvement using this:
+    https://hhbbvv.nrp-nautilus.io/bdt/24_04_03_k2v0_training_bf/rocs_test/roc.pdf
+    https://hhbbvv.nrp-nautilus.io/bdt/24_04_03_k2v0_training_eqsig_bf/rocs_test/roc.pdf
+    """
     add_bool_arg(
         parser,
         "equalize-sig-total",
         "Total signal = total bg, rather than each signal's total equals the total background (only matters for multiple signals)",
-        default=False,
+        default=True,
     )
 
     parser.add_argument(

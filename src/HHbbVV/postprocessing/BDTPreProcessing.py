@@ -40,6 +40,10 @@ BDT_data_vars = [
     # "bbFatJetPtOverDijetPt",  # no improvement on BDT
     "VVFatJetPtOverDijetPt",
     "VVFatJetPtOverbbFatJetPt",
+    "DijetdEta",
+    "DijetdPhi",
+    "vbf_Mass_jj",
+    "vbf_dEta_jj",
     "finalWeight",
 ]
 
@@ -98,6 +102,8 @@ def save_bdt_data(
         )
         events["Dataset"] = key
         bdt_events_dict.append(events)
+
+    print("Saving BDT data to", out_file)
 
     bdt_events = pd.concat(bdt_events_dict, axis=0)
     table = pa.Table.from_pandas(bdt_events)

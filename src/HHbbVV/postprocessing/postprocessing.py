@@ -620,10 +620,17 @@ def _init(args):
 # adds all necessary columns to dataframes from events_dict
 def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
     """Variables needed for ggF and/or VBF BDTs"""
+    # import time
+
+    import vector
+
+    # start = time.time()
 
     bbJet = utils.make_vector(df, "bbFatJet", bb_mask, ptlabel=ptlabel, mlabel=mlabel)
     VVJet = utils.make_vector(df, "VVFatJet", bb_mask, ptlabel=ptlabel, mlabel=mlabel)
     Dijet = bbJet + VVJet
+
+    # print(f"Time to make vectors: {time.time() - start:.2f}")
 
     if f"DijetMass{ptlabel}{mlabel}" not in df.columns:
         df[f"DijetMass{ptlabel}{mlabel}"] = Dijet.mass
@@ -631,10 +638,7 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
     df[f"VVFatJetPtOverbbFatJetPt{ptlabel}{mlabel}"] = VVJet.pt / bbJet.pt
     df[f"VVFatJetPtOverDijetPt{ptlabel}{mlabel}"] = VVJet.pt / df[f"DijetPt{ptlabel}{mlabel}"]
 
-    if not vbf_vars:
-        return
-
-    import vector
+    # print(f"AK8 jet vars: {time.time() - start:.2f}")
 
     vbf1 = vector.array(
         {
@@ -656,6 +660,20 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
 
     jj = vbf1 + vbf2
 
+    if "DijetdEta" not in df.columns:
+        df["DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
+    if "DijetdPhi" not in df.columns:
+        df["DijetdPhi"] = np.abs(bbJet.delta_phi(VVJet))
+    if f"vbf_Mass_jj{ptlabel}" not in df.columns:
+        df[f"vbf_Mass_jj{ptlabel}"] = jj.M
+    if "vbf_dEta_jj" not in df.columns:
+        df["vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
+
+    # print(f"VBF jet vars: {time.time() - start:.2f}")
+
+    if not vbf_vars:
+        return
+
     # Adapted from HIG-20-005 ggF_Killer 6.2.2
     # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.PtEtaPhiMLorentzVector.html
     # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.LorentzVector.html
@@ -674,7 +692,7 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
         df["vbf_dR_j1_Hbb"] = vbf2.deltaR(bbJet)
     if "vbf_dR_jj" not in df.columns:
         df["vbf_dR_jj"] = vbf1.deltaR(vbf2)
-    if "vbf_Mass_jj{ptlabel}" not in df.columns:
+    if f"vbf_Mass_jj{ptlabel}" not in df.columns:
         df[f"vbf_Mass_jj{ptlabel}"] = jj.M
     if "vbf_dEta_jj" not in df.columns:
         df["vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
@@ -682,7 +700,7 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
     if "DijetdEta" not in df.columns:
         df["DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
     if "DijetdPhi" not in df.columns:
-        df["DijetdPhi"] = np.abs(bbJet.phi - VVJet.phi)
+        df["DijetdPhi"] = np.abs(bbJet.delta_phi(VVJet))
 
     # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
     # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
@@ -1184,6 +1202,7 @@ def load_bdt_preds(
     bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
 
     multiclass = len(bdt_preds.shape) > 1
+    multisig = len(bdt_preds.shape) > 3
 
     if jec_jmsr_shifts:
         shift_preds = {
@@ -1202,22 +1221,59 @@ def load_bdt_preds(
             if not multiclass:
                 events["BDTScore"] = bdt_preds[i : i + num_events]
             else:
-                events["BDTScore"] = bdt_preds[i : i + num_events, 0]
-                events["BDTScoreQCD"] = bdt_preds[i : i + num_events, 1]
-                events["BDTScoreTT"] = bdt_preds[i : i + num_events, 2]
-                events["BDTScoreZJets"] = 1 - np.sum(bdt_preds[i : i + num_events], axis=1)
+                if multisig:
+                    num_sigs = 2
+                    bg_tot = np.sum(bdt_preds[i : i + num_events][num_sigs:], axis=1)
+                    ggf_score = bdt_preds[i : i + num_events, 0]
+                    vbf_score = bdt_preds[i : i + num_events, 1]
+
+                    events["BDTScore"] = ggf_score / (ggf_score + bg_tot)
+                    events["BDTScoreVBF"] = vbf_score / (vbf_score + bg_tot)
+                    events["BDTScoreQCD"] = bdt_preds[i : i + num_events, num_sigs]
+                    events["BDTScoreTT"] = bdt_preds[i : i + num_events, num_sigs + 1]
+                    events["BDTScoreZjets"] = bdt_preds[i : i + num_events, num_sigs + 2]
+                else:
+                    events["BDTScore"] = bdt_preds[i : i + num_events, 0]
+                    events["BDTScoreQCD"] = bdt_preds[i : i + num_events, 1]
+                    events["BDTScoreTT"] = bdt_preds[i : i + num_events, 2]
+                    events["BDTScoreZJets"] = 1 - np.sum(bdt_preds[i : i + num_events], axis=1)
 
             if jec_jmsr_shifts and sample != data_key:
                 for jshift in jec_shifts + jmsr_shifts:
                     if not multiclass:
                         events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events]
                     else:
-                        events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events, 0]
-                        events["BDTScoreQCD_" + jshift] = shift_preds[jshift][i : i + num_events, 1]
-                        events["BDTScoreTT_" + jshift] = shift_preds[jshift][i : i + num_events, 2]
-                        events["BDTScoreZJets_" + jshift] = 1 - np.sum(
-                            shift_preds[jshift][i : i + num_events], axis=1
-                        )
+                        if multisig:
+                            bg_tot = np.sum(
+                                shift_preds[jshift][i : i + num_events][num_sigs:], axis=1
+                            )
+                            ggf_score = shift_preds[jshift][i : i + num_events, 0]
+                            vbf_score = shift_preds[jshift][i : i + num_events, 1]
+
+                            events["BDTScore_" + jshift] = ggf_score / (ggf_score + bg_tot)
+                            events["BDTScoreVBF_" + jshift] = vbf_score / (vbf_score + bg_tot)
+                            events["BDTScoreQCD_" + jshift] = shift_preds[jshift][
+                                i : i + num_events, num_sigs
+                            ]
+                            events["BDTScoreTT_" + jshift] = shift_preds[jshift][
+                                i : i + num_events, num_sigs + 1
+                            ]
+                            events["BDTScoreZJets_" + jshift] = shift_preds[jshift][
+                                i : i + num_events, num_sigs + 2
+                            ]
+                        else:
+                            events["BDTScore_" + jshift] = shift_preds[jshift][
+                                i : i + num_events, 0
+                            ]
+                            events["BDTScoreQCD_" + jshift] = shift_preds[jshift][
+                                i : i + num_events, 1
+                            ]
+                            events["BDTScoreTT_" + jshift] = shift_preds[jshift][
+                                i : i + num_events, 2
+                            ]
+                            events["BDTScoreZJets_" + jshift] = 1 - np.sum(
+                                shift_preds[jshift][i : i + num_events], axis=1
+                            )
 
         i += num_events
 
