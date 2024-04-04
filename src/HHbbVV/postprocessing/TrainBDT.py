@@ -71,6 +71,10 @@ AllTaggerBDTVars = [
     "VVFatJetPt",
     "VVFatJetPtOverbbFatJetPt",
     "MET_pt",
+    "DijetdEta",
+    "DijetdPhi",  # TODO: current dPhi is buggy
+    "vbf_Mass_jj",
+    "vbf_dEta_jj",
 ]
 
 
@@ -89,16 +93,16 @@ SingleTaggerBDTVars = [
 
 # ignore bins
 var_label_map = {
-    "MET_pt": ([50, 0, 250], r"$p^{miss}_T$ (GeV)"),
+    "MET_pt": ([50, 0, 250], r"$p^{miss}_T$"),
     "DijetEta": ([50, -8, 8], r"$\eta^{jj}$"),
-    "DijetPt": ([50, 0, 750], r"$p_T^{jj}$ (GeV)"),
-    "DijetMass": ([50, 500, 3000], r"$m^{jj}$ (GeV)"),
+    "DijetPt": ([50, 0, 750], r"$p_T^{jj}$"),
+    "DijetMass": ([50, 500, 3000], r"$m^{jj}$"),
     "bbFatJetEta": ([50, -2.4, 2.4], r"$\eta^{bb}$"),
-    "bbFatJetPt": ([50, 300, 1300], r"$p^{bb}_T$ (GeV)"),
+    "bbFatJetPt": ([50, 300, 1300], r"$p^{bb}_T$"),
     "VVFatJetEta": ([50, -2.4, 2.4], r"$\eta^{VV}$"),
-    "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$ (GeV)"),
-    "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$ (GeV)"),
-    # "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$ (GeV)"),
+    "VVFatJetPt": ([50, 300, 1300], r"$p^{VV}_T$"),
+    "VVFatJetParticleNetMass": ([50, 0, 300], r"$m^{VV}_{reg}$"),
+    # "VVFatJetMsd": ([50, 0, 300], r"$m^{VV}_{msd}$"),
     "VVFatJetParTMD_THWWvsT": ([50, 0, 1], r"ParT $T_{HWW}$"),
     "VVFatJetParTMD_probT": ([50, 0, 1], r"ParT $Prob(Top)^{VV}$"),
     "VVFatJetParTMD_probQCD": ([50, 0, 1], r"ParT $Prob(QCD)^{VV}$"),
@@ -107,6 +111,10 @@ var_label_map = {
     "bbFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{bb}_T / p_T^{jj}$"),
     "VVFatJetPtOverDijetPt": ([50, 0, 40], r"$p^{VV}_T / p_T^{jj}$"),
     "VVFatJetPtOverbbFatJetPt": ([50, 0.4, 2.0], r"$p^{VV}_T / p^{bb}_T$"),
+    "DijetdEta": ([50, 0, 8], r"$|\Delta\eta^{jj}|$"),
+    "DijetdPhi": ([50, 0, 8], r"$|\Delta\varphi^{jj}|$"),
+    "vbf_Mass_jj": ([50, 0, 5000], r"$m^{jj}_{VBF}$"),
+    "vbf_dEta_jj": ([50, 0, 8], r"$|\Delta\eta^{jj}_{VBF}|$"),
 }
 
 
@@ -253,11 +261,13 @@ def main(args):
 
     training_keys = sig_keys + bg_keys
 
-    # if doing multiclass classification, encode each process separately
+    # for multiclass classification, encoding each process separately
     label_encoder = LabelEncoder()
-    label_encoder.fit(training_keys)
+    label_encoder.classes_ = np.array(training_keys)  # need this to maintain training keys order
 
     bdtVars = AllTaggerBDTVars if args.all_tagger_vars else SingleTaggerBDTVars
+    if not args.vbf_vars:
+        bdtVars = bdtVars[:-4]
 
     early_stopping_callback = xgb.callback.EarlyStopping(
         rounds=args.early_stopping_rounds, min_delta=args.early_stopping_min_delta
@@ -410,6 +420,7 @@ def main(args):
             args.test_size,
             sig_keys,
             training_keys,
+            label_encoder,
             args.equalize_weights,
             bdtVars,
             multiclass=args.multiclass,
@@ -497,6 +508,7 @@ def evaluate_model(
     test_size: float,
     sig_keys: list[str],
     training_keys: list[str],
+    label_encoder: LabelEncoder,
     equalize_sig_bg: bool,
     bdtVars: list[str],
     txbb_threshold: float = 0.98,
@@ -532,7 +544,7 @@ def evaluate_model(
         save_model_dir = model_dir / f"rocs_{label}"
         save_model_dir.mkdir(exist_ok=True, parents=True)
 
-        weights_test = get_weights(data)
+        weights = get_weights(data)
 
         preds = model.predict_proba(get_X(data, bdtVars))
         print("pre preds", preds[:10])
@@ -544,10 +556,23 @@ def evaluate_model(
 
         rocs[label] = {}
 
+        # needed to make sure only BGs and single signal are considered for ROC curves
+        if multiclass:
+            fullY = get_Y(data, multiclass=True, label_encoder=label_encoder)
+            bgs = fullY >= len(sig_keys)
+
         for i, sig_key in enumerate(sig_keys):
             print(sig_key)
+
+            if multiclass:
+                # selecting only this signal + BGs for ROC curves
+                sigs = fullY == i
+                sel = np.logical_or(sigs, bgs).to_numpy().squeeze()
+            else:
+                sel = np.ones(len(data), dtype=bool)
+
             Y = get_Y(data, sig_key, multiclass=False)
-            fpr, tpr, thresholds = roc_curve(Y, preds[:, i], sample_weight=weights_test)
+            fpr, tpr, thresholds = roc_curve(Y[sel], preds[sel][:, i], sample_weight=weights[sel])
 
             rocs[label][sig_key] = {
                 "fpr": fpr,
@@ -573,7 +598,7 @@ def evaluate_model(
             preds_txbb_thresholded[_txbb_thresholds(data, txbb_threshold)] = 0
 
             fpr_txbb_threshold, tpr_txbb_threshold, thresholds_txbb_threshold = roc_curve(
-                Y, preds_txbb_thresholded, sample_weight=weights_test
+                Y, preds_txbb_thresholded, sample_weight=weights
             )
 
             plotting.rocCurve(
@@ -758,6 +783,10 @@ if __name__ == "__main__":
     https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_lr_0.01/
     https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_nestimators_10000/
     https://hhbbvv.nrp-nautilus.io/bdt/24_03_07_new_samples_lr_1/
+
+    New with k2v0 training: clear decrease in performance going from 0.1 -> 1
+    0.1: https://hhbbvv.nrp-nautilus.io/bdt/24_04_03_k2v0_training_eqsig_vbf_vars/rocs_test/roc.pdf
+    1: https://hhbbvv.nrp-nautilus.io/bdt/24_04_04_k2v0_training_eqsig_vbf_vars_lr1/rocs_test/roc.pdf
     """
     parser.add_argument("--learning-rate", default=0.1, help="learning rate", type=float)
     """
@@ -795,6 +824,7 @@ if __name__ == "__main__":
     add_bool_arg(
         parser, "all-tagger-vars", "Use all tagger outputs vs. single THWWvsT score", default=True
     )
+    add_bool_arg(parser, "vbf-vars", "Use VBF vars", default=True)
     add_bool_arg(parser, "multiclass", "Classify each background separately", default=True)
 
     add_bool_arg(parser, "use-sample-weights", "Use properly scaled event weights", default=True)
@@ -813,11 +843,17 @@ if __name__ == "__main__":
         "Equalise each backgrounds' weights too",
         default=False,
     )
+
+    """
+    VERY minor improvement using this:
+    https://hhbbvv.nrp-nautilus.io/bdt/24_04_03_k2v0_training_bf/rocs_test/roc.pdf
+    https://hhbbvv.nrp-nautilus.io/bdt/24_04_03_k2v0_training_eqsig_bf/rocs_test/roc.pdf
+    """
     add_bool_arg(
         parser,
         "equalize-sig-total",
         "Total signal = total bg, rather than each signal's total equals the total background (only matters for multiple signals)",
-        default=False,
+        default=True,
     )
 
     parser.add_argument(
