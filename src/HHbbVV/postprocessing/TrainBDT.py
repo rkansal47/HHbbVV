@@ -266,6 +266,8 @@ def main(args):
     label_encoder.classes_ = np.array(training_keys)  # need this to maintain training keys order
 
     bdtVars = AllTaggerBDTVars if args.all_tagger_vars else SingleTaggerBDTVars
+    if not args.vbf_vars:
+        bdtVars = bdtVars[:-4]
 
     early_stopping_callback = xgb.callback.EarlyStopping(
         rounds=args.early_stopping_rounds, min_delta=args.early_stopping_min_delta
@@ -818,6 +820,7 @@ if __name__ == "__main__":
     add_bool_arg(
         parser, "all-tagger-vars", "Use all tagger outputs vs. single THWWvsT score", default=True
     )
+    add_bool_arg(parser, "vbf-vars", "Use VBF vars", default=True)
     add_bool_arg(parser, "multiclass", "Classify each background separately", default=True)
 
     add_bool_arg(parser, "use-sample-weights", "Use properly scaled event weights", default=True)
