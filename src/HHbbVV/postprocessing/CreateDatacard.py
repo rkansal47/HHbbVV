@@ -1163,7 +1163,11 @@ def get_systematics_abcd(channels, channels_dict, channels_summed, rates_dict):
         vals = []
         for channel in channels:
             for _, key in enumerate(all_processes):
-                if key == qcd_data_key or skey not in channel_systs_dict[channel][key]:
+                if (
+                    key == qcd_data_key
+                    or key not in channel_systs_dict[channel]
+                    or skey not in channel_systs_dict[channel][key]
+                ):
                     vals.append("-")
                 else:
                     val, val_down = channel_systs_dict[channel][key][skey]
