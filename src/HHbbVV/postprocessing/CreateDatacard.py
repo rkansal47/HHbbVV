@@ -312,7 +312,7 @@ uncorr_year_shape_systs = {
 }
 
 if not args.do_jshifts:
-    del corr_year_shape_systs["JES"]
+    del uncorr_year_shape_systs["JES"]
     del uncorr_year_shape_systs["JER"]
     del uncorr_year_shape_systs["JMS"]
     del uncorr_year_shape_systs["JMR"]
