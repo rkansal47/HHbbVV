@@ -71,10 +71,10 @@ AllTaggerBDTVars = [
     "VVFatJetPt",
     "VVFatJetPtOverbbFatJetPt",
     "MET_pt",
-    "DijetdEta",
-    "DijetdPhi",  # TODO: current dPhi is buggy
     "vbf_Mass_jj",
     "vbf_dEta_jj",
+    "DijetdPhi",  # TODO: current dPhi is buggy
+    "DijetdEta",
 ]
 
 

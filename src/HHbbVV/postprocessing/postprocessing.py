@@ -1100,7 +1100,7 @@ def apply_trigger_weights(events_dict: dict[str, pd.DataFrame], year: str, cutfl
 
 def qcd_sf(events_dict: dict[str, pd.DataFrame], cutflow: pd.DataFrame):
     """Applies a QCD scale factor."""
-    if qcd_key not in events_dict:
+    if qcd_key not in events_dict or data_key not in events_dict:
         return
 
     trig_yields = cutflow.iloc[:, -1]
