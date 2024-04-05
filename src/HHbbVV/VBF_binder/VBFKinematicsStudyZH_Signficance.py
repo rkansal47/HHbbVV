@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import os
+import pickle
 import warnings
 from argparse import ArgumentParser
 from itertools import product
+from pathlib import Path
 from typing import Callable
 
 import awkward as ak
@@ -27,12 +30,40 @@ parser = ArgumentParser()
 parser.add_argument("--tightID", action="store_true", help="Use tight ID")
 parser.add_argument("--puID", action="store_true", help="Use pileup ID")
 parser.add_argument("--min-eta-jj", action="store_true", help="Use maminx eta_jj to select jets")
+parser.add_argument("--output", type=str, default="", help="Output file name")
 args = parser.parse_args()
 
 tightID = args.tightID
 puID = args.puID
 min_eta_jj = args.min_eta_jj
 print(f"{tightID=}, {puID=}, {min_eta_jj=}")
+
+
+def can_write_to_path(file_path):
+    file_path = Path(file_path)
+    directory = file_path.parent
+
+    # Check if the directory exists
+    if not directory.exists():
+        print(f"Directory {directory} does not exist")
+        return False
+
+    # Check if the directory is writable
+    if not os.access(directory, os.W_OK):
+        print(f"Directory {directory} is not writable")
+        return False
+
+    # Check if the file already exists and is writable (if applicable)
+    if file_path.exists() and not os.access(file_path, os.W_OK):
+        print(f"File {file_path} is not writable")
+        return False
+
+    return True
+
+
+if args.output is not None and args.output != "" and not can_write_to_path(args.output):
+    print("Please provide a valid output path")
+    exit(1)
 
 
 """Load the data"""
@@ -237,7 +268,9 @@ if min_eta_jj:
 else:
     print("Optimizing over (eta_min, bbdr, vvdr, puID, tightID)...")
 sig_dict = {
+    "pt": None,
     "etamin": None,
+    "etamax": None,
     "bbdr": None,
     "vvdr": None,
     "eta_jj_min": None,
@@ -249,18 +282,33 @@ sig_dict = {
 best_sel_jets = None
 best_sel_bkg_jets_dict = None
 
-etamin_list = np.arange(0, 2, 0.05)
-bbdr_list = np.arange(0, 2, 0.05)
-vvdr_list = np.arange(0, 2, 0.05)
-total_iterations = len(etamin_list) * len(bbdr_list) * len(vvdr_list)
-eta_jj_min_list = np.arange(1, 5, 0.05)
+pt_list = np.arange(15, 35, 5)
+etamin_list = np.arange(0, 2, 0.2)
+etamax_list = np.arange(4, 5.2, 0.2)
+bbdr_list = np.arange(0, 2, 0.2)
+vvdr_list = np.arange(0, 2, 0.2)
+total_iterations = (
+    len(pt_list) * len(etamin_list) * len(etamax_list) * len(bbdr_list) * len(vvdr_list)
+)
+eta_jj_min_list = np.arange(1, 5, 0.2)
 num_jets_list = np.arange(2, 5, 1)
 
-for etamin, bbdr, vvdr in tqdm(product(etamin_list, bbdr_list, vvdr_list), total=total_iterations):
+vars_name = ["pt", "etamin", "etamax", "bbdr", "vvdr"]
+if min_eta_jj:
+    vars_name.extend(["eta_jj_min", "num_jets"])
+optimization_history = {
+    "vars_name": vars_name,
+    "vars": [],
+    "significance": [],
+}
+
+for pt, etamin, etamax, bbdr, vvdr in tqdm(
+    product(pt_list, etamin_list, etamax_list, bbdr_list, vvdr_list), total=total_iterations
+):
     ak4_jet_selection = {
-        "pt": 15,
+        "pt": pt,
         "eta_min": etamin,
-        "eta_max": 5.1,
+        "eta_max": etamax,
         "dR_fatjetbb": bbdr,
         "dR_fatjetVV": vvdr,
     }
@@ -312,8 +360,15 @@ for etamin, bbdr, vvdr in tqdm(product(etamin_list, bbdr_list, vvdr_list), total
             verbose=False,
             return_effs=False,
         )
+
+        vars = [pt, etamin, etamax, bbdr, vvdr]
+        optimization_history["vars"].append(vars)
+        optimization_history["significance"].append(sig)
+
         if sig > sig_dict["significance"]:
+            sig_dict["pt"] = pt
             sig_dict["etamin"] = etamin
+            sig_dict["etamax"] = etamax
             sig_dict["bbdr"] = bbdr
             sig_dict["vvdr"] = vvdr
             sig_dict["puID"] = puID
@@ -323,26 +378,19 @@ for etamin, bbdr, vvdr in tqdm(product(etamin_list, bbdr_list, vvdr_list), total
             best_sel_bkg_jets_dict = sel_bkg_jets_dict
 
     else:
-        # optimize over eta_jj_min and num_jets too
-        jets = events_dict["vbf"].Jet
-        drs = jets.metric_table(gen_quarks)
-        matched = ak.any(drs < 0.4, axis=2)
-
-        sel = sel_dict["vbf"]
-        sel_jets = jets[sel]
-        sel_drs = sel_jets.metric_table(sel_gen_quarks)
-        sel_matched = ak.any(sel_drs < 0.4, axis=2)
-
-        vbf_jet_mask = sel_mask_dict["vbf"]
         vbf_jets = sel_jets_dict["vbf"]
 
-        def top_pt_eta_min(jets, matched, eta_jj_min=2.0, num_jets=3):
-            """Find highest pt pair of jets with |eta_jj| > 2"""
+        def top_pt_eta_min(jets, eta_jj_min=2.0, num_jets=3):
+            """
+            Find highest pt pair of jets with |eta_jj| > eta_jj_min.
+            If no such pair is found, return the pair with the highest pt.
+            """
             jets = ak.pad_none(jets, num_jets, clip=True)
             eta = jets.eta
 
             etas = []
             i_s = []
+            # only consider the pairing among top num_jets jets
             for i in range(num_jets):
                 for j in range(i + 1, num_jets):
                     etajj = ak.fill_none(np.abs(eta[:, i] - eta[:, j]) >= eta_jj_min, False)
@@ -357,62 +405,72 @@ for etamin, bbdr, vvdr in tqdm(product(etamin_list, bbdr_list, vvdr_list), total
                 inds[eta_jj_cache * etas[n]] = i_s[n]
                 eta_jj_cache = eta_jj_cache * ~etas[n]
 
+            # select the highest pt pair of jets that satisfy eta_jj > eta_jj_min
             i1 = inds[:, 0].astype(int)
             i2 = inds[:, 1].astype(int)
 
             j1 = jets[np.arange(len(jets)), i1]
             j2 = jets[np.arange(len(jets)), i2]
 
-            matched1 = ak.pad_none(matched, num_jets, clip=True)[np.arange(len(matched)), i1]
-            matched2 = ak.pad_none(matched, num_jets, clip=True)[np.arange(len(matched)), i2]
-
-            selected_indices = ak.concatenate([ak.unflatten(i1, 1), ak.unflatten(i2, 1)], axis=1)
             selected_jets = ak.concatenate([ak.unflatten(j1, 1), ak.unflatten(j2, 1)], axis=1)
-            selected_matched = ak.concatenate(
-                [ak.unflatten(matched1, 1), ak.unflatten(matched2, 1)], axis=1
-            )
 
-            return selected_indices, selected_jets, selected_matched
+            return selected_jets
 
         for eta_jj_min, num_jets in product(eta_jj_min_list, num_jets_list):
-            selected_indices, selected_jets, selected_matched = top_pt_eta_min(
+            # VBF
+            selected_jets = top_pt_eta_min(
                 vbf_jets,
-                matched=sel_matched[vbf_jet_mask],
                 eta_jj_min=eta_jj_min,
                 num_jets=num_jets,
             )
 
+            # Background
+            selected_bkg_dict = {}
+            for k, bkg_jets in sel_bkg_jets_dict.items():
+                selected_bkgs = top_pt_eta_min(bkg_jets, eta_jj_min=etamin, num_jets=num_jets)
+                selected_bkg_dict[k] = selected_bkgs
+
+            # Calculate significance
             sig = significance(
                 sel_vbf_jets=selected_jets,
-                sel_bkg_jets_dict=sel_bkg_jets_dict,
+                sel_bkg_jets_dict=selected_bkg_dict,
                 selection=selection_2jets_etajj,
                 verbose=False,
                 return_effs=False,
             )
+            vars = [pt, etamin, etamax, bbdr, vvdr, eta_jj_min, num_jets]
+            optimization_history["vars"].append(vars)
+            optimization_history["significance"].append(sig)
 
+            # Update best significance if new significance is better
             if sig > sig_dict["significance"]:
+                sig_dict["pt"] = pt
                 sig_dict["etamin"] = etamin
+                sig_dict["etamax"] = etamax
                 sig_dict["bbdr"] = bbdr
                 sig_dict["vvdr"] = vvdr
-                sig_dict["eta_jj_min"] = eta_jj_min
-                sig_dict["num_jets"] = num_jets
                 sig_dict["puID"] = puID
                 sig_dict["tightID"] = tightID
+                sig_dict["eta_jj_min"] = eta_jj_min
+                sig_dict["num_jets"] = num_jets
                 sig_dict["significance"] = sig
 
                 best_sel_jets = selected_jets
-                best_sel_bkg_jets_dict = sel_bkg_jets_dict
+                best_sel_bkg_jets_dict = selected_bkg_dict
 
 print("Optimization done")
 print("=" * 80)
+
 print(sig_dict)
+
 print("=" * 80)
+
 print("Select events with at least 2 jets")
 sig, sig_eff, bkg_eff = significance(
     sel_vbf_jets=best_sel_jets,
     sel_bkg_jets_dict=best_sel_bkg_jets_dict,
     selection=selection_2jets,
-    verbose=False,
+    verbose=True,
     return_effs=True,
 )
 print(f"significance: {sig}")
@@ -432,3 +490,12 @@ sig, sig_eff, bkg_eff = significance(
 print(f"significance: {sig}")
 print(f"True Positive Rate: {sig_eff}")
 print(f"False Positive Rate: {bkg_eff}")
+
+print("=" * 80)
+
+# Save optimization history
+if args.output is not None and args.output != "":
+    output_path = Path(args.output)
+    print(f"Saving optimization history to {output_path}")
+    with output_path.open("wb") as f:
+        pickle.dump(optimization_history, f)
