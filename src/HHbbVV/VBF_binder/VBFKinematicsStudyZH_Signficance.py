@@ -254,7 +254,8 @@ def significance(
         print(f"Background efficiency: {background_efficiency}")
 
     # S/sqrt(B)
-    sig = signal_efficiency / np.sqrt(background_efficiency)
+    # sig = signal_efficiency / np.sqrt(background_efficiency)
+    sig = total_vbf_selected / np.sqrt(total_bkg_selected)
 
     if return_effs:
         return sig, signal_efficiency, background_efficiency
