@@ -1591,8 +1591,8 @@ def plot_bdt_sculpting(
     """Plot bb jet mass for different BDT score cuts."""
     cuts = [0, 0.1, 0.5, 0.9, 0.95]
     # bdtvars = ["", "TT", "VJets"]
-    bdtvars = [""]
-    plot_keys = ["QCD", "TT", "Z+Jets", "HHbbVV"]
+    bdtvars = ["", "VBF"]
+    plot_keys = ["QCD", "TT", "Z+Jets", "HHbbVV", "qqHH_CV_1_C2V_0_kl_1_HHbbVV"]
 
     shape_var = ShapeVar(
         var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[20, 50, 250]
@@ -1605,15 +1605,15 @@ def plot_bdt_sculpting(
 
             plotting.cutsLinePlot(
                 ed_key,
-                bbm_key,
                 shape_var,
                 key,
                 f"BDTScore{var}",
                 cuts,
                 year,
                 weight_key,
-                plot_dir,
-                f"{year}_BDT{var}Cuts_{shape_var.var}_{key}",
+                bb_masks=bbm_key,
+                plot_dir=plot_dir,
+                name=f"{year}_BDT{var}Cuts_{shape_var.var}_{key}",
                 show=show,
             )
 

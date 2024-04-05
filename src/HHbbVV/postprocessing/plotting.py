@@ -479,16 +479,14 @@ def ratioHistPlot(
 
     if year == "all":
         hep.cms.label(
-            "Work in Progress",
+            "Preliminary",
             data=True,
             lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
             year=None,
             ax=ax,
         )
     else:
-        hep.cms.label(
-            "Work in Progress", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax
-        )
+        hep.cms.label("Preliminary", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
 
     if axrax is None:
         if len(name):
@@ -608,7 +606,7 @@ def ratioLinePlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    hep.cms.label("Work in Progress", data=True, lumi=round(LUMI[year] * 1e-3), year=year, ax=ax)
+    hep.cms.label("Preliminary", data=True, lumi=round(LUMI[year] * 1e-3), year=year, ax=ax)
     if len(name):
         plt.savefig(name, bbox_inches="tight")
 
@@ -879,9 +877,7 @@ def plot_HEM2d(hists2d: list[Hist], plot_keys: list[str], year: str, name: str, 
         for i in range(2):
             ax = axs[j][i]
             hep.hist2dplot(hists2d[i][key, ...], cmap="turbo", ax=ax)
-            hep.cms.label(
-                "Work in Progress", data=True, lumi=round(LUMI[year] * 1e-3), year=year, ax=ax
-            )
+            hep.cms.label("Preliminary", data=True, lumi=round(LUMI[year] * 1e-3), year=year, ax=ax)
             ax.set_title(key, y=1.07)
             ax._children[0].colorbar.set_label("Events")
 
@@ -982,13 +978,13 @@ def ratioTestTrain(
 
 def cutsLinePlot(
     events_dict: dict[str, DataFrame],
-    bb_masks: dict[str, DataFrame],
     shape_var: utils.ShapeVar,
     plot_key: str,
     cut_var: str,
     cuts: list[float],
     year: str,
     weight_key: str,
+    bb_masks: dict[str, DataFrame] = None,
     plot_dir: str = "",
     name: str = "",
     show: bool = False,
@@ -1017,7 +1013,16 @@ def cutsLinePlot(
     ax.set_ylabel("Fraction of Events")
     ax.legend()
 
-    hep.cms.label(ax=ax, data=False, year=year, lumi=round(LUMI[year] / 1e3))
+    if year == "all":
+        hep.cms.label(
+            "Preliminary",
+            data=True,
+            lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
+            year=None,
+            ax=ax,
+        )
+    else:
+        hep.cms.label("Preliminary", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
 
     if len(name):
         plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")

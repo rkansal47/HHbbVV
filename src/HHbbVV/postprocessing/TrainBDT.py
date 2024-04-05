@@ -500,6 +500,93 @@ def _get_bdt_scores(preds, sig_keys, multiclass):
             return preds[:, : len(sig_keys)] / (preds[:, : len(sig_keys)] + bg_tot)
 
 
+def plot_train_test_shapes(
+    train, test, sig_keys, model_dir, test_size, training_keys, equalize_sig_bg
+):
+    # BDT score shapes
+    bins = [[20, 0, 1], [20, 0.4, 1], [20, 0.8, 1], [20, 0.9, 1], [20, 0.98, 1]]
+
+    if len(sig_keys) == 1:
+        scores = [("BDTScore", "BDT Score")]
+    else:
+        scores = [
+            (f"BDTScore{sig_key}", f"BDT Score {plotting.sample_label_map[sig_key]}")
+            for sig_key in sig_keys
+        ]
+
+    plot_vars = [utils.ShapeVar(*score, tbins) for score in scores for tbins in bins]
+
+    save_model_dir = model_dir / "hists"
+    save_model_dir.mkdir(exist_ok=True, parents=True)
+
+    for year in train:
+        for shape_var in plot_vars:
+            h = Hist(
+                hist.axis.StrCategory(["Train", "Test"], name="Data"),
+                hist.axis.StrCategory(training_keys, name="Sample"),
+                shape_var.axis,
+                storage="weight",
+            )
+
+            for dataset, label in [(train, "Train"), (test, "Test")]:
+                # Normalize the two distributions
+                data_sf = (0.5 / test_size) if label == "Test" else (0.5 / (1 - test_size))
+                for key in training_keys:
+                    # scale signals back down to normal by ~equalizing scale factor
+                    sf = data_sf / 1e6 if (key in sig_keys and equalize_sig_bg) else data_sf
+                    data = dataset[year][dataset[year]["Dataset"] == key]
+                    fill_data = {shape_var.var: data[shape_var.var]}
+                    h.fill(Data=label, Sample=key, **fill_data, weight=data[weight_key] * sf)
+
+            plotting.ratioTestTrain(
+                h,
+                training_keys,
+                shape_var,
+                year,
+                save_model_dir,
+                name=f"{year}_{shape_var.var}_{shape_var.bins[1]}",
+            )
+
+            plotting.ratioTestTrain(
+                h,
+                [key for key in training_keys if key != "QCD"],
+                shape_var,
+                year,
+                save_model_dir,
+                name=f"{year}_{shape_var.var}_{shape_var.bins[1]}_noqcd",
+            )
+
+
+def plot_mass_shapes(train, test, sig_keys, model_dir, training_keys):
+    cuts = [0, 0.1, 0.5, 0.9, 0.95]
+
+    shape_var = utils.ShapeVar(
+        var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[20, 50, 250]
+    )
+
+    save_model_dir = model_dir / "mass_hists"
+    save_model_dir.mkdir(exist_ok=True, parents=True)
+
+    for data_dict, label in [(train, "train"), (test, "test")]:
+        for year, data in data_dict.items():
+            for sig_key in sig_keys:
+                for key in training_keys:
+                    ed_key = {key: data[data["Dataset"] == key]}
+
+                    plotting.cutsLinePlot(
+                        ed_key,
+                        shape_var,
+                        key,
+                        f"BDTScore{sig_key}",
+                        cuts,
+                        year,
+                        weight_key,
+                        plot_dir=save_model_dir,
+                        name=f"{label}_BDT{sig_key}Cuts_{key}",
+                        show=False,
+                    )
+
+
 def evaluate_model(
     model: xgb.XGBClassifier,
     model_dir: str,
@@ -626,58 +713,12 @@ def evaluate_model(
     plotting.multiROCCurve(rocs, plot_dir=model_dir, name="roc_combined_thresholds")
     plotting.multiROCCurve(rocs, thresholds=[], plot_dir=model_dir, name="roc_combined")
 
-    # BDT score shapes
-    bins = [[20, 0, 1], [20, 0.4, 1], [20, 0.8, 1], [20, 0.9, 1], [20, 0.98, 1]]
-
-    if len(sig_keys) == 1:
-        scores = [("BDTScore", "BDT Score")]
-    else:
-        scores = [
-            (f"BDTScore{sig_key}", f"BDT Score {plotting.sample_label_map[sig_key]}")
-            for sig_key in sig_keys
-        ]
-
-    plot_vars = [utils.ShapeVar(*score, tbins) for score in scores for tbins in bins]
-
-    save_model_dir = model_dir / "hists"
-    save_model_dir.mkdir(exist_ok=True, parents=True)
-
-    for year in train:
-        for shape_var in plot_vars:
-            h = Hist(
-                hist.axis.StrCategory(["Train", "Test"], name="Data"),
-                hist.axis.StrCategory(training_keys, name="Sample"),
-                shape_var.axis,
-                storage="weight",
-            )
-
-            for dataset, label in [(train, "Train"), (test, "Test")]:
-                # Normalize the two distributions
-                data_sf = (0.5 / test_size) if label == "Test" else (0.5 / (1 - test_size))
-                for key in training_keys:
-                    # scale signals back down to normal by ~equalizing scale factor
-                    sf = data_sf / 1e6 if (key in sig_keys and equalize_sig_bg) else data_sf
-                    data = dataset[year][dataset[year]["Dataset"] == key]
-                    fill_data = {shape_var.var: data[shape_var.var]}
-                    h.fill(Data=label, Sample=key, **fill_data, weight=data[weight_key] * sf)
-
-            plotting.ratioTestTrain(
-                h,
-                training_keys,
-                shape_var,
-                year,
-                save_model_dir,
-                name=f"{year}_{shape_var.var}_{shape_var.bins[1]}",
-            )
-
-            plotting.ratioTestTrain(
-                h,
-                [key for key in training_keys if key != "QCD"],
-                shape_var,
-                year,
-                save_model_dir,
-                name=f"{year}_{shape_var.var}_{shape_var.bins[1]}_noqcd",
-            )
+    plot_mass_shapes(train, test, sig_keys, model_dir, training_keys)
+    print("Made mass plots")
+    plot_train_test_shapes(
+        train, test, sig_keys, model_dir, test_size, training_keys, equalize_sig_bg
+    )
+    print("Made histograms")
 
     # temporarily save train and test data as pickles to iterate on plots
     with (model_dir / "train.pkl").open("wb") as f:

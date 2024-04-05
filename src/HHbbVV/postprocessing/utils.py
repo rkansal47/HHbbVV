@@ -417,7 +417,7 @@ def blindBins(h: Hist, blind_region: list, blind_sample: str = None, axis=0):
 def singleVarHist(
     events_dict: dict[str, pd.DataFrame],
     shape_var: ShapeVar,
-    bb_masks: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame] = None,
     weight_key: str = "finalWeight",
     selection: dict = None,
 ) -> Hist:
@@ -446,12 +446,13 @@ def singleVarHist(
 
     for sample in samples:
         events = events_dict[sample]
+        bb_mask = None if bb_masks is None else bb_masks[sample]
         if sample == data_key and (var.endswith(("_up", "_down"))):
             fill_var = "_".join(var.split("_")[:-2])
         else:
             fill_var = var
 
-        fill_data = {var: get_feat(events, fill_var, bb_masks[sample])}
+        fill_data = {var: get_feat(events, fill_var, bb_mask)}
         weight = events[weight_key].to_numpy().squeeze()
 
         if selection is not None:
@@ -569,7 +570,7 @@ def _var_selection(
 def make_selection(
     var_cuts: dict[str, list[float]],
     events_dict: dict[str, pd.DataFrame],
-    bb_masks: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame] = None,
     weight_key: str = "finalWeight",
     prev_cutflow: dict = None,
     selection: dict[str, np.ndarray] = None,
@@ -611,7 +612,7 @@ def make_selection(
     cutflow = {}
 
     for sample, events in events_dict.items():
-        bb_mask = bb_masks[sample]
+        bb_mask = None if bb_masks is None else bb_masks[sample]
         if sample not in cutflow:
             cutflow[sample] = {}
 
