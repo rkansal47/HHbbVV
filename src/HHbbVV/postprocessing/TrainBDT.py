@@ -568,10 +568,13 @@ def plot_mass_shapes(train, test, sig_keys, model_dir, training_keys):
     save_model_dir.mkdir(exist_ok=True, parents=True)
 
     for data_dict, label in [(train, "train"), (test, "test")]:
-        for year, data in data_dict.items():
+        for key in training_keys:
             for sig_key in sig_keys:
-                for key in training_keys:
+                fig, axs = plt.subplots(len(data_dict), 1, figsize=(12, 12 * len(data_dict)))
+                datas = []
+                for i, (year, data) in enumerate(data_dict.items()):
                     ed_key = {key: data[data["Dataset"] == key]}
+                    datas.append(data[data["Dataset"] == key])
 
                     plotting.cutsLinePlot(
                         ed_key,
@@ -581,8 +584,25 @@ def plot_mass_shapes(train, test, sig_keys, model_dir, training_keys):
                         cuts,
                         year,
                         weight_key,
+                        ax=axs[i] if len(data_dict) > 1 else axs,
+                    )
+
+                plt.savefig(
+                    save_model_dir / f"{label}_{key}_BDT{sig_key}Cuts.pdf", bbox_inches="tight"
+                )
+
+                if len(data_dict) > 1:
+                    ed_key = {key: pd.concat(datas, axis=0)}
+                    plotting.cutsLinePlot(
+                        ed_key,
+                        shape_var,
+                        key,
+                        f"BDTScore{sig_key}",
+                        cuts,
+                        year,
+                        weight_key,
                         plot_dir=save_model_dir,
-                        name=f"{label}_{year}_BDT{sig_key}Cuts_{key}",
+                        name=f"{label}_{key}_BDT{sig_key}Cuts_AllYears",
                         show=False,
                     )
 

@@ -987,10 +987,16 @@ def cutsLinePlot(
     bb_masks: dict[str, DataFrame] = None,
     plot_dir: str = "",
     name: str = "",
+    ax: plt.Axes = None,
     show: bool = False,
 ):
     """Plot line plots of ``shape_var`` for different cuts on ``cut_var``."""
-    fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+        in_ax = False
+    else:
+        in_ax = True
+
     plt.rcParams.update({"font.size": 24})
 
     for _i, cut in enumerate(cuts):
@@ -1023,6 +1029,9 @@ def cutsLinePlot(
         )
     else:
         hep.cms.label("Preliminary", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
+
+    if in_ax:
+        return
 
     if len(name):
         plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
