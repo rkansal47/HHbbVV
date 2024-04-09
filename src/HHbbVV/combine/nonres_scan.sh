@@ -15,30 +15,28 @@
 #   )
 # done
 
+templates_tag="24Apr8VBFBDTScanNodEta"
 
-templates_tag="24Apr2ggFk2v0Scan"
-
-# for bdt_cut in 0.99 0.997 0.998 0.999
-for bdt_cut in 0.9995 0.9999
+for bdt_cut in 0.99 0.997 0.998 0.999 0.9997 0.9999
 do
-  for txbb_cut in "HP"
+  for txbb_cut in "MP" "HP"
   do
     cutstr="txbb_${txbb_cut}_bdt_${bdt_cut}_lepton_veto_Hbb"
     echo $cutstr
 
+    # python3 -u postprocessing/CreateDatacard.py --templates-dir templates/$templates_tag/$cutstr \
+    # --model-name $templates_tag/SM/$cutstr --no-do-jshifts --nTF 0 --only-sm
+
+    # (
+    #   cd cards/$templates_tag/SM/$cutstr || exit
+    #   /uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh -wbl
+    # )
+
     python3 -u postprocessing/CreateDatacard.py --templates-dir templates/$templates_tag/$cutstr \
-    --model-name $templates_tag/SM/$cutstr --no-do-jshifts --nTF 0 --only-sm
+    --model-name $templates_tag/$cutstr --no-do-jshifts --nTF 1 --sig-sample qqHH_CV_1_C2V_0_kl_1_HHbbVV
 
     (
-      cd cards/$templates_tag/SM/$cutstr || exit
-      /uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh -wbl
-    )
-
-    python3 -u postprocessing/CreateDatacard.py --templates-dir templates/$templates_tag/$cutstr \
-    --model-name $templates_tag/k2v0/$cutstr --no-do-jshifts --nTF 0 --sig-sample qqHH_CV_1_C2V_0_kl_1_HHbbVV
-
-    (
-      cd cards/$templates_tag/k2v0/$cutstr || exit
+      cd cards/$templates_tag/$cutstr || exit
       /uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh -wbl
     )
   done

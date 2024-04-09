@@ -383,6 +383,13 @@ def ratioHistPlot(
             )
 
     if bg_err is not None:
+        if divide_bin_width:
+            raise NotImplementedError("Background error for divide bin width not checked yet")
+
+        if len(np.array(bg_err).shape) == 1:
+            bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
+            bg_err = [bg_tot - bg_err, bg_tot + bg_err]
+
         ax.fill_between(
             np.repeat(hists.axes[1].edges, 2)[1:-1],
             np.repeat(bg_err[0], 2),
