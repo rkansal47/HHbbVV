@@ -1261,7 +1261,6 @@ def load_bdt_preds(
     i = 0
     for sample, num_events in sample_order_dict.items():
         if sample in events_dict:
-            print(sample)
             events = events_dict[sample]
             assert num_events == len(
                 events
