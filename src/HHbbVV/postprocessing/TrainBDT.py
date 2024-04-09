@@ -61,20 +61,20 @@ AllTaggerBDTVars = [
     # "VVFatJetParTMD_THWW4q",
     "VVFatJetParTMD_probHWW3q",
     "VVFatJetParTMD_probQCD",
+    "vbf_Mass_jj",
     "VVFatJetParTMD_probHWW4q",
     "VVFatJetParticleNetMass",
     "DijetMass",
     "VVFatJetParTMD_probT",
-    "VVFatJetPtOverDijetPt",
-    "DijetPt",
-    "bbFatJetPt",
     "VVFatJetPt",
-    "VVFatJetPtOverbbFatJetPt",
+    "DijetPt",
+    "VVFatJetPtOverDijetPt",
     "MET_pt",
-    "DijetdEta",
-    "DijetdPhi",  # TODO: current dPhi is buggy
-    "vbf_Mass_jj",
+    "bbFatJetPt",
+    "VVFatJetPtOverbbFatJetPt",
     "vbf_dEta_jj",
+    "DijetdPhi",  # TODO: current dPhi is buggy
+    "DijetdEta",
 ]
 
 
@@ -286,6 +286,8 @@ def main(args):
 
     if args.rem_feats:
         bdtVars = bdtVars[: -args.rem_feats]
+    if len(args.rem_feats_name):
+        bdtVars = [var for var in bdtVars if var not in args.rem_feats_name]
 
     print("BDT features:\n", bdtVars)
 
@@ -500,6 +502,128 @@ def _get_bdt_scores(preds, sig_keys, multiclass):
             return preds[:, : len(sig_keys)] / (preds[:, : len(sig_keys)] + bg_tot)
 
 
+def plot_train_test_shapes(
+    train, test, sig_keys, model_dir, test_size, training_keys, equalize_sig_bg
+):
+    # BDT score shapes
+    bins = [[20, 0, 1], [20, 0.4, 1], [20, 0.8, 1], [20, 0.9, 1], [20, 0.98, 1]]
+
+    if len(sig_keys) == 1:
+        scores = [("BDTScore", "BDT Score")]
+    else:
+        scores = [
+            (f"BDTScore{sig_key}", f"BDT Score {plotting.sample_label_map[sig_key]}")
+            for sig_key in sig_keys
+        ]
+
+    plot_vars = [utils.ShapeVar(*score, tbins) for score in scores for tbins in bins]
+
+    save_model_dir = model_dir / "hists"
+    save_model_dir.mkdir(exist_ok=True, parents=True)
+
+    for year in train:
+        for shape_var in plot_vars:
+            h = Hist(
+                hist.axis.StrCategory(["Train", "Test"], name="Data"),
+                hist.axis.StrCategory(training_keys, name="Sample"),
+                shape_var.axis,
+                storage="weight",
+            )
+
+            for dataset, label in [(train, "Train"), (test, "Test")]:
+                # Normalize the two distributions
+                data_sf = (0.5 / test_size) if label == "Test" else (0.5 / (1 - test_size))
+                for key in training_keys:
+                    # scale signals back down to normal by ~equalizing scale factor
+                    sf = data_sf / 1e6 if (key in sig_keys and equalize_sig_bg) else data_sf
+                    data = dataset[year][dataset[year]["Dataset"] == key]
+                    fill_data = {shape_var.var: data[shape_var.var]}
+                    h.fill(Data=label, Sample=key, **fill_data, weight=data[weight_key] * sf)
+
+            plotting.ratioTestTrain(
+                h,
+                training_keys,
+                shape_var,
+                year,
+                save_model_dir,
+                name=f"{year}_{shape_var.var}_{shape_var.bins[1]}",
+            )
+
+            plotting.ratioTestTrain(
+                h,
+                [key for key in training_keys if key != "QCD"],
+                shape_var,
+                year,
+                save_model_dir,
+                name=f"{year}_{shape_var.var}_{shape_var.bins[1]}_noqcd",
+            )
+
+
+# def plot_mass_shapes(model, bdtVars, multiclass, train, test, sig_keys, model_dir, training_keys):
+def plot_mass_shapes(train, test, sig_keys, model_dir, training_keys):
+    cuts = [0, 0.1, 0.5, 0.9, 0.95]
+
+    shape_var = utils.ShapeVar(
+        var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[20, 50, 250]
+    )
+
+    save_model_dir = model_dir / "mass_hists"
+    save_model_dir.mkdir(exist_ok=True, parents=True)
+
+    for data_dict, label in [(train, "train"), (test, "test")]:
+        for key in training_keys:
+            for sig_key in sig_keys:
+                fig, axs = plt.subplots(len(data_dict), 1, figsize=(12, 12 * len(data_dict)))
+                datas = []
+                for i, (year, data) in enumerate(data_dict.items()):
+                    ed_key = {key: data[data["Dataset"] == key]}
+                    datas.append(data[data["Dataset"] == key])
+
+                    plotting.cutsLinePlot(
+                        ed_key,
+                        shape_var,
+                        key,
+                        f"BDTScore{sig_key}",
+                        cuts,
+                        year,
+                        weight_key,
+                        ax=axs[i] if len(data_dict) > 1 else axs,
+                    )
+
+                plt.savefig(
+                    save_model_dir / f"{label}_{key}_BDT{sig_key}Cuts.pdf", bbox_inches="tight"
+                )
+
+                if len(data_dict) > 1:
+                    ed_key = {key: pd.concat(datas, axis=0)}
+                    plotting.cutsLinePlot(
+                        ed_key,
+                        shape_var,
+                        key,
+                        f"BDTScore{sig_key}",
+                        cuts,
+                        "all",
+                        weight_key,
+                        plot_dir=save_model_dir,
+                        name=f"{label}_{key}_BDT{sig_key}Cuts_AllYears",
+                        show=False,
+                    )
+
+                # make plots with artificially increased qcd statistics
+                # if key == qcd_key:
+                #     nsampling = 100
+                #     X = get_X(data_dict, bdtVars)
+                #     X = X.iloc[np.tile(np.arange(len(X)), nsampling)]
+
+                #     rng = np.random.default_rng(seed=42)
+                #     X["VVFatJetParticleNetMass"] = rng.random(len(X)) * 15 + 125
+                #     X["VVFatJetParTMD_probHWW3q"] = rng.random(len(X)) * 0.05 + 0.95
+                #     X["VVFatJetParTMD_probQCD"] = rng.random(len(X)) * 0.025 + 0.025
+
+                #     preds = model.predict_proba(get_X(data, bdtVars))
+                #     preds = _get_bdt_scores(preds, sig_keys, multiclass)
+
+
 def evaluate_model(
     model: xgb.XGBClassifier,
     model_dir: str,
@@ -626,58 +750,12 @@ def evaluate_model(
     plotting.multiROCCurve(rocs, plot_dir=model_dir, name="roc_combined_thresholds")
     plotting.multiROCCurve(rocs, thresholds=[], plot_dir=model_dir, name="roc_combined")
 
-    # BDT score shapes
-    bins = [[20, 0, 1], [20, 0.4, 1], [20, 0.8, 1], [20, 0.9, 1], [20, 0.98, 1]]
-
-    if len(sig_keys) == 1:
-        scores = [("BDTScore", "BDT Score")]
-    else:
-        scores = [
-            (f"BDTScore{sig_key}", f"BDT Score {plotting.sample_label_map[sig_key]}")
-            for sig_key in sig_keys
-        ]
-
-    plot_vars = [utils.ShapeVar(*score, tbins) for score in scores for tbins in bins]
-
-    save_model_dir = model_dir / "hists"
-    save_model_dir.mkdir(exist_ok=True, parents=True)
-
-    for year in train:
-        for shape_var in plot_vars:
-            h = Hist(
-                hist.axis.StrCategory(["Train", "Test"], name="Data"),
-                hist.axis.StrCategory(training_keys, name="Sample"),
-                shape_var.axis,
-                storage="weight",
-            )
-
-            for dataset, label in [(train, "Train"), (test, "Test")]:
-                # Normalize the two distributions
-                data_sf = (0.5 / test_size) if label == "Test" else (0.5 / (1 - test_size))
-                for key in training_keys:
-                    # scale signals back down to normal by ~equalizing scale factor
-                    sf = data_sf / 1e6 if (key in sig_keys and equalize_sig_bg) else data_sf
-                    data = dataset[year][dataset[year]["Dataset"] == key]
-                    fill_data = {shape_var.var: data[shape_var.var]}
-                    h.fill(Data=label, Sample=key, **fill_data, weight=data[weight_key] * sf)
-
-            plotting.ratioTestTrain(
-                h,
-                training_keys,
-                shape_var,
-                year,
-                save_model_dir,
-                name=f"{year}_{shape_var.var}_{shape_var.bins[1]}",
-            )
-
-            plotting.ratioTestTrain(
-                h,
-                [key for key in training_keys if key != "QCD"],
-                shape_var,
-                year,
-                save_model_dir,
-                name=f"{year}_{shape_var.var}_{shape_var.bins[1]}_noqcd",
-            )
+    plot_mass_shapes(train, test, sig_keys, model_dir, training_keys)
+    print("Made mass plots")
+    plot_train_test_shapes(
+        train, test, sig_keys, model_dir, test_size, training_keys, equalize_sig_bg
+    )
+    print("Made histograms")
 
     # temporarily save train and test data as pickles to iterate on plots
     with (model_dir / "train.pkl").open("wb") as f:
@@ -815,7 +893,12 @@ if __name__ == "__main__":
         "--n-estimators", default=10000, help="max number of trees to keep adding", type=int
     )
 
-    parser.add_argument("--rem-feats", default=0, help="remove N lowest importance feats", type=int)
+    parser.add_argument(
+        "--rem-feats", default=0, help="remove N lowest importance training feats", type=int
+    )
+    parser.add_argument(
+        "--rem-feats-name", default=[], help="remove training features by name", type=str, nargs="*"
+    )
 
     """
     Slightly worse to use a single tagger score

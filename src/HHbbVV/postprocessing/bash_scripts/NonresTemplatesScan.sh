@@ -10,7 +10,7 @@ years=("2016APV" "2016" "2017" "2018")
 
 MAIN_DIR="../../.."
 data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
-bdt_preds_dir="$data_dir/24_04_03_k2v0_training_eqsig_vbf_vars/inferences"
+bdt_preds_dir="$data_dir/24_04_05_k2v0_training_eqsig_vbf_vars_rm_deta/inferences"
 # sig_samples="HHbbVV qqHH_CV_1_C2V_0_kl_1_HHbbVV"
 sig_samples="qqHH_CV_1_C2V_0_kl_1_HHbbVV"
 TAG=""
@@ -28,7 +28,7 @@ while true; do
             ;;
         --bdt)
             # bdt_cut="--nonres-bdt-wp 0.99 0.997 0.998 0.999 0.9997 0.9999"
-            bdt_cut="--nonres-bdt-wp 0.997 0.998 0.999 0.9997 0.9999"
+            bdt_cut="--nonres-bdt-wp 0.99 0.997 0.998 0.999 0.9997 0.9999"
             ;;
         --txbb)
             txbb_cut="--nonres-txbb-wp MP HP"

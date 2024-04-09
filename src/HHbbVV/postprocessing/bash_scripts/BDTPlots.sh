@@ -1,22 +1,28 @@
 #!/bin/bash
-# shellcheck disable=SC2086,SC2043
+# shellcheck disable=SC2086,SC2043,SC2206
 
 ####################################################################################################
 # BDT Sculpting plots
 # Author: Raghav Kansal
 ####################################################################################################
 
+years=("2016APV" "2016" "2017" "2018")
+
 MAIN_DIR="../../.."
 data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
-bdt_preds_dir="$data_dir/24_03_07_new_samples_max_depth_5/inferences"
+bdt_preds_dir="$data_dir/24_04_03_k2v0_training_eqsig_vbf_vars/inferences"
 TAG=""
 
 
-options=$(getopt -o "" --long "tag:" -- "$@")
+options=$(getopt -o "" --long "year:,tag:" -- "$@")
 eval set -- "$options"
 
 while true; do
     case "$1" in
+        --year)
+            shift
+            years=($1)
+            ;;
         --tag)
             shift
             TAG=$1
@@ -41,9 +47,10 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-for year in 2016APV 2016 2017 2018
+for year in "${years[@]}"
 do
-    python postprocessing.py --year $year --data-dir $data_dir --bdt-preds-dir $bdt_preds_dir --no-lp-sf-all-years \
-    --sig-samples GluGluToHHTobbVV_node_cHHH1 --bg-keys QCD TT "Z+Jets" \
+    echo $year
+    python postprocessing.py --year $year --data-dir $data_dir --bdt-preds-dir $bdt_preds_dir \
+    --sig-samples GluGluToHHTobbVV_node_cHHH1 qqHH_CV_1_C2V_0_kl_1_HHbbVV --bg-keys QCD TT "Z+Jets" --no-data \
     --bdt-plots --plot-dir "$MAIN_DIR/plots/PostProcessing/$TAG"
 done
