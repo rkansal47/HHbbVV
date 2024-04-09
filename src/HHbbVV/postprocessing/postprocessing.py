@@ -1304,7 +1304,7 @@ def load_bdt_preds(
     year: str,
     bdt_preds_dir: Path,
     jec_jmsr_shifts: bool = False,
-    all_outs: bool = True,
+    all_outs: bool = False,
 ):
     """
     Loads the BDT scores for each event and saves in the dataframe in the "BDTScore" column.
@@ -2148,7 +2148,6 @@ def parse_args():
     )
 
     add_bool_arg(parser, "read-sig-samples", "read signal samples from directory", default=False)
-
     add_bool_arg(parser, "data", "include data", default=True)
     add_bool_arg(parser, "hem-cleaning", "perform hem cleaning for 2018", default=False)
     add_bool_arg(parser, "HEM2d", "fatjet phi v eta plots to check HEM cleaning", default=False)
