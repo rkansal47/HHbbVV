@@ -994,29 +994,44 @@ def cutsLinePlot(
     bb_masks: dict[str, DataFrame] = None,
     plot_dir: str = "",
     name: str = "",
+    ratio: bool = False,
     ax: plt.Axes = None,
     show: bool = False,
 ):
     """Plot line plots of ``shape_var`` for different cuts on ``cut_var``."""
     if ax is None:
-        fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+        if ratio:
+            assert cuts[0] == 0, "First cut must be 0 for ratio plots."
+            fig, (ax, rax) = plt.subplots(
+                2,
+                1,
+                figsize=(12, 14),
+                gridspec_kw={"height_ratios": [3, 1], "hspace": 0},
+                sharex=True,
+            )
+        else:
+            fig, ax = plt.subplots(1, 1, figsize=(12, 12))
         in_ax = False
     else:
+        if ratio:
+            raise NotImplementedError("Ratio plots not implemented with input axes.")
         in_ax = True
 
     plt.rcParams.update({"font.size": 24})
 
-    for _i, cut in enumerate(cuts):
+    hists = OrderedDict()
+    for cut in cuts:
         sel, _ = utils.make_selection({cut_var: [cut, CUT_MAX_VAL]}, events_dict, bb_masks)
         h = utils.singleVarHist(
             events_dict, shape_var, bb_masks, weight_key=weight_key, selection=sel
         )
 
+        hists[cut] = h[plot_key, ...] / np.sum(h[plot_key, ...].values())
+
         hep.histplot(
-            h[plot_key, ...] / np.sum(h[plot_key, ...].values()),
+            hists[cut],
             yerr=True,
             label=f"BDTScore >= {cut}",
-            # density=True,
             ax=ax,
             linewidth=2,
             alpha=0.8,
@@ -1025,6 +1040,24 @@ def cutsLinePlot(
     ax.set_xlabel(shape_var.label)
     ax.set_ylabel("Fraction of Events")
     ax.legend()
+
+    if ratio:
+        rax.hlines(1, shape_var.axis.edges[0], shape_var.axis.edges[-1], linestyle="--", alpha=0.5)
+        vals_nocut = hists[0].values()
+
+        next(rax._get_lines.prop_cycler)  # skip first
+        for cut in cuts[1:]:
+            hep.histplot(
+                hists[cut] / vals_nocut,
+                yerr=True,
+                label=f"BDTScore >= {cut}",
+                ax=rax,
+                histtype="errorbar",
+            )
+
+        rax.set_ylim([0.4, 2.2])
+        rax.set_ylabel("Ratio to Inclusive Shape")
+        # rax.legend()
 
     if year == "all":
         hep.cms.label(

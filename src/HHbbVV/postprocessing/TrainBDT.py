@@ -604,6 +604,7 @@ def plot_mass_shapes(train, test, sig_keys, model_dir, training_keys):
                         cuts,
                         "all",
                         weight_key,
+                        ratio=True,
                         plot_dir=save_model_dir,
                         name=f"{label}_{key}_BDT{sig_key}Cuts_AllYears",
                         show=False,
