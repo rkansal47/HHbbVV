@@ -143,15 +143,29 @@ mass_plot_vars = [
 
 def get_nonres_selection_regions(
     year: str,
-    bdt: str = "ggf",
-    txbb_wp: str = "MP",
-    bdt_wp: float = 0.998,
+    region: str = "all",
+    ggf_txbb_wp: str = "MP",
+    ggf_bdt_wp: float = 0.998,
+    vbf_txbb_wp: str = "HP",
+    vbf_bdt_wp: float = 0.999,
     lepton_veto_wp="None",
 ):
+    """
+    Args:
+        year (str): year of data taking
+        region (str): "ggf", "ggf_no_vbf", "vbf", or "all". "ggf_no_vbf" means without the VBF veto.
+        ggf_txbb_wp (str): "LP", "HP", "MP"
+        ggf_bdt_wp (float): ggF BDT WP
+        vbf_txbb_wp (str): "LP", "HP", "MP"
+        vbf_bdt_wp (float): VBF BDT WP
+        lepton_veto_wp (str): "None", "Hbb", "HH"
+    """
     pt_cuts = [300, CUT_MAX_VAL]
-    txbb_cut = txbb_wps[year][txbb_wp]
-    bdt_key = "BDTScore" if bdt == "ggf" else "BDTScoreVBF"
-    print("Using BDT key:", bdt_key)
+
+    fail_txbb_wp = "MP" if ggf_txbb_wp == "MP" or vbf_txbb_wp == "MP" else "HP"
+    ggf_txbb_cut = txbb_wps[year][ggf_txbb_wp]
+    vbf_txbb_cut = txbb_wps[year][vbf_txbb_wp]
+    fail_txbb_cut = txbb_wps[year][fail_txbb_wp]
 
     if lepton_veto_wp == "None":
         lepton_cuts = {}
@@ -168,34 +182,79 @@ def get_nonres_selection_regions(
     else:
         raise ValueError(f"Invalid lepton veto: {lepton_veto_wp}")
 
-    return {
+    regions = {
         # {label: {cutvar: [min, max], ...}, ...}
-        "pass": Region(
+        "pass_vbf": Region(
             cuts={
                 "bbFatJetPt": pt_cuts,
                 "VVFatJetPt": pt_cuts,
-                bdt_key: [bdt_wp, CUT_MAX_VAL],
-                "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
+                "BDTScoreVBF": [vbf_bdt_wp, CUT_MAX_VAL],
+                "bbFatJetParticleNetMD_Txbb": [vbf_txbb_cut, CUT_MAX_VAL],
                 **lepton_cuts,
             },
-            label="Pass",
+            label="VBF",
+        ),
+        "pass_ggf": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "BDTScoreVBF": [-CUT_MAX_VAL, vbf_bdt_wp],  # veto VBF BDT cut
+                "BDTScore": [ggf_bdt_wp, CUT_MAX_VAL],
+                "bbFatJetParticleNetMD_Txbb": [ggf_txbb_cut, CUT_MAX_VAL],
+                **lepton_cuts,
+            },
+            label="ggF",
         ),
         "fail": Region(
             cuts={
                 "bbFatJetPt": pt_cuts,
                 "VVFatJetPt": pt_cuts,
-                "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
+                "bbFatJetParticleNetMD_Txbb": [0.8, fail_txbb_cut],
                 **lepton_cuts,
             },
             label="Fail",
         ),
-        "lpsf": Region(
-            cuts={  # cut for which LP SF is calculated
-                bdt_key: [bdt_wp, CUT_MAX_VAL],
+        # cuts for which LP SF is calculated
+        "lpsf_pass_vbf": Region(
+            cuts={
+                "BDTScoreVBF": [vbf_bdt_wp, CUT_MAX_VAL],
             },
-            label="LP SF Cut",
+            label="LP SF VBF Cut",
+        ),
+        "lpsf_pass_ggf": Region(
+            cuts={
+                "BDTScoreVBF": [-CUT_MAX_VAL, vbf_bdt_wp],  # veto VBF BDT cut
+                "BDTScore": [ggf_bdt_wp, CUT_MAX_VAL],
+            },
+            label="LP SF ggF Cut",
         ),
     }
+
+    if region == "ggf":
+        return {
+            "pass": regions["pass_ggf"],
+            "fail": regions["fail"],
+            "lpsf": regions["lpsf_pass_ggf"],
+        }
+    elif region == "ggf_no_vbf":
+        regions = {
+            "pass": regions["pass_ggf"],
+            "fail": regions["fail"],
+            "lpsf": regions["lpsf_pass_ggf"],
+        }
+        regions["pass"].cuts.pop("BDTScoreVBF")
+        regions["lpsf"].cuts.pop("BDTScoreVBF")
+        return regions
+    elif region == "vbf":
+        return {
+            "pass": regions["pass_vbf"],
+            "fail": regions["fail"],
+            "lpsf": regions["lpsf_pass_vbf"],
+        }
+    elif region == "all":
+        return regions
+    else:
+        raise ValueError(f"Invalid region: {region}")
 
 
 def get_nonres_vbf_selection_regions(
@@ -373,7 +432,7 @@ res_shape_vars = [
     ),
 ]
 
-nonres_scan_cuts = ["txbb", "bdt", "lepton_veto"]
+nonres_scan_cuts = ["ggf_txbb", "ggf_bdt", "vbf_txbb", "vbf_bdt", "lepton_veto"]
 nonres_vbf_scan_cuts = ["txbb", "thww"]  # TODO: add more cuts being scanned over
 res_scan_cuts = ["txbb", "thww", "leadingpt", "subleadingpt"]
 
@@ -426,7 +485,6 @@ def main(args):
     # QCD xsec normalization for plots
     qcd_sf(events_dict, cutflow)
 
-    # THWW score vs Top (if not already from processor)
     derive_variables(
         events_dict,
         bb_masks,
@@ -525,13 +583,16 @@ def main(args):
             elif args.vbf:
                 selection_regions = get_nonres_vbf_selection_regions(args.year, **cutargs)
             else:
-                selection_regions = get_nonres_selection_regions(args.year, args.bdtv, **cutargs)
+                selection_regions = get_nonres_selection_regions(
+                    args.year, args.nonres_regions, **cutargs
+                )
 
             # load pre-calculated systematics and those for different years if saved already
             systs_file = template_dir / "systematics.json"
             systematics = _check_load_systematics(systs_file, args.year)
 
             # Lund plane SFs
+            # TODO: LP SFs for multiple regions
             lpsfs(
                 events_dict,
                 bb_masks,
@@ -613,10 +674,20 @@ def _init(args):
         shape_vars = res_shape_vars
     elif not args.vbf:
         scan = (
-            len(args.nonres_txbb_wp) > 1 or len(args.nonres_bdt_wp) > 1 or len(args.lepton_veto) > 1
+            len(args.nonres_ggf_txbb_wp) > 1
+            or len(args.nonres_ggf_bdt_wp) > 1
+            or len(args.nonres_vbf_txbb_wp) > 1
+            or len(args.nonres_vbf_bdt_wp) > 1
+            or len(args.lepton_veto) > 1
         )
         scan_wps = list(
-            itertools.product(args.nonres_txbb_wp, args.nonres_bdt_wp, args.lepton_veto)
+            itertools.product(
+                args.nonres_ggf_txbb_wp,
+                args.nonres_ggf_bdt_wp,
+                args.nonres_vbf_txbb_wp,
+                args.nonres_vbf_bdt_wp,
+                args.lepton_veto,
+            )
         )
         scan_cuts = nonres_scan_cuts
         shape_vars = nonres_shape_vars
@@ -2036,7 +2107,14 @@ def parse_args():
     )
 
     add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
-    add_bool_arg(parser, "vbf", "non-resonant VBF or inclusive", default=False)
+    parser.add_argument(
+        "--nonres-regions",
+        help="Which nonresonant categories to make templates for.",
+        default="all",
+        choices=["all", "ggf", "ggf_no_vbf", "vbf"],
+        type=str,
+    )
+    add_bool_arg(parser, "vbf", "old!! non-resonant VBF category", default=False)
     add_bool_arg(parser, "control-plots", "make control plots", default=False)
     add_bool_arg(
         parser,
@@ -2085,16 +2163,8 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--bdtv",
-        help="BDT variable - ggf or vbf",
-        default="ggf",
-        choices=["ggf", "vbf"],
-        type=str,
-    )
-
-    parser.add_argument(
-        "--nonres-txbb-wp",
-        help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
+        "--nonres-ggf-txbb-wp",
+        help="Txbb WP for ggF signal region. If multiple arguments, will make templates for each.",
         default=["MP"],
         choices=["LP", "MP", "HP"],
         nargs="*",
@@ -2102,8 +2172,8 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--nonres-bdt-wp",
-        help="BDT WP for signal region. If multiple arguments, will make templates for each.",
+        "--nonres-ggf-bdt-wp",
+        help="BDT WP for ggF signal region. If multiple arguments, will make templates for each.",
         default=[0.998],
         nargs="*",
         type=float,
@@ -2111,7 +2181,7 @@ def parse_args():
 
     parser.add_argument(
         "--nonres-vbf-txbb-wp",
-        help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
+        help="Txbb WP for VBF signal region. If multiple arguments, will make templates for each.",
         default=["HP"],
         choices=["LP", "MP", "HP"],
         nargs="*",
@@ -2119,8 +2189,16 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--nonres-vbf-bdt-wp",
+        help="Txbb WP for VBFsignal region. If multiple arguments, will make templates for each.",
+        default=[0.999],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
         "--nonres-vbf-thww-wp",
-        help="THWWvsT WP for signal region. If multiple arguments, will make templates for each.",
+        help="THWWvsT WP for VBF signal region. If multiple arguments, will make templates for each.",
         default=[0.6],
         nargs="*",
         type=float,
