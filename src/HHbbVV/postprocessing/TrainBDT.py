@@ -596,6 +596,9 @@ def plot_mass_shapes(train, test, sig_keys, model_dir, training_keys):
 
                 if len(data_dict) > 1:
                     ed_key = {key: pd.concat(datas, axis=0)}
+                    ratio_dir = save_model_dir / "ratios"
+                    ratio_dir.mkdir(exist_ok=True, parents=True)
+
                     plotting.cutsLinePlot(
                         ed_key,
                         shape_var,
@@ -605,6 +608,20 @@ def plot_mass_shapes(train, test, sig_keys, model_dir, training_keys):
                         "all",
                         weight_key,
                         ratio=True,
+                        plot_dir=ratio_dir,
+                        name=f"{label}_{key}_BDT{sig_key}Cuts_AllYearsRatio",
+                        show=False,
+                    )
+
+                    plotting.cutsLinePlot(
+                        ed_key,
+                        shape_var,
+                        key,
+                        f"BDTScore{sig_key}",
+                        cuts,
+                        "all",
+                        weight_key,
+                        ratio=False,
                         plot_dir=save_model_dir,
                         name=f"{label}_{key}_BDT{sig_key}Cuts_AllYears",
                         show=False,
