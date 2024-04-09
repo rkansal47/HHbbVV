@@ -807,7 +807,7 @@ def do_inference(
                 # have to change model's feature names since we're passing in a dataframe
                 model.get_booster().feature_names = mcvars
                 preds = model.predict_proba(X)
-                preds = preds[:, :-1] if multiclass else preds[:, 1]
+                preds = preds if multiclass else preds[:, 1]
                 np.save(f"{model_dir}/inferences/{year}/preds_{jshift}.npy", preds)
 
             for jshift in jmsr_shifts:
@@ -816,7 +816,7 @@ def do_inference(
                 # have to change model's feature names since we're passing in a dataframe
                 model.get_booster().feature_names = mcvars
                 preds = model.predict_proba(X)
-                preds = preds[:, :-1] if multiclass else preds[:, 1]
+                preds = preds if multiclass else preds[:, 1]
                 np.save(f"{model_dir}/inferences/{year}/preds_{jshift}.npy", preds)
 
 
