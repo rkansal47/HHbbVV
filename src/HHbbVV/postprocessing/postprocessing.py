@@ -2173,7 +2173,7 @@ def parse_args():
     parser.add_argument(
         "--nonres-ggf-bdt-wp",
         help="BDT WP for ggF signal region. If multiple arguments, will make templates for each.",
-        default=[0.998],
+        default=[0.9965],
         nargs="*",
         type=float,
     )

@@ -46,11 +46,11 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-for year in 2016APV 2016 2017 2018
+for year in 2016 2016APV 2017 2018
 do
     python -u postprocessing.py --year $year --data-dir "$data_dir" --templates $sig_samples \
     --bdt-preds-dir $bdt_preds_dir \
     --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" \
-    --template-dir "templates/$TAG" --plot-shifts --nonres-regions "vbf"
+    --template-dir "templates/$TAG" --plot-shifts --nonres-regions "ggf"
     # --control-plots --control-plot-vars "BDTScore" \
 done
