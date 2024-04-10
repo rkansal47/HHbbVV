@@ -1,5 +1,6 @@
 """
 Defines all the analysis regions.
+****Important****: Region names used in the analysis cannot have underscores because of a rhalphalib convention.
 Author(s): Raghav Kansal
 """
 
@@ -65,7 +66,7 @@ def get_nonres_selection_regions(
 
     regions = {
         # {label: {cutvar: [min, max], ...}, ...}
-        "pass_vbf": Region(
+        "passvbf": Region(
             cuts={
                 "bbFatJetPt": pt_cuts,
                 "VVFatJetPt": pt_cuts,
@@ -76,7 +77,7 @@ def get_nonres_selection_regions(
             signal=True,
             label="VBF",
         ),
-        "pass_ggf": Region(
+        "passggf": Region(
             cuts={
                 "bbFatJetPt": pt_cuts,
                 "VVFatJetPt": pt_cuts,
@@ -98,37 +99,37 @@ def get_nonres_selection_regions(
             label="Fail",
         ),
         # cuts for which LP SF is calculated
-        "lpsf_pass_vbf": Region(
+        "lpsf_passvbf": Region(
             cuts={
                 "BDTScoreVBF": [vbf_bdt_wp, CUT_MAX_VAL],
             },
             lpsf=True,
-            lpsf_region="pass_vbf",
+            lpsf_region="passvbf",
             label="LP SF VBF Cut",
         ),
-        "lpsf_pass_ggf": Region(
+        "lpsf_passggf": Region(
             cuts={
                 "BDTScoreVBF": [-CUT_MAX_VAL, vbf_bdt_wp],  # veto VBF BDT cut
                 "BDTScore": [ggf_bdt_wp, CUT_MAX_VAL],
             },
             lpsf=True,
-            lpsf_region="pass_ggf",
+            lpsf_region="passggf",
             label="LP SF ggF Cut",
         ),
     }
 
     if region == "ggf":
-        regions.pop("pass_vbf")
-        region.pop("lpsf_pass_vbf")
+        regions.pop("passvbf")
+        region.pop("lpsf_passvbf")
     elif region == "vbf":
-        regions.pop("pass_ggf")
-        region.pop("lpsf_pass_ggf")
+        regions.pop("passggf")
+        region.pop("lpsf_passggf")
     elif region == "ggf_no_vbf":
         # old version without any VBF category
-        lpregion = regions["lpsf_pass_ggf"]
+        lpregion = regions["lpsf_passggf"]
         lpregion.lpsf_region = "pass"
         regions = {
-            "pass": regions["pass_ggf"],
+            "pass": regions["passggf"],
             "fail": regions["fail"],
             "lpsf": lpregion,
         }

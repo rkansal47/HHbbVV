@@ -387,7 +387,7 @@ def main(args):
             )
 
             with systs_file.open("w") as f:
-                json.dump(systematics, f)
+                json.dump(systematics, f, index=4)
 
 
 def _init(args):
@@ -1153,7 +1153,7 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
                     wsysts[region.lpsf_region] = systematics[region.lpsf_region + "_" + cutstr]
 
             with systs_file.open("w") as f:
-                json.dump(wsysts, f)
+                json.dump(wsysts, f, index=4)
 
 
 def _get_signal_all_years(
@@ -1312,7 +1312,7 @@ def lpsfs(
 
             if systs_file is not None:
                 with systs_file.open("w") as f:
-                    json.dump(systematics, f)
+                    json.dump(systematics, f, index=4)
 
     if template_dir is not None:
         sf_table = OrderedDict()  # format SFs for each sig key in a table

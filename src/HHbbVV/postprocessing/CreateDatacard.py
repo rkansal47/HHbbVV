@@ -16,6 +16,7 @@ import json
 import logging
 import pickle
 import sys
+import warnings
 from collections import OrderedDict
 from pathlib import Path
 
@@ -69,6 +70,13 @@ add_bool_arg(
     default=False,
 )
 
+parser.add_argument(
+    "--nonres-regions",
+    default="all",
+    type=str,
+    help="nonresonant regions for which to make cards",
+    choices=["ggf", "vbf", "all"],
+)
 parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
 
 parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
@@ -94,8 +102,8 @@ parser.add_argument(
     default=None,
     nargs="*",
     type=int,
-    help="order of polynomial for TF in [dim 1, dim 2] = [mH(bb), -] for nonresonant or [mY, mX] for resonant."
-    "Default is 0 for nonresonant and (1, 2) for resonant.",
+    help="order of polynomial for TF in [dim/cat 1, dim/cat 2] = [mH(bb) for ggF, mH(bb) for VBF] for nonresonant or [mY, mX] for resonant."
+    "Default is [0, 1] for nonresonant and [1, 2] for resonant.",
 )
 
 parser.add_argument("--model-name", default=None, type=str, help="output model name")
@@ -113,10 +121,29 @@ args = parser.parse_args()
 
 
 CMS_PARAMS_LABEL = "CMS_bbWW_hadronic" if not args.resonant else "CMS_XHYbbWW_boosted"
+MCB_LABEL = "Blinded"  # for templates where MC is "blinded" to get background estimates
 qcd_data_key = "qcd_datadriven"
 
 if args.nTF is None:
-    args.nTF = [1, 2] if args.resonant else [0]
+    if args.resonant:
+        args.nTF = [1, 2]
+    else:
+        if args.nonres_regions == "all":
+            args.nTF = [0, 1]
+        elif args.nonres_regions == "ggf":
+            args.nTF = [0]
+        elif args.nonres_regions == "vbf":
+            args.nTF = [1]
+
+if not args.resonant:
+    if args.nonres_regions == "all":
+        signal_regions = ["passggf", "passvbf"]
+    elif args.nonres_regions == "ggf":
+        signal_regions = ["passggf"]
+    elif args.nonres_regions == "vbf":
+        signal_regions = ["passvbf"]
+else:
+    signal_regions = ["pass"]
 
 # (name in templates, name in cards)
 mc_samples = OrderedDict(
@@ -246,11 +273,13 @@ nuisance_params = {
     ),
 }
 
-for sig_key in sig_keys:
-    # values will be added in from the systematics JSON
-    nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{mc_samples[sig_key]}"] = Syst(
-        prior="lnN", samples=[sig_key]
-    )
+# LP SFs - uncorrelated across regions to be more conservative (?)
+for sr in signal_regions:
+    for sig_key in sig_keys:
+        # values will be added in from the systematics JSON
+        nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{mc_samples[sig_key]}"] = Syst(
+            prior="lnN", samples=[sig_key], regions=[sr]
+        )
 
 if args.year != "all":
     # remove other years' keys
@@ -294,6 +323,10 @@ corr_year_shape_systs = {
     ),
     # "top_pt": Syst(name="CMS_top_pT_reweighting", prior="shape", samples=["TT"])  # TODO
 }
+
+if not args.resonant:
+    # AK4 jets only used for nonresonant
+    corr_year_shape_systs["pileupID"] = Syst(name="CMS_pileup_id", prior="shape", samples=all_mc)
 
 uncorr_year_shape_systs = {
     "pileup": Syst(name="CMS_pileup", prior="shape", samples=all_mc),
@@ -393,14 +426,25 @@ def get_templates(
     return templates_dict, templates_summed
 
 
-def process_systematics_combined(systematics: dict):
-    """Get total uncertainties from per-year systs in ``systematics``"""
-    for sig_key in sig_keys:
-        # already for all years
-        nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{mc_samples[sig_key]}"].value = (
-            1 + systematics[sig_key]["lp_sf_unc"]
-        )
+def _process_lpsfs(systematics: dict):
+    for sr in signal_regions:
+        for sig_key in sig_keys:
+            # already for all years
+            try:
+                lp_sf_unc = systematics[sr][sig_key]["lp_sf_unc"]
+            except KeyError:
+                warnings.warn(
+                    f"No {sr} region in systematics? Trying old convention for LP SFs.",
+                    stacklevel=2,
+                )
+                lp_sf_unc = systematics[sig_key]["lp_sf_unc"]
 
+            nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{mc_samples[sig_key]}"].value = (
+                1 + lp_sf_unc
+            )
+
+
+def _process_triggereffs(systematics: dict):
     tdict = {}
     for region in systematics[years[0]]:
         if len(years) > 1:
@@ -423,35 +467,18 @@ def process_systematics_combined(systematics: dict):
     nuisance_params[f"{CMS_PARAMS_LABEL}_triggerEffSF_uncorrelated"].value = tdict
 
 
-def process_systematics_separate(bg_systematics: dict, sig_systs: dict[str, dict]):
+def process_systematics_combined(systematics: dict):
+    """Get total uncertainties from per-year systs in ``systematics``"""
+    _process_lpsfs(systematics)
+    _process_triggereffs(systematics)
+
+    print("Nuisance Parameters\n", nuisance_params)
+
+
+def process_systematics_separate(bg_systs: dict, sig_systs: dict[str, dict]):
     """Get total uncertainties from per-year systs separated into bg and sig systs"""
-    for sig_key in sig_keys:
-        # already for all years
-        nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{mc_samples[sig_key]}"].value = (
-            1 + sig_systs[sig_key][sig_key]["lp_sf_unc"]
-        )
-
-    # use only bg trig uncs.
-    tdict = {}
-    for region in bg_systematics[years[0]]:
-        if len(years) > 1:
-            trig_totals, trig_total_errs = [], []
-            for year in years:
-                trig_totals.append(bg_systematics[year][region]["trig_total"])
-                trig_total_errs.append(bg_systematics[year][region]["trig_total_err"])
-
-            trig_total = np.sum(trig_totals)
-            trig_total_errs = np.linalg.norm(trig_total_errs)
-
-            tdict[region] = 1 + (trig_total_errs / trig_total)
-        else:
-            year = years[0]
-            tdict[region] = 1 + (
-                bg_systematics[year][region]["trig_total_err"]
-                / bg_systematics[year][region]["trig_total"]
-            )
-
-    nuisance_params[f"{CMS_PARAMS_LABEL}_triggerEffSF_uncorrelated"].value = tdict
+    _process_lpsfs(sig_systs)
+    _process_triggereffs(bg_systs)
 
     print("Nuisance Parameters\n", nuisance_params)
 
@@ -465,14 +492,14 @@ def process_systematics(templates_dir: str, sig_separate: bool):
         process_systematics_combined(systematics)  # LP SF and trig effs.
     else:
         with (templates_dir / "backgrounds/systematics.json").open("r") as f:
-            bg_systematics = json.load(f)
+            bg_systs = json.load(f)
 
         sig_systs = {}
         for sig_key in sig_keys:
             with (templates_dir / f"{hist_names[sig_key]}/systematics.json").open("r") as f:
                 sig_systs[sig_key] = json.load(f)
 
-        process_systematics_separate(bg_systematics, sig_systs)  # LP SF and trig effs.
+        process_systematics_separate(bg_systs, sig_systs)  # LP SF and trig effs.
 
 
 # TODO: separate function for VBF?
@@ -562,8 +589,8 @@ def fill_regions(
             region_templates = templates_summed[region][:, :, mX_bin]
 
         pass_region = region.startswith("pass")
-        region_noblinded = region.split("Blinded")[0]
-        blind_str = "Blinded" if region.endswith("Blinded") else ""
+        region_noblinded = region.split(MCB_LABEL)[0]
+        blind_str = MCB_LABEL if region.endswith(MCB_LABEL) else ""
 
         logging.info("starting region: %s" % region)
         binstr = "" if mX_bin is None else f"mXbin{mX_bin}"
@@ -574,7 +601,8 @@ def fill_regions(
             # don't add signals in fail regions
             # also skip resonant signals in pass blinded - they are ignored in the validation fits anyway
             if sample_name in sig_keys and (
-                not pass_region or (mX_bin is not None and region == "passBlinded")
+                not pass_region
+                or (mX_bin is not None and region not in [sr + MCB_LABEL for sr in signal_regions])
             ):
                 logging.info(f"\nSkipping {sample_name} in {region} region\n")
                 continue
@@ -624,7 +652,13 @@ def fill_regions(
 
             # rate systematics
             for skey, syst in nuisance_params.items():
-                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
+                region_name = region if args.resonant else region_noblinded
+
+                if (
+                    sample_name not in syst.samples
+                    or (not pass_region and syst.pass_only)
+                    or (syst.regions is not None and region_name not in syst.regions)
+                ):
                     continue
 
                 logging.info(f"Getting {skey} rate")
@@ -633,7 +667,6 @@ def fill_regions(
 
                 val, val_down = syst.value, syst.value_down
                 if syst.diff_regions:
-                    region_name = region if args.resonant else region_noblinded
                     val = val[region_name]
                     val_down = val_down[region_name] if val_down is not None else val_down
                 if syst.diff_samples:
@@ -737,25 +770,11 @@ def nonres_alphabet_fit(
     shape_var = shape_vars[0]
     m_obs = rl.Observable(shape_var.name, shape_var.bins)
 
-    # QCD overall pass / fail efficiency
-    qcd_eff = (
-        templates_summed["pass"][qcd_key, :].sum().value
-        / templates_summed["fail"][qcd_key, :].sum().value
-    )
+    ##########################
+    # Setup fail region first
+    ##########################
 
-    # transfer factor
-    tf_dataResidual = rl.BasisPoly(
-        f"{CMS_PARAMS_LABEL}_tf_dataResidual",
-        (shape_var.order,),
-        [shape_var.name],
-        basis="Bernstein",
-        limits=(-20, 20),
-        square_params=True,
-    )
-    tf_dataResidual_params = tf_dataResidual(shape_var.scaled)
-    tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
-
-    # qcd params
+    # Independent nuisances to float QCD in each fail bin
     qcd_params = np.array(
         [
             rl.IndependentParameter(f"{CMS_PARAMS_LABEL}_tf_dataResidual_Bin{i}", 0)
@@ -763,23 +782,17 @@ def nonres_alphabet_fit(
         ]
     )
 
-    for blind_str in ["", "Blinded"]:
-        # for blind_str in ["Blinded"]:
-        passChName = f"pass{blind_str}".replace("_", "")
+    for blind_str in ["", MCB_LABEL]:
         failChName = f"fail{blind_str}".replace("_", "")
-        logging.info(
-            f"setting transfer factor for pass region {passChName}, fail region {failChName}"
-        )
+        logging.info(f"Setting up fail region {failChName}")
         failCh = model[failChName]
-        passCh = model[passChName]
 
-        # sideband fail
         # was integer, and numpy complained about subtracting float from it
         initial_qcd = failCh.getObservation().astype(float)
         for sample in failCh:
             if sample.sampletype == rl.Sample.SIGNAL:
                 continue
-            logging.debug("subtracting %s from qcd" % sample._name)
+            logging.debug("Subtracting %s from qcd" % sample._name)
             initial_qcd -= sample.getExpectation(nominal=True)
 
         if np.any(initial_qcd < 0.0):
@@ -806,14 +819,44 @@ def nonres_alphabet_fit(
         )
         failCh.addSample(fail_qcd)
 
-        pass_qcd = rl.TransferFactorSample(
-            f"{passChName}_{CMS_PARAMS_LABEL}_qcd_datadriven",
-            rl.Sample.BACKGROUND,
-            tf_params_pass,
-            fail_qcd,
-            min_val=min_qcd_val,
+    ##########################
+    # Now do signal regions
+    ##########################
+
+    for sr in signal_regions:
+        # QCD overall pass / fail efficiency
+        qcd_eff = (
+            templates_summed[sr][qcd_key, :].sum().value
+            / templates_summed["fail"][qcd_key, :].sum().value
         )
-        passCh.addSample(pass_qcd)
+
+        # transfer factor
+        tf_dataResidual = rl.BasisPoly(
+            f"{CMS_PARAMS_LABEL}_tf_dataResidual_{sr}",
+            (shape_var.order[sr],),
+            [shape_var.name],
+            basis="Bernstein",
+            limits=(-20, 20),
+            square_params=True,
+        )
+        # dependent parameters of the TF params representing QCD in each bin of pass region
+        tf_dataResidual_params = tf_dataResidual(shape_var.scaled)
+        tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
+
+        for blind_str in ["", MCB_LABEL]:
+            # for blind_str in [MCB_LABEL]:
+            passChName = f"{sr}{blind_str}".replace("_", "")
+            logging.info(f"setting transfer factor for pass region {passChName}")
+            passCh = model[passChName]
+
+            pass_qcd = rl.TransferFactorSample(
+                f"{passChName}_{CMS_PARAMS_LABEL}_qcd_datadriven",
+                rl.Sample.BACKGROUND,
+                tf_params_pass,
+                fail_qcd,
+                min_val=min_qcd_val,
+            )
+            passCh.addSample(pass_qcd)
 
 
 def res_alphabet_fit(
@@ -859,8 +902,8 @@ def res_alphabet_fit(
             ]
         )
 
-        for blind_str in ["", "Blinded"]:
-            # for blind_str in ["Blinded"]:
+        for blind_str in ["", MCB_LABEL]:
+            # for blind_str in [MCB_LABEL]:
             passChName = f"mXbin{mX_bin}pass{blind_str}".replace("_", "")
             failChName = f"mXbin{mX_bin}fail{blind_str}".replace("_", "")
             logging.info(
@@ -914,9 +957,9 @@ def res_alphabet_fit(
 
 
 def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
-    # (pass, fail) x (unblinded, blinded)
+    # (*signal_regions, fail) x (MC not-blinded, MC blinded)
     regions: list[str] = [
-        f"{pf}{blind_str}" for pf in ["pass", "fail"] for blind_str in ["", "Blinded"]
+        f"{pf}{blind_str}" for pf in [*signal_regions, "fail"] for blind_str in ["", MCB_LABEL]
     ]
 
     # build actual fit model now
@@ -1212,14 +1255,29 @@ def main(args):
     # TODO: check if / how to include signal trig eff uncs. (rn only using bg uncs.)
     process_systematics(args.templates_dir, args.sig_separate)
 
-    # random template from which to extract shape vars
+    # arbitrary template from which to extract shape vars
     sample_templates: Hist = templates_summed[next(iter(templates_summed.keys()))]
 
     # [mH(bb)] for nonresonant, [mY, mX] for resonant
-    shape_vars = [
-        ShapeVar(name=axis.name, bins=axis.edges, order=args.nTF[i])
-        for i, axis in enumerate(sample_templates.axes[1:])
-    ]
+    if not args.resonant:
+        shape_vars = [
+            ShapeVar(
+                name=axis.name,
+                bins=axis.edges,
+                order={sr: args.nTF[i] for i, sr in enumerate(signal_regions)},
+            )
+            for _, axis in enumerate(sample_templates.axes[1:])
+        ]
+    else:
+        if len(signal_regions) != 1:
+            raise NotImplementedError(
+                "Need to update shape vars for multiple resonant signal regions."
+            )
+
+        shape_vars = [
+            ShapeVar(name=axis.name, bins=axis.edges, order={signal_regions[0]: args.nTF[i]})
+            for i, axis in enumerate(sample_templates.axes[1:])
+        ]
 
     args.cards_dir.mkdir(parents=True, exist_ok=True)
     with (args.cards_dir / "templates.txt").open("w") as f:

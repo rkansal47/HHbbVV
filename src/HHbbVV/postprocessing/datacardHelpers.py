@@ -38,6 +38,8 @@ class Syst:
     uncorr_years: list[str] = field(default_factory=lambda: all_years)
     pass_only: bool = False  # is it applied only in the pass regions
 
+    regions: list[str] = None  # regions affected by it (if None, this is ignored)
+
     def __post_init__(self):
         if isinstance(self.value, dict) and not (self.diff_regions or self.diff_samples):
             raise RuntimeError(
@@ -51,7 +53,7 @@ class ShapeVar:
 
     name: str = None
     bins: np.ndarray = None  # bin edges
-    order: int = None  # TF order
+    orders: dict = None  # TF order: dict of categories -> order
 
     def __post_init__(self):
         # use bin centers for polynomial fit
