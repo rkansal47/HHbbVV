@@ -443,7 +443,7 @@ run_blinded.sh --workspace --bfit --limits
 
 #### F-tests locally for non-resonant
 
-This will take 5-10 minutes.
+This will take 5-10 minutes for 100 toys **will take forever for more than >>100!**.
 
 ```bash
 # automatically make workspaces and do the background-only fit for orders 0 - 3
@@ -452,7 +452,16 @@ run_ftest_nonres.sh --cardstag 23May14 --templatestag $templatestag  # -dl for s
 run_ftest_nonres.sh --cardstag 23May14 --goftoys --ffits --numtoys 100 --seed 444 --order 0
 ```
 
-Condor is needed for resonant, see [below](#f-tests).
+VBF:
+
+```bash
+# automatically make workspaces and do the background-only fit for orders 0 - 3
+run_ftest_nonres.sh --sample qqHH_CV_1_C2V_0_kl_1_HHbbVV --templatestag 24Apr8VBFHP999 --cardstag 24Apr8VBFHP999 -dlg  # -dl for saving shapes and limits
+# run f-test for desired order
+run_ftest_nonres.sh --sample qqHH_CV_1_C2V_0_kl_1_HHbbVV --templatestag 24Apr8VBFHP999 --cardstag 24Apr8VBFHP999 ---goftoys --ffits --numtoys 100 --seed 444 --order 1
+```
+
+Condor is needed for >100 toys or resonant, see [below](#f-tests).
 
 ### Run fits on condor
 
@@ -470,8 +479,16 @@ csubmit cards --test --scan --resonant --templates-dir 23Apr30Scan
 Generate toys and fits for F-tests (after making cards and b-only fits for the
 testing order AND testing order + 1!)
 
+Nonresonant:
+
 ```bash
-csubmit f_test --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
+csubmit ftest --tag 24Apr9 --cards-tag 24Apr9VBFHP999 --low1 0 --no-resonant
+```
+
+Resonant:
+
+```bash
+csubmit ftest --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
 ```
 
 #### Impacts

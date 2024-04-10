@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 
 ####################################################################################################
 # 1) Makes datacards and workspaces for different orders of polynomials
@@ -18,8 +19,9 @@ limits=0
 seed=42
 numtoys=100
 order=0
+sample="HHbbVV"
 
-options=$(getopt -o "tfdlo:" --long "cardstag:,templatestag:,goftoys,ffits,dfit,limits,order:,numtoys:,seed:" -- "$@")
+options=$(getopt -o "tfdlo:s:" --long "cardstag:,templatestag:,sample:,goftoys,ffits,dfit,limits,order:,numtoys:,seed:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -43,6 +45,10 @@ while true; do
         --templatestag)
             shift
             templates_tag=$1
+            ;;
+        -s|--sample)
+            shift
+            sample=$1
             ;;
         -o|--order)
             shift
@@ -71,7 +77,7 @@ while true; do
     shift
 done
 
-echo "Arguments: cardstag=$cards_tag templatestag=$templates_tag dfit=$dfit \
+echo "Arguments: cardstag=$cards_tag sample=$sample templatestag=$templates_tag dfit=$dfit \
 goftoys=$goftoys ffits=$ffits order=$order seed=$seed numtoys=$numtoys"
 
 
@@ -79,7 +85,7 @@ goftoys=$goftoys ffits=$ffits order=$order seed=$seed numtoys=$numtoys"
 # Set up fit args
 ####################################################################################################
 
-templates_dir="/eos/uscms/store/user/rkansal/bbVV/templates/${templates_tag}"
+templates_dir="/uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/postprocessing/templates/${templates_tag}"
 cards_dir="cards/f_tests/${cards_tag}/"
 mkdir -p "${cards_dir}"
 echo "Saving datacards to ${cards_dir}"
@@ -118,7 +124,7 @@ do
     if [ ! -f "${cards_dir}/${model_name}/pass.txt" ]; then
         echo "Making Datacard for $model_name"
         python3 -u postprocessing/CreateDatacard.py --templates-dir "${templates_dir}" \
-        --model-name "${model_name}" --nTF "${ord}" --cards-dir "${cards_dir}"
+        --model-name "${model_name}" --nTF "${ord}" --cards-dir "${cards_dir}" --sig-sample $sample
     fi
 
     cd "${cards_dir}/${model_name}/" || exit
@@ -127,15 +133,15 @@ do
     # make workspace, background-only fit, GoF on data if they don't already exist
     if [ ! -f "./higgsCombineData.GoodnessOfFit.mH125.root" ]; then
         echo "Making workspace, doing b-only fit and gof on data"
-        /uscms/home/rkansal/hhcombine/combine_scripts/run_blinded.sh -wbg
+        /uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine/run_blinded.sh -wbg
     fi
 
     if [ $dfit = 1 ]; then
-        /uscms/home/rkansal/hhcombine/combine_scripts/run_blinded.sh -d
+        /uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine/run_blinded.sh -d
     fi
 
     if [ $limits = 1 ]; then
-        /uscms/home/rkansal/hhcombine/combine_scripts/run_blinded.sh -l
+        /uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine/run_blinded.sh -l
     fi
 
     cd - || exit

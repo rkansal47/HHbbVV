@@ -298,7 +298,7 @@ if [ $dfit = 1 ]; then
 
     echo "Fit Shapes"
     PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapes.root \
-    -m 125 -f fitDiagnosticsBlinded.root:fit_b --postfit --sampling --print 2>&1 | tee $outsdir/FitShapes.txt
+    -m 125 -f fitDiagnosticsBlinded.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
 fi
 
 

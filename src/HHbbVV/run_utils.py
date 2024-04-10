@@ -25,14 +25,17 @@ def add_bool_arg(parser, name, help, default=False, no_name=None):
     parser.set_defaults(**{varname: default})
 
 
-def write_template(templ_file: str, out_file: Path, templ_args: dict):
+def write_template(templ_file: str, out_file: Path, templ_args: dict, safe: bool = False):
     """Write to ``out_file`` based on template from ``templ_file`` using ``templ_args``"""
 
     with Path(templ_file).open() as f:
         templ = Template(f.read())
 
     with Path(out_file).open("w") as f:
-        f.write(templ.substitute(templ_args))
+        if not safe:
+            f.write(templ.substitute(templ_args))
+        else:
+            f.write(templ.safe_substitute(templ_args))
 
 
 def print_red(s):
