@@ -388,7 +388,9 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
 
     else:
 
-        def top_pt_eta_min(jets, eta_jj_min=2.0, num_jets=3):
+        def top_pt_eta_min(
+            jets: ak.Array, eta_jj_min: float = 2.0, num_jets: int = 3,
+        ):
             """
             Find highest pt pair of jets with |eta_jj| > eta_jj_min.
             If no such pair is found, return the pair with the highest pt.
@@ -398,7 +400,7 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
 
             etas = []
             i_s = []
-            # only consider the pairing among top num_jets jets
+
             for i in range(num_jets):
                 for j in range(i + 1, num_jets):
                     etajj = ak.fill_none(np.abs(eta[:, i] - eta[:, j]) >= eta_jj_min, False)
@@ -413,7 +415,6 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
                 inds[eta_jj_cache * etas[n]] = i_s[n]
                 eta_jj_cache = eta_jj_cache * ~etas[n]
 
-            # select the highest pt pair of jets that satisfy eta_jj > eta_jj_min
             i1 = inds[:, 0].astype(int)
             i2 = inds[:, 1].astype(int)
 
@@ -421,7 +422,7 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
             j2 = jets[np.arange(len(jets)), i2]
 
             selected_jets = ak.concatenate([ak.unflatten(j1, 1), ak.unflatten(j2, 1)], axis=1)
-
+            
             return selected_jets
 
         for eta_jj_min, num_jets in product(eta_jj_min_list, num_jets_list):
@@ -435,7 +436,7 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
             # Background
             selected_bkg_dict = {}
             for k, bkg_jets in sel_bkg_jets_dict.items():
-                selected_bkgs = top_pt_eta_min(bkg_jets, eta_jj_min=etamin, num_jets=num_jets)
+                selected_bkgs = top_pt_eta_min(bkg_jets, eta_jj_min=eta_jj_min, num_jets=num_jets)
                 selected_bkg_dict[k] = selected_bkgs
 
             # Calculate significance
@@ -444,7 +445,7 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
                 sel_bkg_jets_dict=selected_bkg_dict,
                 selection=selection_2jets_etajj,
                 verbose=False,
-                return_effs=False,
+                return_effs=True,
             )
             vars = [pt, etamin, etamax, bbdr, vvdr, eta_jj_min, num_jets]
             optimization_history["vars"].append(vars)
