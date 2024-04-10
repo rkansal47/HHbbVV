@@ -447,16 +447,16 @@ This will take 5-10 minutes for 100 toys **will take forever for more than >>100
 
 ```bash
 # automatically make workspaces and do the background-only fit for orders 0 - 3
-run_ftest_nonres.sh --cardstag 23May14 --templatestag $templatestag  # -dl for saving shapes and limits
+run_ftest_nonres.sh --sample HHbbVV --cardstag 24Apr10ggFMP9965 --templatestag 24Apr9ggFMP9965 # -dl for saving shapes and limits
 # run f-test for desired order
-run_ftest_nonres.sh --cardstag 23May14 --goftoys --ffits --numtoys 100 --seed 444 --order 0
+run_ftest_nonres.sh --sample HHbbVV --cardstag 24Apr10ggFMP9965 --goftoys --ffits --numtoys 100 --seed 444 --order 0
 ```
 
 VBF:
 
 ```bash
 # automatically make workspaces and do the background-only fit for orders 0 - 3
-run_ftest_nonres.sh --sample qqHH_CV_1_C2V_0_kl_1_HHbbVV --templatestag 24Apr8VBFHP999 --cardstag 24Apr8VBFHP999 -dlg  # -dl for saving shapes and limits
+run_ftest_nonres.sh --sample qqHH_CV_1_C2V_0_kl_1_HHbbVV --templatestag 24Apr8VBFHP999 --cardstag 24Apr8VBFHP999 -dl  # -dl for saving shapes and limits
 # run f-test for desired order
 run_ftest_nonres.sh --sample qqHH_CV_1_C2V_0_kl_1_HHbbVV --templatestag 24Apr8VBFHP999 --cardstag 24Apr8VBFHP999 ---goftoys --ffits --numtoys 100 --seed 444 --order 1
 ```
@@ -482,13 +482,13 @@ testing order AND testing order + 1!)
 Nonresonant:
 
 ```bash
-csubmit ftest --tag 24Apr9 --cards-tag 24Apr9VBFHP999 --low1 0 --no-resonant
+csubmit ftest --tag 24Apr9 --cards-tag 24Apr9VBFHP999 --low1 0 --no-resonant --num-jobs 5  # 500 toys
 ```
 
 Resonant:
 
 ```bash
-csubmit ftest --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0
+csubmit ftest --tag 23May2 --cards-tag 23May2 --low1 0 --low2 0  # 1000 toys
 ```
 
 #### Impacts
