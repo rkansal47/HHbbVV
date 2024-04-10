@@ -229,6 +229,8 @@ def main(args):
 
     if args.lpsfs:
         _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples)
+        if not (args.templates or args.bdt_plots or args.control_plots):
+            return
 
     # only need to worry about variations if making templates
     events_dict = _load_samples(args, bg_samples, sig_samples, cutflow, variations=args.templates)
@@ -638,7 +640,7 @@ def _process_samples(args, BDT_sample_order: list[str] = None):
     sig_keys = list(sig_samples.keys())
     bg_keys = list(bg_samples.keys())
 
-    print("BDT Sample Order: ", BDT_sample_order)
+    # print("BDT Sample Order: ", BDT_sample_order)
     print("Sig keys: ", sig_keys)
     # print("Sig samples: ", sig_samples)
     print("BG keys: ", bg_keys)
@@ -841,7 +843,7 @@ def load_samples(
 
 def _check_load_systematics(systs_file: str, year: str):
     if systs_file.exists():
-        print("Loading systematics")
+        # print("Loading existing systematics")
         with systs_file.open() as f:
             systematics = json.load(f)
     else:
@@ -1120,11 +1122,11 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
 
     for wps in scan_wps:  # if not scanning, this will just be a single WP
         cutstr, _, selection_regions = _get_scan_regions(args, scan, scan_cuts, wps)
-        for region in selection_regions:
+        for region in selection_regions.values():
             if region.lpsf:
-                tregion = region.copy()
+                tregion = deepcopy(region)
                 if scan:
-                    tregion.cutstr = cutstr
+                    tregion.lpsf_region += "_" + cutstr
                 lpsf_regions.append(tregion)
 
     lpsfs(
@@ -1146,7 +1148,7 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
             systs_file = template_dir / "systematics.json"
             wsysts = _check_load_systematics(systs_file, args.year)
 
-            for region in selection_regions:
+            for region in selection_regions.values():
                 if region.lpsf:
                     wsysts[region.lpsf_region] = systematics[region.lpsf_region + "_" + cutstr]
 
@@ -1289,9 +1291,6 @@ def lpsfs(
 
         for lp_region in lp_selection_regions:
             rlabel = lp_region.lpsf_region
-            if lp_region.cutstr is not None:
-                rlabel += "_" + lp_region.cutstr
-
             print(rlabel)
 
             if rlabel not in systematics:
@@ -1656,7 +1655,7 @@ def get_templates(
             sig_events[sig_key] = deepcopy(events_dict[sig_key][sel[sig_key]])
             sig_bb_mask = bb_masks[sig_key][sel[sig_key]]
 
-            if pass_region:
+            if region.signal:
                 # scale all signal weights by LP SF (if not doing a j shift)
                 if lpsfs:
                     scale_wkeys = (
@@ -1685,7 +1684,7 @@ def get_templates(
         if not do_jshift:
             # add all weight-based variations to histogram axis
             for shift in ["down", "up"]:
-                if pass_region:
+                if region.signal:
                     for sig_key in sig_keys:
                         hist_samples.append(f"{sig_key}_txbb_{shift}")
 
@@ -1756,13 +1755,13 @@ def get_templates(
 
         print(f"Histograms: {time.time() - start:.2f}")
 
-        if pass_region:
+        if region.signal:
             # blind signal mass windows in pass region in data
             for i, shape_var in enumerate(shape_vars):
                 if shape_var.blind_window is not None:
                     utils.blindBins(h, shape_var.blind_window, data_key, axis=i)
 
-        if pass_region and not do_jshift:
+        if region.signal and not do_jshift:
             for sig_key in sig_keys:
                 if not len(sig_events[sig_key]):
                     continue
@@ -1804,7 +1803,7 @@ def get_templates(
             if sig_splits is None:
                 sig_splits = [plot_sig_keys]
 
-            # don't plot qcd in the pass region
+            # don't plot qcd in the pass regions
             if pass_region:
                 p_bg_keys = [key for key in bg_keys if key != qcd_key]
             else:
@@ -1818,7 +1817,7 @@ def get_templates(
                         "sig_keys": p_sig_keys,
                         "sig_scale_dict": (
                             {key: sig_scale_dict[key] for key in p_sig_keys}
-                            if pass_region
+                            if region.signal
                             else None
                         ),
                         "show": show,
@@ -1865,7 +1864,7 @@ def get_templates(
                                     plot_ratio=False,
                                 )
 
-                        if pass_region:
+                        if region.signal:
                             plotting.ratioHistPlot(
                                 **plot_params,
                                 bg_keys=bg_keys,

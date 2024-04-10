@@ -73,6 +73,7 @@ def get_nonres_selection_regions(
                 "bbFatJetParticleNetMD_Txbb": [vbf_txbb_cut, CUT_MAX_VAL],
                 **lepton_cuts,
             },
+            signal=True,
             label="VBF",
         ),
         "pass_ggf": Region(
@@ -84,6 +85,7 @@ def get_nonres_selection_regions(
                 "bbFatJetParticleNetMD_Txbb": [ggf_txbb_cut, CUT_MAX_VAL],
                 **lepton_cuts,
             },
+            signal=True,
             label="ggF",
         ),
         "fail": Region(
@@ -116,26 +118,32 @@ def get_nonres_selection_regions(
     }
 
     if region == "ggf":
+        lpregion = regions["lpsf_pass_ggf"]
+        lpregion.lpsf_region = "pass"
         return {
             "pass": regions["pass_ggf"],
             "fail": regions["fail"],
-            "lpsf": regions["lpsf_pass_ggf"],
+            "lpsf": lpregion,
+        }
+    elif region == "vbf":
+        lpregion = regions["lpsf_pass_vbf"]
+        lpregion.lpsf_region = "pass"
+        return {
+            "pass": regions["pass_vbf"],
+            "fail": regions["fail"],
+            "lpsf": lpregion,
         }
     elif region == "ggf_no_vbf":
+        lpregion = regions["lpsf_pass_ggf"]
+        lpregion.lpsf_region = "pass"
         regions = {
             "pass": regions["pass_ggf"],
             "fail": regions["fail"],
-            "lpsf": regions["lpsf_pass_ggf"],
+            "lpsf": lpregion,
         }
         regions["pass"].cuts.pop("BDTScoreVBF")
         regions["lpsf"].cuts.pop("BDTScoreVBF")
         return regions
-    elif region == "vbf":
-        return {
-            "pass": regions["pass_vbf"],
-            "fail": regions["fail"],
-            "lpsf": regions["lpsf_pass_vbf"],
-        }
     elif region == "all":
         return regions
     else:
@@ -169,6 +177,7 @@ def get_nonres_vbf_selection_regions(
                 "nGoodElectronsHbb": [0, 0.9],
                 "nGoodMuonsHbb": [0, 0.9],
             },
+            signal=True,
             label="Pass",
         ),
         "fail": Region(
@@ -228,6 +237,7 @@ def get_res_selection_regions(
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
                 "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
             },
+            signal=True,
             label="Pass",
         ),
         "fail": Region(
