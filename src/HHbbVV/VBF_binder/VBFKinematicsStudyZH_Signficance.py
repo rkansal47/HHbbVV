@@ -265,9 +265,9 @@ def significance(
 
 """Optimization over (eta_min, bbdr, vvdr, eta_jj_min, num_jets, puID, tightID)"""
 if min_eta_jj:
-    print("Optimizing over (eta_min, bbdr, vvdr, puID, tightID, eta_jj_min, num_jets)...")
+    print("Optimizing over (eta_min, eta_max, bbdr, vvdr, puID, tightID, eta_jj_min, num_jets)...")
 else:
-    print("Optimizing over (eta_min, bbdr, vvdr, puID, tightID)...")
+    print("Optimizing over (eta_min, eta_max, bbdr, vvdr, puID, tightID)...")
 sig_dict = {
     "pt": None,
     "etamin": None,
@@ -279,6 +279,8 @@ sig_dict = {
     "puID": None,
     "tightID": None,
     "significance": 0,
+    "eff_s": 0,
+    "eff_b": 0,
 }
 best_sel_jets = None
 best_sel_bkg_jets_dict = None
@@ -292,7 +294,7 @@ total_iterations = (
     len(pt_list) * len(etamin_list) * len(etamax_list) * len(bbdr_list) * len(vvdr_list)
 )
 eta_jj_min_list = np.arange(1, 5, 0.2)
-num_jets_list = np.arange(2, 5, 1)
+num_jets_list = np.arange(3, 5, 1)
 
 vars_name = ["pt", "etamin", "etamax", "bbdr", "vvdr"]
 if min_eta_jj:
@@ -301,6 +303,8 @@ optimization_history = {
     "vars_name": vars_name,
     "vars": [],
     "significance": [],
+    "eff_s": [],
+    "eff_b": [],
 }
 
 for pt, etamin, etamax, bbdr, vvdr in tqdm(
@@ -348,23 +352,25 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
         sel_mask_dict[key] = sel_mask
 
     sel_bkg_jets_dict = {k: v for k, v in sel_jets_dict.items() if k != "vbf"}
+    sel_vbf_jets = sel_jets_dict["vbf"]
 
     if not min_eta_jj:
         # calculate significance
-        sel_vbf_jets = sel_jets_dict["vbf"]
         sel_bkg_jets_dict = {k: v for k, v in sel_jets_dict.items() if k != "vbf"}
 
-        sig = significance(
+        sig, eff_s, eff_b = significance(
             sel_vbf_jets=sel_vbf_jets,
             sel_bkg_jets_dict=sel_bkg_jets_dict,
             selection=selection_2jets_etajj,
             verbose=False,
-            return_effs=False,
+            return_effs=True,
         )
 
         vars = [pt, etamin, etamax, bbdr, vvdr]
         optimization_history["vars"].append(vars)
         optimization_history["significance"].append(sig)
+        optimization_history["eff_s"].append(eff_s)
+        optimization_history["eff_b"].append(eff_b)
 
         if sig > sig_dict["significance"]:
             sig_dict["pt"] = pt
@@ -375,11 +381,12 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
             sig_dict["puID"] = puID
             sig_dict["tightID"] = tightID
             sig_dict["significance"] = sig
+            sig_dict["eff_s"] = eff_s
+            sig_dict["eff_b"] = eff_b
             best_sel_jets = sel_vbf_jets
             best_sel_bkg_jets_dict = sel_bkg_jets_dict
 
     else:
-        vbf_jets = sel_jets_dict["vbf"]
 
         def top_pt_eta_min(jets, eta_jj_min=2.0, num_jets=3):
             """
@@ -420,7 +427,7 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
         for eta_jj_min, num_jets in product(eta_jj_min_list, num_jets_list):
             # VBF
             selected_jets = top_pt_eta_min(
-                vbf_jets,
+                sel_vbf_jets,
                 eta_jj_min=eta_jj_min,
                 num_jets=num_jets,
             )
@@ -432,7 +439,7 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
                 selected_bkg_dict[k] = selected_bkgs
 
             # Calculate significance
-            sig = significance(
+            sig, eff_s, eff_b = significance(
                 sel_vbf_jets=selected_jets,
                 sel_bkg_jets_dict=selected_bkg_dict,
                 selection=selection_2jets_etajj,
@@ -442,6 +449,8 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
             vars = [pt, etamin, etamax, bbdr, vvdr, eta_jj_min, num_jets]
             optimization_history["vars"].append(vars)
             optimization_history["significance"].append(sig)
+            optimization_history["eff_s"].append(eff_s)
+            optimization_history["eff_b"].append(eff_b)
 
             # Update best significance if new significance is better
             if sig > sig_dict["significance"]:
@@ -455,6 +464,8 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
                 sig_dict["eta_jj_min"] = eta_jj_min
                 sig_dict["num_jets"] = num_jets
                 sig_dict["significance"] = sig
+                sig_dict["eff_s"] = eff_s
+                sig_dict["eff_b"] = eff_b
 
                 best_sel_jets = selected_jets
                 best_sel_bkg_jets_dict = selected_bkg_dict
