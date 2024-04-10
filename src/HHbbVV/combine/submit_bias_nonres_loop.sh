@@ -10,7 +10,7 @@ TAG=$2
 
 for bias in 0.0 0.3 1.0 1.5
 do
-  python3 /uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine/submit/submit_bias.py --seed "$seed" --num-jobs 100 --toys-per-job 10 --bias "$bias" --submit --tag "$TAG" --mintol 20
+  python3 /uscms_data/d1/rkansal/HHbbVV/src/HHbbVV/combine/submit/submit_bias.py --seed "$seed" --num-jobs 100 --toys-per-job 10 --bias "$bias" --submit --tag "$TAG"
 done
 
 # # need to submit extra jobs for these because of high fit failures
