@@ -26,8 +26,6 @@ from HHbbVV.hh_vars import (
     jec_vars,
     jmsr_shifts,
     jmsr_vars,
-    nonres_sig_keys,
-    res_sig_keys,
 )
 
 MAIN_DIR = "./"
@@ -199,97 +197,6 @@ def _hem_cleaning(sample, events):
         ) & (np.random.rand(len(events)) < 0.632)
         print(f"Removing {np.sum(hem_cut)} events")
         return events[~hem_cut]
-
-
-def load_samples(
-    data_dir: str,
-    samples: dict[str, str],
-    year: str,
-    filters: list = None,
-    columns: list = None,
-    hem_cleaning: bool = True,
-) -> dict[str, pd.DataFrame]:
-    """
-    Loads events with an optional filter.
-    Reweights samples by nevents.
-
-    Args:
-        data_dir (str): path to data directory.
-        samples (Dict[str, str]): dictionary of samples and selectors to load.
-        year (str): year.
-        filters (List): Optional filters when loading data.
-        columns (List): Optional columns to load.
-        hem_cleaning (bool): Whether to apply HEM cleaning to 2018 data.
-
-    Returns:
-        Dict[str, pd.DataFrame]: ``events_dict`` dictionary of events dataframe for each sample.
-
-    """
-
-    from os import listdir
-
-    full_samples_list = listdir(f"{data_dir}/{year}")
-    events_dict = {}
-
-    for label, selector in samples.items():
-        events_dict[label] = []
-        for sample in full_samples_list:
-            if not check_selector(sample, selector):
-                continue
-
-            # print(sample)
-            # if sample.startswith("QCD") and not sample.endswith("_PSWeights_madgraph"):
-            #     continue
-
-            if not Path(f"{data_dir}/{year}/{sample}/parquet").exists():
-                print(f"No parquet file for {sample}")
-                continue
-
-            # print(f"Loading {sample}")
-            events = pd.read_parquet(
-                f"{data_dir}/{year}/{sample}/parquet", filters=filters, columns=columns
-            )
-            not_empty = len(events) > 0
-            pickles_path = f"{data_dir}/{year}/{sample}/pickles"
-
-            if label != data_key:
-                if label in nonres_sig_keys + res_sig_keys:
-                    n_events = get_cutflow(pickles_path, year, sample)["has_4q"]
-                else:
-                    n_events = get_nevents(pickles_path, year, sample)
-
-                if not_empty:
-                    if "weight_noxsec" in events and np.all(
-                        events["weight"] == events["weight_noxsec"]
-                    ):
-                        print(f"WARNING: {sample} has not been scaled by its xsec and lumi")
-
-                    events["weight_nonorm"] = events["weight"]
-
-                    if "weight_noTrigEffs" in events and not np.all(
-                        np.isclose(events["weight"], events["weight_noTrigEffs"], rtol=1e-5)
-                    ):
-                        events["finalWeight"] = events["weight"] / n_events
-                        events["finalWeight_noTrigEffs"] = events["weight_noTrigEffs"] / n_events
-                    else:
-                        events["weight"] /= n_events
-            else:
-                events["finalWeight"] = events["weight"]
-
-            if year == "2018" and hem_cleaning:
-                events = _hem_cleaning(sample, events)
-
-            if not_empty:
-                events_dict[label].append(events)
-
-            print(f"Loaded {sample: <50}: {len(events)} entries")
-
-        if len(events_dict[label]):
-            events_dict[label] = pd.concat(events_dict[label])
-        else:
-            del events_dict[label]
-
-    return events_dict
 
 
 def add_to_cutflow(
