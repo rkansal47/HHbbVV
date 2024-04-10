@@ -11,7 +11,7 @@ years=("2016APV" "2016" "2017" "2018")
 MAIN_DIR="../../.."
 data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
 bdt_preds_dir="$data_dir/24_04_05_k2v0_training_eqsig_vbf_vars_rm_deta/inferences"
-sig_samples="HHbbVV qqHH_CV_1_C2V_0_kl_1_HHbbVV"
+sig_samples="HHbbVV"
 # sig_samples="qqHH_CV_1_C2V_0_kl_1_HHbbVV"
 TAG=""
 lepton_veto=""
@@ -63,7 +63,7 @@ if [[ -z $TAG ]]; then
 fi
 
 io_args="--data-dir $data_dir --bdt-preds-dir $bdt_preds_dir --template-dir templates/$TAG --sig-samples $sig_samples"
-scan_args="$lepton_veto $bdt_cut $txbb_cut --nonres-regions $regions"
+scan_args="$lepton_veto $bdt_cut $txbb_cut --nonres-regions $regions"  # --bg-keys '' --no-data
 
 echo "Getting LP SFs"
 python -u postprocessing.py --lpsfs --year "2018" $io_args $scan_args

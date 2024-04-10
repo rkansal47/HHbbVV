@@ -118,22 +118,13 @@ def get_nonres_selection_regions(
     }
 
     if region == "ggf":
-        lpregion = regions["lpsf_pass_ggf"]
-        lpregion.lpsf_region = "pass"
-        return {
-            "pass": regions["pass_ggf"],
-            "fail": regions["fail"],
-            "lpsf": lpregion,
-        }
+        regions.pop("pass_vbf")
+        region.pop("lpsf_pass_vbf")
     elif region == "vbf":
-        lpregion = regions["lpsf_pass_vbf"]
-        lpregion.lpsf_region = "pass"
-        return {
-            "pass": regions["pass_vbf"],
-            "fail": regions["fail"],
-            "lpsf": lpregion,
-        }
+        regions.pop("pass_ggf")
+        region.pop("lpsf_pass_ggf")
     elif region == "ggf_no_vbf":
+        # old version without any VBF category
         lpregion = regions["lpsf_pass_ggf"]
         lpregion.lpsf_region = "pass"
         regions = {

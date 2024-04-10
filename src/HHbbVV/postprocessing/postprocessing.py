@@ -334,7 +334,7 @@ def main(args):
             # Get Lund plane SFs if not calculated previously
             lpsfs(
                 sig_keys,
-                [region for region in selection_regions if selection_regions[region].lpsf],
+                [region for region in selection_regions.values() if region.lpsf],
                 systematics,
                 events_dict=events_dict,
                 bb_masks=bb_masks,
@@ -1664,7 +1664,7 @@ def get_templates(
                         else [weight_key]
                     )
                     for wkey in scale_wkeys:
-                        sig_events[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
+                        sig_events[sig_key][wkey] *= systematics[rname][sig_key]["lp_sf"]
 
                 # print(f"LP SFs: {time.time() - start:.2f}")
                 corrections.apply_txbb_sfs(
