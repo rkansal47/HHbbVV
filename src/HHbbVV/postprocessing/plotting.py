@@ -785,29 +785,31 @@ def multiROCCurve(
     if xlim is None:
         xlim = [0, 1]
     if thresholds is None:
-        thresholds = [0.6, 0.9, 0.96, 0.99, 0.997, 0.998, 0.999]
+        thresholds = [[0.9, 0.98, 0.995, 0.9965, 0.998], [0.99, 0.997, 0.998, 0.999, 0.9997]]
     th_colours = [
-        "#36213E",
+        # "#36213E",
         "#9381FF",
         "#1f78b4",
         # "#a6cee3",
         # "#32965D",
         "#7CB518",
         "#EDB458",
-        "#ff7f00",
+        # "#ff7f00",
         "#a70000",
     ]
 
-    roc_colours = ["#23CE6B", "blue", "#ff5252", "#ffbaba"]
+    roc_colours = ["#23CE6B", "#ff5252", "blue", "#ffbaba"]
 
     plt.rcParams.update({"font.size": 24})
 
     plt.figure(figsize=(12, 12))
     for i, roc_sigs in enumerate(rocs.values()):
-        for (
-            j,
-            roc,
-        ) in enumerate(roc_sigs.values()):
+        for j, roc in enumerate(roc_sigs.values()):
+            if len(np.array(thresholds).shape) > 1:
+                pthresholds = thresholds[j]
+            else:
+                pthresholds = thresholds
+
             plt.plot(
                 roc["tpr"],
                 roc["fpr"],
@@ -816,20 +818,20 @@ def multiROCCurve(
                 color=roc_colours[i * len(rocs) + j],
             )
 
-            pths = {th: [[], []] for th in thresholds}
-            for th in thresholds:
+            pths = {th: [[], []] for th in pthresholds}
+            for th in pthresholds:
                 idx = _find_nearest(roc["thresholds"], th)
                 pths[th][0].append(roc["tpr"][idx])
                 pths[th][1].append(roc["fpr"][idx])
 
-            for k, th in enumerate(thresholds):
+            for k, th in enumerate(pthresholds):
                 plt.scatter(
                     *pths[th],
                     marker="o",
-                    s=40,
+                    s=80,
                     label=(
                         f"BDT Score > {th}"
-                        if i == len(rocs) - 1 and j == len(roc_sigs) - 1
+                        if i == len(rocs) - 1  # and j == len(roc_sigs) - 1
                         else None
                     ),
                     color=th_colours[k],
@@ -860,7 +862,7 @@ def multiROCCurve(
     plt.ylabel("Background efficiency")
     plt.xlim(*xlim)
     plt.ylim(*ylim)
-    plt.legend(loc="lower right")
+    plt.legend(loc="lower right", fontsize=18)
     plt.title(title)
 
     if len(name):
