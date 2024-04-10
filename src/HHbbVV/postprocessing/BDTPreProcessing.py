@@ -40,6 +40,10 @@ BDT_data_vars = [
     # "bbFatJetPtOverDijetPt",  # no improvement on BDT
     "VVFatJetPtOverDijetPt",
     "VVFatJetPtOverbbFatJetPt",
+    "DijetdEta",
+    "DijetdPhi",
+    "vbf_Mass_jj",
+    "vbf_dEta_jj",
     "finalWeight",
 ]
 
@@ -92,13 +96,14 @@ def save_bdt_data(
 
     bdt_events_dict = []
     for key in BDT_sample_order:
-        print(key)
         save_vars = BDT_data_vars + jec_jmsr_vars if key != "Data" else BDT_data_vars
         events = pd.DataFrame(
             {var: utils.get_feat(events_dict[key], var, bb_masks[key]) for var in save_vars}
         )
         events["Dataset"] = key
         bdt_events_dict.append(events)
+
+    print("Saving BDT data to", out_file)
 
     bdt_events = pd.concat(bdt_events_dict, axis=0)
     table = pa.Table.from_pandas(bdt_events)

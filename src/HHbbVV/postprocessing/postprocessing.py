@@ -81,26 +81,28 @@ load_filters = [
 
 # {var: (bins, label)}
 control_plot_vars = [
-    ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[20, 0, 300]),
+    # ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[20, 0, 300]),
     # ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[20, -8, 8]),
-    ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[20, 0, 750]),
-    ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[20, 600, 4000]),
-    ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[20, -2.4, 2.4]),
-    ShapeVar(
-        var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[20, 300, 2300], significance_dir="right"
-    ),
-    ShapeVar(
-        var="bbFatJetParticleNetMass",
-        label=r"$m^{bb}_{reg}$ (GeV)",
-        bins=[20, 50, 250],
-        significance_dir="bin",
-    ),
-    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[20, 50, 250]),
-    ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[20, 0.8, 1]),
-    ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[20, -2.4, 2.4]),
-    ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[20, 300, 2300]),
-    ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
-    ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[20, 0, 750]),
+    # ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[20, 600, 4000]),
+    # ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[20, -2.4, 2.4]),
+    # ShapeVar(var="bbFatJetPhi", label=r"$\varphi^{bb}$", bins=[20, -3, 3]),
+    # ShapeVar(
+    #     var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[20, 300, 2300], significance_dir="right"
+    # ),
+    # ShapeVar(
+    #     var="bbFatJetParticleNetMass",
+    #     label=r"$m^{bb}_{reg}$ (GeV)",
+    #     bins=[20, 50, 250],
+    #     significance_dir="bin",
+    # ),
+    # ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[20, 0.8, 1]),
+    # ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[20, -2.4, 2.4]),
+    # ShapeVar(var="VVFatJetPhi", label=r"$\varphi^{VV}$", bins=[20, -3, 3]),
+    # ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[20, 300, 2300]),
+    # ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[20, 50, 250]),
     # ShapeVar(
     #     var="VVFatJetParticleNet_Th4q",
     #     label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)",
@@ -112,16 +114,21 @@ control_plot_vars = [
     #     bins=[20, 0, 1],
     # ),
     # ShapeVar(var="VVFatJetParTMD_probT", label=r"Prob(Top) (Mass-Decorrelated)", bins=[20, 0, 1]),
-    ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[20, 0, 1]),
+    # ShapeVar(var="VVFatJetParTMD_THWWvsT", label=r"$T^{VV}_{HWW}$", bins=[20, 0, 1]),
     # ShapeVar(var="bbFatJetPtOverDijetPt", label=r"$p^{bb}_T / p_T^{jj}$", bins=[20, 0, 40]),
-    ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[20, 0, 40]),
-    ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[20, 0.4, 2.0]),
-    ShapeVar(var="nGoodMuonsHbb", label=r"# of Muons", bins=[3, 0, 3]),
-    ShapeVar(var="nGoodMuonsHH", label=r"# of Muons", bins=[3, 0, 3]),
-    ShapeVar(var="nGoodElectronsHbb", label=r"# of Electrons", bins=[3, 0, 3]),
-    ShapeVar(var="nGoodElectronsHH", label=r"# of Electrons", bins=[3, 0, 3]),
-    # removed if not ggF nonresonant - needs to be the last variable!
-    ShapeVar(var="BDTScore", label=r"BDT Score", bins=[50, 0, 1]),
+    # ShapeVar(var="VVFatJetPtOverDijetPt", label=r"$p^{VV}_T / p_T^{jj}$", bins=[20, 0, 40]),
+    # ShapeVar(var="VVFatJetPtOverbbFatJetPt", label=r"$p^{VV}_T / p^{bb}_T$", bins=[20, 0.4, 2.0]),
+    # ShapeVar(var="nGoodMuonsHbb", label=r"# of Muons", bins=[3, 0, 3]),
+    # ShapeVar(var="nGoodMuonsHH", label=r"# of Muons", bins=[3, 0, 3]),
+    # ShapeVar(var="nGoodElectronsHbb", label=r"# of Electrons", bins=[3, 0, 3]),
+    # ShapeVar(var="nGoodElectronsHH", label=r"# of Electrons", bins=[3, 0, 3]),
+    ShapeVar(var="DijetdEta", label=r"$|\Delta\eta^{jj}|$", bins=[16, 0, 4]),
+    ShapeVar(var="DijetdPhi", label=r"$|\Delta\varphi^{jj}|$", bins=[16, 0, 3.2]),
+    ShapeVar(var="vbf_Mass_jj", label=r"$m^{jj}_{VBF}$", bins=[20, 0, 3000]),
+    ShapeVar(var="vbf_dEta_jj", label=r"$|\Delta\eta^{jj}_{VBF}|$", bins=[20, 0, 9]),
+    # removed if not ggF nonresonant
+    ShapeVar(var="BDTScore", label=r"BDT Score (ggF)", bins=[50, 0, 1]),
+    ShapeVar(var="BDTScoreVBF", label=r"BDT Score (VBF $\kappa_{2V} = 0$)", bins=[50, 0, 1]),
 ]
 
 
@@ -136,12 +143,29 @@ mass_plot_vars = [
 
 def get_nonres_selection_regions(
     year: str,
-    txbb_wp: str = "MP",
-    bdt_wp: float = 0.998,
+    region: str = "all",
+    ggf_txbb_wp: str = "MP",
+    ggf_bdt_wp: float = 0.998,
+    vbf_txbb_wp: str = "HP",
+    vbf_bdt_wp: float = 0.999,
     lepton_veto_wp="None",
 ):
+    """
+    Args:
+        year (str): year of data taking
+        region (str): "ggf", "ggf_no_vbf", "vbf", or "all". "ggf_no_vbf" means without the VBF veto.
+        ggf_txbb_wp (str): "LP", "HP", "MP"
+        ggf_bdt_wp (float): ggF BDT WP
+        vbf_txbb_wp (str): "LP", "HP", "MP"
+        vbf_bdt_wp (float): VBF BDT WP
+        lepton_veto_wp (str): "None", "Hbb", "HH"
+    """
     pt_cuts = [300, CUT_MAX_VAL]
-    txbb_cut = txbb_wps[year][txbb_wp]
+
+    fail_txbb_wp = "MP" if ggf_txbb_wp == "MP" or vbf_txbb_wp == "MP" else "HP"
+    ggf_txbb_cut = txbb_wps[year][ggf_txbb_wp]
+    vbf_txbb_cut = txbb_wps[year][vbf_txbb_wp]
+    fail_txbb_cut = txbb_wps[year][fail_txbb_wp]
 
     if lepton_veto_wp == "None":
         lepton_cuts = {}
@@ -158,34 +182,79 @@ def get_nonres_selection_regions(
     else:
         raise ValueError(f"Invalid lepton veto: {lepton_veto_wp}")
 
-    return {
+    regions = {
         # {label: {cutvar: [min, max], ...}, ...}
-        "pass": Region(
+        "pass_vbf": Region(
             cuts={
                 "bbFatJetPt": pt_cuts,
                 "VVFatJetPt": pt_cuts,
-                "BDTScore": [bdt_wp, CUT_MAX_VAL],
-                "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
+                "BDTScoreVBF": [vbf_bdt_wp, CUT_MAX_VAL],
+                "bbFatJetParticleNetMD_Txbb": [vbf_txbb_cut, CUT_MAX_VAL],
                 **lepton_cuts,
             },
-            label="Pass",
+            label="VBF",
+        ),
+        "pass_ggf": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                "BDTScoreVBF": [-CUT_MAX_VAL, vbf_bdt_wp],  # veto VBF BDT cut
+                "BDTScore": [ggf_bdt_wp, CUT_MAX_VAL],
+                "bbFatJetParticleNetMD_Txbb": [ggf_txbb_cut, CUT_MAX_VAL],
+                **lepton_cuts,
+            },
+            label="ggF",
         ),
         "fail": Region(
             cuts={
                 "bbFatJetPt": pt_cuts,
                 "VVFatJetPt": pt_cuts,
-                "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
+                "bbFatJetParticleNetMD_Txbb": [0.8, fail_txbb_cut],
                 **lepton_cuts,
             },
             label="Fail",
         ),
-        "lpsf": Region(
-            cuts={  # cut for which LP SF is calculated
-                "BDTScore": [bdt_wp, CUT_MAX_VAL],
+        # cuts for which LP SF is calculated
+        "lpsf_pass_vbf": Region(
+            cuts={
+                "BDTScoreVBF": [vbf_bdt_wp, CUT_MAX_VAL],
             },
-            label="LP SF Cut",
+            label="LP SF VBF Cut",
+        ),
+        "lpsf_pass_ggf": Region(
+            cuts={
+                "BDTScoreVBF": [-CUT_MAX_VAL, vbf_bdt_wp],  # veto VBF BDT cut
+                "BDTScore": [ggf_bdt_wp, CUT_MAX_VAL],
+            },
+            label="LP SF ggF Cut",
         ),
     }
+
+    if region == "ggf":
+        return {
+            "pass": regions["pass_ggf"],
+            "fail": regions["fail"],
+            "lpsf": regions["lpsf_pass_ggf"],
+        }
+    elif region == "ggf_no_vbf":
+        regions = {
+            "pass": regions["pass_ggf"],
+            "fail": regions["fail"],
+            "lpsf": regions["lpsf_pass_ggf"],
+        }
+        regions["pass"].cuts.pop("BDTScoreVBF")
+        regions["lpsf"].cuts.pop("BDTScoreVBF")
+        return regions
+    elif region == "vbf":
+        return {
+            "pass": regions["pass_vbf"],
+            "fail": regions["fail"],
+            "lpsf": regions["lpsf_pass_vbf"],
+        }
+    elif region == "all":
+        return regions
+    else:
+        raise ValueError(f"Invalid region: {region}")
 
 
 def get_nonres_vbf_selection_regions(
@@ -363,7 +432,7 @@ res_shape_vars = [
     ),
 ]
 
-nonres_scan_cuts = ["txbb", "bdt", "lepton_veto"]
+nonres_scan_cuts = ["ggf_txbb", "ggf_bdt", "vbf_txbb", "vbf_bdt", "lepton_veto"]
 nonres_vbf_scan_cuts = ["txbb", "thww"]  # TODO: add more cuts being scanned over
 res_scan_cuts = ["txbb", "thww", "leadingpt", "subleadingpt"]
 
@@ -404,8 +473,6 @@ plot_sig_keys_nonres = [
 
 
 def main(args):
-    global control_plot_vars  # noqa: PLW0603
-
     shape_vars, scan, scan_cuts, scan_wps = _init(args)
     sig_keys, sig_samples, bg_keys, bg_samples = _process_samples(args)
     all_samples = sig_keys + bg_keys
@@ -415,15 +482,14 @@ def main(args):
     # only need to worry about variations if making templates
     events_dict = _load_samples(args, bg_samples, sig_samples, cutflow, variations=args.templates)
     bb_masks = bb_VV_assignment(events_dict)
-
     # QCD xsec normalization for plots
     qcd_sf(events_dict, cutflow)
 
-    # THWW score vs Top (if not already from processor)
     derive_variables(
         events_dict,
         bb_masks,
-        nonres_vars=args.vbf or args.control_plots,
+        nonres_vars=args.vbf or (args.control_plots and not args.mass_plots),
+        # nonres_vars=args.vbf,
         vbf_vars=args.vbf,
         do_jshifts=args.vbf,  # only need shifts for BDT pre-processing
     )
@@ -435,18 +501,19 @@ def main(args):
     print("\nCutflow", cutflow)
 
     # Load BDT Scores
-    if not args.resonant and not args.vbf:
+    if not args.resonant and not args.vbf and not args.mass_plots:
         print("\nLoading BDT predictions")
         load_bdt_preds(
             events_dict,
             args.year,
             args.bdt_preds_dir,
-            jec_jmsr_shifts=True,
+            jec_jmsr_shifts=args.templates and args.do_jshifts,
         )
         print("Loaded BDT preds\n")
     else:
-        if control_plot_vars[-1].var == "BDTScore":
-            control_plot_vars = control_plot_vars[:-1]
+        for var in control_plot_vars.copy():
+            if var.var.startswith("BDTScore"):
+                control_plot_vars.remove(var)
 
     # Control plots
     if args.control_plots:
@@ -455,6 +522,7 @@ def main(args):
         if len(args.control_plot_vars):
             for var in plot_vars.copy():
                 if var.var not in args.control_plot_vars:
+                    print("Removing: ", var.var)
                     plot_vars.remove(var)
 
         print("Plotting: ", [var.var for var in plot_vars])
@@ -464,10 +532,10 @@ def main(args):
         else:
             p_sig_keys = plot_sig_keys_nonres
             sig_scale_dict = {
-                "HHbbVV": 1e5,
-                "VBFHHbbVV": 2e5,
-                "qqHH_CV_1_C2V_0_kl_1_HHbbVV": 2e3,
-                "qqHH_CV_1_C2V_2_kl_1_HHbbVV": 2e3,
+                "HHbbVV": 3e5,
+                "VBFHHbbVV": 6e6,
+                "qqHH_CV_1_C2V_0_kl_1_HHbbVV": 2e4,
+                "qqHH_CV_1_C2V_2_kl_1_HHbbVV": 2e4,
             }
 
         control_plots(
@@ -481,6 +549,7 @@ def main(args):
             sig_scale_dict=sig_scale_dict,
             # sig_splits=sig_splits,
             HEM2d=args.HEM2d,
+            plot_ratio=not args.mass_plots,  # don't need data/MC ratio for mreg vs msd comparison
             same_ylim=args.mass_plots,
             show=False,
         )
@@ -514,13 +583,16 @@ def main(args):
             elif args.vbf:
                 selection_regions = get_nonres_vbf_selection_regions(args.year, **cutargs)
             else:
-                selection_regions = get_nonres_selection_regions(args.year, **cutargs)
+                selection_regions = get_nonres_selection_regions(
+                    args.year, args.nonres_regions, **cutargs
+                )
 
             # load pre-calculated systematics and those for different years if saved already
             systs_file = template_dir / "systematics.json"
             systematics = _check_load_systematics(systs_file, args.year)
 
             # Lund plane SFs
+            # TODO: LP SFs for multiple regions
             lpsfs(
                 events_dict,
                 bb_masks,
@@ -553,7 +625,11 @@ def main(args):
                     systematics,
                     template_dir,
                     bg_keys=bg_keys,
-                    plot_sig_keys=plot_sig_keys_nonres if not args.resonant else sig_keys,
+                    plot_sig_keys=(
+                        list(set(plot_sig_keys_nonres).intersection(sig_keys))
+                        if not args.resonant
+                        else sig_keys
+                    ),
                     plot_dir=plot_dir,
                     prev_cutflow=cutflow,
                     # sig_splits=sig_splits,
@@ -598,10 +674,20 @@ def _init(args):
         shape_vars = res_shape_vars
     elif not args.vbf:
         scan = (
-            len(args.nonres_txbb_wp) > 1 or len(args.nonres_bdt_wp) > 1 or len(args.lepton_veto) > 1
+            len(args.nonres_ggf_txbb_wp) > 1
+            or len(args.nonres_ggf_bdt_wp) > 1
+            or len(args.nonres_vbf_txbb_wp) > 1
+            or len(args.nonres_vbf_bdt_wp) > 1
+            or len(args.lepton_veto) > 1
         )
         scan_wps = list(
-            itertools.product(args.nonres_txbb_wp, args.nonres_bdt_wp, args.lepton_veto)
+            itertools.product(
+                args.nonres_ggf_txbb_wp,
+                args.nonres_ggf_bdt_wp,
+                args.nonres_vbf_txbb_wp,
+                args.nonres_vbf_bdt_wp,
+                args.lepton_veto,
+            )
         )
         scan_cuts = nonres_scan_cuts
         shape_vars = nonres_shape_vars
@@ -617,21 +703,25 @@ def _init(args):
 # adds all necessary columns to dataframes from events_dict
 def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
     """Variables needed for ggF and/or VBF BDTs"""
+    # import time
+
+    import vector
+
+    # start = time.time()
 
     bbJet = utils.make_vector(df, "bbFatJet", bb_mask, ptlabel=ptlabel, mlabel=mlabel)
     VVJet = utils.make_vector(df, "VVFatJet", bb_mask, ptlabel=ptlabel, mlabel=mlabel)
     Dijet = bbJet + VVJet
 
-    if f"DijetPt{ptlabel}{mlabel}" not in df.columns:
+    # print(f"Time to make vectors: {time.time() - start:.2f}")
+
+    if f"DijetMass{ptlabel}{mlabel}" not in df.columns:
         df[f"DijetMass{ptlabel}{mlabel}"] = Dijet.mass
     df[f"DijetPt{ptlabel}{mlabel}"] = Dijet.pt
     df[f"VVFatJetPtOverbbFatJetPt{ptlabel}{mlabel}"] = VVJet.pt / bbJet.pt
     df[f"VVFatJetPtOverDijetPt{ptlabel}{mlabel}"] = VVJet.pt / df[f"DijetPt{ptlabel}{mlabel}"]
 
-    if not vbf_vars:
-        return
-
-    import vector
+    # print(f"AK8 jet vars: {time.time() - start:.2f}")
 
     vbf1 = vector.array(
         {
@@ -653,6 +743,20 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
 
     jj = vbf1 + vbf2
 
+    if "DijetdEta" not in df.columns:
+        df["DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
+    if "DijetdPhi" not in df.columns:
+        df["DijetdPhi"] = np.abs(bbJet.deltaphi(VVJet))
+    if f"vbf_Mass_jj{ptlabel}" not in df.columns:
+        df[f"vbf_Mass_jj{ptlabel}"] = jj.M
+    if "vbf_dEta_jj" not in df.columns:
+        df["vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
+
+    # print(f"VBF jet vars: {time.time() - start:.2f}")
+
+    if not vbf_vars:
+        return
+
     # Adapted from HIG-20-005 ggF_Killer 6.2.2
     # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.PtEtaPhiMLorentzVector.html
     # https://coffeateam.github.io/coffea/api/coffea.nanoevents.methods.vector.LorentzVector.html
@@ -671,7 +775,7 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
         df["vbf_dR_j1_Hbb"] = vbf2.deltaR(bbJet)
     if "vbf_dR_jj" not in df.columns:
         df["vbf_dR_jj"] = vbf1.deltaR(vbf2)
-    if "vbf_Mass_jj{ptlabel}" not in df.columns:
+    if f"vbf_Mass_jj{ptlabel}" not in df.columns:
         df[f"vbf_Mass_jj{ptlabel}"] = jj.M
     if "vbf_dEta_jj" not in df.columns:
         df["vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
@@ -679,7 +783,7 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
     if "DijetdEta" not in df.columns:
         df["DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
     if "DijetdPhi" not in df.columns:
-        df["DijetdPhi"] = np.abs(bbJet.phi - VVJet.phi)
+        df["DijetdPhi"] = np.abs(bbJet.deltaphi(VVJet))
 
     # Subleading VBF-jet cos(θ) in the HH+2j center of mass frame:
     # https://github.com/scikit-hep/vector/blob/main/src/vector/_methods.py#L916
@@ -1067,6 +1171,9 @@ def apply_trigger_weights(events_dict: dict[str, pd.DataFrame], year: str, cutfl
 
 def qcd_sf(events_dict: dict[str, pd.DataFrame], cutflow: pd.DataFrame):
     """Applies a QCD scale factor."""
+    if qcd_key not in events_dict or data_key not in events_dict:
+        return
+
     trig_yields = cutflow.iloc[:, -1]
     non_qcd_bgs_yield = np.sum(
         [
@@ -1134,9 +1241,15 @@ def derive_variables(
     do_jshifts: bool = True,
 ):
     """Add Dijet variables"""
+    import time
+
+    start = time.time()
+
     for sample, events in events_dict.items():
         if not nonres_vars:
             continue
+
+        print(f"Deriving variables for {sample} {time.time() - start:.2f}s")
 
         bb_mask = bb_masks[sample]
         _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars)
@@ -1151,11 +1264,47 @@ def derive_variables(
             _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars, mlabel=f"_{var}")
 
 
+def _add_bdt_scores(
+    events: pd.DataFrame,
+    sample_bdt_preds: np.ndarray,
+    multiclass: bool,
+    multisig: bool,
+    all_outs: bool = True,
+    jshift: str = "",
+):
+    if jshift != "":
+        jshift = "_" + jshift
+
+    if not multiclass:
+        events[f"BDTScore{jshift}"] = sample_bdt_preds
+    else:
+        if multisig:
+            num_sigs = 2
+            bg_tot = np.sum(sample_bdt_preds[:, num_sigs:], axis=1)
+            ggf_score = sample_bdt_preds[:, 0]
+            vbf_score = sample_bdt_preds[:, 1]
+
+            events[f"BDTScore{jshift}"] = ggf_score / (ggf_score + bg_tot)
+            events[f"BDTScoreVBF{jshift}"] = vbf_score / (vbf_score + bg_tot)
+
+            if all_outs:
+                events[f"BDTScoreQCD{jshift}"] = sample_bdt_preds[:, num_sigs]
+                events[f"BDTScoreTT{jshift}"] = sample_bdt_preds[:, num_sigs + 1]
+                events[f"BDTScoreZjets{jshift}"] = sample_bdt_preds[:, num_sigs + 2]
+        else:
+            events[f"BDTScore{jshift}"] = sample_bdt_preds[:, 0]
+            if all_outs:
+                events[f"BDTScoreQCD{jshift}"] = sample_bdt_preds[:, 1]
+                events[f"BDTScoreTT{jshift}"] = sample_bdt_preds[:, 2]
+                events[f"BDTScoreZJets{jshift}"] = 1 - np.sum(sample_bdt_preds, axis=1)
+
+
 def load_bdt_preds(
     events_dict: dict[str, pd.DataFrame],
     year: str,
     bdt_preds_dir: Path,
     jec_jmsr_shifts: bool = False,
+    all_outs: bool = False,
 ):
     """
     Loads the BDT scores for each event and saves in the dataframe in the "BDTScore" column.
@@ -1172,6 +1321,7 @@ def load_bdt_preds(
     bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
 
     multiclass = len(bdt_preds.shape) > 1
+    multisig = multiclass and bdt_preds.shape[1] > 3
 
     if jec_jmsr_shifts:
         shift_preds = {
@@ -1187,25 +1337,15 @@ def load_bdt_preds(
                 events
             ), f"# of BDT predictions does not match # of events for sample {sample}"
 
-            if not multiclass:
-                events["BDTScore"] = bdt_preds[i : i + num_events]
-            else:
-                events["BDTScore"] = bdt_preds[i : i + num_events, 0]
-                events["BDTScoreQCD"] = bdt_preds[i : i + num_events, 1]
-                events["BDTScoreTT"] = bdt_preds[i : i + num_events, 2]
-                events["BDTScoreZJets"] = 1 - np.sum(bdt_preds[i : i + num_events], axis=1)
+            sample_bdt_preds = bdt_preds[i : i + num_events]
+            _add_bdt_scores(events, sample_bdt_preds, multiclass, multisig, all_outs)
 
             if jec_jmsr_shifts and sample != data_key:
                 for jshift in jec_shifts + jmsr_shifts:
-                    if not multiclass:
-                        events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events]
-                    else:
-                        events["BDTScore_" + jshift] = shift_preds[jshift][i : i + num_events, 0]
-                        events["BDTScoreQCD_" + jshift] = shift_preds[jshift][i : i + num_events, 1]
-                        events["BDTScoreTT_" + jshift] = shift_preds[jshift][i : i + num_events, 2]
-                        events["BDTScoreZJets_" + jshift] = 1 - np.sum(
-                            shift_preds[jshift][i : i + num_events], axis=1
-                        )
+                    sample_bdt_preds = shift_preds[jshift][i : i + num_events]
+                    _add_bdt_scores(
+                        events, sample_bdt_preds, multiclass, multisig, all_outs, jshift=jshift
+                    )
 
         i += num_events
 
@@ -1257,27 +1397,7 @@ def get_lpsf_all_years(
         events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
 
         if bdt_preds_dir is not None:
-            with (bdt_preds_dir / year / "sample_order.txt").open() as f:
-                sample_order_dict = eval(f.read())
-
-            # load bdt preds for sig only
-            bdt_preds = np.load(f"{bdt_preds_dir}/{year}/preds.npy")
-            multiclass = len(bdt_preds.shape) > 1
-            i = 0
-            for sample, num_events in sample_order_dict.items():
-                if sample != sig_key:
-                    i += num_events
-                    continue
-
-                events = events_dict[sample]
-                assert num_events == len(
-                    events
-                ), f"# of BDT predictions does not match # of events for sample {sample}"
-                if not multiclass:
-                    events["BDTScore"] = bdt_preds[i : i + num_events]
-                else:
-                    events["BDTScore"] = bdt_preds[i : i + num_events, 0]
-                break
+            load_bdt_preds(events_dict, year, bdt_preds_dir, all_outs=False)
 
         sel, _ = utils.make_selection(lp_region.cuts, events_dict, bb_masks)
 
@@ -1432,6 +1552,7 @@ def control_plots(
     sig_scale_dict: dict[str, float] = None,
     combine_pdf: bool = True,
     HEM2d: bool = False,
+    plot_ratio: bool = True,
     plot_significance: bool = False,
     same_ylim: bool = False,
     show: bool = False,
@@ -1445,6 +1566,7 @@ def control_plots(
           {var1: ([num bins, min, max], label), var2...}.
         sig_splits: split up signals into different plots (in case there are too many for one)
         HEM2d: whether to plot 2D hists of FatJet phi vs eta for bb and VV jets as a check for HEM cleaning.
+        plot_ratio: whether to plot the data/MC ratio.
         plot_significance: whether to plot the significance as well as the ratio plot.
         same_ylim: whether to use the same y-axis limits for all plots.
         log: True or False if plot on log scale or not - or "both" if both.
@@ -1508,6 +1630,7 @@ def control_plots(
                     show=show,
                     log=log,
                     ylim=ylim if not log else 1e15,
+                    plot_ratio=plot_ratio,
                 )
                 merger_control_plots.append(name)
 
@@ -1538,8 +1661,8 @@ def plot_bdt_sculpting(
     """Plot bb jet mass for different BDT score cuts."""
     cuts = [0, 0.1, 0.5, 0.9, 0.95]
     # bdtvars = ["", "TT", "VJets"]
-    bdtvars = [""]
-    plot_keys = ["QCD", "HHbbVV"]
+    bdtvars = ["", "VBF"]
+    plot_keys = ["QCD", "TT", "Z+Jets", "HHbbVV", "qqHH_CV_1_C2V_0_kl_1_HHbbVV"]
 
     shape_var = ShapeVar(
         var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[20, 50, 250]
@@ -1552,15 +1675,15 @@ def plot_bdt_sculpting(
 
             plotting.cutsLinePlot(
                 ed_key,
-                bbm_key,
                 shape_var,
                 key,
                 f"BDTScore{var}",
                 cuts,
                 year,
                 weight_key,
-                plot_dir,
-                f"{year}_BDT{var}Cuts_{shape_var.var}_{key}",
+                bb_masks=bbm_key,
+                plot_dir=plot_dir,
+                name=f"{year}_BDT{var}Cuts_{shape_var.var}_{key}",
                 show=show,
             )
 
@@ -1700,9 +1823,12 @@ def get_templates(
                     for wkey in scale_wkeys:
                         sig_events[sig_key][wkey] *= systematics[sig_key]["lp_sf"]
 
+                # print(f"LP SFs: {time.time() - start:.2f}")
                 corrections.apply_txbb_sfs(
                     sig_events[sig_key], sig_bb_mask, year, weight_key, do_shifts=not do_jshift
                 )
+
+                # print(f"Txbb SFs: {time.time() - start:.2f}")
 
         print(f"Tagger SFs: {time.time() - start:.2f}")
 
@@ -1955,7 +2081,7 @@ def parse_args():
     parser.add_argument(
         "--bdt-preds-dir",
         help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
-        default="",
+        default=None,
         type=str,
     )
 
@@ -1981,7 +2107,14 @@ def parse_args():
     )
 
     add_bool_arg(parser, "resonant", "for resonant or nonresonant", default=False)
-    add_bool_arg(parser, "vbf", "non-resonant VBF or inclusive", default=False)
+    parser.add_argument(
+        "--nonres-regions",
+        help="Which nonresonant categories to make templates for.",
+        default="all",
+        choices=["all", "ggf", "ggf_no_vbf", "vbf"],
+        type=str,
+    )
+    add_bool_arg(parser, "vbf", "old!! non-resonant VBF category", default=False)
     add_bool_arg(parser, "control-plots", "make control plots", default=False)
     add_bool_arg(
         parser,
@@ -2015,7 +2148,6 @@ def parse_args():
     )
 
     add_bool_arg(parser, "read-sig-samples", "read signal samples from directory", default=False)
-
     add_bool_arg(parser, "data", "include data", default=True)
     add_bool_arg(parser, "hem-cleaning", "perform hem cleaning for 2018", default=False)
     add_bool_arg(parser, "HEM2d", "fatjet phi v eta plots to check HEM cleaning", default=False)
@@ -2030,8 +2162,8 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--nonres-txbb-wp",
-        help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
+        "--nonres-ggf-txbb-wp",
+        help="Txbb WP for ggF signal region. If multiple arguments, will make templates for each.",
         default=["MP"],
         choices=["LP", "MP", "HP"],
         nargs="*",
@@ -2039,8 +2171,8 @@ def parse_args():
     )
 
     parser.add_argument(
-        "--nonres-bdt-wp",
-        help="BDT WP for signal region. If multiple arguments, will make templates for each.",
+        "--nonres-ggf-bdt-wp",
+        help="BDT WP for ggF signal region. If multiple arguments, will make templates for each.",
         default=[0.998],
         nargs="*",
         type=float,
@@ -2048,7 +2180,7 @@ def parse_args():
 
     parser.add_argument(
         "--nonres-vbf-txbb-wp",
-        help="Txbb WP for signal region. If multiple arguments, will make templates for each.",
+        help="Txbb WP for VBF signal region. If multiple arguments, will make templates for each.",
         default=["HP"],
         choices=["LP", "MP", "HP"],
         nargs="*",
@@ -2056,8 +2188,16 @@ def parse_args():
     )
 
     parser.add_argument(
+        "--nonres-vbf-bdt-wp",
+        help="Txbb WP for VBFsignal region. If multiple arguments, will make templates for each.",
+        default=[0.999],
+        nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
         "--nonres-vbf-thww-wp",
-        help="THWWvsT WP for signal region. If multiple arguments, will make templates for each.",
+        help="THWWvsT WP for VBF signal region. If multiple arguments, will make templates for each.",
         default=[0.6],
         nargs="*",
         type=float,

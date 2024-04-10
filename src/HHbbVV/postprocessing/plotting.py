@@ -58,6 +58,7 @@ colours = {
     "forestgreen": "#2E933C",
     "darkgreen": "#064635",
     "purple": "#9381FF",
+    "darkpurple": "#7F2CCB",
     "slategray": "#63768D",
     "deeppurple": "#36213E",
     "ashgrey": "#ACBFA4",
@@ -82,6 +83,7 @@ BG_COLOURS = {
     "HWW": "lightred",
     "HH": "ashgrey",
     "HHbbVV": "red",
+    "qqHH_CV_1_C2V_0_kl_1_HHbbVV": "darkpurple",
 }
 
 sig_colour = "red"
@@ -120,13 +122,13 @@ def _combine_hbb_bgs(hists, bg_keys):
     h = Hist(
         hist.axis.StrCategory(list(hists.axes[0]) + ["Hbb"], name="Sample"),
         *hists.axes[1:],
-        storage="weight",
+        storage="double" if hists.storage_type == hist.storage.Double else "weight",
     )
 
     for i, sample in enumerate(hists.axes[0]):
         h.view()[i] = hists[sample, ...].view()
 
-    h.view()[-1] = hbb_hist
+    h.view()[-1] = hbb_hist.view()
 
     return h, bg_keys
 
@@ -144,7 +146,7 @@ def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, sy
 
     sig_labels = OrderedDict()
     for sig_key, sig_scale in sig_scale_dict.items():
-        label = sig_key if sig_key not in sample_label_map else sample_label_map[sig_key]
+        label = sample_label_map.get(sig_key, sig_key)
 
         if sig_scale != 1:
             if sig_scale <= 100:
@@ -381,6 +383,13 @@ def ratioHistPlot(
             )
 
     if bg_err is not None:
+        if divide_bin_width:
+            raise NotImplementedError("Background error for divide bin width not checked yet")
+
+        if len(np.array(bg_err).shape) == 1:
+            bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
+            bg_err = [bg_tot - bg_err, bg_tot + bg_err]
+
         ax.fill_between(
             np.repeat(hists.axes[1].edges, 2)[1:-1],
             np.repeat(bg_err[0], 2),
@@ -463,10 +472,7 @@ def ratioHistPlot(
             [(_asimov_significance(sig, bg_tot), edges) for sig in sigs],
             ax=sax,
             histtype="step",
-            label=[
-                sig_key if sig_key not in sample_label_map else sample_label_map[sig_key]
-                for sig_key in sig_scale_dict
-            ],
+            label=[sample_label_map.get(sig_key, sig_key) for sig_key in sig_scale_dict],
             color=sig_colours[: len(sig_keys)],
         )
 
@@ -480,16 +486,14 @@ def ratioHistPlot(
 
     if year == "all":
         hep.cms.label(
-            "Work in Progress",
+            "Preliminary",
             data=True,
             lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
             year=None,
             ax=ax,
         )
     else:
-        hep.cms.label(
-            "Work in Progress", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax
-        )
+        hep.cms.label("Preliminary", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
 
     if axrax is None:
         if len(name):
@@ -609,7 +613,7 @@ def ratioLinePlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    hep.cms.label("Work in Progress", data=True, lumi=round(LUMI[year] * 1e-3), year=year, ax=ax)
+    hep.cms.label("Preliminary", data=True, lumi=round(LUMI[year] * 1e-3), year=year, ax=ax)
     if len(name):
         plt.savefig(name, bbox_inches="tight")
 
@@ -685,7 +689,7 @@ def rocCurve(
     title=None,
     xlim=None,
     ylim=None,
-    plotdir="",
+    plot_dir="",
     name="",
 ):
     """Plots a ROC curve"""
@@ -695,6 +699,7 @@ def rocCurve(
         xlim = [0, 0.8]
     if sig_eff_lines is None:
         sig_eff_lines = []
+
     line_style = {"colors": "lightgrey", "linestyles": "dashed"}
 
     plt.figure(figsize=(12, 12))
@@ -717,7 +722,7 @@ def rocCurve(
     plt.xlim(*xlim)
     plt.ylim(*ylim)
     hep.cms.label(data=False, rlabel="")
-    plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+    plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
 
 
 def _find_nearest(array, value):
@@ -734,18 +739,19 @@ def multiROCCurveGrey(
     line_style = {"colors": "lightgrey", "linestyles": "dashed"}
 
     plt.figure(figsize=(12, 12))
-    for roc in rocs.values():
-        plt.plot(
-            roc["tpr"],
-            roc["fpr"],
-            label=roc["label"],
-            linewidth=2,
-        )
+    for roc_sigs in rocs.values():
+        for roc in roc_sigs.values():
+            plt.plot(
+                roc["tpr"],
+                roc["fpr"],
+                label=roc["label"],
+                linewidth=2,
+            )
 
-        for sig_eff in sig_effs:
-            y = roc["fpr"][np.searchsorted(roc["tpr"], sig_eff)]
-            plt.hlines(y=y, xmin=0, xmax=sig_eff, **line_style)
-            plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
+            for sig_eff in sig_effs:
+                y = roc["fpr"][np.searchsorted(roc["tpr"], sig_eff)]
+                plt.hlines(y=y, xmin=0, xmax=sig_eff, **line_style)
+                plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
 
     hep.cms.label(data=False, rlabel="")
     plt.yscale("log")
@@ -770,7 +776,7 @@ def multiROCCurve(
     title=None,
     xlim=None,
     ylim=None,
-    plotdir="",
+    plot_dir="",
     name="",
     show=False,
 ):
@@ -792,53 +798,61 @@ def multiROCCurve(
         "#a70000",
     ]
 
-    roc_colours = ["blue", "#23CE6B"][-len(rocs) :]
+    roc_colours = ["#23CE6B", "blue", "#ff5252", "#ffbaba"]
 
     plt.rcParams.update({"font.size": 24})
 
     plt.figure(figsize=(12, 12))
-    for i, roc in enumerate(rocs.values()):
-        plt.plot(
-            roc["tpr"],
-            roc["fpr"],
-            label=roc["label"] if len(rocs) > 1 else None,
-            linewidth=2,
-            color=roc_colours[i],
-        )
-
-        pths = {th: [[], []] for th in thresholds}
-        for th in thresholds:
-            idx = _find_nearest(roc["thresholds"], th)
-            pths[th][0].append(roc["tpr"][idx])
-            pths[th][1].append(roc["fpr"][idx])
-
-        for k, th in enumerate(thresholds):
-            plt.scatter(
-                *pths[th],
-                marker="o",
-                s=40,
-                label=f"BDT Score > {th}" if i == len(rocs) - 1 else None,
-                color=th_colours[k],
-                zorder=100,
+    for i, roc_sigs in enumerate(rocs.values()):
+        for (
+            j,
+            roc,
+        ) in enumerate(roc_sigs.values()):
+            plt.plot(
+                roc["tpr"],
+                roc["fpr"],
+                label=roc["label"],
+                linewidth=2,
+                color=roc_colours[i * len(rocs) + j],
             )
 
-            plt.vlines(
-                x=pths[th][0],
-                ymin=0,
-                ymax=pths[th][1],
-                color=th_colours[k],
-                linestyles="dashed",
-                alpha=0.5,
-            )
+            pths = {th: [[], []] for th in thresholds}
+            for th in thresholds:
+                idx = _find_nearest(roc["thresholds"], th)
+                pths[th][0].append(roc["tpr"][idx])
+                pths[th][1].append(roc["fpr"][idx])
 
-            plt.hlines(
-                y=pths[th][1],
-                xmin=0,
-                xmax=pths[th][0],
-                color=th_colours[k],
-                linestyles="dashed",
-                alpha=0.5,
-            )
+            for k, th in enumerate(thresholds):
+                plt.scatter(
+                    *pths[th],
+                    marker="o",
+                    s=40,
+                    label=(
+                        f"BDT Score > {th}"
+                        if i == len(rocs) - 1 and j == len(roc_sigs) - 1
+                        else None
+                    ),
+                    color=th_colours[k],
+                    zorder=100,
+                )
+
+                plt.vlines(
+                    x=pths[th][0],
+                    ymin=0,
+                    ymax=pths[th][1],
+                    color=th_colours[k],
+                    linestyles="dashed",
+                    alpha=0.5,
+                )
+
+                plt.hlines(
+                    y=pths[th][1],
+                    xmin=0,
+                    xmax=pths[th][0],
+                    color=th_colours[k],
+                    linestyles="dashed",
+                    alpha=0.5,
+                )
 
     hep.cms.label(data=False, rlabel="")
     plt.yscale("log")
@@ -850,7 +864,7 @@ def multiROCCurve(
     plt.title(title)
 
     if len(name):
-        plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+        plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
 
     if show:
         plt.show()
@@ -870,9 +884,7 @@ def plot_HEM2d(hists2d: list[Hist], plot_keys: list[str], year: str, name: str, 
         for i in range(2):
             ax = axs[j][i]
             hep.hist2dplot(hists2d[i][key, ...], cmap="turbo", ax=ax)
-            hep.cms.label(
-                "Work in Progress", data=True, lumi=round(LUMI[year] * 1e-3), year=year, ax=ax
-            )
+            hep.cms.label("Preliminary", data=True, lumi=round(LUMI[year] * 1e-3), year=year, ax=ax)
             ax.set_title(key, y=1.07)
             ax._children[0].colorbar.set_label("Events")
 
@@ -889,7 +901,7 @@ def ratioTestTrain(
     training_keys: list[str],
     shape_var: utils.ShapeVar,
     year: str,
-    plotdir="",
+    plot_dir="",
     name="",
     show=False,
 ):
@@ -912,6 +924,7 @@ def ratioTestTrain(
         2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
     )
 
+    labels = [sample_label_map.get(key, key) for key in training_keys]
     for data in ["Train", "Test"]:
         plot_hists = [h[data, sample, :] for sample in training_keys]
 
@@ -920,7 +933,7 @@ def ratioTestTrain(
             plot_hists,
             ax=ax,
             histtype="step",
-            label=[data + " " + key for key in training_keys],
+            label=[data + " " + label for label in labels],
             color=[colours[BG_COLOURS[sample]] for sample in training_keys],
             yerr=True,
             **style[data],
@@ -948,7 +961,7 @@ def ratioTestTrain(
         plot_hists,
         ax=rax,
         histtype="errorbar",
-        label=training_keys,
+        label=labels,
         color=[colours[BG_COLOURS[sample]] for sample in training_keys],
         yerr=np.abs([err[i] * plot_hists[i].values() for i in range(len(plot_hists))]),
     )
@@ -962,7 +975,7 @@ def ratioTestTrain(
     hep.cms.label(data=False, year=year, ax=ax, lumi=f"{LUMI[year] / 1e3:.0f}")
 
     if len(name):
-        plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+        plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
 
     if show:
         plt.show()
@@ -972,32 +985,53 @@ def ratioTestTrain(
 
 def cutsLinePlot(
     events_dict: dict[str, DataFrame],
-    bb_masks: dict[str, DataFrame],
     shape_var: utils.ShapeVar,
     plot_key: str,
     cut_var: str,
     cuts: list[float],
     year: str,
     weight_key: str,
-    plotdir: str = "",
+    bb_masks: dict[str, DataFrame] = None,
+    plot_dir: str = "",
     name: str = "",
+    ratio: bool = False,
+    ax: plt.Axes = None,
     show: bool = False,
 ):
     """Plot line plots of ``shape_var`` for different cuts on ``cut_var``."""
-    fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+    if ax is None:
+        if ratio:
+            assert cuts[0] == 0, "First cut must be 0 for ratio plots."
+            fig, (ax, rax) = plt.subplots(
+                2,
+                1,
+                figsize=(12, 14),
+                gridspec_kw={"height_ratios": [3, 1], "hspace": 0},
+                sharex=True,
+            )
+        else:
+            fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+        in_ax = False
+    else:
+        if ratio:
+            raise NotImplementedError("Ratio plots not implemented with input axes.")
+        in_ax = True
+
     plt.rcParams.update({"font.size": 24})
 
-    for _i, cut in enumerate(cuts):
+    hists = OrderedDict()
+    for cut in cuts:
         sel, _ = utils.make_selection({cut_var: [cut, CUT_MAX_VAL]}, events_dict, bb_masks)
         h = utils.singleVarHist(
             events_dict, shape_var, bb_masks, weight_key=weight_key, selection=sel
         )
 
+        hists[cut] = h[plot_key, ...] / np.sum(h[plot_key, ...].values())
+
         hep.histplot(
-            h[plot_key, ...] / np.sum(h[plot_key, ...].values()),
+            hists[cut],
             yerr=True,
             label=f"BDTScore >= {cut}",
-            # density=True,
             ax=ax,
             linewidth=2,
             alpha=0.8,
@@ -1007,10 +1041,40 @@ def cutsLinePlot(
     ax.set_ylabel("Fraction of Events")
     ax.legend()
 
-    hep.cms.label(ax=ax, data=False, year=year, lumi=round(LUMI[year] / 1e3))
+    if ratio:
+        rax.hlines(1, shape_var.axis.edges[0], shape_var.axis.edges[-1], linestyle="--", alpha=0.5)
+        vals_nocut = hists[0].values()
+
+        next(rax._get_lines.prop_cycler)  # skip first
+        for cut in cuts[1:]:
+            hep.histplot(
+                hists[cut] / vals_nocut,
+                yerr=True,
+                label=f"BDTScore >= {cut}",
+                ax=rax,
+                histtype="errorbar",
+            )
+
+        rax.set_ylim([0.4, 2.2])
+        rax.set_ylabel("Ratio to Inclusive Shape")
+        # rax.legend()
+
+    if year == "all":
+        hep.cms.label(
+            "Preliminary",
+            data=True,
+            lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
+            year=None,
+            ax=ax,
+        )
+    else:
+        hep.cms.label("Preliminary", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
+
+    if in_ax:
+        return
 
     if len(name):
-        plt.savefig(f"{plotdir}/{name}.pdf", bbox_inches="tight")
+        plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
 
     if show:
         plt.show()
