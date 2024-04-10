@@ -17,7 +17,7 @@ law run PlotUpperLimits \
     --show-parameters "kt,C2V,CV" \
     --br bbww \
     --save-ranges \
-    --remove-output 0,a,y \
+    --remove-output 2,a,y \
     --save-hep-data False \
     --frozen-groups signal_norm_xsbr
 
