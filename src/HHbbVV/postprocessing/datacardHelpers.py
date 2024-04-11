@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from string import Template
 
@@ -237,11 +236,11 @@ def get_effect_updown(values_nominal, values_up, values_down, mask, logger, epsi
     effect_up[mask_up & zero_up] = values_nominal[mask_up & zero_up] * epsilon
     effect_down[mask_down & zero_down] = values_nominal[mask_down & zero_down] * epsilon
 
-    _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger)
+    # _shape_checks(values_up, values_down, values_nominal, effect_up, effect_down, logger)
 
-    logging.debug(f"nominal   : {values_nominal}")
-    logging.debug(f"effect_up  : {effect_up}")
-    logging.debug(f"effect_down: {effect_down}")
+    logger.debug(f"nominal   : {values_nominal}")
+    logger.debug(f"effect_up  : {effect_up}")
+    logger.debug(f"effect_down: {effect_down}")
 
     return effect_up, effect_down
 

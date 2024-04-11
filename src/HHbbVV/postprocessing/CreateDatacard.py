@@ -15,6 +15,7 @@ import argparse
 import json
 import logging
 import pickle
+import pprint
 import sys
 import warnings
 from collections import OrderedDict
@@ -472,7 +473,8 @@ def process_systematics_combined(systematics: dict):
     _process_lpsfs(systematics)
     _process_triggereffs(systematics)
 
-    print("Nuisance Parameters\n", nuisance_params)
+    print("Nuisance Parameters")
+    pprint.pprint(nuisance_params)
 
 
 def process_systematics_separate(bg_systs: dict, sig_systs: dict[str, dict]):
@@ -480,7 +482,8 @@ def process_systematics_separate(bg_systs: dict, sig_systs: dict[str, dict]):
     _process_lpsfs(sig_systs)
     _process_triggereffs(bg_systs)
 
-    print("Nuisance Parameters\n", nuisance_params)
+    print("Nuisance Parameters")
+    pprint.pprint(nuisance_params)
 
 
 def process_systematics(templates_dir: str, sig_separate: bool):
@@ -592,27 +595,29 @@ def fill_regions(
         region_noblinded = region.split(MCB_LABEL)[0]
         blind_str = MCB_LABEL if region.endswith(MCB_LABEL) else ""
 
+        print("\n\n")
         logging.info("starting region: %s" % region)
         binstr = "" if mX_bin is None else f"mXbin{mX_bin}"
         ch = rl.Channel(binstr + region.replace("_", ""))  # can't have '_'s in name
         model.addChannel(ch)
 
         for sample_name, card_name in mc_samples.items():
+            print("")
             # don't add signals in fail regions
             # also skip resonant signals in pass blinded - they are ignored in the validation fits anyway
             if sample_name in sig_keys and (
                 not pass_region
                 or (mX_bin is not None and region not in [sr + MCB_LABEL for sr in signal_regions])
             ):
-                logging.info(f"\nSkipping {sample_name} in {region} region\n")
+                logging.info(f"Skipping {sample_name} in {region} region")
                 continue
 
             # single top only in fail regions
             if sample_name == "ST" and pass_region:
-                logging.info(f"\nSkipping ST in {region} region\n")
+                logging.info(f"Skipping ST in {region} region")
                 continue
 
-            logging.info("get templates for: %s" % sample_name)
+            logging.info("Getting templates for: %s" % sample_name)
 
             sample_template = region_templates[sample_name, :]
 
@@ -659,6 +664,7 @@ def fill_regions(
                     or (not pass_region and syst.pass_only)
                     or (syst.regions is not None and region_name not in syst.regions)
                 ):
+                    logging.info(f"Skipping {skey} rate")
                     continue
 
                 logging.info(f"Getting {skey} rate")
@@ -677,7 +683,12 @@ def fill_regions(
 
             # correlated shape systematics
             for skey, syst in corr_year_shape_systs.items():
-                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
+                if (
+                    sample_name not in syst.samples
+                    or (not pass_region and syst.pass_only)
+                    or (syst.regions is not None and region_name not in syst.regions)
+                ):
+                    logging.info(f"Skipping {skey} shapes")
                     continue
 
                 logging.info(f"Getting {skey} shapes")
@@ -717,7 +728,12 @@ def fill_regions(
 
             # uncorrelated shape systematics
             for skey, syst in uncorr_year_shape_systs.items():
-                if sample_name not in syst.samples or (not pass_region and syst.pass_only):
+                if (
+                    sample_name not in syst.samples
+                    or (not pass_region and syst.pass_only)
+                    or (syst.regions is not None and region_name not in syst.regions)
+                ):
+                    logging.info(f"Skipping {skey} shapes")
                     continue
 
                 logging.info(f"Getting {skey} shapes")
@@ -782,6 +798,8 @@ def nonres_alphabet_fit(
         ]
     )
 
+    fail_qcd_samples = {}
+
     for blind_str in ["", MCB_LABEL]:
         failChName = f"fail{blind_str}".replace("_", "")
         logging.info(f"Setting up fail region {failChName}")
@@ -819,6 +837,8 @@ def nonres_alphabet_fit(
         )
         failCh.addSample(fail_qcd)
 
+        fail_qcd_samples[blind_str] = fail_qcd
+
     ##########################
     # Now do signal regions
     ##########################
@@ -833,7 +853,7 @@ def nonres_alphabet_fit(
         # transfer factor
         tf_dataResidual = rl.BasisPoly(
             f"{CMS_PARAMS_LABEL}_tf_dataResidual_{sr}",
-            (shape_var.order[sr],),
+            (shape_var.orders[sr],),
             [shape_var.name],
             basis="Bernstein",
             limits=(-20, 20),
@@ -853,7 +873,7 @@ def nonres_alphabet_fit(
                 f"{passChName}_{CMS_PARAMS_LABEL}_qcd_datadriven",
                 rl.Sample.BACKGROUND,
                 tf_params_pass,
-                fail_qcd,
+                fail_qcd_samples[blind_str],
                 min_val=min_qcd_val,
             )
             passCh.addSample(pass_qcd)
@@ -868,6 +888,7 @@ def res_alphabet_fit(
 ):
     shape_var_mY, shape_var_mX = shape_vars
     m_obs = rl.Observable(shape_var_mY.name, shape_var_mY.bins)
+    sr = signal_regions[0]
 
     # QCD overall pass / fail efficiency
     qcd_eff = (
@@ -878,7 +899,7 @@ def res_alphabet_fit(
     # transfer factor
     tf_dataResidual = rl.BasisPoly(
         f"{CMS_PARAMS_LABEL}_tf_dataResidual",
-        (shape_var_mX.order, shape_var_mY.order),
+        (shape_var_mX.orders[sr], shape_var_mY.orders[sr]),
         [shape_var_mX.name, shape_var_mY.name],
         basis="Bernstein",
         limits=(-20, 20),
@@ -1264,7 +1285,7 @@ def main(args):
             ShapeVar(
                 name=axis.name,
                 bins=axis.edges,
-                order={sr: args.nTF[i] for i, sr in enumerate(signal_regions)},
+                orders={sr: args.nTF[i] for i, sr in enumerate(signal_regions)},
             )
             for _, axis in enumerate(sample_templates.axes[1:])
         ]
@@ -1275,7 +1296,7 @@ def main(args):
             )
 
         shape_vars = [
-            ShapeVar(name=axis.name, bins=axis.edges, order={signal_regions[0]: args.nTF[i]})
+            ShapeVar(name=axis.name, bins=axis.edges, orders={signal_regions[0]: args.nTF[i]})
             for i, axis in enumerate(sample_templates.axes[1:])
         ]
 

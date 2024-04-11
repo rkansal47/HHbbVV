@@ -19,6 +19,9 @@
 # Specify resonant with --resonant / -r, otherwise does nonresonant
 # Specify seed with --seed (default 42) and number of toys with --numtoys (default 100)
 #
+# For nonresonant, will try to load all the regions automatically based on which text files exist
+# Can use --noggf, --novbf to exclude ggF and VBF regions respectively
+#
 # Usage ./run_blinded.sh [-wblsdgt] [--numtoys 100] [--seed 42]
 #
 # Author: Raghav Kansal
@@ -46,8 +49,10 @@ numtoys=100
 bias=-1
 mintol=0.1  # --cminDefaultMinimizerTolerance
 # maxcalls=1000000000  # --X-rtd MINIMIZER_MaxCalls
+nonresggf=1
+nonresvbf=1
 
-options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,dfitasimov,resonant,gofdata,goftoys,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,dfitasimov,resonant,noggf,novbf,gofdata,goftoys,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -72,6 +77,12 @@ while true; do
             ;;
         -r|--resonant)
             resonant=1
+            ;;
+        --noggf)
+            nonresggf=0
+            ;;
+        --novbf)
+            nonresvbf=0
             ;;
         -g|--gofdata)
             gofdata=1
@@ -143,32 +154,52 @@ outsdir=${cards_dir}/outs
 mkdir -p $outsdir
 
 if [ $resonant = 0 ]; then
+    # nonresonant args
+
     if [ -f "mXbin0pass.txt" ]; then
         echo -e "\nWARNING: This is doing nonresonant fits - did you mean to pass -r|--resonant?\n"
     fi
 
     CMS_PARAMS_LABEL="CMS_bbWW_hadronic"
 
-    # nonresonant args
-    ccargs="fail=${cards_dir}/fail.txt failBlinded=${cards_dir}/failBlinded.txt pass=${cards_dir}/pass.txt passBlinded=${cards_dir}/passBlinded.txt"
-    maskunblindedargs="mask_pass=1,mask_fail=1,mask_passBlinded=0,mask_failBlinded=0"
-    maskblindedargs="mask_pass=0,mask_fail=0,mask_passBlinded=1,mask_failBlinded=1"
+    if [ -f "pass.txt" ]; then
+        echo "Single pass region"
+        ccargs="fail=${cards_dir}/fail.txt failBlinded=${cards_dir}/failBlinded.txt pass=${cards_dir}/pass.txt passBlinded=${cards_dir}/passBlinded.txt"
+        maskunblindedargs="mask_pass=1,mask_fail=1,mask_passBlinded=0,mask_failBlinded=0"
+        maskblindedargs="mask_pass=0,mask_fail=0,mask_passBlinded=1,mask_failBlinded=1"
+    else
+        ccargs="fail=${cards_dir}/fail.txt failBlinded=${cards_dir}/failBlinded.txt"
+        maskunblindedargs="mask_fail=1,mask_failBlinded=0"
+        maskblindedargs="mask_fail=0,mask_failBlinded=1"
 
-    # freeze qcd params in blinded bins
+        if [ -f "passggf.txt" ] && [ $nonresggf = 1 ]; then
+            echo "passggf region"
+            ccargs+=" passggf=${cards_dir}/passggf.txt passggfBlinded=${cards_dir}/passggfBlinded.txt"
+            maskunblindedargs+=",mask_passggf=1,mask_passggfBlinded=0"
+            maskblindedargs+=",mask_passggf=0,mask_passggfBlinded=1"
+        fi
+
+        if [ -f "passvbf.txt" ] && [ $nonresvbf = 1 ]; then
+            echo "passvbf region"
+            ccargs+=" passvbf=${cards_dir}/passvbf.txt passvbfBlinded=${cards_dir}/passvbfBlinded.txt"
+            maskunblindedargs+=",mask_passvbf=1,mask_passvbfBlinded=0"
+            maskblindedargs+=",mask_passvbf=0,mask_passvbfBlinded=1"
+        fi
+    fi
+
+    # freeze fail region qcd params in blinded bins
     setparamsblinded=""
     freezeparamsblinded=""
     for bin in {5..9}
     do
-        setparamsblinded+="rgx{${CMS_PARAMS_LABEL}_tf_dataResidual.*_Bin${bin}}=0,"
-        freezeparamsblinded+="rgx{${CMS_PARAMS_LABEL}_tf_dataResidual.*_Bin${bin}},"
+        # would need to use regex here for multiple fail regions
+        setparamsblinded+="${CMS_PARAMS_LABEL}_tf_dataResidual_Bin${bin}=0,"
+        freezeparamsblinded+="${CMS_PARAMS_LABEL}_tf_dataResidual_Bin${bin},"
     done
-
-    echo "CHECK FROZEN BLINDED QCD PARAMS"
 
     # remove last comma
     setparamsblinded=${setparamsblinded%,}
     freezeparamsblinded=${freezeparamsblinded%,}
-
 
     # floating parameters using var{} floats a bunch of parameters which shouldn't be floated,
     # so countering this inside --freezeParameters which takes priority.
@@ -241,7 +272,7 @@ echo "$unblindedparams"
 ulimit -s unlimited
 
 if [ $workspace = 1 ]; then
-    echo "Combining cards"
+    echo "Combining cards $ccargs"
     combineCards.py $ccargs > $ws.txt
 
     echo "Running text2workspace"
@@ -265,7 +296,7 @@ if [ $bfit = 1 ]; then
     -n Snapshot 2>&1 | tee $outsdir/MultiDimFit.txt
 else
     if [ ! -f "higgsCombineSnapshot.MultiDimFit.mH125.root" ]; then
-        echo "Background-only fit snapshot doesn't exist! Use the -b|--bfit option to run fit first"
+        echo "Background-only fit snapshot doesn't exist! Use the -b|--bfit option to run fit first. (Ignore this if you're only creating the workspace.)"
         exit 1
     fi
 fi

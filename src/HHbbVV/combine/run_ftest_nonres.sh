@@ -103,8 +103,8 @@ setparamsblinded=""
 freezeparamsblinded=""
 for bin in {5..9}
 do
-    setparamsblinded+="CMS_bbWW_boosted_ggf_qcdparam_msdbin${bin}=0,"
-    freezeparamsblinded+="CMS_bbWW_boosted_ggf_qcdparam_msdbin${bin},"
+    setparamsblinded+="${CMS_PARAMS_LABEL}_tf_dataResidual_Bin${bin}=0,"
+    freezeparamsblinded+="${CMS_PARAMS_LABEL}_tf_dataResidual_Bin${bin},"
 done
 
 # remove last comma
