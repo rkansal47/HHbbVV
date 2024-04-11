@@ -136,6 +136,7 @@ ignore = [
   "ISC001",   # Conflicts with formatter
   "PLR",    # Design related pylint codes
   "T201",   # print statements
+  "T203",   # pprint statements
   "EM101",  # Error message
   "EM102",
   "G002",   # Logging statement format
