@@ -1,5 +1,5 @@
 {
-    "pass_ggf": {
+    "passggf": {
         "HHbbVV": {
             "lp_sf": 1.0662593442284205,
             "lp_sf_unc": 0.2047565290328658,
@@ -101,7 +101,7 @@
             }
         }
     },
-    "pass_vbf": {
+    "passvbf": {
         "qqHH_CV_1_C2V_0_kl_1_HHbbVV": {
             "lp_sf": 0.9319151497178899,
             "lp_sf_unc": 0.2875145732655031,
@@ -204,7 +204,7 @@
         }
     },
     "2016": {
-        "pass_ggf": {
+        "passggf": {
             "trig_total": 35428.46861688447,
             "trig_total_err": 169.70344916739498
         },
@@ -212,13 +212,13 @@
             "trig_total": 2191129.51425094,
             "trig_total_err": 3393.9771949494093
         },
-        "pass_vbf": {
+        "passvbf": {
             "trig_total": 154861.2273932935,
             "trig_total_err": 3894.1821702776856
         }
     },
     "2016APV": {
-        "pass_ggf": {
+        "passggf": {
             "trig_total": 38500.12454948732,
             "trig_total_err": 145.32670570366125
         },
@@ -226,13 +226,13 @@
             "trig_total": 2578476.2790518906,
             "trig_total_err": 3693.285504726755
         },
-        "pass_vbf": {
+        "passvbf": {
             "trig_total": 175190.49526402235,
             "trig_total_err": 4318.649481220402
         }
     },
     "2017": {
-        "pass_ggf": {
+        "passggf": {
             "trig_total": 65678.89161826814,
             "trig_total_err": 207.86047980915436
         },
@@ -240,13 +240,13 @@
             "trig_total": 2460502.005127463,
             "trig_total_err": 2704.983599867493
         },
-        "pass_vbf": {
+        "passvbf": {
             "trig_total": 389745.69783708075,
             "trig_total_err": 7746.5100600706855
         }
     },
     "2018": {
-        "pass_ggf": {
+        "passggf": {
             "trig_total": 46677.8895927491,
             "trig_total_err": 137.1808889147677
         },
@@ -254,7 +254,7 @@
             "trig_total": 1876156.0255485063,
             "trig_total_err": 1795.8409437101016
         },
-        "pass_vbf": {
+        "passvbf": {
             "trig_total": 276742.9830432943,
             "trig_total_err": 5028.429129818956
         }
