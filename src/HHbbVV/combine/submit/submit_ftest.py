@@ -19,7 +19,7 @@ from HHbbVV.run_utils import add_bool_arg
 
 def main(args):
     t2_local_prefix, t2_prefix, proxy, username, submitdir = setup(args)
-    local_dir = Path(f"condor/f_tests/{args.tag}_{args.low1}{args.low2}")
+    local_dir = Path(f"condor/f_tests/{args.tag}_{args.low1}{args.low2 if args.resonant else ''}")
 
     # make local directory
     logdir = local_dir / "logs"
