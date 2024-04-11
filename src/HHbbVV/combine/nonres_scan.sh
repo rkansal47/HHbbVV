@@ -15,13 +15,16 @@
 #   )
 # done
 
-templates_tag="24Apr8VBFBDTScanNodEta"
+templates_tag="24Apr9ggFScan"
+nTF=0
+# sigsample="qqHH_CV_1_C2V_0_kl_1_HHbbVV"
+sigsample="HHbbVV"
 
-for bdt_cut in 0.99 0.997 0.998 0.999 0.9997 0.9999
+for bdt_cut in 0.996 #m0.995 0.9965 # 0.9997 0.9999
 do
   for txbb_cut in "MP" "HP"
   do
-    cutstr="txbb_${txbb_cut}_bdt_${bdt_cut}_lepton_veto_Hbb"
+    cutstr="ggf_txbb_${txbb_cut}_ggf_bdt_${bdt_cut}_vbf_txbb_HP_vbf_bdt_0.999_lepton_veto_Hbb"
     echo $cutstr
 
     # python3 -u postprocessing/CreateDatacard.py --templates-dir templates/$templates_tag/$cutstr \
@@ -32,11 +35,12 @@ do
     #   /uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh -wbl
     # )
 
+    model_name=${templates_tag}_nTF$nTF/$cutstr
     python3 -u postprocessing/CreateDatacard.py --templates-dir templates/$templates_tag/$cutstr \
-    --model-name $templates_tag/$cutstr --no-do-jshifts --nTF 1 --sig-sample qqHH_CV_1_C2V_0_kl_1_HHbbVV
+    --model-name $model_name --no-do-jshifts --nTF $nTF --sig-sample $sigsample
 
     (
-      cd cards/$templates_tag/$cutstr || exit
+      cd cards/$model_name || exit
       /uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh -wbl
     )
   done

@@ -17,6 +17,7 @@ TAG=""
 lepton_veto=""
 txbb_cut=""
 bdt_cut=""
+regions="all"
 
 options=$(getopt -o "" --long "lveto,bdt,txbb,year:,tag:" -- "$@")
 eval set -- "$options"
@@ -27,11 +28,11 @@ while true; do
             lepton_veto="--lepton-veto None Hbb HH"
             ;;
         --bdt)
-            bdt_cut="--nonres-ggf-bdt-wp 0.99 0.997 0.998 0.999"
+            bdt_cut="--nonres-ggf-bdt-wp 0.9965 0.998"
             # bdt_cut="--nonres-bdt-wp 0.99 0.997 0.998 0.999 0.9997 0.9999"
             ;;
         --txbb)
-            txbb_cut="--nonres-ggf-txbb-wp MP HP"
+            txbb_cut="--nonres-ggf-txbb-wp MP"
             ;;
         --year)
             shift
@@ -61,11 +62,15 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
+io_args="--data-dir $data_dir --bdt-preds-dir $bdt_preds_dir --template-dir templates/$TAG --sig-samples $sig_samples"
+scan_args="$lepton_veto $bdt_cut $txbb_cut --nonres-regions $regions"  # --bg-keys '' --no-data
+
+echo "Getting LP SFs"
+python -u postprocessing.py --lpsfs --year "2018" $io_args $scan_args
+
 for year in "${years[@]}"
 do
     echo $year
-    python -u postprocessing.py --year $year --data-dir "$data_dir" --bdt-preds-dir $bdt_preds_dir \
-    --templates --template-dir "templates/$TAG" --no-do-jshifts \
-    --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" --no-plot-shifts \
-    $lepton_veto $bdt_cut $txbb_cut --sig-samples $sig_samples --nonres-regions "ggf" # --bg-keys "" --no-data
+    python -u postprocessing.py --year $year $io_args $scan_args \
+    --templates --no-do-jshifts --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" --no-plot-shifts
 done
