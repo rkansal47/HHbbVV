@@ -334,7 +334,10 @@ def add_pileupid_weights(weights: Weights, year: str, jets: JetArray, genjets, w
     sf_cset = correctionlib.CorrectionSet.from_file(get_pog_json("jmar", year))["PUJetID_eff"]
 
     # save offsets to reconstruct jagged shape
-    offsets = jets.pt.layout.offsets
+    pt_layout = jets.pt.layout
+    if type(pt_layout) == ak._ext.IndexedOptionArray64:
+        pt_layout = pt_layout.content
+    offsets = pt_layout.offsets
 
     sfs_var = []
     for var in ["nom", "up", "down"]:
