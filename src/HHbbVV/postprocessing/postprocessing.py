@@ -121,13 +121,19 @@ control_plot_vars = [
     # ShapeVar(var="nGoodMuonsHH", label=r"# of Muons", bins=[3, 0, 3]),
     # ShapeVar(var="nGoodElectronsHbb", label=r"# of Electrons", bins=[3, 0, 3]),
     # ShapeVar(var="nGoodElectronsHH", label=r"# of Electrons", bins=[3, 0, 3]),
-    ShapeVar(var="DijetdEta", label=r"$|\Delta\eta^{jj}|$", bins=[16, 0, 4]),
-    ShapeVar(var="DijetdPhi", label=r"$|\Delta\varphi^{jj}|$", bins=[16, 0, 3.2]),
-    ShapeVar(var="vbf_Mass_jj", label=r"$m^{jj}_{VBF}$", bins=[20, 0, 3000]),
-    ShapeVar(var="vbf_dEta_jj", label=r"$|\Delta\eta^{jj}_{VBF}|$", bins=[20, 0, 9]),
+    # ShapeVar(var="DijetdEta", label=r"$|\Delta\eta^{jj}|$", bins=[16, 0, 4]),
+    # ShapeVar(var="DijetdPhi", label=r"$|\Delta\varphi^{jj}|$", bins=[16, 0, 3.2]),
+    # ShapeVar(var="VBFJetPt0", label=r"Leading VBF-tagged Jet $p_T$", bins=[20, 20, 300]),
+    # ShapeVar(var="VBFJetPt1", label=r"Sub-leading VBF-tagged Jet $p_T$", bins=[20, 20, 300]),
+    # ShapeVar(var="VBFJetEta0", label=r"Leading VBF-tagged Jet $\eta$", bins=[9, -4.5, 4.5]),
+    # ShapeVar(var="VBFJetEta1", label=r"Sub-leading VBF-tagged Jet $\eta$", bins=[9, -4.5, 4.5]),
+    # ShapeVar(var="VBFJetPhi0", label=r"Leading VBF-tagged Jet $\varphi$", bins=[10, -3, 3]),
+    # ShapeVar(var="VBFJetPhi1", label=r"Sub-leading VBF-tagged Jet $\varphi$", bins=[10, -3, 3]),
+    # ShapeVar(var="vbf_Mass_jj", label=r"$m_{jj}^{VBF}$", bins=[20, 0, 1000]),
+    # ShapeVar(var="vbf_dEta_jj", label=r"$|\Delta\eta_{jj}^{VBF}|$", bins=[20, 0, 6]),
     # removed if not ggF nonresonant
-    ShapeVar(var="BDTScore", label=r"BDT Score (ggF)", bins=[50, 0, 1]),
-    ShapeVar(var="BDTScoreVBF", label=r"BDT Score (VBF $\kappa_{2V} = 0$)", bins=[50, 0, 1]),
+    ShapeVar(var="BDTScore", label=r"BDT Score (ggF)", bins=[20, 0, 1]),
+    ShapeVar(var="BDTScoreVBF", label=r"BDT Score (VBF $\kappa_{2V} = 0$)", bins=[20, 0, 1]),
 ]
 
 
@@ -236,7 +242,7 @@ def main(args):
     events_dict = _load_samples(args, bg_samples, sig_samples, cutflow, variations=args.templates)
     bb_masks = bb_VV_assignment(events_dict)
     # QCD xsec normalization for plots
-    qcd_sf(events_dict, cutflow)
+    qcd_sf(events_dict, cutflow, weight_key="finalWeight")
 
     derive_variables(
         events_dict,
@@ -387,7 +393,7 @@ def main(args):
             )
 
             with systs_file.open("w") as f:
-                json.dump(systematics, f, index=4)
+                json.dump(systematics, f, indent=4)
 
 
 def _init(args):
@@ -928,7 +934,9 @@ def apply_trigger_weights(events_dict: dict[str, pd.DataFrame], year: str, cutfl
         utils.add_to_cutflow(events_dict, "TriggerEffs", weight_key, cutflow)
 
 
-def qcd_sf(events_dict: dict[str, pd.DataFrame], cutflow: pd.DataFrame):
+def qcd_sf(
+    events_dict: dict[str, pd.DataFrame], cutflow: pd.DataFrame, weight_key: str = "finalWeight"
+):
     """Applies a QCD scale factor."""
     if qcd_key not in events_dict or data_key not in events_dict:
         return
@@ -942,12 +950,12 @@ def qcd_sf(events_dict: dict[str, pd.DataFrame], cutflow: pd.DataFrame):
         ]
     )
     QCD_SCALE_FACTOR = (trig_yields[data_key] - non_qcd_bgs_yield) / trig_yields[qcd_key]
-    events_dict[qcd_key]["finalWeight"] *= QCD_SCALE_FACTOR
+    events_dict[qcd_key][weight_key] *= QCD_SCALE_FACTOR
 
     print(f"\n{QCD_SCALE_FACTOR = }")
 
     if cutflow is not None:
-        utils.add_to_cutflow(events_dict, "QCD SF", "finalWeight", cutflow)
+        utils.add_to_cutflow(events_dict, "QCD SF", weight_key, cutflow)
 
 
 def apply_weights(
@@ -956,6 +964,7 @@ def apply_weights(
     cutflow: pd.DataFrame = None,
     trigger_effs: bool = True,
     do_qcd_sf: bool = True,
+    weight_key: str = "finalWeight",
 ):
     """
     Applies (1) 2D trigger scale factors, (2) QCD scale facotr.
@@ -966,10 +975,10 @@ def apply_weights(
 
     """
     if trigger_effs:
-        apply_trigger_weights(events_dict, year, cutflow)
+        apply_trigger_weights(events_dict, year, cutflow, weight_key=weight_key)
 
     if do_qcd_sf:
-        qcd_sf(events_dict, cutflow)
+        qcd_sf(events_dict, cutflow, weight_key=weight_key)
 
 
 def bb_VV_assignment(events_dict: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
@@ -1153,7 +1162,7 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
                     wsysts[region.lpsf_region] = systematics[region.lpsf_region + "_" + cutstr]
 
             with systs_file.open("w") as f:
-                json.dump(wsysts, f, index=4)
+                json.dump(wsysts, f, indent=4)
 
 
 def _get_signal_all_years(
@@ -1312,7 +1321,7 @@ def lpsfs(
 
             if systs_file is not None:
                 with systs_file.open("w") as f:
-                    json.dump(systematics, f, index=4)
+                    json.dump(systematics, f, indent=4)
 
     if template_dir is not None:
         sf_table = OrderedDict()  # format SFs for each sig key in a table

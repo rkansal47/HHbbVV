@@ -25,6 +25,7 @@ nuisance_label_map = {
     "CMS_pileup": "Pileup",
 }
 
+
 def rename_nuisance(nuisance: str):
     if nuisance.startswith("CMS_bbWW_hadronic_"):
         nuisance = nuisance.split("CMS_bbWW_hadronic_")[1]
@@ -33,14 +34,20 @@ def rename_nuisance(nuisance: str):
         return "TF_" + nuisance.split("tf_dataResidual_bbFatJetParticleNetMass_")[1]
 
     if nuisance.startswith("tf_dataResidual_passggf_bbFatJetParticleNetMass_"):
-        return "ggF TF Param " + nuisance.split("tf_dataResidual_passggf_bbFatJetParticleNetMass_par")[1]
-    
+        return (
+            "ggF TF Param "
+            + nuisance.split("tf_dataResidual_passggf_bbFatJetParticleNetMass_par")[1]
+        )
+
     if nuisance.startswith("tf_dataResidual_passvbf_bbFatJetParticleNetMass_"):
-        return "VBF TF Param " + nuisance.split("tf_dataResidual_passvbf_bbFatJetParticleNetMass_par")[1]
+        return (
+            "VBF TF Param "
+            + nuisance.split("tf_dataResidual_passvbf_bbFatJetParticleNetMass_par")[1]
+        )
 
     if "mcstat" in nuisance:
         split = nuisance.split("_")
-        
+
         return f"{region_label_map[split[0]]} {mc_label_map.get(split[1], split[1])} MCStats Bin {nuisance.split('bin')[1]}"
 
     if nuisance.startswith("lp_sf"):
