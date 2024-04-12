@@ -18,7 +18,7 @@ years=("2016APV" "2016" "2017" "2018")
 
 MAIN_DIR="../../.."
 data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
-bdt_preds_dir="$data_dir/24_04_03_k2v0_training_eqsig_vbf_vars/inferences"
+bdt_preds_dir="$data_dir/24_04_05_k2v0_training_eqsig_vbf_vars_rm_deta/inferences"
 
 TAG=""
 resonant="--resonant"

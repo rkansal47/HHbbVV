@@ -14,7 +14,7 @@ region="all"
 TAG=""
 
 
-options=$(getopt -o "" --long "sample:,tag:" -- "$@")
+options=$(getopt -o "" --long "sample:,region:,tag:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -22,6 +22,10 @@ while true; do
         --sample)
             shift
             sig_samples="--sig-samples $1"
+            ;;
+        --region)
+            shift
+            region=$1
             ;;
         --tag)
             shift
@@ -50,7 +54,7 @@ fi
 io_args="--data-dir $data_dir --bdt-preds-dir $bdt_preds_dir --plot-dir ${MAIN_DIR}/plots/PostProcessing/$TAG --template-dir templates/$TAG $sig_samples"
 
 # get LP SFs first for all regions
-python -u postprocessing.py --year 2016 $io_args --lpsfs --nonres-regions "all"
+python -u postprocessing.py --year 2016 $io_args --lpsfs --nonres-regions $region
 
 for year in 2016 2016APV 2017 2018
 do

@@ -445,6 +445,8 @@ def _var_selection(
     bb_mask: pd.DataFrame,
     var: str,
     brange: list[float],
+    sample: str,
+    jshift: str,
     MAX_VAL: float = CUT_MAX_VAL,
 ):
     """get selection for a single cut, including logic for OR-ing cut on two vars"""
@@ -455,7 +457,12 @@ def _var_selection(
     selstrs = []
 
     # OR the different vars
-    for var in cut_vars:
+    for cutvar in cut_vars:
+        if jshift != "" and sample != data_key:
+            var = check_get_jec_var(cutvar, jshift)
+        else:
+            var = cutvar
+
         vals = get_feat(events, var, bb_mask)
 
         if rmin == -MAX_VAL:
@@ -531,41 +538,39 @@ def make_selection(
             selection[sample] = PackedSelection()
 
         for cutvar, branges in var_cuts.items():
-            if jshift != "" and sample != data_key:
-                var = check_get_jec_var(cutvar, jshift)
-            else:
-                var = cutvar
-
             if isinstance(branges[0], list):
+                cut_vars = cutvar.split("+")
+                if len(cut_vars) > 1:
+                    assert len(cut_vars) == len(
+                        branges
+                    ), "If OR-ing different variables' cuts, num(cuts) must equal num(vars)"
+
                 # OR the cuts
                 sels = []
                 selstrs = []
-                for brange in branges:
-                    sel, selstr = _var_selection(events, bb_mask, var, brange, MAX_VAL)
+                for i, brange in enumerate(branges):
+                    cvar = cut_vars[i] if len(cut_vars) > 1 else cut_vars[0]
+                    sel, selstr = _var_selection(
+                        events, bb_mask, cvar, brange, sample, jshift, MAX_VAL
+                    )
                     sels.append(sel)
                     selstrs.append(selstr)
 
                 sel = np.sum(sels, axis=0).astype(bool)
                 selstr = " or ".join(selstrs)
-
-                add_selection(
-                    selstr,
-                    sel,
-                    selection[sample],
-                    cutflow[sample],
-                    events,
-                    weight_key,
-                )
             else:
-                sel, selstr = _var_selection(events, bb_mask, var, branges, MAX_VAL)
-                add_selection(
-                    selstr,
-                    sel,
-                    selection[sample],
-                    cutflow[sample],
-                    events,
-                    weight_key,
+                sel, selstr = _var_selection(
+                    events, bb_mask, cutvar, branges, sample, jshift, MAX_VAL
                 )
+
+            add_selection(
+                selstr,
+                sel,
+                selection[sample],
+                cutflow[sample],
+                events,
+                weight_key,
+            )
 
         selection[sample] = selection[sample].all(*selection[sample].names)
 

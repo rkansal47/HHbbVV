@@ -81,9 +81,13 @@ def get_nonres_selection_regions(
             cuts={
                 "bbFatJetPt": pt_cuts,
                 "VVFatJetPt": pt_cuts,
-                "BDTScoreVBF": [-CUT_MAX_VAL, vbf_bdt_wp],  # veto VBF BDT cut
                 "BDTScore": [ggf_bdt_wp, CUT_MAX_VAL],
                 "bbFatJetParticleNetMD_Txbb": [ggf_txbb_cut, CUT_MAX_VAL],
+                # veto VBF BDT or TXbb cuts
+                "BDTScoreVBF+bbFatJetParticleNetMD_Txbb": [
+                    [-CUT_MAX_VAL, vbf_bdt_wp],
+                    [-CUT_MAX_VAL, vbf_txbb_cut],
+                ],
                 **lepton_cuts,
             },
             signal=True,
@@ -109,8 +113,12 @@ def get_nonres_selection_regions(
         ),
         "lpsf_passggf": Region(
             cuts={
-                "BDTScoreVBF": [-CUT_MAX_VAL, vbf_bdt_wp],  # veto VBF BDT cut
                 "BDTScore": [ggf_bdt_wp, CUT_MAX_VAL],
+                # veto VBF BDT or TXbb cuts
+                "BDTScoreVBF+bbFatJetParticleNetMD_Txbb": [
+                    [-CUT_MAX_VAL, vbf_bdt_wp],
+                    [-CUT_MAX_VAL, vbf_txbb_cut],
+                ],
             },
             lpsf=True,
             lpsf_region="passggf",
@@ -120,10 +128,10 @@ def get_nonres_selection_regions(
 
     if region == "ggf":
         regions.pop("passvbf")
-        region.pop("lpsf_passvbf")
+        regions.pop("lpsf_passvbf")
     elif region == "vbf":
         regions.pop("passggf")
-        region.pop("lpsf_passggf")
+        regions.pop("lpsf_passggf")
     elif region == "ggf_no_vbf":
         # old version without any VBF category
         lpregion = regions["lpsf_passggf"]
@@ -135,11 +143,10 @@ def get_nonres_selection_regions(
         }
         regions["pass"].cuts.pop("BDTScoreVBF")
         regions["lpsf"].cuts.pop("BDTScoreVBF")
-        return regions
-    elif region == "all":
-        return regions
-    else:
+    elif region != "all":
         raise ValueError(f"Invalid region: {region}")
+
+    return regions
 
 
 def get_nonres_vbf_selection_regions(
