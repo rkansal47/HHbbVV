@@ -132,8 +132,8 @@ control_plot_vars = [
     # ShapeVar(var="vbf_Mass_jj", label=r"$m_{jj}^{VBF}$", bins=[20, 0, 1000]),
     # ShapeVar(var="vbf_dEta_jj", label=r"$|\Delta\eta_{jj}^{VBF}|$", bins=[20, 0, 6]),
     # removed if not ggF nonresonant
-    ShapeVar(var="BDTScore", label=r"BDT Score (ggF)", bins=[20, 0, 1]),
-    ShapeVar(var="BDTScoreVBF", label=r"BDT Score (VBF $\kappa_{2V} = 0$)", bins=[20, 0, 1]),
+    ShapeVar(var="BDTScore", label=r"$BDT_{ggF}$", bins=[20, 0, 1]),
+    ShapeVar(var="BDTScoreVBF", label=r"$BDT_{VBF}$", bins=[20, 0, 1]),
 ]
 
 
