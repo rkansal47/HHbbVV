@@ -7,11 +7,14 @@ law run PlotUpperLimitsAtPoint \
     --multi-datacards "$Cbbww4qInject" \
     --datacard-names "bbVV" \
     --file-types "pdf,png" \
-    --pois r \
+    --pois r_qqhh \
     --show-parameters kl,kt,C2V,CV \
+    --parameter-values C2V=0 \
     --UpperLimits-workflow "htcondor" \
     --UpperLimits-tasks-per-job 1 \
     --x-log \
+    --x-min 0.1 \
+    --x-max 10 \
     --campaign run2 \
     --unblinded "$UNBLINDED" \
     --h-lines 1 \
