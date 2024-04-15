@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-
 years = ["2016APV", "2016", "2017", "2018"]
 
 mc_label_map = {
