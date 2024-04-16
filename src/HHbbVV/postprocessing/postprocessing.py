@@ -512,10 +512,6 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
         df["DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
     if "DijetdPhi" not in df.columns:
         df["DijetdPhi"] = np.abs(bbJet.deltaphi(VVJet))
-    if f"vbf_Mass_jj{ptlabel}" not in df.columns:
-        df[f"vbf_Mass_jj{ptlabel}"] = jj.M
-    if "vbf_dEta_jj" not in df.columns:
-        df["vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
 
     # print(f"VBF jet vars: {time.time() - start:.2f}")
 
