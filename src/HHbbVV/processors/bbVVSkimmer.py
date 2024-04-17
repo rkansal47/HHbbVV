@@ -390,8 +390,7 @@ class bbVVSkimmer(SkimmerABC):
         skimmed_events["nGoodVBFJets"] = np.array(ak.count(vbf_jets.pt, axis=1))
         skimmed_events["nGoodVBFJetsOpt"] = np.array(ak.count(vbf_jets_ak8.pt, axis=1))
         skimmed_events["nGoodVBFJetsEtaSel"] = np.array(ak.count(vbf_jets_ak8_etaminjj.pt, axis=1))
-        
- 
+
         otherVars = {
             key: events[var.split("_")[0]]["_".join(var.split("_")[1:])].to_numpy()
             for (var, key) in self.skim_vars["other"].items()
@@ -927,9 +926,9 @@ class bbVVSkimmer(SkimmerABC):
             electrons=electrons,
             muons=muons,
             num_jets=num_jets,
-            ak4_jet_selection=ak4_jet_selection
+            ak4_jet_selection=ak4_jet_selection,
         )
-        
+
         jets = ak.pad_none(jets, eta_jj_min_num_jets, clip=True)
         eta = jets.eta
 
@@ -957,7 +956,7 @@ class bbVVSkimmer(SkimmerABC):
         j2 = jets[np.arange(len(jets)), i2]
 
         selected_jets = ak.concatenate([ak.unflatten(j1, 1), ak.unflatten(j2, 1)], axis=1)
-        
+
         return selected_jets
 
     def postprocess(self, accumulator):

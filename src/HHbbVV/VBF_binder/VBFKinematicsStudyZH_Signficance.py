@@ -389,7 +389,9 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
     else:
 
         def top_pt_eta_min(
-            jets: ak.Array, eta_jj_min: float = 2.0, num_jets: int = 3,
+            jets: ak.Array,
+            eta_jj_min: float = 2.0,
+            num_jets: int = 3,
         ):
             """
             Find highest pt pair of jets with |eta_jj| > eta_jj_min.
@@ -422,7 +424,7 @@ for pt, etamin, etamax, bbdr, vvdr in tqdm(
             j2 = jets[np.arange(len(jets)), i2]
 
             selected_jets = ak.concatenate([ak.unflatten(j1, 1), ak.unflatten(j2, 1)], axis=1)
-            
+
             return selected_jets
 
         for eta_jj_min, num_jets in product(eta_jj_min_list, num_jets_list):
