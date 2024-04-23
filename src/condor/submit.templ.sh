@@ -12,7 +12,7 @@ mkdir outfiles
 (
     r=3
     # shallow clone of single branch (keep repo size as small as possible)
-    while ! git clone --single-branch --branch $branch --depth=1 https://github.com/rkansal47/HHbbVV/
+    while ! git clone --single-branch --branch $branch --depth=1 https://github.com/$gituser/HHbbVV/
     do
         ((--r)) || exit
         sleep 60
@@ -21,7 +21,7 @@ mkdir outfiles
 cd HHbbVV || exit
 
 commithash=$$(git rev-parse HEAD)
-echo "https://github.com/rkansal47/HHbbVV/commit/$${commithash}" > commithash.txt
+echo "https://github.com/$gituser/HHbbVV/commit/$${commithash}" > commithash.txt
 xrdcp -f commithash.txt $eosoutgithash
 
 pip install -e .

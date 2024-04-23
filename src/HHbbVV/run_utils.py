@@ -55,11 +55,11 @@ def add_mixins(nanoevents):
     nanoevents.PFNanoAODSchema.mixins["SV"] = "PFCand"
 
 
-def check_branch(git_branch: str, allow_diff_local_repo: bool = False):
+def check_branch(git_branch: str, git_user: str, allow_diff_local_repo: bool = False):
     """Check that specified git branch exists in the repo, and local repo is up-to-date"""
     assert not bool(
         os.system(
-            f'git ls-remote --exit-code --heads "https://github.com/rkansal47/HHbbVV" "{git_branch}"'
+            f'git ls-remote --exit-code --heads "https://github.com/{git_user}/HHbbVV" "{git_branch}"'
         )
     ), f"Branch {git_branch} does not exist"
 
