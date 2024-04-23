@@ -101,15 +101,6 @@ class bbVVSkimmer(SkimmerABC):
         # "nGoodElectrons": 0,
     }
 
-    ak4_jet_selection = {  # noqa: RUF012
-        "pt": 25,
-        "eta": 2.7,
-        "jetId": "tight",
-        "puId": "medium",
-        "dR_fatjetbb": 1.2,
-        "dR_fatjetVV": 0.8,
-    }
-
     jecs = hh_vars.jecs
 
     # only the branches necessary for templates and post processing
@@ -123,7 +114,18 @@ class bbVVSkimmer(SkimmerABC):
         "VBFJetPt",
         "VBFJetPhi",
         "VBFJetMass",
+        "VBFJetOptEta",
+        "VBFJetOptPt",
+        "VBFJetOptPhi",
+        "VBFJetOptMass",
+        "VBFJetEtaSelEta",
+        "VBFJetEtaSelPt",
+        "VBFJetEtaSelPhi",
+        "VBFJetEtaSelMass",
+        "DijetMass",
         "nGoodVBFJets",
+        "nGoodVBFJetsOpt",
+        "nGoodVBFJetsEtaSel",
         "ak8FatJetHbb",
         "ak8FatJetHVV",
         "ak8FatJetHVVNumProngs",
@@ -150,6 +152,8 @@ class bbVVSkimmer(SkimmerABC):
         min_branches.append(f"ak8FatJetPt_{shift}")
         min_branches.append(f"DijetMass_{shift}")
         min_branches.append(f"VBFJetPt_{shift}")
+        min_branches.append(f"VBFJetOptPt_{shift}")
+        min_branches.append(f"VBFJetEtaSelPt_{shift}")
 
     for shift in jmsr_shifts:
         min_branches.append(f"ak8FatJetParticleNetMass_{shift}")
@@ -195,7 +199,7 @@ class bbVVSkimmer(SkimmerABC):
         self._accumulator = processor.dict_accumulator({})
 
         logging.info(
-            f"Running skimmer with inference {self._inference} and systematics {self._systematics} and save all {self._save_all}."
+            f"Running skimmer with inference {self._inference} + systematics {self._systematics} + save all {self._save_all} + LP SFs {self._lp_sfs}."
         )
 
     @property
@@ -204,6 +208,10 @@ class bbVVSkimmer(SkimmerABC):
 
     def process(self, events: ak.Array):
         """Runs event processor for different types of jets"""
+
+        # import time
+
+        # start = time.time()
 
         year = events.metadata["dataset"].split("_")[0]
         year_nosuffix = year.replace("APV", "")
@@ -331,41 +339,37 @@ class bbVVSkimmer(SkimmerABC):
 
         jets, _ = get_jec_jets(events, year, isData, self.jecs, fatjets=False)
 
-        # dR_fatjetVV = 0.8 used from last two cells of VBFgenInfoTests.ipynb with data generated from SM signal vbf
-        # https://github.com/rkansal47/HHbbVV/blob/vbf_systematics/src/HHbbVV/VBF_binder/VBFgenInfoTests.ipynb
-        # (0-14R1R2study.parquet) has columns of different nGoodVBFJets corresponding to R1 and R2 cuts
-        vbf_jet_mask = (
-            jets.isTight
-            & (jets.pt > self.ak4_jet_selection["pt"])
-            & (np.abs(jets.eta) < 4.7)
-            # medium puId https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJetIDUL
-            & ((jets.pt > 50) | ((jets.puId & 2) == 2))
-            & (
-                ak.all(
-                    jets.metric_table(
-                        ak.singletons(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[bb_mask])
-                    )
-                    > self.ak4_jet_selection["dR_fatjetbb"],
-                    axis=-1,
-                )
-            )
-            & (
-                ak.all(
-                    jets.metric_table(
-                        ak.singletons(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[~bb_mask])
-                    )
-                    > self.ak4_jet_selection["dR_fatjetVV"],
-                    axis=-1,
-                )
-            )
+        vbf_jets = self.get_vbf_jet(jets, fatjets=fatjets, bb_mask=bb_mask, num_jets=num_jets)
+        vbf_jets_ak8 = self.get_vbf_jet_with_ak8(
+            jets=jets,
+            fatjets=fatjets,
+            electrons=events.Electron,
+            muons=events.Muon,
+            num_jets=num_jets,
         )
-
-        vbf_jets = jets[vbf_jet_mask]
+        vbf_jets_ak8_etaminjj = self.get_vbt_jet_with_ak8_etaminjjcut(
+            jets=jets,
+            fatjets=fatjets,
+            electrons=events.Electron,
+            muons=events.Muon,
+            num_jets=num_jets,
+            eta_jj_min=3,
+            eta_jj_min_num_jets=3,
+        )
 
         VBFJetVars = {
             f"VBFJet{key}": pad_val(vbf_jets[var], num_ak4_jets, axis=1)
             for (var, key) in self.skim_vars["Jet"].items()
         }
+        VBFJetOptVars = {
+            f"VBFJetOpt{key}": pad_val(vbf_jets_ak8[var], num_ak4_jets, axis=1)
+            for (var, key) in self.skim_vars["Jet"].items()
+        }
+        VBFJetEtaSelVars = {
+            f"VBFJetEtaSel{key}": pad_val(vbf_jets_ak8_etaminjj[var], num_ak4_jets, axis=1)
+            for (var, key) in self.skim_vars["Jet"].items()
+        }
+        VBFJetVars = {**VBFJetVars, **VBFJetOptVars, **VBFJetEtaSelVars}
 
         # JEC vars
         if not isData:
@@ -376,8 +380,16 @@ class bbVVSkimmer(SkimmerABC):
                         VBFJetVars[f"VBFJet{key}_{label}_{vari}"] = pad_val(
                             vbf_jets[shift][vari][var], num_ak4_jets, axis=1
                         )
-
-        skimmed_events["nGoodVBFJets"] = np.array(ak.sum(vbf_jet_mask, axis=1))
+                        VBFJetVars[f"VBFJetOpt{key}_{label}_{vari}"] = pad_val(
+                            vbf_jets_ak8[shift][vari][var], num_ak4_jets, axis=1
+                        )
+                        VBFJetVars[f"VBFJetEtaSel{key}_{label}_{vari}"] = pad_val(
+                            vbf_jets_ak8_etaminjj[shift][vari][var], num_ak4_jets, axis=1
+                        )
+        # skimmed_events["nGoodVBFJets"] = np.array(ak.sum(vbf_jet_mask, axis=1))
+        skimmed_events["nGoodVBFJets"] = np.array(ak.count(vbf_jets.pt, axis=1))
+        skimmed_events["nGoodVBFJetsOpt"] = np.array(ak.count(vbf_jets_ak8.pt, axis=1))
+        skimmed_events["nGoodVBFJetsEtaSel"] = np.array(ak.count(vbf_jets_ak8_etaminjj.pt, axis=1))
 
         otherVars = {
             key: events[var.split("_")[0]]["_".join(var.split("_")[1:])].to_numpy()
@@ -768,11 +780,184 @@ class bbVVSkimmer(SkimmerABC):
                     **{key: val for (key, val) in pnet_vars.items() if key in self.min_branches},
                 }
 
+        logging.info(f"{skimmed_events.keys()=}")  # TODO: delete
         pddf = self.to_pandas(skimmed_events)
         fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
         self.dump_table(pddf, fname)
 
         return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
+
+    def get_vbf_jet(
+        self, jets: ak.Array, fatjets: ak.Array, bb_mask: ak.Array, num_jets: int
+    ) -> ak.Array:
+        ak4_jet_selection = {
+            "pt": 25,
+            "eta": 2.7,
+            "jetId": "tight",
+            "puId": "medium",
+            "dR_fatjetbb": 1.2,
+            "dR_fatjetVV": 0.8,
+        }
+        # dR_fatjetVV = 0.8 used from last two cells of VBFgenInfoTests.ipynb with data generated from SM signal vbf
+        # https://github.com/rkansal47/HHbbVV/blob/vbf_systematics/src/HHbbVV/VBF_binder/VBFgenInfoTests.ipynb
+        # (0-14R1R2study.parquet) has columns of different nGoodVBFJets corresponding to R1 and R2 cuts
+        vbf_jet_mask = (
+            jets.isTight
+            & (jets.pt > ak4_jet_selection["pt"])
+            & (np.abs(jets.eta) < 4.7)
+            # medium puId https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJetIDUL
+            & ((jets.pt > 50) | ((jets.puId & 2) == 2))
+            & (
+                ak.all(
+                    jets.metric_table(
+                        ak.singletons(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[bb_mask])
+                    )
+                    > ak4_jet_selection["dR_fatjetbb"],
+                    axis=-1,
+                )
+            )
+            & (
+                ak.all(
+                    jets.metric_table(
+                        ak.singletons(ak.pad_none(fatjets, num_jets, axis=1, clip=True)[~bb_mask])
+                    )
+                    > ak4_jet_selection["dR_fatjetVV"],
+                    axis=-1,
+                )
+            )
+        )
+
+        vbf_jets = jets[vbf_jet_mask]
+        return vbf_jets
+
+    def get_vbf_jet_with_ak8(
+        self,
+        jets: ak.Array,
+        fatjets: ak.Array,
+        electrons: ak.Array,
+        muons: ak.Array,
+        num_jets: int,
+        ak4_jet_selection: dict[str, float] = None,
+    ) -> ak.Array:
+        # AK8 selections
+        fatjets = ak.pad_none(
+            fatjets[(fatjets.pt > 300) * (fatjets.isTight) * (np.abs(fatjets.eta) <= 2.4)],
+            2,
+            axis=1,
+        )
+
+        # particlenet xbb vs qcd
+        txbb = pad_val(
+            fatjets.particleNetMD_Xbb / (fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb),
+            num_jets,
+            axis=1,
+        )
+
+        bb_mask = txbb[:, 0] >= txbb[:, 1]
+        bb_mask = np.stack((bb_mask, ~bb_mask)).T
+
+        ak8_sel = ak.fill_none(
+            (
+                (fatjets.pt[:, 0] > 300)
+                * (fatjets.pt[:, 1] > 300)
+                * (np.abs(fatjets[:, 0].delta_phi(fatjets[:, 1])) > 2.6)
+                * (np.abs(fatjets[:, 0].eta - fatjets[:, 1].eta) < 2.0)
+            ),
+            False,
+        )
+
+        # AK4 selections
+        bbjet = fatjets[bb_mask]
+        vvjet = fatjets[~bb_mask]
+        if ak4_jet_selection is None:
+            # use the optimized one
+            ak4_jet_selection = {
+                "pt": 30,
+                "eta_min": 1.8,
+                "eta_max": 5.0,
+                "dR_fatjetbb": 1.8,
+                "dR_fatjetVV": 1.8,
+            }
+        ak4_sel = (
+            jets.isTight
+            & (jets.pt >= ak4_jet_selection["pt"])
+            & (np.abs(jets.eta) <= ak4_jet_selection["eta_max"])
+            & (np.abs(jets.eta) >= ak4_jet_selection["eta_min"])
+            # medium puId https://twiki.cern.ch/twiki/bin/viewauth/CMS/PileupJetIDUL
+            & ((jets.pt > 50) | ((jets.puId & 2) == 2))
+            & (bbjet.delta_r(jets) > ak4_jet_selection["dR_fatjetbb"])
+            & (vvjet.delta_r(jets) > ak4_jet_selection["dR_fatjetVV"])
+            & ak.all(jets.metric_table(electrons) > 0.4, axis=2)
+            & ak.all(jets.metric_table(muons) > 0.4, axis=2)
+        )
+
+        vbf_jet_mask = ak4_sel * ak8_sel
+        # replace None with jet-level False
+        is_none_mask = ak.is_none(vbf_jet_mask)
+        jet_false_mask = ak.full_like(jets.pt, False, dtype=bool)
+        vbf_jet_mask = ak.where(is_none_mask, jet_false_mask, vbf_jet_mask)
+
+        vbf_jets = jets[vbf_jet_mask]
+
+        return vbf_jets
+
+    def get_vbt_jet_with_ak8_etaminjjcut(
+        self,
+        jets: ak.Array,
+        fatjets: ak.Array,
+        electrons: ak.Array,
+        muons: ak.Array,
+        num_jets: int,
+        ak4_jet_selection: dict[str, float] = None,
+        eta_jj_min: float = 1.2,
+        eta_jj_min_num_jets: int = 3,
+    ) -> ak.Array:
+        if ak4_jet_selection is None:
+            ak4_jet_selection = {
+                "pt": 30,
+                "eta_min": 1.8,
+                "eta_max": 5.0,
+                "dR_fatjetbb": 1.8,
+                "dR_fatjetVV": 1.8,
+            }
+        jets = self.get_vbf_jet_with_ak8(
+            jets=jets,
+            fatjets=fatjets,
+            electrons=electrons,
+            muons=muons,
+            num_jets=num_jets,
+            ak4_jet_selection=ak4_jet_selection,
+        )
+
+        jets = ak.pad_none(jets, eta_jj_min_num_jets, clip=True)
+        eta = jets.eta
+
+        etas = []
+        i_s = []
+
+        for i in range(eta_jj_min_num_jets):
+            for j in range(i + 1, eta_jj_min_num_jets):
+                etajj = ak.fill_none(np.abs(eta[:, i] - eta[:, j]) >= eta_jj_min, False)
+                etas.append(etajj)
+                i_s.append([i, j])
+
+        inds = np.zeros((len(jets), 2))
+        inds[:, 1] += 1
+
+        eta_jj_cache = ~etas[0]
+        for n in range(1, len(etas)):
+            inds[eta_jj_cache * etas[n]] = i_s[n]
+            eta_jj_cache = eta_jj_cache * ~etas[n]
+
+        i1 = inds[:, 0].astype(int)
+        i2 = inds[:, 1].astype(int)
+
+        j1 = jets[np.arange(len(jets)), i1]
+        j2 = jets[np.arange(len(jets)), i2]
+
+        selected_jets = ak.concatenate([ak.unflatten(j1, 1), ak.unflatten(j2, 1)], axis=1)
+
+        return selected_jets
 
     def postprocess(self, accumulator):
         return accumulator
