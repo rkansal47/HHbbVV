@@ -381,6 +381,7 @@ def main(args):
                     sig_scale_dict=sig_scale_dict,
                     weight_shifts=weight_shifts,
                     jshift=jshift,
+                    blind=args.blinded,
                     blind_pass=bool(args.resonant),
                     show=False,
                     plot_shifts=args.plot_shifts,
@@ -389,7 +390,11 @@ def main(args):
 
             print("\nSaving templates")
             save_templates(
-                templates, template_dir / f"{args.year}_templates.pkl", args.resonant, shape_vars
+                templates,
+                template_dir / f"{args.year}_templates.pkl",
+                args.blinded,
+                args.resonant,
+                shape_vars,
             )
 
             with systs_file.open("w") as f:
@@ -1592,6 +1597,7 @@ def get_templates(
     plot_shifts: bool = False,
     pass_ylim: int = None,
     fail_ylim: int = None,
+    blind: bool = True,
     blind_pass: bool = False,
     show: bool = False,
 ) -> dict[str, Hist]:
@@ -1760,7 +1766,7 @@ def get_templates(
 
         print(f"Histograms: {time.time() - start:.2f}")
 
-        if region.signal:
+        if region.signal and blind:
             # blind signal mass windows in pass region in data
             for i, shape_var in enumerate(shape_vars):
                 if shape_var.blind_window is not None:
@@ -1882,11 +1888,15 @@ def get_templates(
 
 
 def save_templates(
-    templates: dict[str, Hist], template_file: Path, resonant: bool, shape_vars: list[ShapeVar]
+    templates: dict[str, Hist],
+    template_file: Path,
+    blind: bool,
+    resonant: bool,
+    shape_vars: list[ShapeVar],
 ):
     """Creates blinded copies of each region's templates and saves a pickle of the templates"""
 
-    if not resonant:
+    if not resonant and blind:
         from copy import deepcopy
 
         blind_window = shape_vars[0].blind_window
@@ -1970,6 +1980,7 @@ def parse_args():
         "make mass comparison plots (filters will automatically be turned off)",
         default=False,
     )
+    add_bool_arg(parser, "blinded", "blind the data in the Higgs mass window", default=True)
     add_bool_arg(parser, "bdt-plots", "make bdt sculpting plots", default=False)
     add_bool_arg(parser, "lpsfs", "measure LP SFs for given WPs", default=False)
     add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
