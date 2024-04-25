@@ -1020,13 +1020,12 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
 
     logging.info("Rendering combine model")
 
-    out_dir = args.cards_dir / args.model_name if args.model_name is not None else args.cards_dir
-    model.renderCombine(out_dir)
+    model.renderCombine(args.models_dir)
 
-    with (out_dir / "model.pkl").open("wb") as fout:
+    with (args.models_dir / "model.pkl").open("wb") as fout:
         pickle.dump(model, fout, 2)  # use python 2 compatible protocol
 
-    logging.info(f"Wrote model to {out_dir}")
+    logging.info(f"Wrote model to {args.models_dir!s}")
 
 
 def fill_yields(channels, channels_summed):
@@ -1256,9 +1255,7 @@ def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
         channels, channels_dict, channels_summed, rates_dict
     )
 
-    out_dir = args.cards_dir / args.model_name if args.model_name is not None else args.cards_dir
-
-    with (out_dir / "datacard.txt").open("w") as f:
+    with (args.models_dir / "datacard.txt").open("w") as f:
         f.write(helpers.abcd_datacard_template.substitute(datacard_dict))
 
     return
@@ -1300,8 +1297,12 @@ def main(args):
             for i, axis in enumerate(sample_templates.axes[1:])
         ]
 
-    args.cards_dir.mkdir(parents=True, exist_ok=True)
-    with (args.cards_dir / "templates.txt").open("w") as f:
+    args.models_dir = (
+        args.cards_dir / args.model_name if args.model_name is not None else args.cards_dir
+    )
+    args.models_dir.mkdir(parents=True, exist_ok=True)
+
+    with (args.models_dir / "templates.txt").open("w") as f:
         f.write(str(args.templates_dir.absolute()))
 
     dc_args = [args, templates_dict, templates_summed, shape_vars]
