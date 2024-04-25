@@ -62,6 +62,7 @@ add_bool_arg(parser, "vbf", "VBF category datacards", default=False)
 
 add_bool_arg(parser, "sig-separate", "separate templates for signals and bgs", default=False)
 add_bool_arg(parser, "do-jshifts", "Do JEC/JMC corrections.", default=True)
+add_bool_arg(parser, "blinded", "create separate regions with MC blinded", default=True)
 
 add_bool_arg(parser, "only-sm", "Only add SM HH samples for (for debugging nonres)", default=False)
 add_bool_arg(
@@ -782,6 +783,7 @@ def nonres_alphabet_fit(
     templates_summed: dict,
     scale: float = None,
     min_qcd_val: float = None,
+    blinded: bool = True,
 ):
     shape_var = shape_vars[0]
     m_obs = rl.Observable(shape_var.name, shape_var.bins)
@@ -800,7 +802,9 @@ def nonres_alphabet_fit(
 
     fail_qcd_samples = {}
 
-    for blind_str in ["", MCB_LABEL]:
+    blind_strs = ["", MCB_LABEL] if blinded else [""]
+
+    for blind_str in blind_strs:
         failChName = f"fail{blind_str}".replace("_", "")
         logging.info(f"Setting up fail region {failChName}")
         failCh = model[failChName]
@@ -863,7 +867,7 @@ def nonres_alphabet_fit(
         tf_dataResidual_params = tf_dataResidual(shape_var.scaled)
         tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
 
-        for blind_str in ["", MCB_LABEL]:
+        for blind_str in blind_strs:
             # for blind_str in [MCB_LABEL]:
             passChName = f"{sr}{blind_str}".replace("_", "")
             logging.info(f"setting transfer factor for pass region {passChName}")
@@ -979,8 +983,10 @@ def res_alphabet_fit(
 
 def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
     # (*signal_regions, fail) x (MC not-blinded, MC blinded)
+    blind_strs = ["", MCB_LABEL] if args.blinded else [""]
+
     regions: list[str] = [
-        f"{pf}{blind_str}" for pf in [*signal_regions, "fail"] for blind_str in ["", MCB_LABEL]
+        f"{pf}{blind_str}" for pf in [*signal_regions, "fail"] for blind_str in blind_strs
     ]
 
     # build actual fit model now
@@ -1012,7 +1018,7 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
         res_alphabet_fit(*fit_args)
     else:
         fill_regions(*fill_args)
-        nonres_alphabet_fit(*fit_args)
+        nonres_alphabet_fit(args.blinded, *fit_args)
 
     ##############################################
     # Save model
