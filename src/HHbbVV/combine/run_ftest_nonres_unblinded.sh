@@ -119,7 +119,7 @@ do
         if [ ! -f "${cards_dir}/$region/${model_name}/pass$region.txt" ]; then
             echo "Making Datacard for $model_name"
             python3 -u postprocessing/CreateDatacard.py --templates-dir "${templates_dir}" \
-            --model-name "${model_name}" --nTF "${ord}" --cards-dir "${cards_dir}/$region" --sig-sample $sample --no-blinded --nonres-regions $region --merge-bins 2
+            --model-name "${model_name}" --nTF "${ord}" --cards-dir "${cards_dir}/$region" --sig-sample $sample --no-blinded --nonres-regions $region
         fi
 
         cd "${cards_dir}/$region/${model_name}" || exit
