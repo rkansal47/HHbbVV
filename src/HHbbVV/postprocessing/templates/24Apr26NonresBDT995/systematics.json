@@ -1,0 +1,82 @@
+{
+    "2016": {
+        "passvbf": {
+            "trig_total": 687.9797695433379,
+            "trig_total_err": 10.589186914125703
+        },
+        "passggf": {
+            "trig_total": 6233.606377383457,
+            "trig_total_err": 68.15375440401571
+        },
+        "fail": {
+            "trig_total": 1735914.58627446,
+            "trig_total_err": 3121.8140800541255
+        }
+    },
+    "passvbf": {
+        "HHbbVV": {
+            "lp_sf": 0.9503388492177763,
+            "lp_sf_unc": 0.29342024639707515,
+            "lp_sf_uncs": {
+                "syst_unc": 0.2561410936981489,
+                "stat_unc": 0.07856434788501383,
+                "sj_pt_unc": 0.010841863482916728,
+                "sj_matching_unc": 0.1191523325514725
+            }
+        }
+    },
+    "passggf": {
+        "HHbbVV": {
+            "lp_sf": 1.0485594168172478,
+            "lp_sf_unc": 0.219074348371884,
+            "lp_sf_uncs": {
+                "syst_unc": 0.15303949989086268,
+                "stat_unc": 0.048066903551757675,
+                "sj_pt_unc": 0.0007821920510374409,
+                "sj_matching_unc": 0.14920268947395537
+            }
+        }
+    },
+    "2016APV": {
+        "passvbf": {
+            "trig_total": 785.5606285857502,
+            "trig_total_err": 9.961523400573007
+        },
+        "passggf": {
+            "trig_total": 6888.50545423391,
+            "trig_total_err": 57.122626994798296
+        },
+        "fail": {
+            "trig_total": 2039029.4499765574,
+            "trig_total_err": 3343.171767487172
+        }
+    },
+    "2017": {
+        "passvbf": {
+            "trig_total": 1519.268085080024,
+            "trig_total_err": 13.085909922485218
+        },
+        "passggf": {
+            "trig_total": 9909.46199842348,
+            "trig_total_err": 71.42146373931214
+        },
+        "fail": {
+            "trig_total": 1639960.9378558195,
+            "trig_total_err": 1759.476035699539
+        }
+    },
+    "2018": {
+        "passvbf": {
+            "trig_total": 1491.8863728777292,
+            "trig_total_err": 13.656857296391836
+        },
+        "passggf": {
+            "trig_total": 8353.342160420547,
+            "trig_total_err": 58.423360054925695
+        },
+        "fail": {
+            "trig_total": 1291098.8278291456,
+            "trig_total_err": 1279.2860978128667
+        }
+    }
+}
