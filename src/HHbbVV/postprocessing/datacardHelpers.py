@@ -90,6 +90,33 @@ def combine_last_two_bins(templates_dict: dict, years: list[str]):
             )
 
 
+def cut_off_bins(templates_dict: dict, years: list[str], cutoff: float):
+    for year in years:
+        for region in templates_dict[year]:
+            templates_dict[year][region] = common_utils.rebin_hist(
+                templates_dict[year][region],
+                "bbFatJetParticleNetMass",
+                list(range(50, int(cutoff) + 1, 10)),
+            )
+
+
+def merge_bins(templates_dict: dict, years: list[str], option: int):
+    if option == 1:
+        bins = list(range(50, 251, 20))
+    elif option == 2:
+        bins = list(range(60, 241, 20))
+
+    print(bins)
+
+    for year in years:
+        for region in templates_dict[year]:
+            templates_dict[year][region] = common_utils.rebin_hist(
+                templates_dict[year][region],
+                "bbFatJetParticleNetMass",
+                bins,
+            )
+
+
 def rem_neg(template_dict: dict):
     for _sample, template in template_dict.items():
         template.values()[template.values() < 0] = 0

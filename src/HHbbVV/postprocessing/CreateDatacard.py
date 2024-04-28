@@ -81,6 +81,16 @@ parser.add_argument(
 )
 parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
 
+parser.add_argument(
+    "--mcutoff", default=0, type=float, help="optionally, cut off last few bins in the templates"
+)
+parser.add_argument(
+    "--merge-bins",
+    default=0,
+    type=int,
+    help="optionally, double the bin width. option 1: 50-250, option 2: 60-240",
+)
+
 parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
 parser.add_argument(
     "--epsilon",
@@ -379,6 +389,8 @@ def get_templates(
     sig_separate: bool,
     scale: float = None,
     combine_lasttwo: bool = False,
+    mcutoff: float = 0,
+    merge_bins: int = 0,
 ):
     """Loads templates, combines bg and sig templates if separate, sums across all years"""
     templates_dict: dict[str, dict[str, Hist]] = {}
@@ -423,6 +435,14 @@ def get_templates(
 
     if combine_lasttwo:
         helpers.combine_last_two_bins(templates_dict, years)
+
+    if mcutoff > 0:
+        print(f"Cutting templates off at {mcutoff} GeV")
+        helpers.cut_off_bins(templates_dict, years, mcutoff)
+
+    if merge_bins > 0:
+        print(f"Merging bins with option {merge_bins}")
+        helpers.merge_bins(templates_dict, years, merge_bins)
 
     templates_summed: dict[str, Hist] = sum_templates(templates_dict, years)  # sum across years
     return templates_dict, templates_summed
@@ -1018,7 +1038,7 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
         res_alphabet_fit(*fit_args)
     else:
         fill_regions(*fill_args)
-        nonres_alphabet_fit(args.blinded, *fit_args)
+        nonres_alphabet_fit(*fit_args, args.blinded)
 
     ##############################################
     # Save model
@@ -1273,7 +1293,13 @@ def main(args):
 
     # templates per region per year, templates per region summed across years
     templates_dict, templates_summed = get_templates(
-        args.templates_dir, years, args.sig_separate, args.scale_templates, args.combine_lasttwo
+        args.templates_dir,
+        years,
+        args.sig_separate,
+        args.scale_templates,
+        args.combine_lasttwo,
+        args.mcutoff,
+        args.merge_bins,
     )
 
     # TODO: check if / how to include signal trig eff uncs. (rn only using bg uncs.)
