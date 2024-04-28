@@ -19,7 +19,7 @@ txbb_cut=""
 bdt_cut=""
 regions="all"
 
-options=$(getopt -o "" --long "lveto,bdt,txbb,year:,tag:" -- "$@")
+options=$(getopt -o "" --long "lveto,bdt,txbb,sample:,year:,tag:" -- "$@")
 eval set -- "$options"
 
 while true; do
