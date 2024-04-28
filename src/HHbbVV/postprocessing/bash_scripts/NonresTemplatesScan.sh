@@ -24,15 +24,19 @@ eval set -- "$options"
 
 while true; do
     case "$1" in
+        --sample)
+            shift
+            sig_samples=$1
+            ;;
         --lveto)
             lepton_veto="--lepton-veto None Hbb HH"
             ;;
         --bdt)
-            bdt_cut="--nonres-ggf-bdt-wp 0.9965 0.998"
-            # bdt_cut="--nonres-bdt-wp 0.99 0.997 0.998 0.999 0.9997 0.9999"
+            # bdt_cut="--nonres-ggf-bdt-wp 0.9965 0.998"
+            bdt_cut="--nonres-vbf-bdt-wp 0.99 0.997 0.998 0.999 0.9997 0.9999"
             ;;
         --txbb)
-            txbb_cut="--nonres-ggf-txbb-wp MP"
+            txbb_cut="--nonres-vbf-txbb-wp MP HP"
             ;;
         --year)
             shift
@@ -66,7 +70,7 @@ io_args="--data-dir $data_dir --bdt-preds-dir $bdt_preds_dir --template-dir temp
 scan_args="$lepton_veto $bdt_cut $txbb_cut --nonres-regions $regions"  # --bg-keys '' --no-data
 
 echo "Getting LP SFs"
-python -u postprocessing.py --lpsfs --year "2018" $io_args $scan_args
+python -u postprocessing.py --lpsfs --year "2016" $io_args $scan_args
 
 for year in "${years[@]}"
 do
