@@ -142,7 +142,7 @@ def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, sy
     if sig_scale_dict is None:
         sig_scale_dict = OrderedDict([(sig_key, 1.0) for sig_key in sig_keys])
     else:
-        sig_scale_dict = deepcopy(sig_scale_dict)
+        sig_scale_dict = {key: val for key, val in sig_scale_dict.items() if key in sig_keys}
 
     sig_labels = OrderedDict()
     for sig_key, sig_scale in sig_scale_dict.items():
@@ -211,6 +211,19 @@ def _asimov_significance(s, b):
     return np.sqrt(2 * ((s + b) * np.log(1 + (s / b)) - s))
 
 
+def add_cms_label(ax, year):
+    if year == "all":
+        hep.cms.label(
+            "Preliminary",
+            data=True,
+            lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
+            year=None,
+            ax=ax,
+        )
+    else:
+        hep.cms.label("Preliminary", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
+
+
 def ratioHistPlot(
     hists: Hist,
     year: str,
@@ -228,6 +241,7 @@ def ratioHistPlot(
     show: bool = True,
     syst: tuple = None,
     variation: str = None,
+    bg_err_type: str = "shaded",
     plot_data: bool = True,
     bg_order: list[str] = bg_order,
     log: bool = False,
@@ -264,8 +278,10 @@ def ratioHistPlot(
         show (bool): show plots or not
         syst (Tuple): Tuple of (wshift: name of systematic e.g. pileup,  wsamples: list of samples which are affected by this),
           to plot variations of this systematic.
-        variation (str): "up" or "down", to plot only one variation (if syst is not None).
+        variation (str): options:
+          "up" or "down", to plot only one wshift variation (if syst is not None).
           Defaults to None i.e. plotting both variations.
+        bg_err_type (str): "shaded" or "line".
         plot_data (bool): plot data
         bg_order (List[str]): order in which to plot backgrounds
         ratio_ylims (List[float]): y limits on the ratio plots
@@ -279,7 +295,6 @@ def ratioHistPlot(
         ratio_ylims = [0, 2]
     if bg_colours is None:
         bg_colours = BG_COLOURS
-
     if sig_colours is None:
         sig_colours = SIG_COLOURS
 
@@ -299,9 +314,9 @@ def ratioHistPlot(
         for shift in ["down", "up"]:
             bg_sums = []
             for sample in bg_keys:
-                if sample in wsamples:
+                if sample in wsamples and f"{sample}_{wshift}_{shift}" in hists.axes[0]:
                     bg_sums.append(hists[f"{sample}_{wshift}_{shift}", :].values())
-                else:
+                elif sample != "Hbb":
                     bg_sums.append(hists[sample, :].values())
             bg_err.append(np.sum(bg_sums, axis=0))
 
@@ -357,49 +372,77 @@ def ratioHistPlot(
             color=sig_colours[: len(sig_keys)],
         )
 
-    # plot signal errors
-    if isinstance(sig_err, str):
-        for skey, shift in [("Up", "up"), ("Down", "down")]:
-            hep.histplot(
-                [
-                    hists[f"{sig_key}_{sig_err}_{shift}", :] * sig_scale
-                    for sig_key, sig_scale in sig_scale_dict.items()
-                ],
-                yerr=0,
-                ax=ax,
-                histtype="step",
-                label=[f"{sig_key} {skey}" for sig_key in sig_scale_dict],
-                alpha=0.6,
-                color=sig_colours[: len(sig_keys)],
-            )
-    elif sig_err is not None:
-        for sig_key, sig_scale in sig_scale_dict.items():
-            _fill_error(
-                ax,
-                hists.axes[1].edges,
-                hists[sig_key, :].values() * (1 - sig_err),
-                hists[sig_key, :].values() * (1 + sig_err),
-                sig_scale,
-            )
+        # plot signal errors
+        if isinstance(sig_err, str):
+            for skey, shift in [("Up", "up"), ("Down", "down")]:
+                hep.histplot(
+                    [
+                        hists[f"{sig_key}_{sig_err}_{shift}", :] * sig_scale
+                        for sig_key, sig_scale in sig_scale_dict.items()
+                    ],
+                    yerr=0,
+                    ax=ax,
+                    histtype="step",
+                    label=[f"{sig_label} {skey}" for sig_label in sig_labels.values()],
+                    alpha=0.6,
+                    color=sig_colours[: len(sig_keys)],
+                )
+        elif sig_err is not None:
+            for sig_key, sig_scale in sig_scale_dict.items():
+                _fill_error(
+                    ax,
+                    hists.axes[1].edges,
+                    hists[sig_key, :].values() * (1 - sig_err),
+                    hists[sig_key, :].values() * (1 + sig_err),
+                    sig_scale,
+                )
 
     if bg_err is not None:
         if divide_bin_width:
             raise NotImplementedError("Background error for divide bin width not checked yet")
 
+        bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
         if len(np.array(bg_err).shape) == 1:
-            bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
             bg_err = [bg_tot - bg_err, bg_tot + bg_err]
 
-        ax.fill_between(
-            np.repeat(hists.axes[1].edges, 2)[1:-1],
-            np.repeat(bg_err[0], 2),
-            np.repeat(bg_err[1], 2),
-            color="black",
-            alpha=0.2,
-            hatch="//",
-            linewidth=0,
-            label="Total Background Uncertainty",
-        )
+        if bg_err_type == "shaded":
+            ax.fill_between(
+                np.repeat(hists.axes[1].edges, 2)[1:-1],
+                np.repeat(bg_err[0], 2),
+                np.repeat(bg_err[1], 2),
+                color="black",
+                alpha=0.2,
+                hatch="//",
+                linewidth=0,
+                label="Total Background Uncertainty",
+            )
+        else:
+            ax.stairs(
+                bg_tot.values(),
+                hists.axes[1].edges,
+                color="black",
+                linewidth=3,
+                label="BG Total",
+                baseline=bg_tot.values(),
+            )
+
+            ax.stairs(
+                bg_err[0],
+                hists.axes[1].edges,
+                color="red",
+                linewidth=3,
+                label="BG Down",
+                baseline=bg_err[0],
+            )
+
+            ax.stairs(
+                bg_err[1],
+                hists.axes[1].edges,
+                color="#7F2CCB",
+                linewidth=3,
+                label="BG Up",
+                baseline=bg_err[1],
+            )
 
     # plot data
     if plot_data:
@@ -484,16 +527,7 @@ def ratioHistPlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    if year == "all":
-        hep.cms.label(
-            "Preliminary",
-            data=True,
-            lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
-            year=None,
-            ax=ax,
-        )
-    else:
-        hep.cms.label("Preliminary", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
+    add_cms_label(ax, year)
 
     if axrax is None:
         if len(name):
@@ -613,7 +647,8 @@ def ratioLinePlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    hep.cms.label("Preliminary", data=True, lumi=round(LUMI[year] * 1e-3), year=year, ax=ax)
+    add_cms_label(ax, year)
+
     if len(name):
         plt.savefig(name, bbox_inches="tight")
 
@@ -678,6 +713,71 @@ def hist2ds(
                 plt.show()
             else:
                 plt.close()
+
+
+def sigErrRatioPlot(
+    h: Hist,
+    year: str,
+    sig_key: str,
+    wshift: str,
+    title: str = None,
+    plot_dir: str = None,
+    name: str = None,
+    show: bool = False,
+):
+    fig, (ax, rax) = plt.subplots(
+        2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
+    )
+
+    nom = h[sig_key, :].values()
+    hep.histplot(
+        h[sig_key, :],
+        histtype="step",
+        label=sig_key,
+        yerr=False,
+        color=SIG_COLOURS[0],
+        ax=ax,
+        linewidth=2,
+    )
+
+    for skey, shift in [("Up", "up"), ("Down", "down")]:
+        colour = {"up": "#81C14B", "down": "#1f78b4"}[shift]
+        hep.histplot(
+            h[f"{sig_key}_{wshift}_{shift}", :],
+            histtype="step",
+            yerr=False,
+            label=f"{sig_key} {skey}",
+            color=colour,
+            ax=ax,
+            linewidth=2,
+        )
+
+        hep.histplot(
+            h[f"{sig_key}_{wshift}_{shift}", :] / nom,
+            histtype="errorbar",
+            # yerr=False,
+            label=f"{sig_key} {skey}",
+            color=colour,
+            ax=rax,
+        )
+
+    ax.legend()
+    ax.set_ylim(0)
+    ax.set_ylabel("Events")
+    add_cms_label(ax, year)
+    ax.set_title(title, y=1.08)
+
+    rax.set_ylim([0, 2])
+    rax.set_xlabel(r"$m^{bb}_{reg}$ (GeV)")
+    rax.legend()
+    rax.set_ylabel("Variation / Nominal")
+    rax.grid(axis="y")
+
+    plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
+    if show:
+        plt.show()
+    else:
+        plt.close()
 
 
 def rocCurve(

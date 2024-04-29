@@ -132,8 +132,8 @@ control_plot_vars = [
     # ShapeVar(var="vbf_Mass_jj", label=r"$m_{jj}^{VBF}$", bins=[20, 0, 1000]),
     # ShapeVar(var="vbf_dEta_jj", label=r"$|\Delta\eta_{jj}^{VBF}|$", bins=[20, 0, 6]),
     # removed if not ggF nonresonant
-    ShapeVar(var="BDTScore", label=r"BDT Score (ggF)", bins=[20, 0, 1]),
-    ShapeVar(var="BDTScoreVBF", label=r"BDT Score (VBF $\kappa_{2V} = 0$)", bins=[20, 0, 1]),
+    ShapeVar(var="BDTScore", label=r"$BDT_{ggF}$", bins=[20, 0, 1]),
+    ShapeVar(var="BDTScoreVBF", label=r"$BDT_{VBF}$", bins=[20, 0, 1]),
 ]
 
 
@@ -512,10 +512,6 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
         df["DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
     if "DijetdPhi" not in df.columns:
         df["DijetdPhi"] = np.abs(bbJet.deltaphi(VVJet))
-    if f"vbf_Mass_jj{ptlabel}" not in df.columns:
-        df[f"vbf_Mass_jj{ptlabel}"] = jj.M
-    if "vbf_dEta_jj" not in df.columns:
-        df["vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
 
     # print(f"VBF jet vars: {time.time() - start:.2f}")
 

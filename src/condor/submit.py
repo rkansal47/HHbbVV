@@ -38,7 +38,7 @@ def get_site_vars(site):
 
 
 def main(args):
-    run_utils.check_branch(args.git_branch, args.allow_diff_local_repo)
+    run_utils.check_branch(args.git_branch, args.git_user, args.allow_diff_local_repo)
     username, t2_local_prefix, t2_prefix, proxy = get_site_vars(args.site)
 
     homedir = Path(f"store/user/{username}/bbVV/{args.processor}/")
@@ -87,6 +87,7 @@ def main(args):
                 localsh = f"{local_dir}/{prefix}_{j}.sh"
                 sh_args = {
                     "branch": args.git_branch,
+                    "gituser": args.git_user,
                     "script": args.script,
                     "year": args.year,
                     "starti": j * args.files_per_job,
@@ -128,6 +129,9 @@ def main(args):
 
 def parse_args(parser):
     parser.add_argument("--git-branch", required=True, help="git branch to use", type=str)
+    parser.add_argument(
+        "--git-user", default="rkansal47", help="which user's repo to use", type=str
+    )
     parser.add_argument("--script", default="src/run.py", help="script to run", type=str)
     parser.add_argument("--outdir", default="outfiles", help="directory for output files", type=str)
     parser.add_argument(
