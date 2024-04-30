@@ -250,24 +250,12 @@ if [ $dfit = 1 ]; then
     -n Unblinded --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnostics.txt
 
     echo "Fit Shapes"
-    PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapes.root \
-    -m 125 -f fitDiagnosticsUnblinded.root:fit_s --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
-fi
+    PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapesB.root \
+    -m 125 -f fitDiagnosticsUnblinded.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapesB.txt
 
-
-if [ $dfit_asimov = 1 ]; then
-    echo "Fit Diagnostics on Asimov dataset (MC Unblinded)"
-    combine -M FitDiagnostics -m 125 -d $wsm.root --snapshotName MultiDimFit \
-    -t -1 --expectSignal=1 --toysFrequentist --bypassFrequentistFit --saveWorkspace --saveToys \
-    "${unblindedparams}" --floatParameters "${freezeparamsblinded},r" \
-    --cminDefaultMinimizerStrategy 1  --cminDefaultMinimizerTolerance "$mintol" --X-rtd MINIMIZER_MaxCalls=400000 \
-    -n Asimov --ignoreCovWarning -v 9 2>&1 | tee $outsdir/FitDiagnosticsAsimov.txt
-
-    combineTool.py -M ModifyDataSet ${wsm}.root:w ${wsm}_asimov.root:w:toy_asimov -d higgsCombineAsimov.FitDiagnostics.mH125.123456.root:toys/toy_asimov
-
-    echo "Fit Shapes"
-    PostFitShapesFromWorkspace --dataset toy_asimov -w ${wsm}_asimov.root --output FitShapesAsimov.root \
-    -m 125 -f fitDiagnosticsAsimov.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapesAsimov.txt
+    # echo "Fit Shapes"
+    # PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapesB.root \
+    # -m 125 -f fitDiagnosticsUnblinded.root:fit_s --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
 fi
 
 

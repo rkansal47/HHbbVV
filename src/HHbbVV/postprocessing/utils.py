@@ -314,11 +314,17 @@ def blindBins(h: Hist, blind_region: list, blind_sample: str = None, axis=0):
 
     if blind_sample is not None:
         data_key_index = get_key_index(h, blind_sample)
-        h.view(flow=True)[data_key_index][lv:rv].value = 0
-        h.view(flow=True)[data_key_index][lv:rv].variance = 0
+        if str(h.storage_type) == "<class 'boost_histogram.storage.Double'>":
+            h.view(flow=True)[data_key_index][lv:rv] = 0
+        else:
+            h.view(flow=True)[data_key_index][lv:rv].value = 0
+            h.view(flow=True)[data_key_index][lv:rv].variance = 0
     else:
-        h.view(flow=True)[:, lv:rv].value = 0
-        h.view(flow=True)[:, lv:rv].variance = 0
+        if str(h.storage_type) == "<class 'boost_histogram.storage.Double'>":
+            h.view(flow=True)[:, lv:rv] = 0
+        else:
+            h.view(flow=True)[:, lv:rv].value = 0
+            h.view(flow=True)[:, lv:rv].variance = 0
 
 
 def singleVarHist(
