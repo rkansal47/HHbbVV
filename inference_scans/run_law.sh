@@ -55,7 +55,7 @@ while true; do
             cards="$Cbbww4qInject"
             ;;
         -p|--printdeps)
-            printdeps="--print-deps -1"
+            printdeps="--print-command -1"
             ;;
         --rmoutput)
             shift
@@ -146,14 +146,14 @@ if [ $impacts = 1 ]; then
         --pois r \
         --PullsAndImpacts-workflow "htcondor" \
         --PullsAndImpacts-tasks-per-job 10 \
-        --PullsAndImpacts-custom-args="--rMin -40 $custom_args" \
+        --PullsAndImpacts-custom-args="--rMin -40 --rMax 200" \
         --parameters-per-page 40 \
         --order-by-impact \
         --labels "nuisance_renames.py" \
         --skip-parameters "*dataResidual_Bin*" \
         --page -1 \
         --pull-range 3 \
-        --Snapshot-custom-args=$custom_args
+        --Snapshot-custom-args="--rMax 200"
 fi
 
 
