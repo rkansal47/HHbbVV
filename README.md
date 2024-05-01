@@ -422,6 +422,17 @@ git clone -b v2.0.0 https://github.com/cms-analysis/CombineHarvester.git Combine
 scramv1 b clean; scramv1 b
 ```
 
+### Packages
+
+To create datacards, you need to use the same cmsenv as above + these packages:
+
+```bash
+pip3 install --upgrade pip3
+pip3 install rhalphalib
+cd /path/to/your/local/HHbbVV/repo
+pip3 install -e .
+```
+
 I also add this to my .bashrc for convenience:
 
 ```
