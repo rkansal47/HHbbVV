@@ -4,7 +4,17 @@
 ####################################################################################################
 # Script for running HH inference 'law' commands
 # 
-# TODO: fill args
+# Usage:
+# 0) snapshot: --snapshot
+# 1) limits at point: --limpoint (--vbf)  # --vbf runs it for the VBF k2v=0 point
+# 2) 1D kL limit scan: --limkl
+# 3) 1D k2V limit scan: --limc2v
+# 4) impacts: --impacts  (should replot the merged json with plotImpacts.py)
+#
+# General options:
+#   --printdeps:    to print dependencies only
+#   --inject:       inject parameters from preliminary fit
+#   --rmoutput X:   remove outputs up to depth X
 #
 ####################################################################################################
 
@@ -55,7 +65,7 @@ while true; do
             cards="$Cbbww4qInject"
             ;;
         -p|--printdeps)
-            printdeps="--print-command -1"
+            printdeps="--print-deps -1"
             ;;
         --rmoutput)
             shift
@@ -79,7 +89,7 @@ done
 # export DHI_CMS_POSTFIX="Supplementary"
 
 common_args="--file-types pdf,png --unblinded $unblinded --version $VERSION $printdeps --remove-output $rmoutput,a,y --campaign run2 --use-snapshot True"
-custom_args="--rMax 200"
+custom_args="--rMax 200 --setParameterRanges r_qqhh=-40,1000"
 
 
 if [ $snapshot = 1 ]; then
@@ -100,17 +110,19 @@ if [ $limits_at_point = 1 ]; then
         --UpperLimits-tasks-per-job 1 \
         --x-log \
         --h-lines 1 \
-        --save-hep-data True
+        --save-hep-data True \
+        --Snapshot-custom-args="$custom_args"
 fi
 
 
 if [ $limits_1d_kl = 1 ]; then
     law run PlotUpperLimits \
+        $common_args \
         --version "$VERSION" \
         --datacards $cards \
         --xsec fb \
         --pois r \
-        --scan-parameters kl,-30,-5,26:kl,-2,0,3:kl,2,5,4:kl,10,30,21 \
+        --scan-parameters kl,-29,-26,2:kl,-22,-18,2:kl,-9,-5,2:kl,-1,0,2:kl,2,5,4:kl,10,11,2:kl,11,30,2 \
         --UpperLimits-workflow "htcondor" \
         --UpperLimits-tasks-per-job 1 \
         --y-log \
@@ -118,16 +130,18 @@ if [ $limits_1d_kl = 1 ]; then
         --br bbww \
         --save-ranges \
         --save-hep-data False \
+        --Snapshot-custom-args="$custom_args" \
         --frozen-groups signal_norm_xsbr
 fi
 
 if [ $limits_1d_c2v = 1 ]; then
     law run PlotUpperLimits \
+        $common_args \
         --version "$VERSION" \
         --datacards $cards \
         --xsec fb \
         --pois r \
-        --scan-parameters C2V,-1,-0.2,3:C2V,-0.1,0.5,7:C2V,0.7,1.5,5:C2V,1.6,2.1,6:C2V,2.2,3,3 \
+        --scan-parameters C2V,-1,-0.2,3:C2V,-0.1,0.3,5:C2V,0.9,1.1,2:C2V,1.5,2.1,7:C2V,2.2,3,3 \
         --UpperLimits-workflow "htcondor" \
         --UpperLimits-tasks-per-job 1 \
         --y-log \
@@ -135,6 +149,7 @@ if [ $limits_1d_c2v = 1 ]; then
         --br bbww \
         --save-ranges \
         --save-hep-data False \
+        --Snapshot-custom-args="$custom_args" \
         --frozen-groups signal_norm_xsbr
 fi
 
@@ -153,7 +168,7 @@ if [ $impacts = 1 ]; then
         --skip-parameters "*dataResidual_Bin*" \
         --page -1 \
         --pull-range 3 \
-        --Snapshot-custom-args="--rMax 200"
+        --Snapshot-custom-args="$custom_args"
 fi
 
 
