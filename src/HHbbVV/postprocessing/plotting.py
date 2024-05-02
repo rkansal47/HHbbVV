@@ -484,6 +484,18 @@ def ratioHistPlot(
                 color="black",
                 capsize=4,
             )
+
+            if bg_err is not None and bg_err_type == "shaded":
+                # (bkg + err) / bkg
+                rax.fill_between(
+                    np.repeat(hists.axes[1].edges, 2)[1:-1],
+                    np.repeat((bg_err[0].values()) / bg_tot, 2),
+                    np.repeat((bg_err[1].values()) / bg_tot, 2),
+                    color="black",
+                    alpha=0.1,
+                    hatch="//",
+                    linewidth=0,
+                )
         else:
             rax.set_xlabel(hists.axes[1].label)
 
