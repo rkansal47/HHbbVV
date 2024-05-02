@@ -3,7 +3,7 @@
 
 ####################################################################################################
 # Script for running HH inference 'law' commands
-# 
+#
 # Usage:
 # 0) snapshot: --snapshot
 # 1) limits at point: --limpoint (--vbf)  # --vbf runs it for the VBF k2v=0 point
@@ -170,5 +170,3 @@ if [ $impacts = 1 ]; then
         --pull-range 3 \
         --Snapshot-custom-args="$custom_args"
 fi
-
-
