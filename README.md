@@ -427,7 +427,7 @@ scramv1 b clean; scramv1 b
 To create datacards, you need to use the same cmsenv as above + these packages:
 
 ```bash
-pip3 install --upgrade pip3
+pip3 install --upgrade pip
 pip3 install rhalphalib
 cd /path/to/your/local/HHbbVV/repo
 pip3 install -e .
