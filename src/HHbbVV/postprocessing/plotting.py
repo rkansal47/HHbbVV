@@ -791,6 +791,7 @@ def rocCurve(
     ylim=None,
     plot_dir="",
     name="",
+    show: bool = False,
 ):
     """Plots a ROC curve"""
     if ylim is None:
@@ -815,14 +816,22 @@ def rocCurve(
     plt.xlabel("Signal efficiency")
     plt.ylabel("Background efficiency")
     plt.title(title)
+    plt.grid(which="major")
 
     if auc is not None:
         plt.legend()
 
     plt.xlim(*xlim)
     plt.ylim(*ylim)
-    hep.cms.label(data=False, rlabel="")
-    plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
+    hep.cms.label(data=False, rlabel="(13 TeV)")
+
+    if len(name):
+        plt.savefig(plot_dir / f"{name}.pdf", bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
 
 
 def _find_nearest(array, value):

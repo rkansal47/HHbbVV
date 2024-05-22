@@ -207,6 +207,18 @@ def add_to_cutflow(
     ]
 
 
+def format_columns(columns: list):
+    """
+    Reformat input of (`column name`, `num columns`) into (`column name`, `idx`) format for
+    reading multiindex columns
+    """
+    ret_columns = []
+    for key, num_columns in columns:
+        for i in range(num_columns):
+            ret_columns.append(f"('{key}', '{i}')")
+    return ret_columns
+
+
 def getParticles(particle_list, particle_type):
     """
     Finds particles in `particle_list` of type `particle_type`
