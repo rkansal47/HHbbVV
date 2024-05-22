@@ -35,6 +35,7 @@
 workspace=0
 bfit=0
 limits=0
+toylimits=0
 significance=0
 dfit=0
 dfit_asimov=0
@@ -52,7 +53,7 @@ mintol=0.1  # --cminDefaultMinimizerTolerance
 nonresggf=1
 nonresvbf=1
 
-options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,dfitasimov,resonant,noggf,novbf,gofdata,goftoys,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,dfitasimov,toylimits,resonant,noggf,novbf,gofdata,goftoys,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -65,6 +66,9 @@ while true; do
             ;;
         -l|--limits)
             limits=1
+            ;;
+        --toylimits)
+            toylimits=1
             ;;
         -s|--significance)
             significance=1
@@ -308,6 +312,18 @@ if [ $limits = 1 ]; then
     --saveWorkspace --saveToys --bypassFrequentistFit \
     ${unblindedparams},r=0 -s "$seed" \
     --floatParameters "${freezeparamsblinded},r" --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
+fi
+
+
+if [ $toylimits = 1 ]; then
+    echo "Expected limits (MC Unblinded) using toys"
+    combine -M HybridNew --LHCmode LHC-limits --saveHybridResult -m 125 -n "" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v 9 \
+    ${unblindedparams},r=0 -s "$seed" --bypassFrequentistFit --rAbsAcc 5.0 -T 100 --clsAcc 10 \
+    --floatParameters "${freezeparamsblinded},r" --toysFrequentist --expectedFromGrid 0.500 2>&1 | tee $outsdir/ToysLimits.txt
+
+    # combine -M HybridNew --LHCmode LHC-limits --singlePoint 0 --saveHybridResult -m 125 -n "" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v 9 --saveToys \
+    # ${unblindedparams},r=0 -s "$seed" --bypassFrequentistFit --rAbsAcc 1.0 -T 100 --clsAcc 10 \
+    # --floatParameters "${freezeparamsblinded},r" --toysFrequentist 2>&1 | tee $outsdir/ToysLimitsSP.txt
 fi
 
 

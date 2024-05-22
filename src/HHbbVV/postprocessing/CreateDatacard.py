@@ -62,6 +62,7 @@ add_bool_arg(parser, "vbf", "VBF category datacards", default=False)
 
 add_bool_arg(parser, "sig-separate", "separate templates for signals and bgs", default=False)
 add_bool_arg(parser, "do-jshifts", "Do JEC/JMC corrections.", default=True)
+add_bool_arg(parser, "blinded", "create separate regions with MC blinded", default=True)
 
 add_bool_arg(parser, "only-sm", "Only add SM HH samples for (for debugging nonres)", default=False)
 add_bool_arg(
@@ -79,6 +80,16 @@ parser.add_argument(
     choices=["ggf", "vbf", "all"],
 )
 parser.add_argument("--cards-dir", default="cards", type=str, help="output card directory")
+
+parser.add_argument(
+    "--mcutoff", default=0, type=float, help="optionally, cut off last few bins in the templates"
+)
+parser.add_argument(
+    "--merge-bins",
+    default=0,
+    type=int,
+    help="optionally, double the bin width. option 1: 50-250, option 2: 60-240",
+)
 
 parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
 parser.add_argument(
@@ -378,6 +389,8 @@ def get_templates(
     sig_separate: bool,
     scale: float = None,
     combine_lasttwo: bool = False,
+    mcutoff: float = 0,
+    merge_bins: int = 0,
 ):
     """Loads templates, combines bg and sig templates if separate, sums across all years"""
     templates_dict: dict[str, dict[str, Hist]] = {}
@@ -422,6 +435,14 @@ def get_templates(
 
     if combine_lasttwo:
         helpers.combine_last_two_bins(templates_dict, years)
+
+    if mcutoff > 0:
+        print(f"Cutting templates off at {mcutoff} GeV")
+        helpers.cut_off_bins(templates_dict, years, mcutoff)
+
+    if merge_bins > 0:
+        print(f"Merging bins with option {merge_bins}")
+        helpers.merge_bins(templates_dict, years, merge_bins)
 
     templates_summed: dict[str, Hist] = sum_templates(templates_dict, years)  # sum across years
     return templates_dict, templates_summed
@@ -782,6 +803,7 @@ def nonres_alphabet_fit(
     templates_summed: dict,
     scale: float = None,
     min_qcd_val: float = None,
+    blinded: bool = True,
 ):
     shape_var = shape_vars[0]
     m_obs = rl.Observable(shape_var.name, shape_var.bins)
@@ -800,7 +822,9 @@ def nonres_alphabet_fit(
 
     fail_qcd_samples = {}
 
-    for blind_str in ["", MCB_LABEL]:
+    blind_strs = ["", MCB_LABEL] if blinded else [""]
+
+    for blind_str in blind_strs:
         failChName = f"fail{blind_str}".replace("_", "")
         logging.info(f"Setting up fail region {failChName}")
         failCh = model[failChName]
@@ -863,7 +887,7 @@ def nonres_alphabet_fit(
         tf_dataResidual_params = tf_dataResidual(shape_var.scaled)
         tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
 
-        for blind_str in ["", MCB_LABEL]:
+        for blind_str in blind_strs:
             # for blind_str in [MCB_LABEL]:
             passChName = f"{sr}{blind_str}".replace("_", "")
             logging.info(f"setting transfer factor for pass region {passChName}")
@@ -979,8 +1003,10 @@ def res_alphabet_fit(
 
 def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
     # (*signal_regions, fail) x (MC not-blinded, MC blinded)
+    blind_strs = ["", MCB_LABEL] if args.blinded else [""]
+
     regions: list[str] = [
-        f"{pf}{blind_str}" for pf in [*signal_regions, "fail"] for blind_str in ["", MCB_LABEL]
+        f"{pf}{blind_str}" for pf in [*signal_regions, "fail"] for blind_str in blind_strs
     ]
 
     # build actual fit model now
@@ -1012,7 +1038,7 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
         res_alphabet_fit(*fit_args)
     else:
         fill_regions(*fill_args)
-        nonres_alphabet_fit(*fit_args)
+        nonres_alphabet_fit(*fit_args, args.blinded)
 
     ##############################################
     # Save model
@@ -1020,13 +1046,12 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
 
     logging.info("Rendering combine model")
 
-    out_dir = args.cards_dir / args.model_name if args.model_name is not None else args.cards_dir
-    model.renderCombine(out_dir)
+    model.renderCombine(args.models_dir)
 
-    with (out_dir / "model.pkl").open("wb") as fout:
+    with (args.models_dir / "model.pkl").open("wb") as fout:
         pickle.dump(model, fout, 2)  # use python 2 compatible protocol
 
-    logging.info(f"Wrote model to {out_dir}")
+    logging.info(f"Wrote model to {args.models_dir!s}")
 
 
 def fill_yields(channels, channels_summed):
@@ -1256,9 +1281,7 @@ def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
         channels, channels_dict, channels_summed, rates_dict
     )
 
-    out_dir = args.cards_dir / args.model_name if args.model_name is not None else args.cards_dir
-
-    with (out_dir / "datacard.txt").open("w") as f:
+    with (args.models_dir / "datacard.txt").open("w") as f:
         f.write(helpers.abcd_datacard_template.substitute(datacard_dict))
 
     return
@@ -1270,7 +1293,13 @@ def main(args):
 
     # templates per region per year, templates per region summed across years
     templates_dict, templates_summed = get_templates(
-        args.templates_dir, years, args.sig_separate, args.scale_templates, args.combine_lasttwo
+        args.templates_dir,
+        years,
+        args.sig_separate,
+        args.scale_templates,
+        args.combine_lasttwo,
+        args.mcutoff,
+        args.merge_bins,
     )
 
     # TODO: check if / how to include signal trig eff uncs. (rn only using bg uncs.)
@@ -1300,8 +1329,12 @@ def main(args):
             for i, axis in enumerate(sample_templates.axes[1:])
         ]
 
-    args.cards_dir.mkdir(parents=True, exist_ok=True)
-    with (args.cards_dir / "templates.txt").open("w") as f:
+    args.models_dir = (
+        args.cards_dir / args.model_name if args.model_name is not None else args.cards_dir
+    )
+    args.models_dir.mkdir(parents=True, exist_ok=True)
+
+    with (args.models_dir / "templates.txt").open("w") as f:
         f.write(str(args.templates_dir.absolute()))
 
     dc_args = [args, templates_dict, templates_summed, shape_vars]
