@@ -12,6 +12,7 @@
 # 4) impacts: --impacts  (should replot the merged json with plotImpacts.py)
 #
 # General options:
+#   --unblinded:    unblinded
 #   --printdeps:    to print dependencies only
 #   --inject:       inject parameters from preliminary fit
 #   --rmoutput X:   remove outputs up to depth X
@@ -33,8 +34,12 @@ snapshot=0
 printdeps=""
 cards="$Cbbww4q"
 unblinded=$UNBLINDED
+c2vscan="C2V,-1,-0.2,3:C2V,-0.1,0.3,5:C2V,0.9,1.1,2:C2V,1.5,2.1,7:C2V,2.2,3,3"
+klscan="kl,-9,-6,2:kl,-6,-5,2:kl,-1,0,2:kl,2,5,4:kl,10,11,2"
+cl=0.95
+workflow="htcondor"
 
-options=$(getopt -o "ips" --long "limpoint,limkl,limc2v,impacts,printdeps,inject,vbf,unblinded,snapshot,rmoutput:" -- "$@")
+options=$(getopt -o "ips" --long "limpoint,limkl,limc2v,impacts,printdeps,printcommands,inject,vbf,noggf,novbf,unblinded,snapshot,rmoutput:,cl:,workflow:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -58,6 +63,16 @@ while true; do
             pois="r_qqhh"
             vbfargs="--x-min 0.1 --x-max 10 --parameter-values C2V=0"
             ;;
+        --noggf)
+            pois="r_qqhh"
+            # vbfargs="--parameter-values r_gghh=0"
+            c2vscan="C2V,-1,-0.2,3:C2V,-0.1,0.3,5:C2V,1.0,1.2,2:C2V,1.2,1.5,2:C2V,1.7,2.1,5:C2V,2.2,3,3"
+            ;;
+        --novbf)
+            pois="r_gghh"
+            # vbfargs="--parameter-values r_qqhh=0"
+            klscan="kl,-8,-7,2:kl,-2,0,2:kl,0,5,6:kl,10,11,2"
+            ;;
         --unblinded)
             unblinded=True
             ;;
@@ -66,6 +81,17 @@ while true; do
             ;;
         -p|--printdeps)
             printdeps="--print-deps -1"
+            ;;
+        --printcommands)
+            printdeps="--print-command -1"
+            ;;
+        --cl)
+            shift
+            cl=$1
+            ;;
+        --workflow)
+            shift
+            workflow=$1
             ;;
         --rmoutput)
             shift
@@ -89,7 +115,7 @@ done
 # export DHI_CMS_POSTFIX="Supplementary"
 
 common_args="--file-types pdf,png --unblinded $unblinded --version $VERSION $printdeps --remove-output $rmoutput,a,y --campaign run2 --use-snapshot True"
-custom_args="--rMax 200 --setParameterRanges r_qqhh=-40,1000"
+custom_args="--rMax 200 --setParameterRanges r_qqhh=-40,1000:r_gghh=-40,200"
 
 
 if [ $snapshot = 1 ]; then
@@ -106,8 +132,9 @@ if [ $limits_at_point = 1 ]; then
         --multi-datacards $cards \
         --pois $pois \
         --show-parameters kl,kt,C2V,CV \
-        --UpperLimits-workflow "htcondor" \
+        --UpperLimits-workflow $workflow \
         --UpperLimits-tasks-per-job 1 \
+        --UpperLimits-custom-args="--cl $cl" \
         --x-log \
         --h-lines 1 \
         --save-hep-data True \
@@ -117,12 +144,13 @@ fi
 
 if [ $limits_1d_kl = 1 ]; then
     law run PlotUpperLimits \
-        $common_args \
+        $common_args $vbfargs \
         --version "$VERSION" \
         --datacards $cards \
         --xsec fb \
-        --pois r \
-        --scan-parameters kl,-29,-26,2:kl,-22,-18,2:kl,-9,-5,2:kl,-1,0,2:kl,2,5,4:kl,10,11,2:kl,11,30,2 \
+        --pois $pois \
+        --scan-parameters $klscan \
+        --x-min -9 --x-max 11 \
         --UpperLimits-workflow "htcondor" \
         --UpperLimits-tasks-per-job 1 \
         --y-log \
@@ -136,12 +164,12 @@ fi
 
 if [ $limits_1d_c2v = 1 ]; then
     law run PlotUpperLimits \
-        $common_args \
+        $common_args $vbfargs \
         --version "$VERSION" \
         --datacards $cards \
         --xsec fb \
-        --pois r \
-        --scan-parameters C2V,-1,-0.2,3:C2V,-0.1,0.3,5:C2V,0.9,1.1,2:C2V,1.5,2.1,7:C2V,2.2,3,3 \
+        --pois $pois \
+        --scan-parameters $c2vscan \
         --UpperLimits-workflow "htcondor" \
         --UpperLimits-tasks-per-job 1 \
         --y-log \
