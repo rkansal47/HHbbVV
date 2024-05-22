@@ -326,11 +326,17 @@ def blindBins(h: Hist, blind_region: list, blind_sample: str = None, axis=0):
 
     if blind_sample is not None:
         data_key_index = get_key_index(h, blind_sample)
-        h.view(flow=True)[data_key_index][lv:rv].value = 0
-        h.view(flow=True)[data_key_index][lv:rv].variance = 0
+        if str(h.storage_type) == "<class 'boost_histogram.storage.Double'>":
+            h.view(flow=True)[data_key_index][lv:rv] = 0
+        else:
+            h.view(flow=True)[data_key_index][lv:rv].value = 0
+            h.view(flow=True)[data_key_index][lv:rv].variance = 0
     else:
-        h.view(flow=True)[:, lv:rv].value = 0
-        h.view(flow=True)[:, lv:rv].variance = 0
+        if str(h.storage_type) == "<class 'boost_histogram.storage.Double'>":
+            h.view(flow=True)[:, lv:rv] = 0
+        else:
+            h.view(flow=True)[:, lv:rv].value = 0
+            h.view(flow=True)[:, lv:rv].variance = 0
 
 
 def singleVarHist(
@@ -681,3 +687,9 @@ def merge_dictionaries(dict1, dict2):
     merged_dict = dict1.copy()
     merged_dict.update(dict2)
     return merged_dict
+
+
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx

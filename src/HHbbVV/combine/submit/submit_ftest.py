@@ -17,6 +17,16 @@ from HHbbVV import run_utils
 from HHbbVV.run_utils import add_bool_arg
 
 
+def getBestFitR(cards_dir: str):
+    """Get best fit r value from the snapshot to set r for toy generation"""
+    import ROOT
+
+    f = ROOT.TFile.Open(f"{cards_dir}/higgsCombineSnapshot.MultiDimFit.mH125.root", "READ")
+    w = f.Get("w")
+    w.loadSnapshot("MultiDimFit")
+    return w.var("r").getValV()
+
+
 def main(args):
     t2_local_prefix, t2_prefix, proxy, username, submitdir = setup(args)
     local_dir = Path(f"condor/f_tests/{args.tag}_{args.low1}{args.low2 if args.resonant else ''}")
@@ -25,7 +35,7 @@ def main(args):
     logdir = local_dir / "logs"
     logdir.mkdir(parents=True, exist_ok=True)
 
-    # and eos directories
+    # and eos directories + best fit rs if needed
     if args.resonant:
         for i, j in [(0, 0), (0, 1), (1, 0)]:
             os.system(
@@ -39,11 +49,21 @@ def main(args):
                 f"nTF_{args.low1 + i}/outs/"
             )
 
+    if not args.blinded:
+        cards_dir = (
+            f"nTF_{args.low1}" if not args.resonant else f"nTF1_{args.low1}_nTF2_{args.low2}"
+        )
+        bestfitr = getBestFitR(cards_dir)
+        print("Best Fit r:", bestfitr)
+    else:
+        bestfitr = None
+
     jdl_templ = f"{submitdir}/submit_ftest.templ.jdl"
+    blind_str = "_unblinded" if not args.blinded else ""
     sh_templ = (
-        f"{submitdir}/submit_ftest_res.templ.sh"
+        f"{submitdir}/submit_ftest_res{blind_str}.templ.sh"
         if args.resonant
-        else f"{submitdir}/submit_ftest_nonres.templ.sh"
+        else f"{submitdir}/submit_ftest_nonres{blind_str}.templ.sh"
     )
 
     # submit jobs
@@ -71,9 +91,15 @@ def main(args):
             "in_tag": args.cards_tag,
             "in_seed": args.seed + j * args.toys_per_job,
             "in_num_toys": args.toys_per_job,
+            "in_rmax": args.rmax,
+            "bestfitr": bestfitr,
         }
         if not args.resonant:
             sh_args.pop("in_low2")
+        if args.blinded:
+            sh_args.pop("in_rmax")
+            sh_args.pop("bestfitr")
+
         run_utils.write_template(sh_templ, localsh, sh_args, safe=True)
         os.system(f"chmod u+x {localsh}")
 
@@ -102,8 +128,10 @@ if __name__ == "__main__":
     parser.add_argument("--toys-per-job", default=100, help="# toys per condor job", type=int)
     parser.add_argument("--num-jobs", default=10, help="# condor jobs", type=int)
     parser.add_argument("--seed", default=444, help="# condor jobs", type=int)
+    parser.add_argument("--rmax", default=200, help="signal rmax for unblinded fits", type=float)
     add_bool_arg(parser, "submit", default=False, help="submit files as well as create them")
     add_bool_arg(parser, "resonant", default=True, help="nonresonant or resonant")
+    add_bool_arg(parser, "blinded", default=True, help="blinded or not")
 
     args = parser.parse_args()
 
