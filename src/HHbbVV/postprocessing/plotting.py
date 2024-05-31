@@ -835,7 +835,7 @@ def rocCurve(
 
     plt.xlim(*xlim)
     plt.ylim(*ylim)
-    hep.cms.label(data=False, rlabel="(13 TeV)")
+    hep.cms.label(data=False, label="Preliminary", rlabel="(13 TeV)")
 
     if len(name):
         plt.savefig(plot_dir / f"{name}.pdf", bbox_inches="tight")
@@ -853,19 +853,35 @@ def _find_nearest(array, value):
 
 
 def multiROCCurveGrey(
-    rocs: dict, sig_effs: list[float], plot_dir: Path, name: str = "", show: bool = False
+    rocs: dict,
+    sig_effs: list[float],
+    plot_dir: Path,
+    xlim=None,
+    ylim=None,
+    name: str = "",
+    show: bool = False,
 ):
-    xlim = [0, 1]
-    ylim = [1e-6, 1]
+    """_summary_
+
+    Args:
+        rocs (dict): {label: {sig_key1: roc, sig_key2: roc, ...}, ...} where label is e.g Test or Train
+        sig_effs (list[float]): plot signal efficiency lines
+    """
+    if ylim is None:
+        ylim = [1e-06, 1]
+    if xlim is None:
+        xlim = [0, 1]
     line_style = {"colors": "lightgrey", "linestyles": "dashed"}
 
     plt.figure(figsize=(12, 12))
     for roc_sigs in rocs.values():
         for roc in roc_sigs.values():
+            auc_label = f" (AUC: {roc['auc']:.2f})" if "auc" in roc else ""
+
             plt.plot(
                 roc["tpr"],
                 roc["fpr"],
-                label=roc["label"],
+                label=roc["label"] + auc_label,
                 linewidth=2,
             )
 
@@ -874,13 +890,14 @@ def multiROCCurveGrey(
                 plt.hlines(y=y, xmin=0, xmax=sig_eff, **line_style)
                 plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
 
-    hep.cms.label(data=False, rlabel="")
+    hep.cms.label(data=False, label="Preliminary", rlabel="(13 TeV)")
     plt.yscale("log")
     plt.xlabel("Signal efficiency")
     plt.ylabel("Background efficiency")
     plt.xlim(*xlim)
     plt.ylim(*ylim)
     plt.legend(loc="upper left")
+    plt.grid(which="major")
 
     if len(name):
         plt.savefig(plot_dir / f"{name}.pdf", bbox_inches="tight")
@@ -1111,6 +1128,7 @@ def cutsLinePlot(
     shape_var: utils.ShapeVar,
     plot_key: str,
     cut_var: str,
+    cut_var_label: str,
     cuts: list[float],
     year: str,
     weight_key: str,
@@ -1154,7 +1172,7 @@ def cutsLinePlot(
         hep.histplot(
             hists[cut],
             yerr=True,
-            label=f"BDTScore >= {cut}",
+            label=f"{cut_var_label} >= {cut}",
             ax=ax,
             linewidth=2,
             alpha=0.8,

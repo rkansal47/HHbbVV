@@ -1298,6 +1298,7 @@ def lpsfs(
             assert bb_masks is not None, "Need bb_masks to calculate LP SFs for single year"
 
             events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
+            continue
 
         for lp_region in lp_selection_regions:
             rlabel = lp_region.lpsf_region
@@ -1533,6 +1534,7 @@ def plot_bdt_sculpting(
                 shape_var,
                 key,
                 f"BDTScore{var}",
+                r"$BDT_{ggF}$" if var == "" else r"$BDT_{VBF}$",
                 cuts,
                 year,
                 weight_key,
