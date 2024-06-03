@@ -803,6 +803,7 @@ def rocCurve(
     ylim=None,
     plot_dir="",
     name="",
+    log: bool = True,
     show: bool = False,
 ):
     """Plots a ROC curve"""
@@ -824,7 +825,9 @@ def rocCurve(
         plt.hlines(y=y, xmin=0, xmax=sig_eff, **line_style)
         plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
 
-    plt.yscale("log")
+    if log:
+        plt.yscale("log")
+
     plt.xlabel("Signal efficiency")
     plt.ylabel("Background efficiency")
     plt.title(title)
@@ -859,6 +862,7 @@ def multiROCCurveGrey(
     xlim=None,
     ylim=None,
     name: str = "",
+    log: bool = True,
     show: bool = False,
 ):
     """_summary_
@@ -891,7 +895,8 @@ def multiROCCurveGrey(
                 plt.vlines(x=sig_eff, ymin=0, ymax=y, **line_style)
 
     hep.cms.label(data=False, label="Preliminary", rlabel="(13 TeV)")
-    plt.yscale("log")
+    if log:
+        plt.yscale("log")
     plt.xlabel("Signal efficiency")
     plt.ylabel("Background efficiency")
     plt.xlim(*xlim)

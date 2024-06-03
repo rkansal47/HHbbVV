@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2154
+# shellcheck disable=SC2154,SC2086,SC2153
 
 ####################################################################################################
 # Script for running HH inference 'law' commands
@@ -114,7 +114,7 @@ done
 
 # export DHI_CMS_POSTFIX="Supplementary"
 
-common_args="--file-types pdf,png --unblinded $unblinded --version $VERSION $printdeps --remove-output $rmoutput,a,y --campaign run2 --use-snapshot True"
+common_args="--file-types pdf,png --unblinded $unblinded --version $VERSION $printdeps --remove-output $rmoutput,a,y --campaign run2 --use-snapshot True --cms-postfix Preliminary"
 custom_args="--rMax 200 --setParameterRanges r_qqhh=-40,1000:r_gghh=-40,200"
 
 

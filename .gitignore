@@ -195,3 +195,5 @@ src/HHbbVV/postprocessing/templates_old
 
 # logs
 src/HHbbVV/postprocessing/outs
+
+paper/plots
