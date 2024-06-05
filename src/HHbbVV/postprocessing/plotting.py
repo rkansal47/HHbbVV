@@ -211,17 +211,17 @@ def _asimov_significance(s, b):
     return np.sqrt(2 * ((s + b) * np.log(1 + (s / b)) - s))
 
 
-def add_cms_label(ax, year):
+def add_cms_label(ax, year, label=None):
     if year == "all":
         hep.cms.label(
-            "Preliminary",
+            label,
             data=True,
             lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
             year=None,
             ax=ax,
         )
     else:
-        hep.cms.label("Preliminary", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
+        hep.cms.label(label, data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
 
 
 def ratioHistPlot(
