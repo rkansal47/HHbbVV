@@ -73,6 +73,7 @@ class bbVVSkimmer(SkimmerABC):
     """
 
     # key is name in nano files, value will be the name in the skimmed output
+    # IMPORTANT!! REMEMBER TO ADD NEW VARIABLES TO min_branches IF NEEDED
     skim_vars = {  # noqa: RUF012
         "FatJet": {
             **P4,
@@ -84,7 +85,13 @@ class bbVVSkimmer(SkimmerABC):
         },
         "Jet": P4,
         "GenHiggs": P4,
-        "other": {"MET_pt": "MET_pt", "MET_phi": "MET_phi"},
+        "other": {
+            "MET_pt": "MET_pt",
+            "MET_phi": "MET_phi",
+            "event": "event",
+            "run": "run",
+            "luminosityBlock": "luminosityBlock",
+        },
     }
 
     preselection = {  # noqa: RUF012
@@ -145,6 +152,9 @@ class bbVVSkimmer(SkimmerABC):
         "ak8FatJetLowestWTaggedTxbb",
         "ak8FatJetWTaggedMsd",
         "ak8FatJetWTaggedParticleNetMass",
+        "event",
+        "run",
+        "luminosityBlock",
     ]
 
     for shift in jec_shifts:
