@@ -394,6 +394,14 @@ class bbVVSkimmer(SkimmerABC):
 
         skimmed_events["nGoodVBFJets"] = np.array(ak.sum(vbf_jet_mask, axis=1))
 
+        otherVars = {}
+
+        for var, key in self.skim_vars["other"].items():
+            if "_" in var:
+                otherVars[key] = events[var.split("_")[0]]["_".join(var.split("_")[1:])].to_numpy()
+            else:
+                otherVars[key] = events[var].to_numpy()
+
         otherVars = {
             key: events[var.split("_")[0]]["_".join(var.split("_")[1:])].to_numpy()
             for (var, key) in self.skim_vars["other"].items()
