@@ -402,11 +402,6 @@ class bbVVSkimmer(SkimmerABC):
             else:
                 otherVars[key] = events[var].to_numpy()
 
-        otherVars = {
-            key: events[var.split("_")[0]]["_".join(var.split("_")[1:])].to_numpy()
-            for (var, key) in self.skim_vars["other"].items()
-        }
-
         skimmed_events = {**skimmed_events, **ak8FatJetVars, **VBFJetVars, **dijetVars, **otherVars}
 
         ######################
