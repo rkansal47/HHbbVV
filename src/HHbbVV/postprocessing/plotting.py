@@ -465,9 +465,9 @@ def ratioHistPlot(
     if log:
         ax.set_yscale("log")
         # two column legend
-        ax.legend(fontsize=16, ncol=2)
+        ax.legend(fontsize=20, ncol=2)
     else:
-        ax.legend(fontsize=16, ncol=ncol)
+        ax.legend(fontsize=20, ncol=ncol)
 
     y_lowlim = 0 if not log else 1e-5
     if ylim is not None:
