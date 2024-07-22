@@ -493,7 +493,13 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             )
             self.dump_table(pddf, fname)
 
-        return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow, "lp_hist": lp_hist}}}
+        ret_dict = {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
+
+        if lp_hist is not None:
+            ret_dict[year][dataset]["lp_hist"] = lp_hist
+
+        print(ret_dict)
+        return ret_dict
 
     def postprocess(self, accumulator):
         return accumulator

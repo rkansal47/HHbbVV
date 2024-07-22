@@ -30,6 +30,7 @@ def get_site_vars(site):
         t2_local_prefix = Path("/ceph/cms/")
         t2_prefix = "root://redirector.t2.ucsd.edu:1095"
         if username == "rkansal":
+            # Reminder: need to re-copy this from /tmp whenever it expires (symlink?)
             proxy = "/home/users/rkansal/x509up_u31735"
         elif username == "annava":
             proxy = "/home/users/annava/projects/HHbbVV/test"
