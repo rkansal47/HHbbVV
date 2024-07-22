@@ -391,7 +391,7 @@ def _get_lepton_clipped(lep_pt, lep_eta, lepton_type, corr=None):
 
 # Used only for validation region right now
 def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_type: str = "muon"):
-    ul_year = get_UL_year(year)
+    # ul_year = get_UL_year(year)
 
     cset = correctionlib.CorrectionSet.from_file(get_pog_json(lepton_type, year))
 
@@ -405,9 +405,9 @@ def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_ty
         lepton_pt, lepton_eta = _get_lepton_clipped(lep_pt, lep_eta, lepton_type, corr)
 
         values = {}
-        values["nominal"] = cset[json_map_name].evaluate(ul_year, lepton_eta, lepton_pt, "sf")
-        values["up"] = cset[json_map_name].evaluate(ul_year, lepton_eta, lepton_pt, "systup")
-        values["down"] = cset[json_map_name].evaluate(ul_year, lepton_eta, lepton_pt, "systdown")
+        values["nominal"] = cset[json_map_name].evaluate(lepton_eta, lepton_pt, "nominal")
+        values["up"] = cset[json_map_name].evaluate(lepton_eta, lepton_pt, "systup")
+        values["down"] = cset[json_map_name].evaluate(lepton_eta, lepton_pt, "systdown")
 
         # add weights (for now only the nominal weight)
         weights.add(f"{lepton_type}_{corr}", values["nominal"], values["up"], values["down"])

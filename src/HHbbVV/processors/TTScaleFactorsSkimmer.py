@@ -421,6 +421,8 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         # Lund Plane SFs
         #########################
 
+        lp_hist = None
+
         if dataset in ["SingleTop", "TTToSemiLeptonic", "TTToSemiLeptonic_ext1"]:
             match_dict, gen_quarks, had_bs = ttbar_scale_factor_matching(
                 events, leading_fatjets[:, 0], selection_args
@@ -431,13 +433,14 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             skimmed_events = {**skimmed_events, **match_dict}
 
             if np.any(top_matched):
-                sf_dict = get_lund_SFs(
+                sf_dict, lp_hist = get_lund_SFs(
                     year,
                     events[top_matched],
                     fatjets[top_matched],
                     fatjet_idx[top_matched].to_numpy(),
                     num_prongs,
                     gen_quarks[top_matched],
+                    weights_dict["weight"][top_matched],
                     trunc_gauss=True,
                     lnN=True,
                     gen_bs=had_bs[top_matched],  # do b/l ratio uncertainty for tops as well
@@ -490,7 +493,7 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             )
             self.dump_table(pddf, fname)
 
-        return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
+        return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow, "lp_hist": lp_hist}}}
 
     def postprocess(self, accumulator):
         return accumulator
