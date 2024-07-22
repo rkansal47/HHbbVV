@@ -1142,7 +1142,7 @@ def get_lund_SFs(
             np_flat_subjet_pt,
             np_ld_offsets,
             nps,
-            ratio_lnN_smeared_lookups,
+            [ratio_lnN_smeared_lookups[0]],
             [pt_extrap_lookups_dict["params"]],
         )
 
