@@ -1127,12 +1127,15 @@ def get_lund_SFs(
     )
 
     ################################################################################################
-    # ---- get scale factors after re-clusteing with +/- one prong, for subjet matching uncs. ---- #
+    # ---- get scale factors after re-clustering with +/- one prong, for subjet matching uncs. ---- #
     ################################################################################################
+
+    # need to save these for unclustered progns uncertainty
+    np_kt_subjets_vecs = []
 
     for shift, nps in [("down", num_prongs - 1), ("up", num_prongs + 1)]:
         # get lund plane declusterings, subjets, and flattened LP vars
-        _, _, _, np_ld_offsets, np_flat_logD, np_flat_logkt, np_flat_subjet_pt = (
+        _, np_kt_subjets_vec, _, np_ld_offsets, np_flat_logD, np_flat_logkt, np_flat_subjet_pt = (
             _get_flat_lund_arrays(events, jec_fatjet, fatjet_idx, nps)
         )
 
@@ -1145,6 +1148,8 @@ def get_lund_SFs(
             [ratio_lnN_smeared_lookups[0]],
             [pt_extrap_lookups_dict["params"]],
         )
+
+        np_kt_subjets_vecs.append(np_kt_subjets_vec)
 
     ################################################################################################
     # ---- b-quark related uncertainties ---- #
@@ -1235,5 +1240,24 @@ def get_lund_SFs(
 
     # OLD pT extrapolation uncertainty
     sfs["lp_sf_num_sjpt_gt350"] = np.sum(kt_subjets_vec.pt > 350, axis=1, keepdims=True).to_numpy()
+
+    # ------------- check unmatched quarks after +/- one prong reclustering --------------#
+    unmatched_quarks = [~sj_matched]
+
+    for np_kt_subjets_vec in np_kt_subjets_vecs:
+        sj_matched = []
+
+        # get dR between gen quarks and subjets
+        for i in range(num_prongs):
+            sj_q_dr = np_kt_subjets_vec.delta_r(gen_quarks[:, i])
+            # is quark matched to a subjet (dR < 0.2)
+            sj_matched.append(ak.min(sj_q_dr, axis=1) <= matching_dR)
+
+        sj_matched = np.array(sj_matched).T
+        unmatched_quarks.append(~sj_matched)
+
+    # quarks which are not matched in any of the reclusterings
+    unmatched_quarks = np.prod(unmatched_quarks, axis=0)
+    sfs["lp_sf_rc_unmatched_quarks"] = np.sum(unmatched_quarks, axis=1, keepdims=True)
 
     return sfs, lp_hist

@@ -265,4 +265,5 @@ lp_sf_vars = [
     ("lp_sf_inside_boundary_quarks", 1),
     ("lp_sf_outside_boundary_quarks", 1),
     ("lp_sf_unmatched_quarks", 1),
+    ("lp_sf_rc_unmatched_quarks", 1),
 ]
