@@ -73,6 +73,7 @@ class bbVVSkimmer(SkimmerABC):
     """
 
     # key is name in nano files, value will be the name in the skimmed output
+    # IMPORTANT!! REMEMBER TO ADD NEW VARIABLES TO min_branches IF NEEDED
     skim_vars = {  # noqa: RUF012
         "FatJet": {
             **P4,
@@ -84,7 +85,13 @@ class bbVVSkimmer(SkimmerABC):
         },
         "Jet": P4,
         "GenHiggs": P4,
-        "other": {"MET_pt": "MET_pt", "MET_phi": "MET_phi"},
+        "other": {
+            "MET_pt": "MET_pt",
+            "MET_phi": "MET_phi",
+            "event": "event",
+            "run": "run",
+            "luminosityBlock": "luminosityBlock",
+        },
     }
 
     preselection = {  # noqa: RUF012
@@ -145,6 +152,9 @@ class bbVVSkimmer(SkimmerABC):
         "ak8FatJetLowestWTaggedTxbb",
         "ak8FatJetWTaggedMsd",
         "ak8FatJetWTaggedParticleNetMass",
+        "event",
+        "run",
+        "luminosityBlock",
     ]
 
     for shift in jec_shifts:
@@ -384,10 +394,13 @@ class bbVVSkimmer(SkimmerABC):
 
         skimmed_events["nGoodVBFJets"] = np.array(ak.sum(vbf_jet_mask, axis=1))
 
-        otherVars = {
-            key: events[var.split("_")[0]]["_".join(var.split("_")[1:])].to_numpy()
-            for (var, key) in self.skim_vars["other"].items()
-        }
+        otherVars = {}
+
+        for var, key in self.skim_vars["other"].items():
+            if "_" in var:
+                otherVars[key] = events[var.split("_")[0]]["_".join(var.split("_")[1:])].to_numpy()
+            else:
+                otherVars[key] = events[var].to_numpy()
 
         skimmed_events = {**skimmed_events, **ak8FatJetVars, **VBFJetVars, **dijetVars, **otherVars}
 
