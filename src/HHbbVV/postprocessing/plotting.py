@@ -44,6 +44,8 @@ sample_label_map = {
     "qqHH_CV_1_C2V_1_kl_1_HHbbVV": "VBF HHbbVV",
     "qqHH_CV_1_C2V_0_kl_1_HHbbVV": r"VBF HHbbVV ($\kappa_{2V} = 0$)",
     "qqHH_CV_1_C2V_2_kl_1_HHbbVV": r"VBF HHbbVV ($\kappa_{2V} = 2$)",
+    "ST": r"Single-$t$",
+    "TT": r"$t\bar{t}$",
 }
 
 colours = {
@@ -137,7 +139,7 @@ def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, sy
     # set up samples, colours and labels
     bg_keys = [key for key in bg_order if key in bg_keys]
     bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
-    bg_labels = deepcopy(bg_keys)
+    bg_labels = [sample_label_map.get(bg_key, bg_key) for bg_key in bg_keys]
 
     if sig_scale_dict is None:
         sig_scale_dict = OrderedDict([(sig_key, 1.0) for sig_key in sig_keys])
@@ -149,7 +151,7 @@ def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, sy
         label = sample_label_map.get(sig_key, sig_key)
 
         if sig_scale != 1:
-            if sig_scale <= 100:
+            if sig_scale <= 10000:
                 label = f"{label} $\\times$ {sig_scale:.0f}"
             else:
                 label = f"{label} $\\times$ {sig_scale:.1e}"
@@ -211,17 +213,17 @@ def _asimov_significance(s, b):
     return np.sqrt(2 * ((s + b) * np.log(1 + (s / b)) - s))
 
 
-def add_cms_label(ax, year):
+def add_cms_label(ax, year, label=None):
     if year == "all":
         hep.cms.label(
-            "Preliminary",
+            label,
             data=True,
             lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
             year=None,
             ax=ax,
         )
     else:
-        hep.cms.label("Preliminary", data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
+        hep.cms.label(label, data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
 
 
 def ratioHistPlot(
@@ -251,6 +253,8 @@ def ratioHistPlot(
     significance_dir: str = "right",
     plot_ratio: bool = True,
     axrax: tuple = None,
+    ncol: int = None,
+    cmslabel: str = None,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -289,6 +293,7 @@ def ratioHistPlot(
         plot_significance (bool): plot Asimov significance below ratio plot
         significance_dir (str): "Direction" for significance. i.e. a > cut ("right"), a < cut ("left"), or per-bin ("bin").
         axrax (Tuple): optionally input ax and rax instead of creating new ones
+        ncol (int): # of legend columns. By default, it is 2 for log-plots and 1 for non-log-plots.
     """
 
     if ratio_ylims is None:
@@ -297,6 +302,8 @@ def ratioHistPlot(
         bg_colours = BG_COLOURS
     if sig_colours is None:
         sig_colours = SIG_COLOURS
+    if ncol is None:
+        ncol = 2 if log else 1
 
     # copy hists and bg_keys so input objects are not changed
     hists, bg_keys = deepcopy(hists), deepcopy(bg_keys)
@@ -458,9 +465,9 @@ def ratioHistPlot(
     if log:
         ax.set_yscale("log")
         # two column legend
-        ax.legend(fontsize=16, ncol=2)
+        ax.legend(fontsize=20, ncol=2)
     else:
-        ax.legend(fontsize=16)
+        ax.legend(fontsize=20, ncol=ncol)
 
     y_lowlim = 0 if not log else 1e-5
     if ylim is not None:
@@ -472,9 +479,19 @@ def ratioHistPlot(
     if plot_ratio:
         if plot_data:
             bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
-            yerr = ratio_uncertainty(
-                pre_divide_hists[data_key, :].values(), bg_tot.values(), "poisson"
+            # new: plotting data errors (black lines) and background errors (shaded) separately
+            yerr = np.nan_to_num(
+                np.abs(
+                    poisson_interval(pre_divide_hists[data_key, ...])
+                    - pre_divide_hists[data_key, ...]
+                )
+                / (bg_tot.values() + 1e-5)
             )
+
+            # old version: using Garwood ratio intervals
+            # yerr = ratio_uncertainty(
+            #     pre_divide_hists[data_key, :].values(), bg_tot.values(), "poisson"
+            # )
 
             hep.histplot(
                 pre_divide_hists[data_key, :] / (bg_tot.values() + 1e-5),
@@ -500,6 +517,10 @@ def ratioHistPlot(
             rax.set_xlabel(hists.axes[1].label)
 
         rax.set_ylabel("Data/MC")
+        # rax.set_yscale("log")
+        # formatter = mticker.ScalarFormatter(useOffset=False)
+        # formatter.set_scientific(False)
+        # rax.yaxis.set_major_formatter(formatter)
         rax.set_ylim(ratio_ylims)
         rax.grid()
 
@@ -539,7 +560,7 @@ def ratioHistPlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    add_cms_label(ax, year)
+    add_cms_label(ax, year, label=cmslabel)
 
     if axrax is None:
         if len(name):

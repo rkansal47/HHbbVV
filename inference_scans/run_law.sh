@@ -112,9 +112,9 @@ while true; do
     shift
 done
 
-# export DHI_CMS_POSTFIX="Supplementary"
+export DHI_CMS_POSTFIX=""
 
-common_args="--file-types pdf,png --unblinded $unblinded --version $VERSION $printdeps --remove-output $rmoutput,a,y --campaign run2 --use-snapshot True --cms-postfix Preliminary"
+common_args="--file-types pdf,png --unblinded $unblinded --version $VERSION $printdeps --remove-output $rmoutput,a,y --campaign run2 --use-snapshot True"
 custom_args="--rMax 200 --setParameterRanges r_qqhh=-40,1000:r_gghh=-40,200"
 
 
