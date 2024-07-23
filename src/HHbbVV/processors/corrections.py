@@ -667,17 +667,22 @@ MAX_PT_BIN = 350  # have to use subjet pt extrapolation for subjet pT > this
 # caching these after loading once
 (
     lp_year,
+    lp_sample,
     ratio_smeared_lookups,
     ratio_lnN_smeared_lookups,
     ratio_sys_up,
     ratio_sys_down,
+    ratio_dist_up,
+    ratio_dist_down,
     pt_extrap_lookups_dict,
     bratio,
     ratio_edges,
-) = (None, None, None, None, None, None, None, None)
+) = (None, None, None, None, None, None, None, None, None, None, None)
 
 
-def _get_lund_lookups(year: str, seed: int = 42, lnN: bool = True, trunc_gauss: bool = False):
+def _get_lund_lookups(
+    year: str, seed: int = 42, lnN: bool = True, trunc_gauss: bool = False, sample: str = None
+):
     import fastjet
 
     dR = 0.8
@@ -732,6 +737,34 @@ def _get_lund_lookups(year: str, seed: int = 42, lnN: bool = True, trunc_gauss: 
     else:
         ratio_lnN_smeared_lookups = None
 
+    if sample is not None:
+        mc_nom = f["mc_nom"].to_numpy()[0]
+
+        with (package_path / f"corrections/lp_ratios/signals/{year}_{sample}.hist").open(
+            "rb"
+        ) as histf:
+            sig_lp_hist = pickle.load(histf)
+
+        # breakpoint()
+        # mc_tot = np.sum(mc_nom)
+        # sig_tot = sig_lp_hist.sum()
+
+        sig_tot = np.sum(sig_lp_hist.values(), axis=(1, 2), keepdims=True)
+        mc_tot = np.sum(mc_nom, axis=(1, 2), keepdims=True)
+
+        # 0s -> 1 in the ratio
+        sig_mc_ratio = np.nan_to_num((sig_lp_hist.values() / sig_tot) / (mc_nom / mc_tot), nan=1.0)
+        sig_mc_ratio[sig_mc_ratio == 0] = 1.0
+        sig_mc_ratio = np.clip(sig_mc_ratio, 0.5, 2.0)
+
+        ratio_dist_up = dense_lookup(ratio_nom * sig_mc_ratio, ratio_edges)
+        ratio_dist_down = dense_lookup(ratio_nom / sig_mc_ratio, ratio_edges)
+
+        # breakpoint()
+    else:
+        ratio_dist_up = None
+        ratio_dist_down = None
+
     # ------- pT extrapolation setup: creates lookups for all the parameters and errors ------ #
 
     def _np_pad(arr: np.ndarray, target: int = MAX_PT_FPARAMS):
@@ -785,6 +818,8 @@ def _get_lund_lookups(year: str, seed: int = 42, lnN: bool = True, trunc_gauss: 
         ratio_lnN_smeared_lookups,
         ratio_sys_up,
         ratio_sys_down,
+        ratio_dist_up,
+        ratio_dist_down,
         pt_extrap_lookups_dict,
         bratio,
         ratio_edges,
@@ -991,6 +1026,7 @@ def get_lund_SFs(
     num_prongs: int,
     gen_quarks: GenParticleArray,
     weights: np.ndarray,
+    sample: str = None,
     seed: int = 42,
     trunc_gauss: bool = False,
     lnN: bool = True,
@@ -1019,23 +1055,27 @@ def get_lund_SFs(
     """
 
     # global variable to not have to load + smear LP ratios each time
-    global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down, pt_extrap_lookups_dict, bratio, ratio_edges, lp_year  # noqa: PLW0603
+    global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down, ratio_dist_up, ratio_dist_down, pt_extrap_lookups_dict, bratio, ratio_edges, lp_year, lp_sample  # noqa: PLW0603
 
     if (
         (lnN and ratio_lnN_smeared_lookups is None)
         or (trunc_gauss and ratio_smeared_lookups is None)
         or (lp_year != year)  # redo if different year (can change to cache every year if needed)
+        or (lp_sample != sample)  # redo if different sample (can change...)
     ):
         (
             ratio_smeared_lookups,
             ratio_lnN_smeared_lookups,
             ratio_sys_up,
             ratio_sys_down,
+            ratio_dist_up,
+            ratio_dist_down,
             pt_extrap_lookups_dict,
             bratio,
             ratio_edges,
-        ) = _get_lund_lookups(year, seed, lnN, trunc_gauss)
+        ) = _get_lund_lookups(year, seed, lnN, trunc_gauss, sample)
         lp_year = year
+        lp_sample = sample
 
     ratio_nominal = ratio_lnN_smeared_lookups[0] if lnN else ratio_smeared_lookups[0]
 
@@ -1115,6 +1155,28 @@ def get_lund_SFs(
         [ratio_sys_up],
         [pt_extrap_lookups_dict["sys_up_params"]],
     )
+
+    if ratio_dist_up is not None:
+        # breakpoint()
+        sfs["lp_sf_dist_down"] = _calc_lund_SFs(
+            flat_logD,
+            flat_logkt,
+            flat_subjet_pt,
+            ld_offsets,
+            num_prongs,
+            [ratio_dist_down],
+            [pt_extrap_lookups_dict["params"]],
+        )
+
+        sfs["lp_sf_dist_up"] = _calc_lund_SFs(
+            flat_logD,
+            flat_logkt,
+            flat_subjet_pt,
+            ld_offsets,
+            num_prongs,
+            [ratio_dist_up],
+            [pt_extrap_lookups_dict["params"]],
+        )
 
     sfs["lp_sf_pt_extrap_vars"] = _calc_lund_SFs(
         flat_logD,

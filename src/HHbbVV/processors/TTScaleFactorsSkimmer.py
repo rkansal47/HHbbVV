@@ -424,8 +424,9 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         #########################
 
         lp_hist = None
+        hh_vars.lp_sf_vars.append(("lp_sfs_bl_ratio", 1))
 
-        if dataset in ["SingleTop", "TTToSemiLeptonic", "TTToSemiLeptonic_ext1"]:
+        if dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"] or dataset.startswith("ST_"):
             match_dict, gen_quarks, had_bs = ttbar_scale_factor_matching(
                 events, leading_fatjets[:, 0], selection_args
             )
@@ -446,6 +447,7 @@ class TTScaleFactorsSkimmer(SkimmerABC):
                     trunc_gauss=True,
                     lnN=True,
                     gen_bs=had_bs[top_matched],  # do b/l ratio uncertainty for tops as well
+                    sample="TTToSemiLeptonic",
                 )
 
                 sf_dict = {}

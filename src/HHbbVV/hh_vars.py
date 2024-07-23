@@ -259,6 +259,8 @@ lp_sf_vars = [
     ("lp_sf_pt_extrap_vars", 100),
     ("lp_sf_sys_down", 1),
     ("lp_sf_sys_up", 1),
+    ("lp_sf_dist_down", 1),
+    ("lp_sf_dist_up", 1),
     ("lp_sf_np_down", 1),
     ("lp_sf_np_up", 1),
     ("lp_sf_double_matched_event", 1),
