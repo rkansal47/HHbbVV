@@ -16,6 +16,7 @@ from pathlib import Path
 
 import awkward as ak
 import correctionlib
+import hist
 import numpy as np
 from coffea import util as cutil
 from coffea.analysis_tools import Weights
@@ -390,7 +391,7 @@ def _get_lepton_clipped(lep_pt, lep_eta, lepton_type, corr=None):
 
 # Used only for validation region right now
 def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_type: str = "muon"):
-    ul_year = get_UL_year(year)
+    # ul_year = get_UL_year(year)
 
     cset = correctionlib.CorrectionSet.from_file(get_pog_json(lepton_type, year))
 
@@ -404,9 +405,9 @@ def add_lepton_weights(weights: Weights, year: str, lepton: MuonArray, lepton_ty
         lepton_pt, lepton_eta = _get_lepton_clipped(lep_pt, lep_eta, lepton_type, corr)
 
         values = {}
-        values["nominal"] = cset[json_map_name].evaluate(ul_year, lepton_eta, lepton_pt, "sf")
-        values["up"] = cset[json_map_name].evaluate(ul_year, lepton_eta, lepton_pt, "systup")
-        values["down"] = cset[json_map_name].evaluate(ul_year, lepton_eta, lepton_pt, "systdown")
+        values["nominal"] = cset[json_map_name].evaluate(lepton_eta, lepton_pt, "nominal")
+        values["up"] = cset[json_map_name].evaluate(lepton_eta, lepton_pt, "systup")
+        values["down"] = cset[json_map_name].evaluate(lepton_eta, lepton_pt, "systdown")
 
         # add weights (for now only the nominal weight)
         weights.add(f"{lepton_type}_{corr}", values["nominal"], values["up"], values["down"])
@@ -666,16 +667,22 @@ MAX_PT_BIN = 350  # have to use subjet pt extrapolation for subjet pT > this
 # caching these after loading once
 (
     lp_year,
+    lp_sample,
     ratio_smeared_lookups,
     ratio_lnN_smeared_lookups,
     ratio_sys_up,
     ratio_sys_down,
+    ratio_dist_up,
+    ratio_dist_down,
     pt_extrap_lookups_dict,
     bratio,
-) = (None, None, None, None, None, None, None)
+    ratio_edges,
+) = (None, None, None, None, None, None, None, None, None, None, None)
 
 
-def _get_lund_lookups(year: str, seed: int = 42, lnN: bool = True, trunc_gauss: bool = False):
+def _get_lund_lookups(
+    year: str, seed: int = 42, lnN: bool = True, trunc_gauss: bool = False, sample: str = None
+):
     import fastjet
 
     dR = 0.8
@@ -730,6 +737,34 @@ def _get_lund_lookups(year: str, seed: int = 42, lnN: bool = True, trunc_gauss: 
     else:
         ratio_lnN_smeared_lookups = None
 
+    if sample is not None:
+        mc_nom = f["mc_nom"].to_numpy()[0]
+
+        with (package_path / f"corrections/lp_ratios/signals/{year}_{sample}.hist").open(
+            "rb"
+        ) as histf:
+            sig_lp_hist = pickle.load(histf)
+
+        # breakpoint()
+        # mc_tot = np.sum(mc_nom)
+        # sig_tot = sig_lp_hist.sum()
+
+        sig_tot = np.sum(sig_lp_hist.values(), axis=(1, 2), keepdims=True)
+        mc_tot = np.sum(mc_nom, axis=(1, 2), keepdims=True)
+
+        # 0s -> 1 in the ratio
+        sig_mc_ratio = np.nan_to_num((sig_lp_hist.values() / sig_tot) / (mc_nom / mc_tot), nan=1.0)
+        sig_mc_ratio[sig_mc_ratio == 0] = 1.0
+        sig_mc_ratio = np.clip(sig_mc_ratio, 0.5, 2.0)
+
+        ratio_dist_up = dense_lookup(ratio_nom * sig_mc_ratio, ratio_edges)
+        ratio_dist_down = dense_lookup(ratio_nom / sig_mc_ratio, ratio_edges)
+
+        # breakpoint()
+    else:
+        ratio_dist_up = None
+        ratio_dist_down = None
+
     # ------- pT extrapolation setup: creates lookups for all the parameters and errors ------ #
 
     def _np_pad(arr: np.ndarray, target: int = MAX_PT_FPARAMS):
@@ -783,18 +818,21 @@ def _get_lund_lookups(year: str, seed: int = 42, lnN: bool = True, trunc_gauss: 
         ratio_lnN_smeared_lookups,
         ratio_sys_up,
         ratio_sys_down,
+        ratio_dist_up,
+        ratio_dist_down,
         pt_extrap_lookups_dict,
         bratio,
+        ratio_edges,
     )
 
 
 def _get_flat_lp_vars(lds, kt_subjets_pt):
     if len(lds) != 1:
         # flatten and save offsets to unflatten afterwards
-        if type(lds.layout) == ak._ext.ListOffsetArray64:
+        if type(lds.layout) is ak._ext.ListOffsetArray64:
             ld_offsets = lds.kt.layout.offsets
             flat_subjet_pt = ak.flatten(kt_subjets_pt)
-        elif type(lds.layout) == ak._ext.ListArray64:
+        elif type(lds.layout) is ak._ext.ListArray64:
             ld_offsets = lds.layout.toListOffsetArray64(False).offsets
             flat_subjet_pt = kt_subjets_pt
     else:
@@ -820,9 +858,6 @@ def _get_lund_arrays(
     Gets the ``num_prongs`` subjet pTs and Delta and kT per primary LP splitting of fatjets at
     ``fatjet_idx`` in each event.
 
-    Features are flattened (for now), and offsets are saved in ``ld_offsets`` to recover the event
-    structure.
-
     Args:
         events (NanoEventsArray): nano events
         jec_fatjets (FatJetArray): post-JEC fatjets, used to update subjet pTs.
@@ -830,7 +865,7 @@ def _get_lund_arrays(
         num_prongs (int): number of prongs / subjets per jet to reweight
 
     Returns:
-        flat_logD, flat_logkt, flat_subjet_pt, ld_offsets, kt_subjets_vec
+        lds, kt_subjets_vec, kt_subjets_pt: lund declusterings, subjet 4-vectors, JEC-corrected subjet pTs
     """
 
     # jet definitions for LP SFs
@@ -878,6 +913,27 @@ def _get_lund_arrays(
     lds = ca_clustering.exclusive_jets_lund_declusterings(1)
 
     return lds, kt_subjets_vec, kt_subjets_pt
+
+
+def _get_flat_lund_arrays(events, jec_fatjet, fatjet_idx, num_prongs):
+    """Wrapper for the _get_lund_arrays and _get_flat_lp_vars functions
+
+    returns:    lds - lund declusterings,
+                kt_subjets_vec - subjet 4-vectors,
+                kt_subjets_pt - JEC-corrected subjet pTs,
+                ld_offsets - offsets for jagged structure,
+                flat_logD - flattened log(0.8/Delta),
+                flat_logkt - flattened log(kT/GeV),
+                flat_subjet_pt - flattened JEC-corrected subjet pTs
+    """
+    lds, kt_subjets_vec, kt_subjets_pt = _get_lund_arrays(
+        events, jec_fatjet, fatjet_idx, num_prongs
+    )
+
+    lds_flat = ak.flatten(lds, axis=1)
+    ld_offsets, flat_logD, flat_logkt, flat_subjet_pt = _get_flat_lp_vars(lds_flat, kt_subjets_pt)
+
+    return lds, kt_subjets_vec, kt_subjets_pt, ld_offsets, flat_logD, flat_logkt, flat_subjet_pt
 
 
 def _calc_lund_SFs(
@@ -969,6 +1025,8 @@ def get_lund_SFs(
     fatjet_idx: int | ak.Array,
     num_prongs: int,
     gen_quarks: GenParticleArray,
+    weights: np.ndarray,
+    sample: str = None,
     seed: int = 42,
     trunc_gauss: bool = False,
     lnN: bool = True,
@@ -984,6 +1042,8 @@ def get_lund_SFs(
         jec_fatjets (FatJetArray): post-JEC fatjets, used to update subjet pTs.
         fatjet_idx (int | ak.Array): fatjet index
         num_prongs (int): number of prongs / subjets per jet to r
+        gen_quarks (GenParticleArray): gen quarks
+        weights (np.ndarray): event weights, for filling the LP histogram
         seed (int, optional): seed for random smearings. Defaults to 42.
         trunc_gauss (bool, optional): use truncated gaussians for smearing. Defaults to False.
         lnN (bool, optional): use log normals for smearings. Defaults to True.
@@ -995,37 +1055,64 @@ def get_lund_SFs(
     """
 
     # global variable to not have to load + smear LP ratios each time
-    global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down, pt_extrap_lookups_dict, bratio, lp_year  # noqa: PLW0603
+    global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down, ratio_dist_up, ratio_dist_down, pt_extrap_lookups_dict, bratio, ratio_edges, lp_year, lp_sample  # noqa: PLW0603
 
     if (
         (lnN and ratio_lnN_smeared_lookups is None)
         or (trunc_gauss and ratio_smeared_lookups is None)
         or (lp_year != year)  # redo if different year (can change to cache every year if needed)
+        or (lp_sample != sample)  # redo if different sample (can change...)
     ):
         (
             ratio_smeared_lookups,
             ratio_lnN_smeared_lookups,
             ratio_sys_up,
             ratio_sys_down,
+            ratio_dist_up,
+            ratio_dist_down,
             pt_extrap_lookups_dict,
             bratio,
-        ) = _get_lund_lookups(year, seed, lnN, trunc_gauss)
+            ratio_edges,
+        ) = _get_lund_lookups(year, seed, lnN, trunc_gauss, sample)
         lp_year = year
+        lp_sample = sample
 
     ratio_nominal = ratio_lnN_smeared_lookups[0] if lnN else ratio_smeared_lookups[0]
 
     jec_fatjet = jec_fatjets[np.arange(len(jec_fatjets)), fatjet_idx]
 
-    lds, kt_subjets_vec, kt_subjets_pt = _get_lund_arrays(
-        events, jec_fatjet, fatjet_idx, num_prongs
+    # get lund plane declusterings, subjets, and flattened LP vars
+    lds, kt_subjets_vec, kt_subjets_pt, ld_offsets, flat_logD, flat_logkt, flat_subjet_pt = (
+        _get_flat_lund_arrays(events, jec_fatjet, fatjet_idx, num_prongs)
     )
 
-    lds_flat = ak.flatten(lds, axis=1)
-    ld_offsets, flat_logD, flat_logkt, flat_subjet_pt = _get_flat_lp_vars(lds_flat, kt_subjets_pt)
+    ################################################################################################
+    # ---- Fill LP histogram for signal for distortion uncertainty ---- #
+    ################################################################################################
+
+    lp_hist = hist.Hist(
+        hist.axis.Variable(ratio_edges[0], name="subjet_pt", label="Subjet pT [GeV]"),
+        hist.axis.Variable(ratio_edges[1], name="logD", label="ln(0.8/Delta)"),
+        hist.axis.Variable(ratio_edges[2], name="logkt", label="ln(kT/GeV)"),
+    )
+
+    # repeat weights for each LP splitting
+    flat_weights = np.repeat(
+        np.repeat(weights, num_prongs), ak.count(ak.flatten(lds.kt, axis=1), axis=1)
+    )
+
+    lp_hist.fill(
+        subjet_pt=flat_subjet_pt,
+        logD=flat_logD,
+        logkt=flat_logkt,
+        weight=flat_weights,
+    )
+
+    ################################################################################################
+    # ---- get scale factors per jet + smearings for stat unc. + syst. variations + pt extrap unc. ---- #
+    ################################################################################################
 
     sfs = {}
-
-    # ---- get scale factors per jet + smearings for stat unc. + syst. variations + pt extrap unc. ---- #
 
     if trunc_gauss:
         sfs["lp_sf"] = _calc_lund_SFs(
@@ -1069,6 +1156,28 @@ def get_lund_SFs(
         [pt_extrap_lookups_dict["sys_up_params"]],
     )
 
+    if ratio_dist_up is not None:
+        # breakpoint()
+        sfs["lp_sf_dist_down"] = _calc_lund_SFs(
+            flat_logD,
+            flat_logkt,
+            flat_subjet_pt,
+            ld_offsets,
+            num_prongs,
+            [ratio_dist_down],
+            [pt_extrap_lookups_dict["params"]],
+        )
+
+        sfs["lp_sf_dist_up"] = _calc_lund_SFs(
+            flat_logD,
+            flat_logkt,
+            flat_subjet_pt,
+            ld_offsets,
+            num_prongs,
+            [ratio_dist_up],
+            [pt_extrap_lookups_dict["params"]],
+        )
+
     sfs["lp_sf_pt_extrap_vars"] = _calc_lund_SFs(
         flat_logD,
         flat_logkt,
@@ -1079,7 +1188,34 @@ def get_lund_SFs(
         pt_extrap_lookups_dict["smeared_params"],
     )
 
+    ################################################################################################
+    # ---- get scale factors after re-clustering with +/- one prong, for subjet matching uncs. ---- #
+    ################################################################################################
+
+    # need to save these for unclustered progns uncertainty
+    np_kt_subjets_vecs = []
+
+    for shift, nps in [("down", num_prongs - 1), ("up", num_prongs + 1)]:
+        # get lund plane declusterings, subjets, and flattened LP vars
+        _, np_kt_subjets_vec, _, np_ld_offsets, np_flat_logD, np_flat_logkt, np_flat_subjet_pt = (
+            _get_flat_lund_arrays(events, jec_fatjet, fatjet_idx, nps)
+        )
+
+        sfs[f"lp_sf_np_{shift}"] = _calc_lund_SFs(
+            np_flat_logD,
+            np_flat_logkt,
+            np_flat_subjet_pt,
+            np_ld_offsets,
+            nps,
+            [ratio_lnN_smeared_lookups[0]],
+            [pt_extrap_lookups_dict["params"]],
+        )
+
+        np_kt_subjets_vecs.append(np_kt_subjets_vec)
+
+    ################################################################################################
     # ---- b-quark related uncertainties ---- #
+    ################################################################################################
 
     if gen_bs is not None:
         assert ak.all(
@@ -1125,7 +1261,9 @@ def get_lund_SFs(
             # weird edge case where b-subjet has no splittings
             sfs["lp_sfs_bl_ratio"] = 1.0
 
+    ################################################################################################
     # ---- subjet matching uncertainties ---- #
+    ################################################################################################
 
     matching_dR = 0.2
     sj_matched = []
@@ -1147,9 +1285,12 @@ def get_lund_SFs(
     sj_matched_idx_mask[~sj_matched] = -1
 
     j_q_dr = gen_quarks.delta_r(jec_fatjet)
-    q_boundary = (j_q_dr > 0.7) * (j_q_dr < 0.9)
-    # events with quarks at the boundary of the jet
-    sfs["lp_sf_boundary_quarks"] = np.array(np.any(q_boundary, axis=1, keepdims=True))
+    # events with quarks at the inside boundary of the jet
+    q_boundary = (j_q_dr > 0.7) * (j_q_dr <= 0.8)
+    sfs["lp_sf_inside_boundary_quarks"] = np.array(np.any(q_boundary, axis=1, keepdims=True))
+    # events with quarks at the outside boundary of the jet
+    q_boundary = (j_q_dr > 0.8) * (j_q_dr <= 0.9)
+    sfs["lp_sf_outside_boundary_quarks"] = np.array(np.any(q_boundary, axis=1, keepdims=True))
 
     # events which have more than one quark matched to the same subjet
     sfs["lp_sf_double_matched_event"] = np.any(
@@ -1162,4 +1303,23 @@ def get_lund_SFs(
     # OLD pT extrapolation uncertainty
     sfs["lp_sf_num_sjpt_gt350"] = np.sum(kt_subjets_vec.pt > 350, axis=1, keepdims=True).to_numpy()
 
-    return sfs
+    # ------------- check unmatched quarks after +/- one prong reclustering --------------#
+    unmatched_quarks = [~sj_matched]
+
+    for np_kt_subjets_vec in np_kt_subjets_vecs:
+        sj_matched = []
+
+        # get dR between gen quarks and subjets
+        for i in range(num_prongs):
+            sj_q_dr = np_kt_subjets_vec.delta_r(gen_quarks[:, i])
+            # is quark matched to a subjet (dR < 0.2)
+            sj_matched.append(ak.min(sj_q_dr, axis=1) <= matching_dR)
+
+        sj_matched = np.array(sj_matched).T
+        unmatched_quarks.append(~sj_matched)
+
+    # quarks which are not matched in any of the reclusterings
+    unmatched_quarks = np.prod(unmatched_quarks, axis=0)
+    sfs["lp_sf_rc_unmatched_quarks"] = np.sum(unmatched_quarks, axis=1, keepdims=True)
+
+    return sfs, lp_hist

@@ -20,6 +20,7 @@ parser = argparse.ArgumentParser()
 run_utils.parse_common_args(parser)
 
 parser.add_argument("--user", default="rkansal", help="user", type=str)
+parser.add_argument("--site", default="lpc", help="t2 site", choices=["lpc", "ucsd"], type=str)
 run_utils.add_bool_arg(parser, "submit-missing", default=False, help="submit missing files")
 run_utils.add_bool_arg(
     parser,
@@ -32,8 +33,12 @@ args = parser.parse_args()
 
 trigger_processor = args.processor.startswith("trigger")
 
-eosdir = f"/eos/uscms/store/user/{args.user}/bbVV/{args.processor}/{args.tag}/{args.year}/"
-user_condor_dir = f"/uscms/home/{args.user}/nobackup/HHbbVV/condor/"
+if args.site == "lpc":
+    eosdir = f"/eos/uscms/store/user/{args.user}/bbVV/{args.processor}/{args.tag}/{args.year}/"
+    user_condor_dir = f"/uscms/home/{args.user}/nobackup/HHbbVV/condor/"
+elif args.site == "ucsd":
+    eosdir = f"/ceph/cms/store/user/{args.user}/bbVV/{args.processor}/{args.tag}/{args.year}/"
+    user_condor_dir = f"/home/users/{args.user}/HHbbVV/condor/"
 
 samples = listdir(eosdir)
 jdls = [
@@ -62,7 +67,7 @@ for sample in samples.copy():
 
 running_jobs = []
 if args.check_running:
-    os.system(f"condor_q {args.user}" "| awk '{print $9}' > running_jobs.txt")
+    os.system(f"condor_q {args.user} -nobatch" "| awk '{print $9}' > running_jobs.txt")
     with Path("running_jobs.txt").open() as f:
         lines = f.readlines()
 

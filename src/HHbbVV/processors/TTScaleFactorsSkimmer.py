@@ -18,6 +18,8 @@ from coffea.analysis_tools import PackedSelection
 from coffea.nanoevents.methods import vector
 from coffea.processor import dict_accumulator
 
+from HHbbVV import hh_vars
+
 from .corrections import (
     add_btag_weights,
     add_lepton_weights,
@@ -421,7 +423,10 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         # Lund Plane SFs
         #########################
 
-        if dataset in ["SingleTop", "TTToSemiLeptonic", "TTToSemiLeptonic_ext1"]:
+        lp_hist = None
+        hh_vars.lp_sf_vars.append(("lp_sfs_bl_ratio", 1))
+
+        if dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"] or dataset.startswith("ST_"):
             match_dict, gen_quarks, had_bs = ttbar_scale_factor_matching(
                 events, leading_fatjets[:, 0], selection_args
             )
@@ -431,23 +436,27 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             skimmed_events = {**skimmed_events, **match_dict}
 
             if np.any(top_matched):
-                sf_dict = get_lund_SFs(
+                sf_dict_temp, lp_hist = get_lund_SFs(
                     year,
                     events[top_matched],
                     fatjets[top_matched],
                     fatjet_idx[top_matched].to_numpy(),
                     num_prongs,
                     gen_quarks[top_matched],
+                    weights_dict["weight"][top_matched],
                     trunc_gauss=True,
                     lnN=True,
                     gen_bs=had_bs[top_matched],  # do b/l ratio uncertainty for tops as well
+                    sample="TTToSemiLeptonic",
                 )
 
-                # fill zeros for all non-top-matched events
-                for key, val in list(sf_dict.items()):
-                    # plus 1 for the nominal values
-                    arr = np.zeros((len(events), val.shape[1]))
-                    arr[top_matched] = val
+                sf_dict = {}
+
+                # fill in 1s for non-top-matched jets
+                for key, shape in hh_vars.lp_sf_vars:
+                    # breakpoint()
+                    arr = np.ones((len(events), shape))
+                    arr[top_matched] = sf_dict_temp[key]
                     sf_dict[key] = arr
 
                 skimmed_events = {**skimmed_events, **sf_dict}
@@ -455,6 +464,8 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         ##############################
         # Apply selections
         ##############################
+
+        # breakpoint()
 
         skimmed_events = {
             key: value[selection.all(*selection.names)] for (key, value) in skimmed_events.items()
@@ -490,7 +501,13 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             )
             self.dump_table(pddf, fname)
 
-        return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
+        ret_dict = {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
+
+        if lp_hist is not None:
+            ret_dict[year][dataset]["lp_hist"] = lp_hist
+
+        print(ret_dict)
+        return ret_dict
 
     def postprocess(self, accumulator):
         return accumulator

@@ -213,7 +213,7 @@ def _asimov_significance(s, b):
     return np.sqrt(2 * ((s + b) * np.log(1 + (s / b)) - s))
 
 
-def add_cms_label(ax, year, label=None):
+def add_cms_label(ax, year, label="Preliminary"):
     if year == "all":
         hep.cms.label(
             label,
@@ -621,6 +621,7 @@ def ratioLinePlot(
             alpha=0.2,
             hatch="//",
             linewidth=0,
+            label="Lund Plane Uncertainty",
         )
 
     # if sig_key in hists:
@@ -635,20 +636,31 @@ def ratioLinePlot(
     hep.histplot(
         hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
     )
-    ax.legend(ncol=2)
+
+    if bg_err is not None:
+        # Switch order so that uncertainty label comes at the end
+        handles, labels = ax.get_legend_handles_labels()
+        handles = handles[1:] + handles[:1]
+        labels = labels[1:] + labels[:1]
+        ax.legend(handles, labels, ncol=2)
+    else:
+        ax.legend(ncol=2)
+
     ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
 
     data_vals = hists[data_key, :].values()
 
     if not pulls:
-        datamc_ratio = data_vals / (bg_tot + 1e-5)
+        # datamc_ratio = data_vals / (bg_tot + 1e-5)
 
-        if bg_err == "ratio":
-            yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
-        elif bg_err is None:
-            yerr = 0
-        else:
-            yerr = datamc_ratio * (bg_err / (bg_tot + 1e-8))
+        # if bg_err == "ratio":
+        #     yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
+        # elif bg_err is None:
+        #     yerr = 0
+        # else:
+        #     yerr = datamc_ratio * (bg_err / (bg_tot + 1e-8))
+
+        yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
 
         hep.histplot(
             hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
@@ -658,6 +670,19 @@ def ratioLinePlot(
             color="black",
             capsize=4,
         )
+
+        if bg_err is not None:
+            # (bkg + err) / bkg
+            rax.fill_between(
+                np.repeat(hists.axes[1].edges, 2)[1:-1],
+                np.repeat((bg_tot - bg_err) / bg_tot, 2),
+                np.repeat((bg_tot + bg_err) / bg_tot, 2),
+                color="black",
+                alpha=0.1,
+                hatch="//",
+                linewidth=0,
+            )
+
         rax.set_ylabel("Data/MC")
         rax.set_ylim(0.5, 1.5)
         rax.grid()
