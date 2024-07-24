@@ -21,6 +21,7 @@ run_utils.parse_common_args(parser)
 
 parser.add_argument("--user", default="rkansal", help="user", type=str)
 parser.add_argument("--site", default="lpc", help="t2 site", choices=["lpc", "ucsd"], type=str)
+run_utils.add_bool_arg(parser, "check-parquet", default=True, help="check parquet files")
 run_utils.add_bool_arg(parser, "submit-missing", default=False, help="submit missing files")
 run_utils.add_bool_arg(
     parser,
@@ -81,7 +82,7 @@ err_files = []
 for sample in samples:
     print(f"Checking {sample}")
 
-    if not trigger_processor:
+    if not trigger_processor and args.check_parquet:
         if not Path(f"{eosdir}/{sample}/parquet").exists():
             print_red(f"No parquet directory for {sample}!")
 
@@ -115,7 +116,7 @@ for sample in samples:
         int(out.split(".")[0].split("_")[-1]) for out in listdir(f"{eosdir}/{sample}/pickles")
     ]
 
-    if trigger_processor:
+    if trigger_processor or not args.check_parquet:
         print(f"Out pickles: {outs_pickles}")
 
     for i in range(jdl_dict[sample]):
@@ -134,7 +135,7 @@ for sample in samples:
             if args.submit_missing:
                 os.system(f"condor_submit {jdl_file}")
 
-        if not trigger_processor and i not in outs_parquet:
+        if not trigger_processor and args.check_parquet and i not in outs_parquet:
             print_red(f"Missing output parquet #{i} for sample {sample}")
 
 

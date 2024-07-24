@@ -227,6 +227,14 @@ Or just signal:
 python src/condor/submit.py --year 2017 --tag $TAG --samples HH --subsamples GluGluToHHTobbVV_node_cHHH1 --processor skimmer --submit
 ```
 
+
+Submitting signal files to get only the Lund plane densities of all the signals:
+
+```bash
+for year in 2016APV 2016 2017 2018; do python src/condor/submit_from_yaml.py --year $year --tag 24Jul24LundPlaneDensity --processor skimmer --git-branch update_lp --yaml src/condor/submit_configs/skimmer_24_07_24_signal_lp.yaml --site ucsd --submit --no-save-skims --no-inference; done
+```
+
+
 ### TaggerInputSkimmer
 
 Applies a loose pre-selection cut, saves ntuples with training inputs.

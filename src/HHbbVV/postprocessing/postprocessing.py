@@ -518,6 +518,10 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
     if "DijetdPhi" not in df.columns:
         df["DijetdPhi"] = np.abs(bbJet.deltaphi(VVJet))
 
+    if f"vbf_Mass_jj{ptlabel}" not in df.columns:
+        df[f"vbf_Mass_jj{ptlabel}"] = jj.M
+    if "vbf_dEta_jj" not in df.columns:
+        df["vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
     # print(f"VBF jet vars: {time.time() - start:.2f}")
 
     if not vbf_vars:
@@ -541,10 +545,6 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
         df["vbf_dR_j1_Hbb"] = vbf2.deltaR(bbJet)
     if "vbf_dR_jj" not in df.columns:
         df["vbf_dR_jj"] = vbf1.deltaR(vbf2)
-    if f"vbf_Mass_jj{ptlabel}" not in df.columns:
-        df[f"vbf_Mass_jj{ptlabel}"] = jj.M
-    if "vbf_dEta_jj" not in df.columns:
-        df["vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
 
     if "DijetdEta" not in df.columns:
         df["DijetdEta"] = np.abs(bbJet.eta - VVJet.eta)
@@ -1145,8 +1145,10 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
         systematics,
         sig_samples=sig_samples,
         filters=filters,
-        all_years=True,
+        all_years=args.lp_sf_all_years,
+        year=args.year,
         bdt_preds_dir=args.bdt_preds_dir,
+        template_dir=args.template_dir,
         systs_file=systs_file,
         data_dir=args.signal_data_dirs[0],
     )
@@ -1172,6 +1174,7 @@ def _get_signal_all_years(
     samples: dict,
     filters: list,
     bdt_preds_dir: Path = None,
+    year: str = None,
 ):
     """Load signal samples for all years and combine them for LP SF measurements."""
     print(f"Loading {sig_key} for all years")
@@ -1198,7 +1201,9 @@ def _get_signal_all_years(
         for i in range(num_columns):
             column_labels.append(f"('{key}', '{i}')")
 
-    for year in years:
+    run_years = years if year is None else [year]
+
+    for year in run_years:
         events_dict = load_samples(
             data_dir,
             {sig_key: samples[sig_key]},
@@ -1252,11 +1257,10 @@ def lpsfs(
     sig_keys: list[str],
     lp_selection_regions: Region | list[Region],
     systematics: dict,
-    events_dict: dict[str, pd.DataFrame] = None,
-    bb_masks: dict[str, pd.DataFrame] = None,
     sig_samples: dict[str, str] = None,
     filters: list = [],  # noqa: B006
     all_years: bool = False,
+    year: str = None,
     bdt_preds_dir: Path = None,
     template_dir: Path = None,
     systs_file: Path = None,
@@ -1281,12 +1285,12 @@ def lpsfs(
 
         print(f"\nGetting LP SFs for {sig_key}")
 
+        assert data_dir is not None, "Need data_dir to load signals"
+        assert filters != [], "Need to specify filters"
+        assert sig_samples is not None, "Need sig_samples to load signals"
+
         # SFs are correlated across all years so needs to be calculated with full dataset
         if all_years:
-            assert data_dir is not None, "Need data_dir to load signals for all years"
-            assert filters != [], "Need to specify filters to load signals for all years"
-            assert sig_samples is not None, "Need sig_samples to load signals for all years"
-
             events_dict = _get_signal_all_years(
                 sig_key, data_dir, sig_samples, filters, bdt_preds_dir
             )
@@ -1294,11 +1298,12 @@ def lpsfs(
 
         # ONLY FOR TESTING, can do just for a single year
         else:
-            assert events_dict is not None, "Need events_dict to calculate LP SFs for single year"
-            assert bb_masks is not None, "Need bb_masks to calculate LP SFs for single year"
+            events_dict = _get_signal_all_years(
+                sig_key, data_dir, sig_samples, filters, bdt_preds_dir, year=year
+            )
+            bb_masks = bb_VV_assignment(events_dict)
 
-            events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
-            continue
+            # continue
 
         for lp_region in lp_selection_regions:
             rlabel = lp_region.lpsf_region
@@ -1313,13 +1318,17 @@ def lpsfs(
                 rsysts[sig_key] = {}
 
             sel, _ = utils.make_selection(lp_region.cuts, events_dict, bb_masks)
-            lp_sf, unc, uncs = get_lpsf(events_dict[sig_key], sel[sig_key])
+            lp_sf, unc, uncs_sym, uncs_asym = get_lpsf(events_dict[sig_key], sel[sig_key])
 
-            print(f"LP Scale Factor for {sig_key} in {rlabel} region: {lp_sf:.2f} ± {unc:.2f}")
+            print(
+                f"LP Scale Factor for {sig_key} in {rlabel} region: {lp_sf:.2f} +{unc[0]:.2f}-{unc[1]:.2f}"
+            )
 
             rsysts[sig_key]["lp_sf"] = lp_sf
-            rsysts[sig_key]["lp_sf_unc"] = unc / lp_sf
-            rsysts[sig_key]["lp_sf_uncs"] = uncs
+            rsysts[sig_key]["lp_sf_unc_up"] = unc[0] / lp_sf
+            rsysts[sig_key]["lp_sf_unc_down"] = unc[1] / lp_sf
+            rsysts[sig_key]["lp_sf_uncs_sym"] = uncs_sym
+            rsysts[sig_key]["lp_sf_uncs_asym"] = uncs_asym
 
             if systs_file is not None:
                 with systs_file.open("w") as f:
@@ -1333,9 +1342,13 @@ def lpsfs(
             for sig_key in sig_keys:
                 systs = rsysts[sig_key]
                 sf_table[sig_key] = {
-                    "SF": f"{systs['lp_sf']:.2f} ± {systs['lp_sf'] * systs['lp_sf_unc']:.2f}",
-                    **systs["lp_sf_uncs"],
+                    "SF": f"{systs['lp_sf']:.2f} +{systs['lp_sf'] * systs['lp_sf_unc_up']:.2f}-{systs['lp_sf'] * systs['lp_sf_unc_down']:.2f}-",
+                    **systs["lp_sf_uncs_sym"],
                 }
+                for key in systs["lp_sf_uncs_asym"]["up"]:
+                    sf_table[sig_key][
+                        key
+                    ] = f"+{systs['lp_sf_uncs_asym']['up'][key]:.2f}-{systs['lp_sf_uncs_asym']['down'][key]:.2f}"
 
             print(f"\nLP Scale Factors in {rlabel}:\n", pd.DataFrame(sf_table).T)
             pd.DataFrame(sf_table).T.to_csv(f"{template_dir}/lpsfs_{rlabel}.csv")
@@ -1916,8 +1929,10 @@ def save_templates(
     print("Saved templates to", template_file)
 
 
-def parse_args():
-    parser = argparse.ArgumentParser()
+def parse_args(parser=None):
+    if parser is None:
+        parser = argparse.ArgumentParser()
+
     parser.add_argument(
         "--data-dir",
         default=None,
@@ -1935,7 +1950,7 @@ def parse_args():
 
     parser.add_argument(
         "--year",
-        default="2017",
+        required=True,
         choices=["2016", "2016APV", "2017", "2018"],
         type=str,
     )
