@@ -94,7 +94,19 @@ def run(p: processor, fileset: dict, args):
         maxchunks=None if args.maxchunks == 0 else args.maxchunks,
     )
 
-    out, metrics = run(fileset, "Events", processor_instance=p)
+    for i in range(5):
+        try:
+            out, metrics = run(fileset, "Events", processor_instance=p)
+            break
+        except OSError as e:
+            import time
+
+            if i < 4:
+                print(f"Caught OSError: {e}")
+                print("Retrying in 1 minute...")
+                time.sleep(60)
+            else:
+                raise e
 
     with (outdir / f"{args.starti}-{args.endi}.pkl").open("wb") as f:
         pickle.dump(out, f)

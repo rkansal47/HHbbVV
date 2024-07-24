@@ -142,7 +142,6 @@ def get_fileset(
             for subsample, fnames in sample_set.items():
                 fileset[sample][subsample] = len(fnames)
                 if max_files is not None:
-                    print("Max files")
                     fileset[sample][subsample] = min(fileset[sample][subsample], max_files)
 
         else:
