@@ -43,6 +43,7 @@ using the [coffea](https://coffeateam.github.io/coffea/) and
     - [PlotFits](#plotfits)
   - [Combine](#combine)
     - [CMSSW + Combine Quickstart](#cmssw--combine-quickstart)
+    - [Packages](#packages)
     - [Run fits and diagnostics locally](#run-fits-and-diagnostics-locally)
       - [F-tests locally for non-resonant](#f-tests-locally-for-non-resonant)
     - [Run fits on condor](#run-fits-on-condor)
@@ -272,6 +273,7 @@ Or to submit only the signal:
 
 ```bash
 python src/condor/submit.py --year 2018 --tag $TAG --sample TTbar --subsamples TTToSemiLeptonic --processor ttsfs --submit
+python src/condor/submit.py --year 2018 --tag $TAG --sample SingleTop --subsamples ST_tW_antitop_5f_NoFullyHadronicDecays ST_tW_top_5f_NoFullyHadronicDecays ST_s-channel_4f_leptonDecays ST_t-channel_antitop_4f_InclusiveDecays ST_t-channel_top_4f_InclusiveDecays --processor ttsfs --submit
 ```
 
 ## Condor Scripts
