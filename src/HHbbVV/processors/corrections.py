@@ -424,7 +424,7 @@ def add_lepton_id_weights(
     max_num_leptons: int = 3,
 ):
     year = get_vfp_year(year)
-    ul_year = get_UL_year(year)
+    # ul_year = get_UL_year(year)
 
     cset = correctionlib.CorrectionSet.from_file(get_pog_json(lepton_type, year))
 
@@ -447,9 +447,9 @@ def add_lepton_id_weights(
         # https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/MUO_2018_UL_muon_Z_v2.html
         cset_map = cset[f"NUM_{wp}ID_DEN_TrackerMuons"]
 
-        values["nominal"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "sf")
-        values["up"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "systup")
-        values["down"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "systdown")
+        values["nominal"] = cset_map.evaluate(lepton_eta, lepton_pt, "nominal")
+        values["up"] = cset_map.evaluate(lepton_eta, lepton_pt, "systup")
+        values["down"] = cset_map.evaluate(lepton_eta, lepton_pt, "systdown")
 
     for key, value in values.items():
         # efficiency for a single lepton passing is 1 - (1 - eff1) * (1 - eff2) * ...

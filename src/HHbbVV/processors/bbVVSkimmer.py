@@ -175,6 +175,7 @@ class bbVVSkimmer(SkimmerABC):
         lp_sfs=True,
         inference=True,
         save_all=False,
+        save_skims=True,
     ):
         if xsecs is None:
             xsecs = {}
@@ -195,6 +196,9 @@ class bbVVSkimmer(SkimmerABC):
         # save all branches or only necessary ones
         self._save_all = save_all
 
+        # save skimmed files or not (e.g. if only to calculate Lund plane densities)
+        self._save_skims = save_skims
+
         # for tagger model and preprocessing dict
         self.tagger_resources_path = Path(__file__).parent.resolve() / "tagger_resources"
 
@@ -207,7 +211,7 @@ class bbVVSkimmer(SkimmerABC):
         self._accumulator = processor.dict_accumulator({})
 
         logging.info(
-            f"Running skimmer with inference {self._inference} + systematics {self._systematics} + save all {self._save_all} + LP SFs {self._lp_sfs}."
+            f"Running skimmer with inference {self._inference} + systematics {self._systematics} + save all {self._save_all} + save skims {self._save_skims} + LP SFs {self._lp_sfs}."
         )
 
     @property
@@ -727,6 +731,8 @@ class bbVVSkimmer(SkimmerABC):
                                 num_prongs,
                                 gen_quarks[selector],
                                 weights_dict["weight"][sel_all][selector],
+                                # if not save_skims, means only calculating LP densities, i.e. don't have them yet
+                                sample=dataset if self._save_skims else None,
                                 trunc_gauss=False,
                                 lnN=True,
                             )
@@ -735,15 +741,16 @@ class bbVVSkimmer(SkimmerABC):
 
                     sf_dict = {}
 
-                    # collect all the scale factors, fill in 1s for unmatched jets
-                    for key, shape in hh_vars.lp_sf_vars:
-                        arr = np.ones((np.sum(sel_all), shape))
+                    if self._save_skims:
+                        # collect all the scale factors, fill in 1s for unmatched jets
+                        for key, shape in hh_vars.lp_sf_vars:
+                            arr = np.ones((np.sum(sel_all), shape))
 
-                        for select_key, (selector, _, _) in selectors.items():
-                            if np.sum(selector) > 0:
-                                arr[selector] = selected_sfs[select_key][key]
+                            for select_key, (selector, _, _) in selectors.items():
+                                if np.sum(selector) > 0:
+                                    arr[selector] = selected_sfs[select_key][key]
 
-                        sf_dict[key] = arr
+                            sf_dict[key] = arr
 
                     sf_dicts.append(sf_dict)
 
@@ -792,9 +799,12 @@ class bbVVSkimmer(SkimmerABC):
                     **{key: val for (key, val) in pnet_vars.items() if key in self.min_branches},
                 }
 
-        pddf = self.to_pandas(skimmed_events)
-        fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
-        self.dump_table(pddf, fname)
+        if self._save_skims:
+            pddf = self.to_pandas(skimmed_events)
+            fname = (
+                events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
+            )
+            self.dump_table(pddf, fname)
 
         ret_dict = {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
 

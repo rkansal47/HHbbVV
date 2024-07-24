@@ -173,6 +173,7 @@ def get_processor(
     save_systematics: bool = None,
     inference: bool = None,
     save_all: bool = None,
+    save_skims: bool = None,
     lp_sfs: bool = None,
 ):
     # define processor
@@ -193,6 +194,7 @@ def get_processor(
             save_systematics=save_systematics,
             inference=inference,
             save_all=save_all,
+            save_skims=save_skims,
             lp_sfs=lp_sfs,
         )
     elif processor == "input":
@@ -249,4 +251,5 @@ def parse_common_args(parser):
     add_bool_arg(parser, "save-ak15", default=False, help="run inference for and save ak15 jets")
     add_bool_arg(parser, "save-systematics", default=True, help="save systematic variations")
     add_bool_arg(parser, "save-all", default=False, help="save all branches")
+    add_bool_arg(parser, "save-skims", default=True, help="save skims")
     add_bool_arg(parser, "lp-sfs", default=True, help="run LP SFs for signals")

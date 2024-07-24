@@ -103,7 +103,7 @@ def run(p: processor, fileset: dict, args):
 
     # need to combine all the files from these processors before transferring to EOS
     # otherwise it will complain about too many small files
-    if args.processor in ["skimmer", "input", "ttsfs"]:
+    if args.processor in ["skimmer", "input", "ttsfs"] and args.save_skims:
         import pandas as pd
         import pyarrow as pa
         import pyarrow.parquet as pq
@@ -141,6 +141,7 @@ def main(args):
         args.save_systematics,
         args.inference,
         args.save_all,
+        args.save_skims,
         args.lp_sfs,
     )
 
