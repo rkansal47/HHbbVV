@@ -55,7 +55,12 @@ def main(args):
     print("CONDOR work dir: ", local_dir)
 
     fileset = run_utils.get_fileset(
-        args.processor, args.year, args.samples, args.subsamples, get_num_files=True
+        args.processor,
+        args.year,
+        args.samples,
+        args.subsamples,
+        get_num_files=True,
+        max_files=args.max_files,
     )
 
     print(f"fileset: {fileset}")
@@ -150,6 +155,7 @@ def parse_args(parser):
         help="test run or not - test run means only 2 jobs per sample will be created",
     )
     parser.add_argument("--files-per-job", default=20, help="# files per condor job", type=int)
+    parser.add_argument("--max-files", default=None, help="max total files to run over", type=int)
 
     run_utils.add_bool_arg(
         parser, "submit", default=False, help="submit files as well as create them"

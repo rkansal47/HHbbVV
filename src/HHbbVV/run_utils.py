@@ -111,6 +111,7 @@ def get_fileset(
     starti: int = 0,
     endi: int = -1,
     get_num_files: bool = False,
+    max_files: int = None,
     coffea_casa: str = False,
 ):
     if processor.startswith("trigger"):
@@ -140,6 +141,9 @@ def get_fileset(
             fileset[sample] = {}
             for subsample, fnames in sample_set.items():
                 fileset[sample][subsample] = len(fnames)
+                if max_files is not None:
+                    print("Max files")
+                    fileset[sample][subsample] = min(fileset[sample][subsample], max_files)
 
         else:
             # return all files per subsample
