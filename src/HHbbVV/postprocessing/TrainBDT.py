@@ -821,6 +821,7 @@ def do_inference_year(
     # preds = preds[:, :-1] if multiclass else preds[:, 1]  # save n-1 probs to save space
     preds = preds if multiclass else preds[:, 1]
     np.save(f"{model_dir}/inferences/{year}/preds.npy", preds)
+    print(preds)
 
     if jec_jmsr_shifts:
         for jshift in jec_shifts:

@@ -321,6 +321,12 @@ In `src/HHbbVV/postprocessing':
 python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --signal-data-dir "../../../../data/skimmer/Jun10/" --plot-dir "../../../plots/BDTPreProcessing/$TAG/" --year "2017" --bdt-data (--control-plots)
 ```
 
+Running inference with a trained model, e.g.:
+
+```bash
+python src/HHbbVV/postprocessing/BDTPreProcessing.py --no-save-data --inference --bdt-preds-dir temp/24_04_05_k2v0_training_eqsig_vbf_vars_rm_deta/ --data-dir temp --year 2016 --sig-samples HHbbVV --bg-keys "" --no-data --no-do-jshifts
+```
+
 ### BDT Trainings
 
 ```bash

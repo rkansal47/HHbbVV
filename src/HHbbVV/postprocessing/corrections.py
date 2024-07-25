@@ -310,10 +310,20 @@ def postprocess_lpsfs(
         else:
             raise ValueError("LP SF shapes are invalid")
 
+        nom_mean = None
         for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_pt_extrap_vars"] + sf_vars:
             CLIP = 5.0
             td[key] = np.clip(np.nan_to_num(td[key], nan=1.0), 1.0 / CLIP, CLIP)
-            td[key] = td[key] / np.mean(td[key], axis=0)
+
+            if key == "lp_sf_nom":
+                nom_mean = np.mean(td[key], axis=0)
+
+            if "unmatched" not in key:
+                td[key] = td[key] / np.mean(td[key], axis=0)
+            else:
+                # unmatched normalization is otherwise dominated by unmatched jets which aren't in the pass regions
+                # which artificially inflates this uncertainty
+                td[key] = td[key] / nom_mean
 
         # add to dataframe
         if save_all:
@@ -388,5 +398,7 @@ def get_lpsf(
     tot_rel_unc_down = np.linalg.norm(list(uncs.values()) + list(uncs_asym["down"].values()))
     # tot_rel_unc = np.mean([tot_rel_unc_up, tot_rel_unc_down])
     tot_unc = (lp_sf * tot_rel_unc_up, lp_sf * tot_rel_unc_down)
+
+    # breakpoint()
 
     return lp_sf, tot_unc, uncs, uncs_asym

@@ -520,8 +520,11 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
 
     if f"vbf_Mass_jj{ptlabel}" not in df.columns:
         df[f"vbf_Mass_jj{ptlabel}"] = jj.M
+        # df[f"vbf_Mass_jj{ptlabel}"] = np.nan_to_num(jj.M)
     if "vbf_dEta_jj" not in df.columns:
         df["vbf_dEta_jj"] = np.abs(vbf1.eta - vbf2.eta)
+        # df["vbf_dEta_jj"] = np.nan_to_num(np.abs(vbf1.eta - vbf2.eta))
+
     # print(f"VBF jet vars: {time.time() - start:.2f}")
 
     if not vbf_vars:
