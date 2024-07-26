@@ -754,7 +754,7 @@ def _get_lund_lookups(
         # 0s -> 1 in the ratio
         mc_sig_ratio = np.nan_to_num((mc_nom / mc_tot) / (sig_lp_hist.values() / sig_tot), nan=1.0)
         mc_sig_ratio[mc_sig_ratio == 0] = 1.0
-        mc_sig_ratio = np.clip(mc_sig_ratio, 0.5, 2.0)
+        # mc_sig_ratio = np.clip(mc_sig_ratio, 0.5, 2.0)
 
         ratio_dist = dense_lookup(mc_sig_ratio, ratio_edges)
 
@@ -849,6 +849,7 @@ def _get_lund_arrays(
     jec_fatjets: FatJetArray,
     fatjet_idx: int | ak.Array,
     num_prongs: int,
+    min_pt: float = 1.0,
 ):
     """
     Gets the ``num_prongs`` subjet pTs and Delta and kT per primary LP splitting of fatjets at
@@ -902,6 +903,8 @@ def _get_lund_arrays(
     kt_subjets_pt = kt_subjets_vec.pt * jec_correction
     # get constituents
     kt_subjet_consts = kt_clustering.exclusive_jets_constituents(num_prongs)
+    # breakpoint()
+    kt_subjet_consts = kt_subjet_consts[kt_subjet_consts.pt > min_pt]
 
     # then re-cluster with CA
     # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
@@ -942,8 +945,7 @@ def _calc_lund_SFs(
     pt_extrap_lookups: list[dense_lookup],
     max_pt_bin: int = MAX_PT_BIN,
     max_fparams: int = MAX_PT_FPARAMS,
-    clip_max: float = 10,
-    clip_min: float = 0.1,
+    CLIP: float = 5.0,
 ) -> np.ndarray:
     """
     Calculates scale factors for jets based on splittings in the primary Lund Plane.
@@ -985,11 +987,11 @@ def _calc_lund_SFs(
             # only recalculate if there are multiple pt param lookup tables
             if j == 0 or len(pt_extrap_lookups) > 1:
                 params = pt_extrap_lookup(hpt_logD, hpt_logkt)
-                pt_extrap_vals = np.maximum(
-                    np.minimum(np.sum(params * sj_pt_orders, axis=1), clip_max), clip_min
-                )
+                pt_extrap_vals = np.sum(params * sj_pt_orders, axis=1)
 
             ratio_vals[high_pt_sel] = pt_extrap_vals
+
+            ratio_vals = np.clip(ratio_vals, 1.0 / CLIP, CLIP)
 
             if len(ld_offsets) != 1:
                 # recover jagged event structure
@@ -1131,6 +1133,8 @@ def get_lund_SFs(
             [pt_extrap_lookups_dict["params"]],
         )
 
+    print("lp sf sys")
+
     sfs["lp_sf_sys_down"] = _calc_lund_SFs(
         flat_logD,
         flat_logkt,
@@ -1153,6 +1157,7 @@ def get_lund_SFs(
 
     if ratio_dist is not None:
         # breakpoint()
+        print("lp sf dist")
         sfs["lp_sf_dist"] = _calc_lund_SFs(
             flat_logD,
             flat_logkt,

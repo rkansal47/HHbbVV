@@ -280,7 +280,8 @@ def postprocess_lpsfs(
                 td[key][jet_match] = events[key][jet_match].squeeze()
 
             # distortion uncertainty
-            dist_sf = np.clip(np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1), 0.8, 1.2)
+            # dist_sf = np.clip(np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1), 0.5, 2.0)
+            dist_sf = np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1)
             td["lp_sf_dist_up"][jet_match] = td["lp_sf_nom"][jet_match] * dist_sf
             td["lp_sf_dist_down"][jet_match] = td["lp_sf_nom"][jet_match] / dist_sf
             # breakpoint()

@@ -1345,7 +1345,7 @@ def lpsfs(
             for sig_key in sig_keys:
                 systs = rsysts[sig_key]
                 sf_table[sig_key] = {
-                    "SF": f"{systs['lp_sf']:.2f} +{systs['lp_sf'] * systs['lp_sf_unc_up']:.2f}-{systs['lp_sf'] * systs['lp_sf_unc_down']:.2f}-",
+                    "SF": f"{systs['lp_sf']:.2f} +{systs['lp_sf'] * systs['lp_sf_unc_up']:.2f}-{systs['lp_sf'] * systs['lp_sf_unc_down']:.2f}",
                     **systs["lp_sf_uncs_sym"],
                 }
                 for key in systs["lp_sf_uncs_asym"]["up"]:

@@ -1272,3 +1272,21 @@ def cutsLinePlot(
         plt.show()
     else:
         plt.close()
+
+
+def plot_lund_plane(h: np.ndarray, ax=None, name: str = None, show: bool = False):
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(12, 14))
+
+    extent = [-1, 8, -5, 7]
+    ax.imshow(h.T[::-1], extent=extent)
+    ax.colorbar()
+
+    if ax is None:
+        if len(name):
+            plt.savefig(name, bbox_inches="tight")
+
+        if show:
+            plt.show()
+        else:
+            plt.close()
