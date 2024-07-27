@@ -903,12 +903,21 @@ def _get_lund_arrays(
     kt_subjets_pt = kt_subjets_vec.pt * jec_correction
     # get constituents
     kt_subjet_consts = kt_clustering.exclusive_jets_constituents(num_prongs)
-    # breakpoint()
     kt_subjet_consts = kt_subjet_consts[kt_subjet_consts.pt > min_pt]
+    kt_subjet_consts = ak.flatten(kt_subjet_consts, axis=1)
+
+    # dummy particle to pad empty subjets. SF for these subjets will be 1
+    dummy_particle = ak.Array(
+        [{kin_key: 0.0 for kin_key in P4}],
+        with_name="PtEtaPhiMLorentzVector",
+    )
+
+    # pad empty subjets
+    kt_subjet_consts = ak.fill_none(ak.pad_none(kt_subjet_consts, 1, axis=1), dummy_particle[0])
 
     # then re-cluster with CA
     # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
-    ca_clustering = fastjet.ClusterSequence(ak.flatten(kt_subjet_consts, axis=1), cadef)
+    ca_clustering = fastjet.ClusterSequence(kt_subjet_consts, cadef)
     lds = ca_clustering.exclusive_jets_lund_declusterings(1)
 
     return lds, kt_subjets_vec, kt_subjets_pt
