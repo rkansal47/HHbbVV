@@ -110,6 +110,22 @@ for sample in samples:
 
     if not Path(f"{eosdir}/{sample}/pickles").exists():
         print_red(f"No pickles directory for {sample}!")
+        if not args.check_parquet:
+            for i in range(jdl_dict[sample]):
+                if f"{args.year}_{sample}_{i}" in running_jobs:
+                    print(f"Job #{i} for sample {sample} is running.")
+                    continue
+
+                jdl_file = (
+                    f"{user_condor_dir}/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
+                )
+                err_file = f"{user_condor_dir}/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
+                print(jdl_file)
+                missing_files.append(jdl_file)
+                err_files.append(err_file)
+                if args.submit_missing:
+                    os.system(f"condor_submit {jdl_file}")
+
         continue
 
     outs_pickles = [

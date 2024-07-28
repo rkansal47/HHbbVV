@@ -31,9 +31,9 @@ formatter = mticker.ScalarFormatter(useMathText=True)
 formatter.set_powerlimits((-3, 3))
 
 # this is needed for some reason to update the font size for the first plot
-fig, ax = plt.subplots(1, 1, figsize=(12, 12))
-plt.rcParams.update({"font.size": 24})
-plt.close()
+# fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+# plt.rcParams.update({"font.size": 24})
+# plt.close()
 
 
 bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "TT", "QCD"]
@@ -1274,13 +1274,27 @@ def cutsLinePlot(
         plt.close()
 
 
-def plot_lund_plane(h: np.ndarray, ax=None, name: str = None, show: bool = False):
+def plot_lund_plane(
+    h: np.ndarray, title: str = "", ax=None, fig=None, name: str = "", show: bool = False
+):
     if ax is None:
-        fig, ax = plt.subplots(figsize=(12, 14))
+        fig, ax = plt.subplots(figsize=(10, 8))
+    else:
+        assert fig is not None, "Must provide fig if providing ax."
 
     extent = [-1, 8, -5, 7]
-    ax.imshow(h.T[::-1], extent=extent)
-    ax.colorbar()
+    im = ax.imshow(h.T, origin="lower", extent=extent, cmap="viridis")
+    ax.set_aspect("auto")
+    fig.colorbar(im, ax=ax)
+    # cbar.set_label('Density')
+
+    ax.set_xlabel(r"ln$(0.8/\Delta)$")
+    ax.set_ylabel(r"ln$(k_T/GeV)$")
+
+    if len(title):
+        ax.set_title(title, fontsize=24)
+
+    plt.tight_layout()
 
     if ax is None:
         if len(name):
@@ -1290,3 +1304,22 @@ def plot_lund_plane(h: np.ndarray, ax=None, name: str = None, show: bool = False
             plt.show()
         else:
             plt.close()
+
+
+def plot_lund_plane_six(hists: np.ndarray, edges: np.ndarray, name: str = "", show: bool = False):
+    fig, axs = plt.subplots(2, 3, figsize=(20, 12), sharex=True, sharey=True)
+    for i, ax in enumerate(axs.flat):
+        plot_lund_plane(
+            hists[i],
+            title=rf"$p_T$: [{edges[0][i]:.0f}, {edges[0][i + 1]:.0f}] GeV",
+            ax=ax,
+            fig=fig,
+        )
+
+    if len(name):
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()

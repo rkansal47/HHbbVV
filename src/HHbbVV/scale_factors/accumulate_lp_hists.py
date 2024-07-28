@@ -25,9 +25,13 @@ package_path = Path(__file__).parent.parent.resolve()
 for year in years:
     print(year)
     for key in tqdm(nonres_samples.values()):
-        sig_lp_hist = utils.get_pickles(f"{args.data_path}/{year}/{key}/pickles", year, key)[
-            "lp_hist"
-        ]
+        try:
+            sig_lp_hist = utils.get_pickles(f"{args.data_path}/{year}/{key}/pickles", year, key)[
+                "lp_hist"
+            ]
+        except FileNotFoundError as e:
+            print(e)
+            continue
 
         # remove negatives
         sig_lp_hist.values()[sig_lp_hist.values() < 0] = 0
@@ -35,4 +39,4 @@ for year in years:
         with (package_path / f"corrections/lp_ratios/signals/{year}_{key}.hist").open("wb") as f:
             pickle.dump(sig_lp_hist, f)
 
-        break
+        # break
