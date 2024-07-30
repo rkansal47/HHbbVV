@@ -1100,6 +1100,7 @@ def get_lund_SFs(
         hist.axis.Variable(ratio_edges[0], name="subjet_pt", label="Subjet pT [GeV]"),
         hist.axis.Variable(ratio_edges[1], name="logD", label="ln(0.8/Delta)"),
         hist.axis.Variable(ratio_edges[2], name="logkt", label="ln(kT/GeV)"),
+        storage=hist.storage.Weight(),
     )
 
     # repeat weights for each LP splitting
