@@ -61,7 +61,7 @@ while true; do
             ;;
         --vbf)
             pois="r_qqhh"
-            vbfargs="--x-min 0.1 --x-max 10 --parameter-values C2V=0"
+            vbfargs="--x-min 0.1 --x-max 10 --parameter-values C2V=1"
             ;;
         --noggf)
             pois="r_qqhh"
@@ -128,13 +128,13 @@ fi
 if [ $limits_at_point = 1 ]; then
     law run PlotUpperLimitsAtPoint \
         $common_args $vbfargs \
-         --datacard-names bbVV \
+        --datacard-names bbVV \
         --multi-datacards $cards \
         --pois $pois \
         --show-parameters kl,kt,C2V,CV \
         --UpperLimits-workflow $workflow \
         --UpperLimits-tasks-per-job 1 \
-        --UpperLimits-custom-args="--cl $cl" \
+        --UpperLimits-custom-args="--cl $cl --verbose 9 --rMax 10" \
         --x-log \
         --h-lines 1 \
         --save-hep-data True \
