@@ -430,7 +430,6 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             match_dict, gen_quarks, had_bs = ttbar_scale_factor_matching(
                 events, leading_fatjets[:, 0], selection_args
             )
-            print(cutflow)
             top_matched = match_dict["top_matched"].astype(bool) * selection.all(*selection.names)
 
             skimmed_events = {**skimmed_events, **match_dict}

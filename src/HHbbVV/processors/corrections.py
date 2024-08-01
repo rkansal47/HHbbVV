@@ -424,7 +424,7 @@ def add_lepton_id_weights(
     max_num_leptons: int = 3,
 ):
     year = get_vfp_year(year)
-    ul_year = get_UL_year(year)
+    # ul_year = get_UL_year(year)
 
     cset = correctionlib.CorrectionSet.from_file(get_pog_json(lepton_type, year))
 
@@ -447,9 +447,9 @@ def add_lepton_id_weights(
         # https://cms-nanoaod-integration.web.cern.ch/commonJSONSFs/summaries/MUO_2018_UL_muon_Z_v2.html
         cset_map = cset[f"NUM_{wp}ID_DEN_TrackerMuons"]
 
-        values["nominal"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "sf")
-        values["up"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "systup")
-        values["down"] = cset_map.evaluate(ul_year, lepton_eta, lepton_pt, "systdown")
+        values["nominal"] = cset_map.evaluate(lepton_eta, lepton_pt, "nominal")
+        values["up"] = cset_map.evaluate(lepton_eta, lepton_pt, "systup")
+        values["down"] = cset_map.evaluate(lepton_eta, lepton_pt, "systdown")
 
     for key, value in values.items():
         # efficiency for a single lepton passing is 1 - (1 - eff1) * (1 - eff2) * ...
@@ -672,12 +672,11 @@ MAX_PT_BIN = 350  # have to use subjet pt extrapolation for subjet pT > this
     ratio_lnN_smeared_lookups,
     ratio_sys_up,
     ratio_sys_down,
-    ratio_dist_up,
-    ratio_dist_down,
+    ratio_dist,
     pt_extrap_lookups_dict,
     bratio,
     ratio_edges,
-) = (None, None, None, None, None, None, None, None, None, None, None)
+) = (None, None, None, None, None, None, None, None, None, None)
 
 
 def _get_lund_lookups(
@@ -753,17 +752,15 @@ def _get_lund_lookups(
         mc_tot = np.sum(mc_nom, axis=(1, 2), keepdims=True)
 
         # 0s -> 1 in the ratio
-        sig_mc_ratio = np.nan_to_num((sig_lp_hist.values() / sig_tot) / (mc_nom / mc_tot), nan=1.0)
-        sig_mc_ratio[sig_mc_ratio == 0] = 1.0
-        sig_mc_ratio = np.clip(sig_mc_ratio, 0.5, 2.0)
+        mc_sig_ratio = np.nan_to_num((mc_nom / mc_tot) / (sig_lp_hist.values() / sig_tot), nan=1.0)
+        mc_sig_ratio[mc_sig_ratio == 0] = 1.0
+        # mc_sig_ratio = np.clip(mc_sig_ratio, 0.5, 2.0)
 
-        ratio_dist_up = dense_lookup(ratio_nom * sig_mc_ratio, ratio_edges)
-        ratio_dist_down = dense_lookup(ratio_nom / sig_mc_ratio, ratio_edges)
+        ratio_dist = dense_lookup(mc_sig_ratio, ratio_edges)
 
         # breakpoint()
     else:
-        ratio_dist_up = None
-        ratio_dist_down = None
+        ratio_dist = None
 
     # ------- pT extrapolation setup: creates lookups for all the parameters and errors ------ #
 
@@ -818,8 +815,7 @@ def _get_lund_lookups(
         ratio_lnN_smeared_lookups,
         ratio_sys_up,
         ratio_sys_down,
-        ratio_dist_up,
-        ratio_dist_down,
+        ratio_dist,
         pt_extrap_lookups_dict,
         bratio,
         ratio_edges,
@@ -853,6 +849,7 @@ def _get_lund_arrays(
     jec_fatjets: FatJetArray,
     fatjet_idx: int | ak.Array,
     num_prongs: int,
+    min_pt: float = 1.0,
 ):
     """
     Gets the ``num_prongs`` subjet pTs and Delta and kT per primary LP splitting of fatjets at
@@ -906,10 +903,21 @@ def _get_lund_arrays(
     kt_subjets_pt = kt_subjets_vec.pt * jec_correction
     # get constituents
     kt_subjet_consts = kt_clustering.exclusive_jets_constituents(num_prongs)
+    kt_subjet_consts = kt_subjet_consts[kt_subjet_consts.pt > min_pt]
+    kt_subjet_consts = ak.flatten(kt_subjet_consts, axis=1)
+
+    # dummy particle to pad empty subjets. SF for these subjets will be 1
+    dummy_particle = ak.Array(
+        [{kin_key: 0.0 for kin_key in P4}],
+        with_name="PtEtaPhiMLorentzVector",
+    )
+
+    # pad empty subjets
+    kt_subjet_consts = ak.fill_none(ak.pad_none(kt_subjet_consts, 1, axis=1), dummy_particle[0])
 
     # then re-cluster with CA
     # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
-    ca_clustering = fastjet.ClusterSequence(ak.flatten(kt_subjet_consts, axis=1), cadef)
+    ca_clustering = fastjet.ClusterSequence(kt_subjet_consts, cadef)
     lds = ca_clustering.exclusive_jets_lund_declusterings(1)
 
     return lds, kt_subjets_vec, kt_subjets_pt
@@ -946,8 +954,7 @@ def _calc_lund_SFs(
     pt_extrap_lookups: list[dense_lookup],
     max_pt_bin: int = MAX_PT_BIN,
     max_fparams: int = MAX_PT_FPARAMS,
-    clip_max: float = 10,
-    clip_min: float = 0.1,
+    CLIP: float = 5.0,
 ) -> np.ndarray:
     """
     Calculates scale factors for jets based on splittings in the primary Lund Plane.
@@ -989,11 +996,11 @@ def _calc_lund_SFs(
             # only recalculate if there are multiple pt param lookup tables
             if j == 0 or len(pt_extrap_lookups) > 1:
                 params = pt_extrap_lookup(hpt_logD, hpt_logkt)
-                pt_extrap_vals = np.maximum(
-                    np.minimum(np.sum(params * sj_pt_orders, axis=1), clip_max), clip_min
-                )
+                pt_extrap_vals = np.sum(params * sj_pt_orders, axis=1)
 
             ratio_vals[high_pt_sel] = pt_extrap_vals
+
+            ratio_vals = np.clip(ratio_vals, 1.0 / CLIP, CLIP)
 
             if len(ld_offsets) != 1:
                 # recover jagged event structure
@@ -1055,7 +1062,7 @@ def get_lund_SFs(
     """
 
     # global variable to not have to load + smear LP ratios each time
-    global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down, ratio_dist_up, ratio_dist_down, pt_extrap_lookups_dict, bratio, ratio_edges, lp_year, lp_sample  # noqa: PLW0603
+    global ratio_smeared_lookups, ratio_lnN_smeared_lookups, ratio_sys_up, ratio_sys_down, ratio_dist, pt_extrap_lookups_dict, bratio, ratio_edges, lp_year, lp_sample  # noqa: PLW0603
 
     if (
         (lnN and ratio_lnN_smeared_lookups is None)
@@ -1068,8 +1075,7 @@ def get_lund_SFs(
             ratio_lnN_smeared_lookups,
             ratio_sys_up,
             ratio_sys_down,
-            ratio_dist_up,
-            ratio_dist_down,
+            ratio_dist,
             pt_extrap_lookups_dict,
             bratio,
             ratio_edges,
@@ -1094,6 +1100,7 @@ def get_lund_SFs(
         hist.axis.Variable(ratio_edges[0], name="subjet_pt", label="Subjet pT [GeV]"),
         hist.axis.Variable(ratio_edges[1], name="logD", label="ln(0.8/Delta)"),
         hist.axis.Variable(ratio_edges[2], name="logkt", label="ln(kT/GeV)"),
+        storage=hist.storage.Weight(),
     )
 
     # repeat weights for each LP splitting
@@ -1136,6 +1143,8 @@ def get_lund_SFs(
             [pt_extrap_lookups_dict["params"]],
         )
 
+    print("lp sf sys")
+
     sfs["lp_sf_sys_down"] = _calc_lund_SFs(
         flat_logD,
         flat_logkt,
@@ -1156,25 +1165,16 @@ def get_lund_SFs(
         [pt_extrap_lookups_dict["sys_up_params"]],
     )
 
-    if ratio_dist_up is not None:
+    if ratio_dist is not None:
         # breakpoint()
-        sfs["lp_sf_dist_down"] = _calc_lund_SFs(
+        print("lp sf dist")
+        sfs["lp_sf_dist"] = _calc_lund_SFs(
             flat_logD,
             flat_logkt,
             flat_subjet_pt,
             ld_offsets,
             num_prongs,
-            [ratio_dist_down],
-            [pt_extrap_lookups_dict["params"]],
-        )
-
-        sfs["lp_sf_dist_up"] = _calc_lund_SFs(
-            flat_logD,
-            flat_logkt,
-            flat_subjet_pt,
-            ld_offsets,
-            num_prongs,
-            [ratio_dist_up],
+            [ratio_dist],
             [pt_extrap_lookups_dict["params"]],
         )
 
