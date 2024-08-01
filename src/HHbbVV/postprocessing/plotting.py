@@ -360,14 +360,15 @@ def ratioHistPlot(
     ax.set_ylabel(y_label)
 
     # background samples
-    hep.histplot(
-        [hists[sample, :] for sample in bg_keys],
-        ax=ax,
-        histtype="fill",
-        stack=True,
-        label=bg_labels,
-        color=bg_colours,
-    )
+    if len(bg_keys):
+        hep.histplot(
+            [hists[sample, :] for sample in bg_keys],
+            ax=ax,
+            histtype="fill",
+            stack=True,
+            label=bg_labels,
+            color=bg_colours,
+        )
 
     # signal samples
     if len(sig_scale_dict):
@@ -482,8 +483,8 @@ def ratioHistPlot(
             # new: plotting data errors (black lines) and background errors (shaded) separately
             yerr = np.nan_to_num(
                 np.abs(
-                    poisson_interval(pre_divide_hists[data_key, ...])
-                    - pre_divide_hists[data_key, ...]
+                    poisson_interval(pre_divide_hists[data_key, ...].values())
+                    - pre_divide_hists[data_key, ...].values()
                 )
                 / (bg_tot.values() + 1e-5)
             )
