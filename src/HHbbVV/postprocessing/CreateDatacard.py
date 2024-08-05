@@ -328,19 +328,19 @@ for sr in signal_regions:
 
 # dictionary of correlated shape systematics: name in templates -> name in cards, etc.
 corr_year_shape_systs = {
-    "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=all_mc),
-    "ISRPartonShower": Syst(name="ps_isr", prior="shape", samples=all_mc),
+    "FSRPartonShower": Syst(name="ps_fsr", prior="shape", samples=all_mc, samples_corr=True),
+    "ISRPartonShower": Syst(name="ps_isr", prior="shape", samples=all_mc, samples_corr=True),
     "scale": Syst(
         name=f"{CMS_PARAMS_LABEL}_QCDScaleacc",
         prior="shape",
         samples=nonres_sig_keys,
-        samples_corr=False,
+        samples_corr=True,
     ),
     "pdf": Syst(
         name=f"{CMS_PARAMS_LABEL}_PDFacc",
         prior="shape",
         samples=nonres_sig_keys,
-        samples_corr=False,
+        samples_corr=True,
     ),
     "txbb": Syst(
         name=f"{CMS_PARAMS_LABEL}_PNetHbbScaleFactors_correlated",
