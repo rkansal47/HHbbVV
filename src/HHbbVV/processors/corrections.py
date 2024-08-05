@@ -915,6 +915,10 @@ def _get_lund_arrays(
     # pad empty subjets
     kt_subjet_consts = ak.fill_none(ak.pad_none(kt_subjet_consts, 1, axis=1), dummy_particle[0])
 
+    print(len(kt_subjet_consts[3]))
+    print(np.sort(np.array(kt_subjet_consts[3].pt)))
+    print(np.array(kt_subjet_consts[3].eta)[np.argsort(np.array(kt_subjet_consts[3].pt))])
+
     # then re-cluster with CA
     # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
     ca_clustering = fastjet.ClusterSequence(kt_subjet_consts, cadef)
@@ -1091,6 +1095,8 @@ def get_lund_SFs(
     lds, kt_subjets_vec, kt_subjets_pt, ld_offsets, flat_logD, flat_logkt, flat_subjet_pt = (
         _get_flat_lund_arrays(events, jec_fatjet, fatjet_idx, num_prongs)
     )
+
+    return lds, kt_subjets_pt
 
     ################################################################################################
     # ---- Fill LP histogram for signal for distortion uncertainty ---- #
