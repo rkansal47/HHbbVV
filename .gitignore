@@ -191,6 +191,7 @@ src/HHbbVV/postprocessing/templates/*test*
 src/HHbbVV/postprocessing/templates/*Test*
 src/HHbbVV/postprocessing/test_templates
 tmp
+temp
 src/HHbbVV/postprocessing/templates_old
 
 # logs
