@@ -285,14 +285,6 @@ nuisance_params = {
     ),
 }
 
-# LP SFs - uncorrelated across regions to be more conservative (?)
-for sr in signal_regions:
-    for sig_key in sig_keys:
-        # values will be added in from the systematics JSON
-        nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{mc_samples[sig_key]}"] = Syst(
-            prior="lnN", samples=[sig_key], regions=[sr]
-        )
-
 if args.year != "all":
     # remove other years' keys
     for key in [
@@ -308,6 +300,29 @@ if args.year != "all":
 nuisance_params_dict = {
     param: rl.NuisanceParameter(param, syst.prior) for param, syst in nuisance_params.items()
 }
+
+lpsf_params = {}
+
+# LP SFs - uncorrelated across regions to be more conservative (?)
+for sr in signal_regions:
+    lpsf_params[sr] = {}
+
+    # first add a single nuisance parameter per region and production mode
+    for sig_keys_prodmode, pmlabel in [(nonres_sig_keys_ggf, "ggf"), (nonres_sig_keys_vbf, "vbf")]:
+        # check if any signals from this production mode
+        if any(sig_key in sig_keys_prodmode for sig_key in sig_keys):
+            pname = f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{pmlabel}"
+            lpsf_params[sr][pmlabel] = rl.NuisanceParameter(pname, "lnN")
+
+    # fill nuisance dictionary, but same NuisanceParameter object for each region + prod mode
+    for sig_key in sig_keys:
+        # values will be added in from the systematics JSON
+        pname = f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{mc_samples[sig_key]}"
+        pmlabel = "ggf" if sig_key in nonres_sig_keys_ggf else "vbf"
+
+        nuisance_params[pname] = Syst(prior="lnN", samples=[sig_key], regions=[sr])
+        nuisance_params_dict[pname] = lpsf_params[sr][pmlabel]
+
 
 # TODO: pileupID, lepton IDs (probably not necessary)
 
@@ -496,6 +511,7 @@ def process_systematics_combined(systematics: dict):
 
     print("Nuisance Parameters")
     pprint.pprint(nuisance_params)
+    pprint.pprint(nuisance_params_dict)
 
 
 def process_systematics_separate(bg_systs: dict, sig_systs: dict[str, dict]):
@@ -505,6 +521,7 @@ def process_systematics_separate(bg_systs: dict, sig_systs: dict[str, dict]):
 
     print("Nuisance Parameters")
     pprint.pprint(nuisance_params)
+    pprint.pprint(nuisance_params_dict)
 
 
 def process_systematics(templates_dir: str, sig_separate: bool):
@@ -617,7 +634,7 @@ def fill_regions(
         blind_str = MCB_LABEL if region.endswith(MCB_LABEL) else ""
 
         print("\n\n")
-        logging.info("starting region: %s" % region)
+        logging.info(f"starting region: {region}")
         binstr = "" if mX_bin is None else f"mXbin{mX_bin}"
         ch = rl.Channel(binstr + region.replace("_", ""))  # can't have '_'s in name
         model.addChannel(ch)
@@ -638,7 +655,7 @@ def fill_regions(
                 logging.info(f"Skipping ST in {region} region")
                 continue
 
-            logging.info("Getting templates for: %s" % sample_name)
+            logging.info(f"Getting templates for: {sample_name}")
 
             sample_template = region_templates[sample_name, :]
 
@@ -834,7 +851,7 @@ def nonres_alphabet_fit(
         for sample in failCh:
             if sample.sampletype == rl.Sample.SIGNAL:
                 continue
-            logging.debug("Subtracting %s from qcd" % sample._name)
+            logging.debug(f"Subtracting {sample._name} from qcd")
             initial_qcd -= sample.getExpectation(nominal=True)
 
         if np.any(initial_qcd < 0.0):
@@ -961,7 +978,7 @@ def res_alphabet_fit(
             # was integer, and numpy complained about subtracting float from it
             initial_qcd = failCh.getObservation().astype(float)
             for sample in failCh:
-                logging.debug("subtracting %s from qcd" % sample._name)
+                logging.debug(f"subtracting {sample._name} from qcd")
                 initial_qcd -= sample.getExpectation(nominal=True)
 
             if np.any(initial_qcd < 0.0):
@@ -1111,7 +1128,7 @@ def get_systematics_abcd(channels, channels_dict, channels_summed, rates_dict):
     channel_systs_dict = {}
 
     for region in channels:
-        logging.info("starting region: %s" % region)
+        logging.info(f"starting region: {region}")
 
         channel_systs_dict[region] = {}
 

@@ -791,10 +791,10 @@ def _get_lund_lookups(year: str, seed: int = 42, lnN: bool = True, trunc_gauss: 
 def _get_flat_lp_vars(lds, kt_subjets_pt):
     if len(lds) != 1:
         # flatten and save offsets to unflatten afterwards
-        if type(lds.layout) == ak._ext.ListOffsetArray64:
+        if type(lds.layout) is ak._ext.ListOffsetArray64:
             ld_offsets = lds.kt.layout.offsets
             flat_subjet_pt = ak.flatten(kt_subjets_pt)
-        elif type(lds.layout) == ak._ext.ListArray64:
+        elif type(lds.layout) is ak._ext.ListArray64:
             ld_offsets = lds.layout.toListOffsetArray64(False).offsets
             flat_subjet_pt = kt_subjets_pt
     else:
