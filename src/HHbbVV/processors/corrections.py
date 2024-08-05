@@ -744,10 +744,6 @@ def _get_lund_lookups(
         ) as histf:
             sig_lp_hist = pickle.load(histf)
 
-        # breakpoint()
-        # mc_tot = np.sum(mc_nom)
-        # sig_tot = sig_lp_hist.sum()
-
         sig_tot = np.sum(sig_lp_hist.values(), axis=(1, 2), keepdims=True)
         mc_tot = np.sum(mc_nom, axis=(1, 2), keepdims=True)
 
@@ -757,8 +753,6 @@ def _get_lund_lookups(
         # mc_sig_ratio = np.clip(mc_sig_ratio, 0.5, 2.0)
 
         ratio_dist = dense_lookup(mc_sig_ratio, ratio_edges)
-
-        # breakpoint()
     else:
         ratio_dist = None
 
@@ -914,10 +908,6 @@ def _get_lund_arrays(
 
     # pad empty subjets
     kt_subjet_consts = ak.fill_none(ak.pad_none(kt_subjet_consts, 1, axis=1), dummy_particle[0])
-
-    print(len(kt_subjet_consts[3]))
-    print(np.sort(np.array(kt_subjet_consts[3].pt)))
-    print(np.array(kt_subjet_consts[3].eta)[np.argsort(np.array(kt_subjet_consts[3].pt))])
 
     # then re-cluster with CA
     # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
@@ -1172,8 +1162,6 @@ def get_lund_SFs(
     )
 
     if ratio_dist is not None:
-        # breakpoint()
-        print("lp sf dist")
         sfs["lp_sf_dist"] = _calc_lund_SFs(
             flat_logD,
             flat_logkt,
