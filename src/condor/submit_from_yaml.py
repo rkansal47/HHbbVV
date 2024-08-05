@@ -52,6 +52,7 @@ if __name__ == "__main__":
             args.subsamples = sdict.get("subsamples", [])
             args.files_per_job = sdict["files_per_job"]
             args.njets = sdict.get("njets", 2)
+            args.max_files = sdict.get("max_files", None)
             args.maxchunks = sdict.get("maxchunks", 0)
             args.chunksize = sdict.get("chunksize", 10000)
 

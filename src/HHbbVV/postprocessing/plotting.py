@@ -31,9 +31,9 @@ formatter = mticker.ScalarFormatter(useMathText=True)
 formatter.set_powerlimits((-3, 3))
 
 # this is needed for some reason to update the font size for the first plot
-fig, ax = plt.subplots(1, 1, figsize=(12, 12))
-plt.rcParams.update({"font.size": 24})
-plt.close()
+# fig, ax = plt.subplots(1, 1, figsize=(12, 12))
+# plt.rcParams.update({"font.size": 24})
+# plt.close()
 
 
 bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "TT", "QCD"]
@@ -213,7 +213,7 @@ def _asimov_significance(s, b):
     return np.sqrt(2 * ((s + b) * np.log(1 + (s / b)) - s))
 
 
-def add_cms_label(ax, year, label=None):
+def add_cms_label(ax, year, label="Preliminary"):
     if year == "all":
         hep.cms.label(
             label,
@@ -622,6 +622,7 @@ def ratioLinePlot(
             alpha=0.2,
             hatch="//",
             linewidth=0,
+            label="Lund Plane Uncertainty",
         )
 
     # if sig_key in hists:
@@ -636,20 +637,31 @@ def ratioLinePlot(
     hep.histplot(
         hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
     )
-    ax.legend(ncol=2)
+
+    if bg_err is not None:
+        # Switch order so that uncertainty label comes at the end
+        handles, labels = ax.get_legend_handles_labels()
+        handles = handles[1:] + handles[:1]
+        labels = labels[1:] + labels[:1]
+        ax.legend(handles, labels, ncol=2)
+    else:
+        ax.legend(ncol=2)
+
     ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
 
     data_vals = hists[data_key, :].values()
 
     if not pulls:
-        datamc_ratio = data_vals / (bg_tot + 1e-5)
+        # datamc_ratio = data_vals / (bg_tot + 1e-5)
 
-        if bg_err == "ratio":
-            yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
-        elif bg_err is None:
-            yerr = 0
-        else:
-            yerr = datamc_ratio * (bg_err / (bg_tot + 1e-8))
+        # if bg_err == "ratio":
+        #     yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
+        # elif bg_err is None:
+        #     yerr = 0
+        # else:
+        #     yerr = datamc_ratio * (bg_err / (bg_tot + 1e-8))
+
+        yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
 
         hep.histplot(
             hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
@@ -659,6 +671,19 @@ def ratioLinePlot(
             color="black",
             capsize=4,
         )
+
+        if bg_err is not None:
+            # (bkg + err) / bkg
+            rax.fill_between(
+                np.repeat(hists.axes[1].edges, 2)[1:-1],
+                np.repeat((bg_tot - bg_err) / bg_tot, 2),
+                np.repeat((bg_tot + bg_err) / bg_tot, 2),
+                color="black",
+                alpha=0.1,
+                hatch="//",
+                linewidth=0,
+            )
+
         rax.set_ylabel("Data/MC")
         rax.set_ylim(0.5, 1.5)
         rax.grid()
@@ -1243,6 +1268,57 @@ def cutsLinePlot(
 
     if len(name):
         plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def plot_lund_plane(
+    h: np.ndarray, title: str = "", ax=None, fig=None, name: str = "", show: bool = False
+):
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(10, 8))
+    else:
+        assert fig is not None, "Must provide fig if providing ax."
+
+    extent = [-1, 8, -5, 7]
+    im = ax.imshow(h.T, origin="lower", extent=extent, cmap="viridis")
+    ax.set_aspect("auto")
+    fig.colorbar(im, ax=ax)
+    # cbar.set_label('Density')
+
+    ax.set_xlabel(r"ln$(0.8/\Delta)$")
+    ax.set_ylabel(r"ln$(k_T/GeV)$")
+
+    if len(title):
+        ax.set_title(title, fontsize=24)
+
+    plt.tight_layout()
+
+    if ax is None:
+        if len(name):
+            plt.savefig(name, bbox_inches="tight")
+
+        if show:
+            plt.show()
+        else:
+            plt.close()
+
+
+def plot_lund_plane_six(hists: np.ndarray, edges: np.ndarray, name: str = "", show: bool = False):
+    fig, axs = plt.subplots(2, 3, figsize=(20, 12), sharex=True, sharey=True)
+    for i, ax in enumerate(axs.flat):
+        plot_lund_plane(
+            hists[i],
+            title=rf"$p_T$: [{edges[0][i]:.0f}, {edges[0][i + 1]:.0f}] GeV",
+            ax=ax,
+            fig=fig,
+        )
+
+    if len(name):
+        plt.savefig(name, bbox_inches="tight")
 
     if show:
         plt.show()

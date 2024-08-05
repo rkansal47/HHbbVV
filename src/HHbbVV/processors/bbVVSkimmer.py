@@ -120,6 +120,7 @@ class bbVVSkimmer(SkimmerABC):
     jecs = hh_vars.jecs
 
     # only the branches necessary for templates and post processing
+    # IMPORTANT: Add Lund plane branches in hh_vars.py
     min_branches = [  # noqa: RUF012
         "ak8FatJetPhi",
         "ak8FatJetEta",
@@ -174,6 +175,7 @@ class bbVVSkimmer(SkimmerABC):
         lp_sfs=True,
         inference=True,
         save_all=False,
+        save_skims=True,
     ):
         if xsecs is None:
             xsecs = {}
@@ -194,6 +196,9 @@ class bbVVSkimmer(SkimmerABC):
         # save all branches or only necessary ones
         self._save_all = save_all
 
+        # save skimmed files or not (e.g. if only to calculate Lund plane densities)
+        self._save_skims = save_skims
+
         # for tagger model and preprocessing dict
         self.tagger_resources_path = Path(__file__).parent.resolve() / "tagger_resources"
 
@@ -206,7 +211,7 @@ class bbVVSkimmer(SkimmerABC):
         self._accumulator = processor.dict_accumulator({})
 
         logging.info(
-            f"Running skimmer with inference {self._inference} + systematics {self._systematics} + save all {self._save_all} + LP SFs {self._lp_sfs}."
+            f"Running skimmer with inference {self._inference} + systematics {self._systematics} + save all {self._save_all} + save skims {self._save_skims} + LP SFs {self._lp_sfs}."
         )
 
     @property
@@ -673,15 +678,16 @@ class bbVVSkimmer(SkimmerABC):
         # Lund plane SFs
         ################
 
+        lp_hist = None
+
         if isSignal and self._systematics and self._lp_sfs:
-            # (var, # columns)
             logging.info("Starting LP SFs and saving: " + str(hh_vars.lp_sf_vars))
 
             if len(skimmed_events["weight"]):
                 genbb = genbb[sel_all]
                 genq = genq[sel_all]
 
-                sf_dicts = []
+                sf_dicts, lp_hists = [], []
                 lp_num_jets = num_jets if self._save_all else 1
 
                 for i in range(lp_num_jets):
@@ -713,7 +719,7 @@ class bbVVSkimmer(SkimmerABC):
 
                     for key, (selector, gen_quarks, num_prongs) in selectors.items():
                         if np.sum(selector) > 0:
-                            selected_sfs[key] = get_lund_SFs(
+                            selected_sfs[key], lp_hist = get_lund_SFs(
                                 year,
                                 events[sel_all][selector],
                                 fatjets[sel_all][selector],
@@ -724,25 +730,32 @@ class bbVVSkimmer(SkimmerABC):
                                 ),  # giving HVV jet index if only doing LP SFs for HVV jet
                                 num_prongs,
                                 gen_quarks[selector],
+                                weights_dict["weight"][sel_all][selector],
+                                # if not save_skims, means only calculating LP densities, i.e. don't have them yet
+                                sample=dataset if self._save_skims else None,
                                 trunc_gauss=False,
                                 lnN=True,
                             )
 
+                            lp_hists.append(lp_hist)
+
                     sf_dict = {}
 
-                    # collect all the scale factors, fill in 1s for unmatched jets
-                    for key, shape in hh_vars.lp_sf_vars:
-                        arr = np.ones((np.sum(sel_all), shape))
+                    if self._save_skims:
+                        # collect all the scale factors, fill in 1s for unmatched jets
+                        for key, shape in hh_vars.lp_sf_vars:
+                            arr = np.ones((np.sum(sel_all), shape))
 
-                        for select_key, (selector, _, _) in selectors.items():
-                            if np.sum(selector) > 0:
-                                arr[selector] = selected_sfs[select_key][key]
+                            for select_key, (selector, _, _) in selectors.items():
+                                if np.sum(selector) > 0:
+                                    arr[selector] = selected_sfs[select_key][key]
 
-                        sf_dict[key] = arr
+                            sf_dict[key] = arr
 
                     sf_dicts.append(sf_dict)
 
                 sf_dicts = concatenate_dicts(sf_dicts)
+                lp_hist = sum(lp_hists)
 
             else:
                 logging.info("No signal events selected")
@@ -786,11 +799,20 @@ class bbVVSkimmer(SkimmerABC):
                     **{key: val for (key, val) in pnet_vars.items() if key in self.min_branches},
                 }
 
-        pddf = self.to_pandas(skimmed_events)
-        fname = events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
-        self.dump_table(pddf, fname)
+        if self._save_skims:
+            pddf = self.to_pandas(skimmed_events)
+            fname = (
+                events.behavior["__events_factory__"]._partition_key.replace("/", "_") + ".parquet"
+            )
+            self.dump_table(pddf, fname)
 
-        return {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
+        ret_dict = {year: {dataset: {"totals": totals_dict, "cutflow": cutflow}}}
+
+        if lp_hist is not None:
+            ret_dict[year][dataset]["lp_hist"] = lp_hist
+
+        print(ret_dict)
+        return ret_dict
 
     def postprocess(self, accumulator):
         return accumulator
