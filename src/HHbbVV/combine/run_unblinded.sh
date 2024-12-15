@@ -269,8 +269,8 @@ fi
 if [ $goftoys = 1 ]; then
     echo "GoF on toys"
     combine -M GoodnessOfFit -d $wsm.root --algo saturated -m 125 --rMax $rmax \
-    --snapshotName MultiDimFit --bypassFrequentistFit \
     -n Toys -v 9 -s "$seed" -t "$numtoys" --toysFrequentist 2>&1 | tee $outsdir/GoF_toys.txt
+    # --snapshotName MultiDimFit --bypassFrequentistFit \
 fi
 
 
