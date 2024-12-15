@@ -1091,8 +1091,6 @@ def get_lund_SFs(
         _get_flat_lund_arrays(events, jec_fatjet, fatjet_idx, num_prongs)
     )
 
-    return lds, kt_subjets_pt
-
     ################################################################################################
     # ---- Fill LP histogram for signal for distortion uncertainty ---- #
     ################################################################################################
