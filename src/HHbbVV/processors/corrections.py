@@ -844,6 +844,7 @@ def _get_lund_arrays(
     fatjet_idx: int | ak.Array,
     num_prongs: int,
     min_pt: float = 1.0,
+    ca_recluster: bool = False,
 ):
     """
     Gets the ``num_prongs`` subjet pTs and Delta and kT per primary LP splitting of fatjets at
@@ -854,6 +855,8 @@ def _get_lund_arrays(
         jec_fatjets (FatJetArray): post-JEC fatjets, used to update subjet pTs.
         fatjet_idx (int | ak.Array): fatjet index
         num_prongs (int): number of prongs / subjets per jet to reweight
+        min_pt (float): minimum pT for pf candidates considered for LP declustering
+        ca_recluster (bool): whether to recluster subjets with CA after kT
 
     Returns:
         lds, kt_subjets_vec, kt_subjets_pt: lund declusterings, subjet 4-vectors, JEC-corrected subjet pTs
@@ -869,6 +872,8 @@ def _get_lund_arrays(
     dR = 0.8
     cadef = fastjet.JetDefinition(fastjet.cambridge_algorithm, dR)
     ktdef = fastjet.JetDefinition(fastjet.kt_algorithm, dR)
+
+    recluster_def = cadef if ca_recluster else ktdef
 
     # get pfcands of the top-matched jets
     ak8_pfcands = events.FatJetPFCands
@@ -911,8 +916,8 @@ def _get_lund_arrays(
 
     # then re-cluster with CA
     # won't need to flatten once https://github.com/scikit-hep/fastjet/pull/145 is released
-    ca_clustering = fastjet.ClusterSequence(kt_subjet_consts, cadef)
-    lds = ca_clustering.exclusive_jets_lund_declusterings(1)
+    reclustering = fastjet.ClusterSequence(kt_subjet_consts, recluster_def)
+    lds = reclustering.exclusive_jets_lund_declusterings(1)
 
     return lds, kt_subjets_vec, kt_subjets_pt
 
