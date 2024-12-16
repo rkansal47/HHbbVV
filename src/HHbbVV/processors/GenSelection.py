@@ -888,15 +888,14 @@ def ttbar_scale_factor_matching(
     ws = ak.flatten(tops_children[np.abs(tops_children.pdgId) == W_PDGID], axis=2)
 
     # get hadronic W and top
-    had_top_sel = np.all(np.abs(ws.children.pdgId) <= 5, axis=2)
-    had_ws = ak.flatten(ws[had_top_sel])
+    had_top_sel = np.all(np.abs(ws.children.pdgId) <= b_PDGID, axis=2)
+    had_ws = ak.flatten(ak.pad_none(ws[had_top_sel], 1, axis=1))
     had_ws_children = had_ws.children
-    ak.flatten(tops[had_top_sel])
 
     # check for b's from top
-    had_top_children = ak.flatten(tops_children[had_top_sel], axis=1)
-    had_bs = had_top_children[np.abs(had_top_children.pdgId) == 5]
-    add_selection("top_has_bs", np.any(had_bs.pdgId, axis=1), *selection_args)
+    had_top_children = ak.flatten(ak.pad_none(tops_children[had_top_sel], 1, axis=1), axis=1)
+    had_bs = had_top_children[np.abs(had_top_children.pdgId) == b_PDGID]
+    add_selection("top_has_bs", ak.fill_none(np.any(had_bs.pdgId, axis=1), False), *selection_args)
 
     gen_quarks = ak.concatenate([had_bs[:, :1], had_ws_children[:, :2]], axis=1)
 
