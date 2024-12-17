@@ -1350,7 +1350,7 @@ def get_lund_SFs(
         closest_sjidx += np.arange(len(subjet_bs_dr)) * num_prongs
         bsj_lds = ak.flatten(lds[closest_sjidx], axis=1)
         bld_offsets, bflat_logD, bflat_logkt, bflat_subjet_pt = _get_flat_lp_vars(bsj_lds, bsj_pts)
-        bsj_matched = np.ones(len(closest_sjidx), 1, dtype=bool)
+        bsj_matched = np.ones((len(closest_sjidx), 1), dtype=bool)
 
         if len(bflat_logD):
             light_lp_sfs = _calc_lund_SFs(
