@@ -16,14 +16,14 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import mplhep as hep
 import numpy as np
-import utils
 from hist import Hist
 from hist.intervals import poisson_interval, ratio_uncertainty
 from numpy.typing import ArrayLike
 from pandas import DataFrame
-from utils import CUT_MAX_VAL
 
 from HHbbVV.hh_vars import LUMI, data_key, hbb_bg_keys
+from HHbbVV.postprocessing import utils
+from HHbbVV.postprocessing.utils import CUT_MAX_VAL
 
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
@@ -1306,12 +1306,21 @@ def plot_lund_plane(
             plt.close()
 
 
-def plot_lund_plane_six(hists: np.ndarray, edges: np.ndarray, name: str = "", show: bool = False):
+def plot_lund_plane_six(
+    hists: np.ndarray, edges: np.ndarray = None, name: str = "", show: bool = False
+):
+    if isinstance(hists, Hist):
+        hists = hists.values()
+
     fig, axs = plt.subplots(2, 3, figsize=(20, 12), sharex=True, sharey=True)
     for i, ax in enumerate(axs.flat):
         plot_lund_plane(
             hists[i],
-            title=rf"$p_T$: [{edges[0][i]:.0f}, {edges[0][i + 1]:.0f}] GeV",
+            title=(
+                rf"$p_T$: [{edges[0][i]:.0f}, {edges[0][i + 1]:.0f}] GeV"
+                if edges is not None
+                else ""
+            ),
             ax=ax,
             fig=fig,
         )
