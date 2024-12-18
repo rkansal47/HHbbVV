@@ -1275,15 +1275,25 @@ def cutsLinePlot(
 
 
 def plot_lund_plane(
-    h: np.ndarray, title: str = "", ax=None, fig=None, name: str = "", show: bool = False
+    h: np.ndarray,
+    title: str = "",
+    ax=None,
+    fig=None,
+    name: str = "",
+    log: bool = False,
+    show: bool = False,
 ):
+    from matplotlib.colors import LogNorm
+
     if ax is None:
         fig, ax = plt.subplots(figsize=(10, 8))
     else:
         assert fig is not None, "Must provide fig if providing ax."
 
     extent = [-1, 8, -5, 7]
-    im = ax.imshow(h.T, origin="lower", extent=extent, cmap="viridis")
+    im = ax.imshow(
+        h.T, origin="lower", extent=extent, cmap="viridis", norm=LogNorm() if log else None
+    )
     ax.set_aspect("auto")
     fig.colorbar(im, ax=ax)
     # cbar.set_label('Density')
@@ -1307,7 +1317,11 @@ def plot_lund_plane(
 
 
 def plot_lund_plane_six(
-    hists: np.ndarray, edges: np.ndarray = None, name: str = "", show: bool = False
+    hists: np.ndarray,
+    edges: np.ndarray = None,
+    name: str = "",
+    log: bool = False,
+    show: bool = False,
 ):
     if isinstance(hists, Hist):
         hists = hists.values()
@@ -1323,6 +1337,7 @@ def plot_lund_plane_six(
             ),
             ax=ax,
             fig=fig,
+            log=log,
         )
 
     if len(name):

@@ -747,11 +747,14 @@ def _get_lund_lookups(
         sig_tot = np.sum(sig_lp_hist.values(), axis=(1, 2), keepdims=True)
         mc_tot = np.sum(mc_nom, axis=(1, 2), keepdims=True)
 
-        # 0s -> 1 in the ratio
         mc_sig_ratio = np.nan_to_num((mc_nom / mc_tot) / (sig_lp_hist.values() / sig_tot), nan=1.0)
-        mc_sig_ratio[mc_sig_ratio == 0] = 1.0
 
-        mc_sig_ratio = np.clip(mc_sig_ratio, 0.5, 2.0)
+        # ignore differences because of too low stats
+        mc_sig_ratio[mc_sig_ratio <= 0.5] = 1.0
+        mc_sig_ratio[mc_sig_ratio >= 2] = 1.0
+
+        # mc_sig_ratio[mc_sig_ratio == 0] = 1.0
+        # mc_sig_ratio = np.clip(mc_sig_ratio, 0.5, 2.0)
 
         ratio_dist = dense_lookup(mc_sig_ratio, ratio_edges)
     else:

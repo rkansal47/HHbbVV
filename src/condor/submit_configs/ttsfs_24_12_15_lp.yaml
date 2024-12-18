@@ -3,8 +3,8 @@
     {
       "TTbar":
         {
-          "files_per_job": 2,
-          "max_files": 80,
+          "files_per_job": 20,
+          # "max_files": 80,
           "chunksize": 80000,
           "subsamples": ["TTToSemiLeptonic"],
         },
