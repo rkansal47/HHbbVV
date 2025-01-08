@@ -736,6 +736,7 @@ def _get_lund_lookups(
     else:
         ratio_lnN_smeared_lookups = None
 
+    # get sample LP for distortion uncertainty
     if sample is not None:
         mc_nom = f["mc_nom"].to_numpy()[0]
 
