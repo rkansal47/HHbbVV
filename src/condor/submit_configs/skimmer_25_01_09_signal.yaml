@@ -17,8 +17,7 @@
               "VBF_HHTobbVV_CV_1_C2V_1_C3_2",
             ],
           "files_per_job": 10,
-          "max_files": 160,
-          "chunksize": 80000,
+          "chunksize": 10000,
           # "maxchunks": 20
         },
     } }

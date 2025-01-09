@@ -1252,9 +1252,6 @@ def get_lund_SFs(
             [pt_extrap_lookups_dict["params"]],
         )
 
-        print("nom lp sf")
-        print(sfs["lp_sf_lnN"][:, :1])
-
     sfs["lp_sf_sys_down"] = _calc_lund_SFs(
         flat_logD,
         flat_logkt,
@@ -1288,9 +1285,6 @@ def get_lund_SFs(
             [ratio_dist],
             [pt_extrap_lookups_dict["params"]],
         )
-
-        print("dist lp sys")
-        print(sfs["lp_sf_dist"])
 
     sfs["lp_sf_pt_extrap_vars"] = _calc_lund_SFs(
         flat_logD,
@@ -1379,12 +1373,7 @@ def get_lund_SFs(
                 [pt_extrap_lookups_dict["params"]],
             )
 
-            print("light lp sfs", light_lp_sfs.shape, light_lp_sfs)
-            print("b lp sfs", b_lp_sfs.shape, b_lp_sfs)
-
             sfs["lp_sfs_bl_ratio"] = b_lp_sfs / light_lp_sfs
-
-            print("bl ratio", sfs["lp_sfs_bl_ratio"])
         else:
             # weird edge case where b-subjet has no splittings
             sfs["lp_sfs_bl_ratio"] = 1.0
