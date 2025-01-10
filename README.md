@@ -234,6 +234,20 @@ Submitting signal files to get only the Lund plane densities of all the signals:
 for year in 2016APV 2016 2017 2018; do python src/condor/submit_from_yaml.py --year $year --tag 24Jul24LundPlaneDensity --processor skimmer --git-branch update_lp --yaml src/condor/submit_configs/skimmer_24_07_24_signal_lp.yaml --site ucsd --submit --no-save-skims --no-inference; done
 ```
 
+#### Get Lund plane ratios
+
+The new LP distortion uncertainty requires first measuring the LP ratios for signal. To do this one should use the `--no-save-skims` and `--no-inference` args, e.g.
+
+```bash
+for year in 2016 2016APV 2017 2018; do python src/condor/submit_from_yaml.py --processor skimmer --yaml src/condor/submit_configs/skimmer_24_07_24_signal_lp.yaml --year $year --git-branch update_lp --site ucsd --tag 24Jan8LPRatios --no-inference --no-save-skims --submit; done
+```
+
+The outputs then need to be accumulated:
+
+```bash
+python src/HHbbVV/scale_factors/accumulate_lp_hists.py --data-path /ceph/cms/store/user/rkansal/bbVV/skimmer/24Jan8LPRatios/
+```
+
 
 ### TaggerInputSkimmer
 

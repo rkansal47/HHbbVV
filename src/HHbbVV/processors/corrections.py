@@ -823,6 +823,7 @@ def _get_lund_lookups(
 
 def _get_flat_lp_vars(lds, kt_subjets_pt):
     if len(lds) != 1:
+        # breakpoint()
         # flatten and save offsets to unflatten afterwards
         if isinstance(kt_subjets_pt[0], float):
             # kt_subjets_pt already flat
@@ -1098,6 +1099,9 @@ def _fill_lp_hist(lds, sj_matched, kt_subjets_pt, weights, num_prongs, ratio_edg
 
     # only consider matched subjets
     matched_lds = ak.flatten(lds[sj_matched.reshape(-1)], axis=1)
+    if len(matched_lds) == 0:
+        return lp_hist
+
     _, fill_logD, fill_logkt, fill_subjet_pt = _get_flat_lp_vars(
         matched_lds, kt_subjets_pt[sj_matched]
     )
@@ -1180,6 +1184,8 @@ def get_lund_SFs(
     ratio_nominal = ratio_lnN_smeared_lookups[0] if lnN else ratio_smeared_lookups[0]
 
     jec_fatjet = jec_fatjets[np.arange(len(jec_fatjets)), fatjet_idx]
+
+    # breakpoint()
 
     # get lund plane declusterings, subjets, and flattened LP vars
     lds, kt_subjets_vec, kt_subjets_pt, ld_offsets, flat_logD, flat_logkt, flat_subjet_pt = (
