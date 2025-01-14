@@ -104,7 +104,7 @@ line-length = 100
 
 [tool.ruff]
 src = ["src"]
-exclude = ["src/HHbbVV/postprocessing/pickle_scripts", "src/HHbbVV/postprocessing/AK15", "src/HHbbVV/triton/ParticleTransformer*", "src/runCoffeaCasa.py"]
+exclude = ["src/HHbbVV/postprocessing/pickle_scripts", "src/HHbbVV/postprocessing/AK15", "src/HHbbVV/triton/ParticleTransformer*", "src/runCoffeaCasa.py", "**/*.ipynb"]
 
 [tool.ruff.lint]
 extend-select = [
