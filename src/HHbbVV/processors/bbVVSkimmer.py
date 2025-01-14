@@ -133,6 +133,7 @@ class bbVVSkimmer(SkimmerABC):
         "VBFJetMass",
         "DijetMass",
         "nGoodVBFJets",
+        "SemiMergedVeto",
         "ak8FatJetHbb",
         "ak8FatJetHVV",
         "ak8FatJetHVVNumProngs",
@@ -272,9 +273,9 @@ class bbVVSkimmer(SkimmerABC):
 
         # TODO: resonant selection gets rid of events where Ws decay into Ws first
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
-        for d in gen_selection_dict:
+        for d, dfunc in gen_selection_dict.items():
             if d in dataset:
-                vars_dict, (genbb, genq) = gen_selection_dict[d](
+                vars_dict, (genbb, genq) = dfunc(
                     events, fatjets, selection, cutflow, gen_weights, P4
                 )
                 skimmed_events = {**skimmed_events, **vars_dict}
@@ -602,28 +603,32 @@ class bbVVSkimmer(SkimmerABC):
         skimmed_events["nGoodMuonsHH"] = nmuonsHH.to_numpy()
 
         # XHY->bbWW semi-resolved channel veto
-        Wqq_score = (fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc) / (
+        txbb = fatjets.particleNetMD_Xbb / (fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb)
+        twqq = (fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc) / (
             fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc + fatjets.particleNetMD_QCD
         )
 
-        skimmed_events["ak8FatJetNumWTagged"] = ak.sum(Wqq_score[:, :3] >= 0.8, axis=1).to_numpy()
+        sorted_txbb_score = np.argsort(pad_val(txbb, 3, 0, 1), axis=1)[::-1]
+        row_indices = np.arange(len(fatjets))[:, None]
+        sorted_fj = ak.pad_none(fatjets, 3, clip=True)[row_indices, sorted_txbb_score]
+        sorted_txbb = ak.pad_none(txbb, 3, clip=True)[row_indices, sorted_txbb_score]
+        sorted_twqq = ak.pad_none(twqq, 3, clip=True)[row_indices, sorted_txbb_score]
 
-        sorted_wqq_score = np.argsort(pad_val(Wqq_score, 3, 0, 1), axis=1)
+        # one Hbb jet
+        txbbcut = sorted_txbb[:, 0] > 0.98
+        # two Wqq jets
+        twqqcuts = np.prod(
+            ak.fill_none(sorted_twqq[:, 1:3] >= hh_vars.twqq_wps[year]["LP"], False), axis=1
+        )
+        # mass cuts on Wqq jets
+        wmasscuts = ak.prod(
+            ak.fill_none(
+                (sorted_fj.particleNet_mass >= 60) * (sorted_fj.particleNet_mass <= 110), False
+            )[:, 1:3],
+            axis=1,
+        )
 
-        # get TXbb score of the lowest-Wqq-tagged jet
-        skimmed_events["ak8FatJetLowestWTaggedTxbb"] = pad_val(fatjets["Txbb"], 3, 0, 1)[
-            np.arange(len(fatjets)), sorted_wqq_score[:, 0]
-        ]
-
-        # save both SD and regressed masses of the two W-tagged AK8 jets
-        # Amitav will optimize mass cut soon
-
-        mass_dict = {"particleNet_mass": "ParticleNetMass", "msoftdrop": "Msd"}
-        for mkey, mlabel in mass_dict.items():
-            mass_vals = pad_val(fatjets[mkey], 3, 0, 1)
-            mv_fj1 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 2]]
-            mv_fj2 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 1]]
-            skimmed_events[f"ak8FatJetWTagged{mlabel}"] = np.stack([mv_fj1, mv_fj2]).T
+        skimmed_events["SemiMergedVeto"] = txbbcut * twqqcuts * wmasscuts
 
         ######################
         # Remove branches

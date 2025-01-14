@@ -769,8 +769,8 @@ def _get_lund_lookups(
     pt_extrap_lookups_dict = {"params": [], "errs": [], "sys_up_params": [], "sys_down_params": []}
 
     for i in range(ratio_nom.shape[1]):
-        for key in pt_extrap_lookups_dict:
-            pt_extrap_lookups_dict[key].append([])
+        for val in pt_extrap_lookups_dict.values():
+            val.append([])
 
         for j in range(ratio_nom.shape[2]):
             func = f["pt_extrap"][f"func_{i + 1}_{j + 1}"]
@@ -793,8 +793,8 @@ def _get_lund_lookups(
                 )
             )
 
-    for key in pt_extrap_lookups_dict:
-        pt_extrap_lookups_dict[key] = np.array(pt_extrap_lookups_dict[key])
+    for key, val in pt_extrap_lookups_dict.items():
+        pt_extrap_lookups_dict[key] = np.array(val)
 
     # smear parameters according to errors for pt extrap unc.
     rand_noise = np.random.normal(size=[n_LP_sf_toys, *pt_extrap_lookups_dict["params"].shape])
@@ -802,8 +802,8 @@ def _get_lund_lookups(
         pt_extrap_lookups_dict["errs"] * rand_noise
     )
 
-    for key in pt_extrap_lookups_dict:
-        pt_extrap_lookups_dict[key] = dense_lookup(pt_extrap_lookups_dict[key], ratio_edges[1:])
+    for key, val in pt_extrap_lookups_dict.items():
+        pt_extrap_lookups_dict[key] = dense_lookup(val, ratio_edges[1:])
 
     pt_extrap_lookups_dict["smeared_params"] = [
         dense_lookup(smeared_pt_params[i], ratio_edges[1:]) for i in range(n_LP_sf_toys)

@@ -918,8 +918,7 @@ def apply_trigger_weights(events_dict: dict[str, pd.DataFrame], year: str, cutfl
 
     weight_key = "finalWeight"
 
-    for sample in events_dict:
-        events = events_dict[sample]
+    for sample, events in events_dict.items():
         if sample == data_key:
             if weight_key not in events:
                 events[weight_key] = events["weight"]
@@ -2055,7 +2054,7 @@ def parse_args(parser=None):
     parser.add_argument(
         "--nonres-ggf-bdt-wp",
         help="BDT WP for ggF signal region. If multiple arguments, will make templates for each.",
-        default=[0.9965],
+        default=[0.995],
         nargs="*",
         type=float,
     )
@@ -2151,6 +2150,7 @@ def parse_args(parser=None):
         args.control_plots = True
         args.filters = False
 
+    print(args)
     return args
 
 

@@ -313,6 +313,8 @@ def ratioHistPlot(
         sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, syst, variation
     )
 
+    bg_tot = np.maximum(sum([hists[sample, :] for sample in bg_keys]).values(), 0.0)
+
     if syst is not None and variation is None:
         # plot up/down variations
         wshift, wsamples = syst
@@ -325,7 +327,7 @@ def ratioHistPlot(
                     bg_sums.append(hists[f"{sample}_{wshift}_{shift}", :].values())
                 elif sample != "Hbb":
                     bg_sums.append(hists[sample, :].values())
-            bg_err.append(np.sum(bg_sums, axis=0))
+            bg_err.append(np.maximum(np.sum(bg_sums, axis=0), 0.0))
 
     pre_divide_hists = hists
     if divide_bin_width:
@@ -360,14 +362,15 @@ def ratioHistPlot(
     ax.set_ylabel(y_label)
 
     # background samples
-    hep.histplot(
-        [hists[sample, :] for sample in bg_keys],
-        ax=ax,
-        histtype="fill",
-        stack=True,
-        label=bg_labels,
-        color=bg_colours,
-    )
+    if len(bg_keys):
+        hep.histplot(
+            [hists[sample, :] for sample in bg_keys],
+            ax=ax,
+            histtype="fill",
+            stack=True,
+            label=bg_labels,
+            color=bg_colours,
+        )
 
     # signal samples
     if len(sig_scale_dict):
@@ -408,7 +411,6 @@ def ratioHistPlot(
         if divide_bin_width:
             raise NotImplementedError("Background error for divide bin width not checked yet")
 
-        bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
         if len(np.array(bg_err).shape) == 1:
             bg_err = [bg_tot - bg_err, bg_tot + bg_err]
 
@@ -425,12 +427,12 @@ def ratioHistPlot(
             )
         else:
             ax.stairs(
-                bg_tot.values(),
+                bg_tot,
                 hists.axes[1].edges,
                 color="black",
                 linewidth=3,
                 label="BG Total",
-                baseline=bg_tot.values(),
+                baseline=bg_tot,
             )
 
             ax.stairs(
@@ -478,23 +480,22 @@ def ratioHistPlot(
     # plot ratio below
     if plot_ratio:
         if plot_data:
-            bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
             # new: plotting data errors (black lines) and background errors (shaded) separately
             yerr = np.nan_to_num(
                 np.abs(
-                    poisson_interval(pre_divide_hists[data_key, ...])
-                    - pre_divide_hists[data_key, ...]
+                    poisson_interval(pre_divide_hists[data_key, ...].values())
+                    - pre_divide_hists[data_key, ...].values()
                 )
-                / (bg_tot.values() + 1e-5)
+                / (bg_tot + 1e-5)
             )
 
             # old version: using Garwood ratio intervals
             # yerr = ratio_uncertainty(
-            #     pre_divide_hists[data_key, :].values(), bg_tot.values(), "poisson"
+            #     pre_divide_hists[data_key, :].values(), bg_tot, "poisson"
             # )
 
             hep.histplot(
-                pre_divide_hists[data_key, :] / (bg_tot.values() + 1e-5),
+                pre_divide_hists[data_key, :] / (bg_tot + 1e-5),
                 yerr=yerr,
                 ax=rax,
                 histtype="errorbar",
@@ -506,8 +507,8 @@ def ratioHistPlot(
                 # (bkg + err) / bkg
                 rax.fill_between(
                     np.repeat(hists.axes[1].edges, 2)[1:-1],
-                    np.repeat((bg_err[0].values()) / bg_tot, 2),
-                    np.repeat((bg_err[1].values()) / bg_tot, 2),
+                    np.repeat((bg_err[0]) / bg_tot, 2),
+                    np.repeat((bg_err[1]) / bg_tot, 2),
                     color="black",
                     alpha=0.1,
                     hatch="//",
@@ -525,7 +526,6 @@ def ratioHistPlot(
         rax.grid()
 
     if plot_significance:
-        bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys]).values()
         sigs = [pre_divide_hists[sig_key, :].values() for sig_key in sig_scale_dict]
 
         if significance_dir == "left":

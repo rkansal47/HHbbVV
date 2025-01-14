@@ -204,6 +204,14 @@ txbb_wps = {
     "2018": {"HP": 0.988, "MP": 0.9734, "LP": 0.9172},
 }
 
+# from https://twiki.cern.ch/twiki/bin/viewauth/CMS/ParticleNetSFs#Working_Points for resonant semi-merged veto
+twqq_wps = {
+    "2016APV": {"LP": 0.637},
+    "2016": {"LP": 0.642},
+    "2017": {"LP": 0.579},
+    "2018": {"LP": 0.59},
+}
+
 norm_preserving_weights = ["genweight", "pileup", "ISRPartonShower", "FSRPartonShower"]
 
 jecs = {
