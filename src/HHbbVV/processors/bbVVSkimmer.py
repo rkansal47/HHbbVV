@@ -628,7 +628,7 @@ class bbVVSkimmer(SkimmerABC):
             axis=1,
         )
 
-        skimmed_events["SemiMergedVeto"] = txbbcut * twqqcuts * wmasscuts
+        skimmed_events["SemiMergedVeto"] = (txbbcut * twqqcuts * wmasscuts).to_numpy()
 
         ######################
         # Remove branches
@@ -671,10 +671,10 @@ class bbVVSkimmer(SkimmerABC):
         ##############################
 
         sel_all = selection.all(*selection.names)
+        tnevents = len(skimmed_events["weight"])
 
         skimmed_events = {
-            key: value.reshape(len(skimmed_events["weight"]), -1)[sel_all]
-            for (key, value) in skimmed_events.items()
+            key: value.reshape(tnevents, -1)[sel_all] for (key, value) in skimmed_events.items()
         }
 
         bb_mask = bb_mask[sel_all]
