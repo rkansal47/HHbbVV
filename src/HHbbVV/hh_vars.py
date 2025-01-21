@@ -55,14 +55,17 @@ nonres_samples = OrderedDict(
         ("HHbbVV", "GluGluToHHTobbVV_node_cHHH1"),
         ("ggHH_kl_2p45_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH2p45"),
         ("ggHH_kl_5_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH5"),
-        ("ggHH_kl_0_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH0"),
+        ("ggHH_kl_0_kt_1_HHbbVV", "GluGluToHHTobbVV_node_cHHH0"),  # not used in combination
         ("VBFHHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_1"),
         ("qqHH_CV_1_C2V_0_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_0_C3_1"),
         ("qqHH_CV_1p5_C2V_1_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_5_C2V_1_C3_1"),
         ("qqHH_CV_1_C2V_1_kl_2_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_2"),
         ("qqHH_CV_1_C2V_2_kl_1_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_2_C3_1"),
         ("qqHH_CV_1_C2V_1_kl_0_HHbbVV", "VBF_HHTobbVV_CV_1_C2V_1_C3_0"),
-        # ("qqHH_CV_0p5_C2V_1_kl_1_HHbbVV", "VBF_HHTobbVV_CV_0_5_C2V_1_C3_1"),  # not used in combination
+        (
+            "qqHH_CV_0p5_C2V_1_kl_1_HHbbVV",
+            "VBF_HHTobbVV_CV_0_5_C2V_1_C3_1",
+        ),  # not used in combination
     ]
 )
 nonres_sig_keys = list(nonres_samples.keys())
@@ -267,7 +270,12 @@ lp_sf_vars = [
     ("lp_sf_pt_extrap_vars", 100),
     ("lp_sf_sys_down", 1),
     ("lp_sf_sys_up", 1),
+    ("lp_sf_dist", 1),
+    ("lp_sf_np_down", 1),
+    ("lp_sf_np_up", 1),
     ("lp_sf_double_matched_event", 1),
-    ("lp_sf_boundary_quarks", 1),
+    ("lp_sf_inside_boundary_quarks", 1),
+    ("lp_sf_outside_boundary_quarks", 1),
     ("lp_sf_unmatched_quarks", 1),
+    ("lp_sf_rc_unmatched_quarks", 1),
 ]
