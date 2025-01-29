@@ -30,6 +30,7 @@ parser.add_argument(
 )
 run_utils.add_bool_arg(parser, "resonant", default=False, help="resonant or nonresonant signals")
 run_utils.add_bool_arg(parser, "ttsfs", default=False, help="TT samples or signal")
+run_utils.add_bool_arg(parser, "print-missing", default=True, help="print missing samples")
 args = parser.parse_args()
 
 if args.resonant and args.ttsfs:
@@ -60,7 +61,8 @@ for year in args.year:
                 "lp_hist"
             ]
         except FileNotFoundError as e:
-            print(e)
+            if args.print_missing:
+                print(e)
             continue
 
         # remove negatives
