@@ -893,7 +893,7 @@ def gen_selection_ttbar_region(events: NanoEventsArray, selection_args: tuple):
     had_bs_select[
         ak.any(had_top_sel, axis=1) * ~ak.fill_none(np.any(had_bs.pdgId, axis=1), False)
     ] = False
-    add_selection("top_has_bs", ak.fill_none(np.any(had_bs.pdgId, axis=1), False), *selection_args)
+    add_selection("top_has_bs", had_bs_select, *selection_args)
 
     return had_bs, had_ws
 
