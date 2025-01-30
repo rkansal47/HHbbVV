@@ -1,7 +1,7 @@
 {
   "TTbarScaleFactors":
     {
-      "TTbar": { "files_per_job": 20, "subsamples": ["TTToSemiLeptonic"] },
+      # "TTbar": { "files_per_job": 20, "subsamples": ["TTToSemiLeptonic"] },
       "SingleTop":
         {
           "files_per_job": 20,
