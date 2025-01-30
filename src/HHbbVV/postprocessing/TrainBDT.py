@@ -788,7 +788,7 @@ def evaluate_model(
 
 def do_inference_year(
     model: xgb.XGBClassifier,
-    model_dir: str,
+    model_dir: str | Path,
     year: str,
     data: pd.DataFrame,
     bdtVars: list[str],
@@ -797,16 +797,16 @@ def do_inference_year(
 ):
     import time
 
-    (model_dir / "inferences").mkdir(exist_ok=True, parents=True)
+    inf_dir = model_dir / "inferences" / year
+    inf_dir.mkdir(exist_ok=True, parents=True)
 
     year_data_dict = {year: data}
-    (model_dir / "inferences" / year).mkdir(exist_ok=True, parents=True)
 
     sample_order = list(pd.unique(data["Dataset"]))
     value_counts = data["Dataset"].value_counts()
     sample_order_dict = OrderedDict([(sample, value_counts[sample]) for sample in sample_order])
 
-    with (model_dir / f"inferences/{year}/sample_order.txt").open("w") as f:
+    with (inf_dir / "sample_order.txt").open("w") as f:
         f.write(str(sample_order_dict))
 
     print("Running inference")
@@ -820,7 +820,7 @@ def do_inference_year(
     print(f"Finished in {time.time() - start:.2f}s")
     # preds = preds[:, :-1] if multiclass else preds[:, 1]  # save n-1 probs to save space
     preds = preds if multiclass else preds[:, 1]
-    np.save(f"{model_dir}/inferences/{year}/preds.npy", preds)
+    np.save(inf_dir / "preds.npy", preds)
     print(preds)
 
     if jec_jmsr_shifts:
@@ -831,7 +831,7 @@ def do_inference_year(
             model.get_booster().feature_names = mcvars
             preds = model.predict_proba(X)
             preds = preds if multiclass else preds[:, 1]
-            np.save(f"{model_dir}/inferences/{year}/preds_{jshift}.npy", preds)
+            np.save(inf_dir / f"preds_{jshift}.npy", preds)
 
         for jshift in jmsr_shifts:
             print("Running inference for", jshift)
@@ -840,7 +840,7 @@ def do_inference_year(
             model.get_booster().feature_names = mcvars
             preds = model.predict_proba(X)
             preds = preds if multiclass else preds[:, 1]
-            np.save(f"{model_dir}/inferences/{year}/preds_{jshift}.npy", preds)
+            np.save(inf_dir / f"preds_{jshift}.npy", preds)
 
 
 def do_inference(

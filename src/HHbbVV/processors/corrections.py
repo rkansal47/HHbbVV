@@ -1258,6 +1258,9 @@ def get_lund_SFs(
             [pt_extrap_lookups_dict["params"]],
         )
 
+        print("lp sfs nom")
+        print(sfs["lp_sf_lnN"][:, 0])
+
     sfs["lp_sf_sys_down"] = _calc_lund_SFs(
         flat_logD,
         flat_logkt,

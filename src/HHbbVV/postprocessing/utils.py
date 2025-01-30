@@ -71,18 +71,18 @@ def timer():
         print(f"Time taken: {new_time - old_time} seconds")
 
 
-def remove_empty_parquets(samples_dir, year):
+def remove_empty_parquets(samples_dir):
     from os import listdir
 
-    full_samples_list = listdir(f"{samples_dir}/{year}")
+    full_samples_list = listdir(samples_dir)
     print("Checking for empty parquets")
 
     for sample in full_samples_list:
         if sample == ".DS_Store":
             continue
-        parquet_files = listdir(f"{samples_dir}/{year}/{sample}/parquet")
+        parquet_files = listdir(f"{samples_dir}/{sample}/parquet")
         for f in parquet_files:
-            file_path = Path(f"{samples_dir}/{year}/{sample}/parquet/{f}")
+            file_path = Path(f"{samples_dir}/{sample}/parquet/{f}")
             if not len(pd.read_parquet(file_path)):
                 print("Removing: ", f"{sample}/{f}")
                 file_path.unlink()

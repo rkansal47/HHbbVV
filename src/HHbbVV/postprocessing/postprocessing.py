@@ -799,6 +799,8 @@ def load_samples(
 
     """
     data_dir = Path(data_dir) / year
+    # remove empty parquets, otherwise read_parquet fails
+    utils.remove_empty_parquets(data_dir)
     full_samples_list = os.listdir(data_dir)  # get all directories in data_dir
     events_dict = {}
 
@@ -1960,7 +1962,7 @@ def parse_args(parser=None):
     parser.add_argument(
         "--bdt-preds-dir",
         help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
-        default=None,
+        default="",
         type=str,
     )
 
@@ -2138,7 +2140,10 @@ def parse_args(parser=None):
         args.bdt_preds_dir = Path(args.bdt_preds_dir)
 
     if args.bdt_preds_dir == "" and not args.resonant:
-        args.bdt_preds_dir = f"{args.data_dir}/inferences/"
+        if args.data_dir is None:
+            args.bdt_preds_dir = Path(f"{args.signal_data_dirs[0]}/inferences/")
+        else:
+            args.bdt_preds_dir = Path(f"{args.data_dir}/inferences/")
     elif args.resonant:
         args.bdt_preds_dir = None
 

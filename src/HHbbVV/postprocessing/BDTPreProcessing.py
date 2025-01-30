@@ -71,7 +71,11 @@ def main(args):
         events_dict, bb_masks, nonres_vars=True, vbf_vars=False, do_jshifts=True
     )
 
-    bdt_data_dir = args.data_dir / "bdt_data"
+    bdt_data_dir = (
+        (args.data_dir / "bdt_data")
+        if args.data_dir
+        else (Path(args.signal_data_dirs[0]) / "bdt_data")
+    )
     bdt_data_dir.mkdir(exist_ok=True)
 
     for key in copy(BDT_sample_order):
@@ -167,5 +171,7 @@ if __name__ == "__main__":
         type=str,
     )
     args = postprocessing.parse_args(parser)
-    args.data_dir = Path(args.data_dir)
+    if args.data_dir:
+        args.data_dir = Path(args.data_dir)
+
     main(args)

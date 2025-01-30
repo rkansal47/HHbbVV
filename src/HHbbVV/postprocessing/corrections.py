@@ -281,9 +281,15 @@ def postprocess_lpsfs(
 
             # distortion uncertainty
             # dist_sf = np.clip(np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1), 0.5, 2.0)
-            dist_sf = np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1)
-            td["lp_sf_dist_up"][jet_match] = td["lp_sf_nom"][jet_match] * dist_sf
-            td["lp_sf_dist_down"][jet_match] = td["lp_sf_nom"][jet_match] / dist_sf
+            dist_sfs = np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1)
+            # remove low stats values
+            dist_sfs[dist_sfs > 2.0] = 1.0
+            dist_sfs[dist_sfs < 1.0 / 2.0] = 1.0
+            td["lp_sf_dist_up"] = dist_sfs
+            td["lp_sf_dist_down"] = 1.0 / dist_sfs
+
+            td["lp_sf_dist_up"][jet_match] = td["lp_sf_nom"][jet_match] * dist_sfs
+            td["lp_sf_dist_down"][jet_match] = td["lp_sf_nom"][jet_match] / dist_sfs
             # breakpoint()
 
             # num prongs uncertainty variations
@@ -320,8 +326,7 @@ def postprocess_lpsfs(
             CLIP = 5.0
             td[key] = np.clip(np.nan_to_num(td[key], nan=1.0), 1.0 / CLIP, CLIP)
 
-            if key == "lp_sf_nom":
-                nom_mean = np.mean(td[key], axis=0)
+            nom_mean = np.mean(td[key], axis=0)
 
             if "unmatched" not in key:
                 td[key] = td[key] / np.mean(td[key], axis=0)

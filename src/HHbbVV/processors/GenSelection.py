@@ -868,15 +868,8 @@ def tagger_gen_matching(
     return matched_mask * matched_gen_jet_mask, GenVars
 
 
-def ttbar_scale_factor_matching(
-    events: NanoEventsArray, leading_fatjet: FatJetArray, selection_args: tuple
-):
-    """
-    Classifies jets as top-matched, w-matched, or un-matched using gen info, as defined in
-    https://indico.cern.ch/event/1101433/contributions/4775247/
-
-    Returns gen quarks as well for systematic uncertainties
-    """
+def gen_selection_ttbar_region(events: NanoEventsArray, selection_args: tuple):
+    """Gen selection for ttbar region for validating LP SFs"""
     # finding the two gen tops
     tops = events.GenPart[
         (abs(events.GenPart.pdgId) == TOP_PDGID) * events.GenPart.hasFlags(GEN_FLAGS)
@@ -890,13 +883,29 @@ def ttbar_scale_factor_matching(
     # get hadronic W and top
     had_top_sel = np.all(np.abs(ws.children.pdgId) <= b_PDGID, axis=2)
     had_ws = ak.flatten(ak.pad_none(ws[had_top_sel], 1, axis=1))
-    had_ws_children = had_ws.children
 
     # check for b's from top
     had_top_children = ak.flatten(ak.pad_none(tops_children[had_top_sel], 1, axis=1), axis=1)
     had_bs = had_top_children[np.abs(had_top_children.pdgId) == b_PDGID]
+
+    # remove events where the hadronic top has no b quark
+    had_bs_select = np.ones(len(events), dtype="bool")
+    had_bs_select[
+        ak.any(had_top_sel, axis=1) * ~ak.fill_none(np.any(had_bs.pdgId, axis=1), False)
+    ] = False
     add_selection("top_has_bs", ak.fill_none(np.any(had_bs.pdgId, axis=1), False), *selection_args)
 
+    return had_bs, had_ws
+
+
+def ttbar_scale_factor_matching(had_bs, had_ws, leading_fatjet: FatJetArray):
+    """
+    Classifies jets as top-matched, w-matched, or un-matched using gen info, as defined in
+    https://indico.cern.ch/event/1101433/contributions/4775247/
+
+    Returns gen quarks as well for systematic uncertainties
+    """
+    had_ws_children = had_ws.children
     gen_quarks = ak.concatenate([had_bs[:, :1], had_ws_children[:, :2]], axis=1)
 
     deltaR = 0.8
@@ -925,4 +934,4 @@ def ttbar_scale_factor_matching(
 
     top_match_dict = {key: val.to_numpy().astype(int) for key, val in top_match_dict.items()}
 
-    return top_match_dict, gen_quarks, had_bs
+    return top_match_dict, gen_quarks

@@ -30,8 +30,7 @@ from .corrections import (
     get_lund_SFs,
 )
 from .GenSelection import (
-    gen_selection_HH4V,
-    gen_selection_HHbbVV,
+    gen_selection_ttbar_region,
     ttbar_scale_factor_matching,
 )
 from .SkimmerABC import SkimmerABC
@@ -43,16 +42,6 @@ logging.basicConfig(level=logging.INFO)
 
 
 MU_PDGID = 13
-
-# mapping samples to the appropriate function for doing gen-level selections
-gen_selection_dict = {
-    "GluGluToHHTobbVV_node_cHHH1": gen_selection_HHbbVV,
-    "GluGluToHHTobbVV_node_cHHH1_pn4q": gen_selection_HHbbVV,
-    "jhu_HHbbWW": gen_selection_HHbbVV,
-    "GluGluToBulkGravitonToHHTo4W_JHUGen_M-1000_narrow": gen_selection_HH4V,
-    "GluGluToHHTo4V_node_cHHH1": gen_selection_HH4V,
-    "GluGluHToWWTo4q_M-125": gen_selection_HH4V,
-}
 
 # btag medium WP's https://twiki.cern.ch/twiki/bin/viewauth/CMS/BtagRecommendation
 # btagWPs = {"2016APV": 0.6001, "2016": 0.5847, "2017": 0.4506, "2018": 0.4168}  # for deepCSV
@@ -172,6 +161,9 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         dataset = events.metadata["dataset"][5:]
 
         isData = ("JetHT" in dataset) or ("SingleMuon" in dataset)
+        isSignal = dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"] or dataset.startswith(
+            "ST_"
+        )
 
         if not isData:
             # remove events with pileup weights un-physically large
@@ -195,6 +187,19 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         ######################
         # Selection
         ######################
+
+        # gen vars - get gen bs and quarks from hadronic tops,
+        # remove weird events without a b quark from the top
+        if isSignal:
+            gen_had_bs, gen_had_ws = gen_selection_ttbar_region(events, selection_args)
+
+        # used for normalization to cross section below
+        gen_selected = (
+            selection.all(*selection.names)
+            if len(selection.names)
+            else np.ones(len(events)).astype(bool)
+        )
+        logging.info(f"Passing gen selection: {np.sum(gen_selected)} / {len(events)}")
 
         # Following https://indico.cern.ch/event/1101433/contributions/4775247/
 
@@ -414,7 +419,7 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             skimmed_events["weight"] = np.ones(n_events)
         else:
             weights_dict, totals_temp = self.add_weights(
-                events, dataset, year, gen_weights, muon, ak4_jets_selected
+                events, dataset, year, gen_weights, gen_selected, muon, ak4_jets_selected
             )
             skimmed_events = {**skimmed_events, **weights_dict}
             totals_dict = {**totals_dict, **totals_temp}
@@ -426,9 +431,9 @@ class TTScaleFactorsSkimmer(SkimmerABC):
         lp_hist = None
         hh_vars.lp_sf_vars.append(("lp_sfs_bl_ratio", 1))
 
-        if dataset in ["TTToSemiLeptonic", "TTToSemiLeptonic_ext1"] or dataset.startswith("ST_"):
-            match_dict, gen_quarks, had_bs = ttbar_scale_factor_matching(
-                events, leading_fatjets[:, 0], selection_args
+        if isSignal:
+            match_dict, gen_quarks = ttbar_scale_factor_matching(
+                gen_had_bs, gen_had_ws, leading_fatjets[:, 0]
             )
             top_matched = match_dict["top_matched"].astype(bool) * selection.all(*selection.names)
 
@@ -445,7 +450,7 @@ class TTScaleFactorsSkimmer(SkimmerABC):
                     weights_dict["weight"][top_matched],
                     trunc_gauss=True,
                     lnN=True,
-                    gen_bs=had_bs[top_matched],  # do b/l ratio uncertainty for tops as well
+                    gen_bs=gen_had_bs[top_matched],  # do b/l ratio uncertainty for tops as well
                     sample="TTToSemiLeptonic",
                 )
 
@@ -511,7 +516,9 @@ class TTScaleFactorsSkimmer(SkimmerABC):
     def postprocess(self, accumulator):
         return accumulator
 
-    def add_weights(self, events, dataset, year, gen_weights, muon, ak4_jets) -> tuple[dict, dict]:
+    def add_weights(
+        self, events, dataset, year, gen_weights, gen_selected, muon, ak4_jets
+    ) -> tuple[dict, dict]:
         """Adds weights and variations, saves totals for all norm preserving weights and variations"""
         weights = Weights(len(events), storeIndividual=True)
         weights.add("genweight", gen_weights)
@@ -548,12 +555,12 @@ class TTScaleFactorsSkimmer(SkimmerABC):
 
         # norm preserving weights, used to do normalization in post-processing
         weight_np = weights.partial_weight(include=norm_preserving_weights)
-        totals_dict["np_nominal"] = np.sum(weight_np)
+        totals_dict["np_nominal"] = np.sum(weight_np[gen_selected])
 
         ###################### Normalization (Step 1) ######################
 
         weight_norm = self.get_dataset_norm(year, dataset)
-        # normalize all the weights to xsec, needs to be divided by totals in Step 2 in post-processing
+        # normalize all the weights to xsec, needs to be divided by totals from Step 2 in post-processing
         for key, val in weights_dict.items():
             weights_dict[key] = val * weight_norm
 

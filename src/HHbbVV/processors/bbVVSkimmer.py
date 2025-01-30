@@ -271,7 +271,6 @@ class bbVVSkimmer(SkimmerABC):
         # Save / derive variables
         #########################
 
-        # TODO: resonant selection gets rid of events where Ws decay into Ws first
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
         for d, dfunc in gen_selection_dict.items():
             if d in dataset:
