@@ -285,12 +285,11 @@ def postprocess_lpsfs(
             # remove low stats values
             dist_sfs[dist_sfs > 2.0] = 1.0
             dist_sfs[dist_sfs < 1.0 / 2.0] = 1.0
-            td["lp_sf_dist_up"] = dist_sfs
-            td["lp_sf_dist_down"] = 1.0 / dist_sfs
+            # td["lp_sf_dist_up"] = dist_sfs
+            # td["lp_sf_dist_down"] = 1.0 / dist_sfs
 
             td["lp_sf_dist_up"][jet_match] = td["lp_sf_nom"][jet_match] * dist_sfs
             td["lp_sf_dist_down"][jet_match] = td["lp_sf_nom"][jet_match] / dist_sfs
-            # breakpoint()
 
             # num prongs uncertainty variations
             up_prong_rc = (  # events which need re-clustering with +1 prong

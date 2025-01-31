@@ -80,12 +80,22 @@ def remove_empty_parquets(samples_dir):
     for sample in full_samples_list:
         if sample == ".DS_Store":
             continue
+
+        # if checked_empty_parquet.txt file exists, skip
+        if Path(f"{samples_dir}/{sample}/checked_empty_parquet.txt").exists():
+            continue
+
+        print(f"\tChecking {sample}")
         parquet_files = listdir(f"{samples_dir}/{sample}/parquet")
         for f in parquet_files:
             file_path = Path(f"{samples_dir}/{sample}/parquet/{f}")
             if not len(pd.read_parquet(file_path)):
                 print("Removing: ", f"{sample}/{f}")
                 file_path.unlink()
+
+        # create checked_empty_parquet.txt file to avoid repeating in the future using Pathlib
+        with Path(f"{samples_dir}/{sample}/checked_empty_parquet.txt").open("w") as file:
+            file.write("Removed empty parquets!")
 
 
 def remove_variation_suffix(var: str):
