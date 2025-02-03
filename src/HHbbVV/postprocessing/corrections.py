@@ -284,7 +284,7 @@ def postprocess_lpsfs(
             dist_sfs = np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1)
             # remove low stats values
             dist_sfs[dist_sfs > 2.0] = 1.0
-            dist_sfs[dist_sfs < 1.0 / 2.0] = 1.0
+            dist_sfs[dist_sfs < (1.0 / 2.0)] = 1.0
             # td["lp_sf_dist_up"] = dist_sfs
             # td["lp_sf_dist_down"] = 1.0 / dist_sfs
 
@@ -314,18 +314,16 @@ def postprocess_lpsfs(
 
             for shift in ["up", "down"]:
                 td[f"lp_sf_unmatched_{shift}"] = deepcopy(td["lp_sf_nom"])
-                # replace with max SF where needed
-                td[f"lp_sf_unmatched_{shift}"][rc_unmatched] = CLIP if shift == "up" else 1.0 / CLIP
-
+                # multiply or divide by 5 if unmatched even after varying prongs up and down
+                unclust_factor = CLIP if shift == "up" else 1.0 / CLIP
+                td[f"lp_sf_unmatched_{shift}"][rc_unmatched] *= unclust_factor
         else:
             raise ValueError("LP SF shapes are invalid")
 
-        nom_mean = None
+        nom_mean = np.mean(td["lp_sf_nom"], axis=0)
         for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_pt_extrap_vars"] + sf_vars:
-            CLIP = 5.0
             td[key] = np.clip(np.nan_to_num(td[key], nan=1.0), 1.0 / CLIP, CLIP)
-
-            nom_mean = np.mean(td[key], axis=0)
+            # td[key] = td[key] / np.mean(td[key], axis=0)
 
             if "unmatched" not in key:
                 td[key] = td[key] / np.mean(td[key], axis=0)
@@ -402,6 +400,8 @@ def get_lpsf(
             uncs_asym[shift][unc] = np.abs(
                 (np.sum(events[f"{jet}_lp_sf_{unc}_{shift}"][0] * weight) - tot_post) / tot_post
             )
+
+    # breakpoint()
 
     tot_rel_unc_up = np.linalg.norm(list(uncs.values()) + list(uncs_asym["up"].values()))
     tot_rel_unc_down = np.linalg.norm(list(uncs.values()) + list(uncs_asym["down"].values()))

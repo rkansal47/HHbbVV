@@ -335,15 +335,13 @@ def main(args):
 
             # load pre-calculated systematics and those for different years if saved already
             systs_file = template_dir / "systematics.json"
-            systematics = _check_load_systematics(systs_file, args.year)
+            systematics = _check_load_systematics(systs_file, args.year, args.override_systs)
 
             # Get Lund plane SFs if not calculated previously
             lpsfs(
                 sig_keys,
                 [region for region in selection_regions.values() if region.lpsf],
                 systematics,
-                events_dict=events_dict,
-                bb_masks=bb_masks,
                 sig_samples=sig_samples,
                 filters=filters,
                 all_years=args.lp_sf_all_years,
@@ -853,8 +851,8 @@ def load_samples(
     return events_dict
 
 
-def _check_load_systematics(systs_file: str, year: str):
-    if systs_file.exists():
+def _check_load_systematics(systs_file: str, year: str, override_systs: bool):
+    if systs_file.exists() and not override_systs:
         # print("Loading existing systematics")
         with systs_file.open() as f:
             systematics = json.load(f)
@@ -1130,7 +1128,7 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
 
     # load pre-calculated systematics and those for different years if saved already
     systs_file = args.template_dir / "systematics.json"
-    systematics = _check_load_systematics(systs_file, args.year)
+    systematics = _check_load_systematics(systs_file, args.year, args.override_systs)
 
     lpsf_regions = []
 
@@ -1162,7 +1160,7 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
         for wps in scan_wps:
             cutstr, template_dir, selection_regions = _get_scan_regions(args, scan, scan_cuts, wps)
             systs_file = template_dir / "systematics.json"
-            wsysts = _check_load_systematics(systs_file, args.year)
+            wsysts = _check_load_systematics(systs_file, args.year, args.override_systs)
 
             for region in selection_regions.values():
                 if region.lpsf:
@@ -2013,6 +2011,9 @@ def parse_args(parser=None):
     add_bool_arg(parser, "do-jshifts", "Do JEC/JMC variations", default=True)
     add_bool_arg(parser, "plot-shifts", "Plot systematic variations as well", default=False)
     add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
+    add_bool_arg(
+        parser, "override-systs", "Override saved systematics file if it exists", default=False
+    )
 
     parser.add_argument(
         "--sig-samples",

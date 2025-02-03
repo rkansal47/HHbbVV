@@ -44,8 +44,7 @@ fi
 # for year in 2016APV 2016 2017 2018
 for year in 2016
 do
-    # --sig-samples qqHH_CV_1_C2V_1_kl_2_HHbbVV --bg-keys "" --no-data \
-    python -u postprocessing.py --year $year --signal-data-dir "$signal_data_dir" --lpsfs --no-lp-sf-all-years --override-systs \
+    python -u postprocessing.py --year $year --signal-data-dir "$signal_data_dir" --lpsfs \
     --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" \
-    --template-dir "templates/$TAG" --no-do-jshifts --sig-samples GluGluToHHTobbVV_node_cHHH1 --bg-keys "" --no-data
+    --template-dir "templates/$TAG" --no-do-jshifts --bg-keys "" --no-data
 done
