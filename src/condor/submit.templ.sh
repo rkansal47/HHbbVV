@@ -12,7 +12,7 @@ for t2_prefix in ${t2_prefixes}
 do
     for folder in pickles parquet root githashes
     do
-        gfal-mkdir $${t2_prefix}/${outdir}/$${folder}
+        gfal-mkdir "$${t2_prefix}//${outdir}/$${folder}"
     done
 done
 
@@ -46,9 +46,9 @@ python3 -u -W ignore $script --year $year --starti $starti --endi $endi --sample
 #move output to t2s
 for t2_prefix in ${t2_prefixes}
 do
-    gfal-copy -f outfiles/* $${t2_prefix}/${outdir}/pickles/out_${jobnum}.pkl
-    gfal-copy -f *.parquet $${t2_prefix}/${outdir}/parquet/out_${jobnum}.parquet
-    gfal-copy -f *.root $${t2_prefix}/${outdir}/root/nano_skim_${jobnum}.root
+    gfal-copy -f outfiles/* "$${t2_prefix}/${outdir}/pickles/out_${jobnum}.pkl"
+    gfal-copy -f *.parquet "$${t2_prefix}/${outdir}/parquet/out_${jobnum}.parquet"
+    gfal-copy -f *.root "$${t2_prefix}/${outdir}/root/nano_skim_${jobnum}.root"
 done
 
 rm ./*.parquet

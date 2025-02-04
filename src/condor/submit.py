@@ -46,7 +46,7 @@ def main(args):
     username = os.environ["USER"]
     proxy = get_proxy(args.site, username)
 
-    if args.site not in args.sites:
+    if args.site not in args.save_sites:
         warnings.warn(
             f"Your local site {args.site} is not in save sites {args.sites}!", stacklevel=1
         )
@@ -110,7 +110,7 @@ def main(args):
                     "processor": args.processor,
                     "maxchunks": args.maxchunks,
                     "chunksize": args.chunksize,
-                    "t2_prefixes": t2_prefixes,
+                    "t2_prefixes": " ".join(t2_prefixes),
                     "outdir": sample_dir,
                     "jobnum": j,
                     "label": args.label,
@@ -197,25 +197,25 @@ if __name__ == "__main__":
 
         tag = args.tag
         for key, tdict in samples_to_submit.items():
-            # print(f"Submitting for year {key}")
-            args.year = key
             for sample, sdict in tdict.items():
-                args.samples = [sample]
-                subsamples = sdict.get("subsamples", [])
+                rsample = sample
+                if rsample in ["JetHT", "SingleMu"]:
+                    rsample += args.year[:4]
+
+                args.samples = [rsample]
+                args.subsamples = sdict.get("subsamples", [])
+                args.files_per_job = sdict["files_per_job"]
+                args.njets = sdict.get("njets", 2)
+                args.max_files = sdict.get("max_files", None)
                 args.maxchunks = sdict.get("maxchunks", 0)
                 args.chunksize = sdict.get("chunksize", 10000)
                 args.tag = tag
-                files_per_job = sdict["files_per_job"]
-                if isinstance(files_per_job, dict):
-                    for subsample in subsamples:
-                        args.subsamples = [subsample]
-                        args.files_per_job = files_per_job[subsample]
-                        print(args)
-                        main(args)
-                else:
-                    args.subsamples = subsamples
-                    args.files_per_job = files_per_job
-                    print(args)
-                    main(args)
+                args.label = args.jet + sdict["label"] if "label" in sdict else "None"
+
+                if key == "Validation":
+                    args.tag = f"{args.tag}_Validation"
+
+                print(args)
+                main(args)
     else:
         main(args)
