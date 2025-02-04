@@ -246,6 +246,7 @@ def parse_common_args(parser):
     parser.add_argument("--chunksize", default=10000, help="chunk size", type=int)
     parser.add_argument("--label", default="AK15_H_VV", help="label", type=str)
     parser.add_argument("--njets", default=2, help="njets", type=int)
+    parser.add_argument("--yaml", default=None, help="yaml file", type=str)
 
     # REMEMBER TO PROPAGATE THESE TO SUBMIT TEMPLATE!!
     # processor args
