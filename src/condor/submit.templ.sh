@@ -34,7 +34,7 @@ echo "https://github.com/$gituser/HHbbVV/commit/$${commithash}" > commithash.txt
 #move output to t2s
 for t2_prefix in ${t2_prefixes}
 do
-    gfal-copy -f commithash.txt $${t2_prefix}/${outdir}/githashes/commithash_${jobnum}.txt
+    xrdcp -f commithash.txt $${t2_prefix}/${outdir}/githashes/commithash_${jobnum}.txt
 done
 
 pip3 install -e .

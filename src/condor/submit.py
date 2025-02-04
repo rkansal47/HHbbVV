@@ -54,7 +54,7 @@ def main(args):
     t2_prefixes = [t2_redirectors[site] for site in args.save_sites]
 
     # t2 output directory
-    pdir = Path(f"store/user/{username}/bbbb/{args.processor}/")
+    pdir = Path(f"store/user/{username}/bbVV/{args.processor}/")
     outdir = pdir / args.tag
 
     # make local directory
