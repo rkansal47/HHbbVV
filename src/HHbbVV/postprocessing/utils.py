@@ -693,6 +693,10 @@ def mxmy(sample):
     return (mX, mY)
 
 
+def inverse_mxmy(point):
+    return f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{point[0]}_MY-{point[1]}"
+
+
 def merge_dictionaries(dict1, dict2):
     merged_dict = dict1.copy()
     merged_dict.update(dict2)

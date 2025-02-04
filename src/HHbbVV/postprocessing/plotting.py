@@ -1347,3 +1347,26 @@ def plot_lund_plane_six(
         plt.show()
     else:
         plt.close()
+
+
+def XHYscatter2d(arr, year: str, title: str = None, name: str = "", show: bool = False):
+    """Scatter plot of (mX, mY) plane for resonant analysis"""
+    arr = np.array(arr)
+    colours = np.ones(arr.shape[0]) if arr.shape[1] == 2 else arr[:, 2]
+
+    fig, ax = plt.subplots(figsize=(14, 12))
+    mappable = plt.scatter(arr[:, 0], arr[:, 1], s=150, c=colours, cmap="turbo")
+    plt.title(title)
+    plt.xlabel(r"$m_X$ (GeV)")
+    plt.ylabel(r"$m_Y$ (GeV)")
+    plt.colorbar(mappable)
+
+    hep.cms.label(data=False, year=year, ax=ax)
+
+    if len(str(name)):
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
