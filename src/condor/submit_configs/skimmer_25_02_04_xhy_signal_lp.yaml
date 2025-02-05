@@ -305,9 +305,9 @@
               "NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-70",
               "NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80",
             ],
-          "files_per_job": 20,
-          "max_files": 160,
-          "chunksize": 80000,
+          "files_per_job": 8,
+          "max_files": 40,
+          "chunksize": 10000,
           # "maxchunks": 20
         },
     } }
