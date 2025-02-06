@@ -1131,6 +1131,7 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
     systematics = _check_load_systematics(systs_file, args.year, args.override_systs)
 
     lpsf_regions = []
+    prelpsf_region = None
 
     for wps in scan_wps:  # if not scanning, this will just be a single WP
         cutstr, _, selection_regions = _get_scan_regions(args, scan, scan_cuts, wps)
@@ -1141,8 +1142,12 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
                     tregion.lpsf_region += "_" + cutstr
                 lpsf_regions.append(tregion)
 
+            if region.prelpsf:
+                prelpsf_region = region
+
     lpsfs(
         sig_keys,
+        prelpsf_region,
         lpsf_regions,
         systematics,
         sig_samples=sig_samples,
@@ -1175,6 +1180,7 @@ def _get_signal_all_years(
     data_dir: Path,
     samples: dict,
     filters: list,
+    prelpsf_region: Region,
     bdt_preds_dir: Path = None,
     year: str = None,
 ):
@@ -1193,6 +1199,8 @@ def _get_signal_all_years(
         ("ak8FatJetHVVNumProngs", 1),
         ("ak8FatJetParticleNetMD_Txbb", 2),
         ("VVFatJetParTMD_THWWvsT", 1),
+        ("nGoodElectronsHbb", 1),
+        ("nGoodMuonsHbb", 1),
     ]
 
     load_columns += hh_vars.lp_sf_vars
@@ -1215,22 +1223,31 @@ def _get_signal_all_years(
             variations=False,
         )
 
+        cutflow = pd.DataFrame(index=[sig_key])  # save cutflow as pandas table
+        utils.add_to_cutflow(events_dict, "Pre-selection", "finalWeight", cutflow)
         # print weighted sample yields
-        print(f"{np.sum(events_dict[sig_key]['finalWeight'].to_numpy()):.2f} Events")
+        # print(f"{np.sum(events_dict[sig_key]['finalWeight'].to_numpy()):.2f} Events")
 
         bb_masks = bb_VV_assignment(events_dict)
         derive_variables(events_dict, bb_masks, nonres_vars=False, do_jshifts=False)
-        events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
+        # events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
 
         if bdt_preds_dir is not None:
             load_bdt_preds(events_dict, year, bdt_preds_dir, all_outs=False)
 
-        # sel, _ = utils.make_selection(lp_region.cuts, events_dict, bb_masks)
-
-        events_all.append(events_dict[sig_key])
+        sel, cutflow = utils.make_selection(
+            prelpsf_region.cuts,
+            events_dict,
+            bb_masks,
+            weight_key="finalWeight",
+            prev_cutflow=cutflow,
+        )
+        print(year, cutflow)
+        events_all.append(events_dict[sig_key][sel[sig_key]])
         # sels_all.append(sel[sig_key])
 
     events_dict = {sig_key: pd.concat(events_all, axis=0)}
+    events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
     # sel = np.concatenate(sels_all, axis=0)
 
     return events_dict  # get_lpsf(events, sel)
@@ -1257,6 +1274,7 @@ def _check_measure_lpsfs(systematics, sig_key, lp_selection_regions):
 
 def lpsfs(
     sig_keys: list[str],
+    prelpsf_region: Region,
     lp_selection_regions: Region | list[Region],
     systematics: dict,
     sig_samples: dict[str, str] = None,
@@ -1294,14 +1312,14 @@ def lpsfs(
         # SFs are correlated across all years so needs to be calculated with full dataset
         if all_years:
             events_dict = _get_signal_all_years(
-                sig_key, data_dir, sig_samples, filters, bdt_preds_dir
+                sig_key, data_dir, sig_samples, filters, prelpsf_region, bdt_preds_dir
             )
             bb_masks = bb_VV_assignment(events_dict)
 
         # ONLY FOR TESTING, can do just for a single year
         else:
             events_dict = _get_signal_all_years(
-                sig_key, data_dir, sig_samples, filters, bdt_preds_dir, year=year
+                sig_key, data_dir, sig_samples, filters, prelpsf_region, bdt_preds_dir, year=year
             )
             bb_masks = bb_VV_assignment(events_dict)
 
@@ -2099,7 +2117,7 @@ def parse_args(parser=None):
     parser.add_argument(
         "--res-thww-wp",
         help="Thww WP for signal region. If multiple arguments, will make templates for each.",
-        default=[0.8],
+        default=[0.6],
         nargs="*",
         type=float,
     )
@@ -2107,7 +2125,7 @@ def parse_args(parser=None):
     parser.add_argument(
         "--res-leading-pt",
         help="pT cut for leading AK8 jet (resonant only)",
-        default=[300],
+        default=[400],
         nargs="*",
         type=float,
     )
@@ -2115,7 +2133,7 @@ def parse_args(parser=None):
     parser.add_argument(
         "--res-subleading-pt",
         help="pT cut for sub-leading AK8 jet (resonant only)",
-        default=[300],
+        default=[350],
         nargs="*",
         type=float,
     )

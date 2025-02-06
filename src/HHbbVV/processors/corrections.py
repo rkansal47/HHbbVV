@@ -1063,9 +1063,8 @@ def _subjet_matching(
     num_prongs: int,
     gen_quarks: GenParticleArray,
     kt_subjets_vec,
-    matching_dR: float,
+    matching_dR: float = 0.2,
 ):
-    matching_dR = 0.2
     q_matched = []
     sj_matched_idx = []
 
@@ -1085,6 +1084,8 @@ def _subjet_matching(
     # using fancy numpy broadcasting to do this vectorized
     tiled = np.tile(np.arange(num_prongs), (len(sj_matched_idx), 1))
     sj_matched = np.any(tiled[:, :, None] == sj_matched_idx[:, None, :], axis=2)
+
+    # breakpoint()
 
     return q_matched, sj_matched, sj_matched_idx
 
@@ -1336,6 +1337,7 @@ def get_lund_SFs(
             [pt_extrap_lookups_dict["params"]],
         )
 
+    # breakpoint()
     # quarks which are not matched in any of the reclusterings constitute another uncertainty
     unmatched_quarks = np.prod(unmatched_quarks, axis=0)
     sfs["lp_sf_rc_unmatched_quarks"] = np.sum(unmatched_quarks, axis=1, keepdims=True)

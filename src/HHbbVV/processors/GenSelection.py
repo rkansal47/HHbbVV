@@ -234,7 +234,8 @@ def gen_selection_HHbbVV(
 
     VVJets = ak.pad_none(fatjets[HVV_match], 1, axis=1)[:, 0]
     quarkdrs = ak.flatten(VVJets.delta_r(VV_children), axis=2)
-    num_prongs = ak.sum(quarkdrs < match_dR, axis=1)
+    quark_in_jet = quarkdrs < match_dR
+    num_prongs = ak.sum(quark_in_jet, axis=1)
 
     GenMatchingVars = {
         "ak8FatJetHbb": pad_val(Hbb_match, 2, axis=1),
@@ -245,6 +246,7 @@ def gen_selection_HHbbVV(
     return {**GenHiggsVars, **GenbbVars, **GenVVVars, **Gen4qVars, **GenMatchingVars}, (
         bb,
         ak.flatten(VV_children, axis=2),
+        quark_in_jet,
     )
 
 

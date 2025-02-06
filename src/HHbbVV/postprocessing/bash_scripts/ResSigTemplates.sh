@@ -1,18 +1,18 @@
 #!/bin/bash
-# shellcheck disable=SC2086,SC2043
+# shellcheck disable=SC2086,SC2043,SC2034
 
 ####################################################################################################
-# Checking LP SF for each year
+# Resonant signal templates
 # Author: Raghav Kansal
 ####################################################################################################
 
 MAIN_DIR="../../.."
 # data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
-signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Jan9UpdateLPFix"
+signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Jan29UpdateXHYLP"
 TAG=""
-sigsamples=""
 
-options=$(getopt -o "" --long "tag:,sample:" -- "$@")
+
+options=$(getopt -o "" --long "tag:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -20,10 +20,6 @@ while true; do
         --tag)
             shift
             TAG=$1
-            ;;
-        --sample)
-            shift
-            sigsamples="--sig-samples $1"
             ;;
         --)
             shift
@@ -45,10 +41,11 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
+
+sample="NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125"
+
 # for year in 2016APV 2016 2017 2018
 for year in 2016
 do
-    python -u postprocessing.py --year $year --signal-data-dir "$signal_data_dir" --lpsfs $sigsamples --override-systs \
-    --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" \
-    --template-dir "templates/$TAG" --no-do-jshifts --bg-keys "" --no-data --override-systs
+    python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --signal-data-dirs "$signal_data_dir" --resonant --sig-samples $sample --bg-keys "" --no-data --templates-name $sample
 done

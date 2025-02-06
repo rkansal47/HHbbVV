@@ -320,17 +320,24 @@ def postprocess_lpsfs(
         else:
             raise ValueError("LP SF shapes are invalid")
 
-        nom_mean = np.mean(td["lp_sf_nom"], axis=0)
+        # nom_mean = np.mean(
+        #     np.clip(np.nan_to_num(td["lp_sf_nom"], nan=1.0), 1.0 / CLIP, CLIP), axis=0
+        # )
+
+        # breakpoint()
         for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_pt_extrap_vars"] + sf_vars:
             td[key] = np.clip(np.nan_to_num(td[key], nan=1.0), 1.0 / CLIP, CLIP)
             # td[key] = td[key] / np.mean(td[key], axis=0)
 
-            if "unmatched" not in key:
-                td[key] = td[key] / np.mean(td[key], axis=0)
-            else:
+            if "unmatched" in key:
                 # unmatched normalization is otherwise dominated by unmatched jets which aren't in the pass regions
                 # which artificially inflates this uncertainty
-                td[key] = td[key] / nom_mean
+                # td[key] = td[key] / nom_mean
+                td[key] = td[key] / np.mean(td[key], axis=0)
+            else:
+                td[key] = td[key] / np.mean(td[key], axis=0)
+
+        # breakpoint()
 
         # add to dataframe
         if save_all:
@@ -340,7 +347,7 @@ def postprocess_lpsfs(
                 keys=[f"{jet}_{key}" for key in td],
             )
 
-            events = pd.concat((events, td), axis=1)
+            events = pd.concat([events.reset_index(drop=True), td.reset_index(drop=True)], axis=1)
         else:
             key = "lp_sf_nom"
             events[f"{jet}_{key}"] = td[key]

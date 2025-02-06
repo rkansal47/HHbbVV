@@ -122,18 +122,13 @@ class bbVVSkimmer(SkimmerABC):
     # only the branches necessary for templates and post processing
     # IMPORTANT: Add Lund plane branches in hh_vars.py
     min_branches = [  # noqa: RUF012
+        "Gen4qInJet",  # for LP SFs
+        # fat jet vars
         "ak8FatJetPhi",
         "ak8FatJetEta",
         "ak8FatJetPt",
         "ak8FatJetMsd",
         "ak8FatJetParticleNetMass",
-        "VBFJetEta",
-        "VBFJetPt",
-        "VBFJetPhi",
-        "VBFJetMass",
-        "DijetMass",
-        "nGoodVBFJets",
-        "SemiMergedVeto",
         "ak8FatJetHbb",
         "ak8FatJetHVV",
         "ak8FatJetHVVNumProngs",
@@ -144,16 +139,27 @@ class bbVVSkimmer(SkimmerABC):
         "VVFatJetParTMD_probHWW4q",
         "VVFatJetParTMD_probT",
         "VVFatJetParTMD_THWWvsT",
+        # VBF vars
+        "VBFJetEta",
+        "VBFJetPt",
+        "VBFJetPhi",
+        "VBFJetMass",
+        "DijetMass",
+        "nGoodVBFJets",
+        # Vetoes / BDT vars
         "MET_pt",
         "MET_phi",
         "nGoodElectronsHH",
         "nGoodElectronsHbb",
         "nGoodMuonsHH",
         "nGoodMuonsHbb",
+        # for the semi-merged veto
+        "SemiMergedVeto",
         "ak8FatJetNumWTagged",
         "ak8FatJetLowestWTaggedTxbb",
         "ak8FatJetWTaggedMsd",
         "ak8FatJetWTaggedParticleNetMass",
+        # data vars
         "event",
         "run",
         "luminosityBlock",
@@ -274,7 +280,7 @@ class bbVVSkimmer(SkimmerABC):
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
         for d, dfunc in gen_selection_dict.items():
             if d in dataset:
-                vars_dict, (genbb, genq) = dfunc(
+                vars_dict, (genbb, genq, quark_in_jet) = dfunc(
                     events, fatjets, selection, cutflow, gen_weights, P4
                 )
                 skimmed_events = {**skimmed_events, **vars_dict}
@@ -690,6 +696,7 @@ class bbVVSkimmer(SkimmerABC):
             if len(skimmed_events["weight"]):
                 genbb = genbb[sel_all]
                 genq = genq[sel_all]
+                quark_in_jet = quark_in_jet[sel_all]
 
                 sf_dicts, lp_hists = [], []
                 lp_num_jets = num_jets if self._save_all else 1
@@ -724,6 +731,12 @@ class bbVVSkimmer(SkimmerABC):
                     for key, (selector, gen_quarks, num_prongs) in selectors.items():
                         # breakpoint()
                         if np.sum(selector) > 0:
+                            if key == "bb":
+                                gen_quarks_temp = gen_quarks[selector]
+                            else:
+                                # pick out the quarks in the jet, i.e. num quarks = num prongs
+                                gen_quarks_temp = gen_quarks[selector][quark_in_jet[selector]]
+
                             selected_sfs[key], lp_hist = get_lund_SFs(
                                 year,
                                 events[sel_all][selector],
@@ -734,7 +747,7 @@ class bbVVSkimmer(SkimmerABC):
                                     else np.array(skimmed_events["ak8FatJetHVV"][selector][:, 1])
                                 ),  # giving HVV jet index if only doing LP SFs for HVV jet
                                 num_prongs,
-                                gen_quarks[selector],
+                                gen_quarks_temp,
                                 weights_dict["weight"][sel_all][selector],
                                 # if not save_skims, means only calculating LP densities, i.e. don't have them yet
                                 sample=dataset if self._save_skims else None,
