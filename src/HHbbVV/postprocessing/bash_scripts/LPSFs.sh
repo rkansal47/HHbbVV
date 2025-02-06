@@ -8,7 +8,7 @@
 
 MAIN_DIR="../../.."
 # data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
-signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Jan9UpdateLPFix"
+signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/24Feb5LPMatchingFix"
 TAG=""
 sigsamples=""
 
@@ -50,5 +50,5 @@ for year in 2016
 do
     python -u postprocessing.py --year $year --signal-data-dir "$signal_data_dir" --lpsfs $sigsamples --override-systs \
     --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" \
-    --template-dir "templates/$TAG" --no-do-jshifts --bg-keys "" --no-data --override-systs
+    --template-dir "templates/$TAG" --no-do-jshifts --bg-keys "" --no-data
 done

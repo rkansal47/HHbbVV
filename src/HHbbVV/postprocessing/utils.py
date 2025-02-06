@@ -72,8 +72,6 @@ def timer():
 
 
 def remove_empty_parquets(samples_dir):
-    from os import listdir
-
     full_samples_list = listdir(samples_dir)
     print("Checking for empty parquets")
 
@@ -89,11 +87,13 @@ def remove_empty_parquets(samples_dir):
         parquet_files = listdir(f"{samples_dir}/{sample}/parquet")
         for f in parquet_files:
             file_path = Path(f"{samples_dir}/{sample}/parquet/{f}")
-            if not len(pd.read_parquet(file_path)):
-                print("Removing: ", f"{sample}/{f}")
-                file_path.unlink()
 
-        # create checked_empty_parquet.txt file to avoid repeating in the future using Pathlib
+            # if file size is < 5kb, move file one directory up
+            if file_path.stat().st_size < 5000:
+                print(f"Moving {sample}/{f} outside.")
+                file_path.rename(f"{samples_dir}/{sample}/{f}")
+
+        # create checked_empty_parquet.txt file to avoid repeating in the future
         with Path(f"{samples_dir}/{sample}/checked_empty_parquet.txt").open("w") as file:
             file.write("Removed empty parquets!")
 

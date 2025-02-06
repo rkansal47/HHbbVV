@@ -8,7 +8,8 @@
 
 MAIN_DIR="../../.."
 # data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
-signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Jan29UpdateXHYLP"
+# signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Jan29UpdateXHYLP"
+signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/24Feb5LPMatchingFix"
 TAG=""
 
 
@@ -45,7 +46,10 @@ fi
 sample="NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125"
 
 # for year in 2016APV 2016 2017 2018
-for year in 2016
+for sample in NMSSM_XToYHTo2W2BTo4Q2B_MX-4000_MY-150 NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250 NMSSM_XToYHTo2W2BTo4Q2B_MX-2000_MY-125 NMSSM_XToYHTo2W2BTo4Q2B_MX-1200_MY-190 NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80
 do
-    python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/" --signal-data-dirs "$signal_data_dir" --resonant --sig-samples $sample --bg-keys "" --no-data --templates-name $sample
+    for year in 2016APV 2016 2017 2018
+    do
+        python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG/$sample" --signal-data-dirs "$signal_data_dir" --resonant --sig-samples $sample --bg-keys "" --no-data
+    done
 done

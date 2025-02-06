@@ -233,7 +233,7 @@ def main(args):
     _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
     cutflow = pd.DataFrame(index=all_samples)  # save cutflow as pandas table
 
-    if args.lpsfs:
+    if args.lpsfs or args.templates:
         _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples)
         if not (args.templates or args.bdt_plots or args.control_plots):
             return
@@ -337,19 +337,7 @@ def main(args):
             systs_file = template_dir / "systematics.json"
             systematics = _check_load_systematics(systs_file, args.year, args.override_systs)
 
-            # Get Lund plane SFs if not calculated previously
-            lpsfs(
-                sig_keys,
-                [region for region in selection_regions.values() if region.lpsf],
-                systematics,
-                sig_samples=sig_samples,
-                filters=filters,
-                all_years=args.lp_sf_all_years,
-                bdt_preds_dir=args.bdt_preds_dir,
-                template_dir=template_dir,
-                systs_file=systs_file,
-                data_dir=args.signal_data_dirs[0],
-            )
+            print(systematics)
 
             print("\nMaking templates")
             templates = {}

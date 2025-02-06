@@ -283,8 +283,10 @@ def postprocess_lpsfs(
             # dist_sf = np.clip(np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1), 0.5, 2.0)
             dist_sfs = np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1)
             # remove low stats values
-            dist_sfs[dist_sfs > 2.0] = 1.0
-            dist_sfs[dist_sfs < (1.0 / 2.0)] = 1.0
+            dist_sfs[dist_sfs > 5.0] = 1.0
+            dist_sfs[dist_sfs < (1.0 / 5.0)] = 1.0
+
+            # dist_sfs = np.clip(dist_sfs, 1.0 / CLIP, CLIP)
             # td["lp_sf_dist_up"] = dist_sfs
             # td["lp_sf_dist_down"] = 1.0 / dist_sfs
 
@@ -327,15 +329,15 @@ def postprocess_lpsfs(
         # breakpoint()
         for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_pt_extrap_vars"] + sf_vars:
             td[key] = np.clip(np.nan_to_num(td[key], nan=1.0), 1.0 / CLIP, CLIP)
-            # td[key] = td[key] / np.mean(td[key], axis=0)
+            td[key] = td[key] / np.mean(td[key], axis=0)
 
-            if "unmatched" in key:
-                # unmatched normalization is otherwise dominated by unmatched jets which aren't in the pass regions
-                # which artificially inflates this uncertainty
-                # td[key] = td[key] / nom_mean
-                td[key] = td[key] / np.mean(td[key], axis=0)
-            else:
-                td[key] = td[key] / np.mean(td[key], axis=0)
+            # if "unmatched" in key:
+            #     # unmatched normalization is otherwise dominated by unmatched jets which aren't in the pass regions
+            #     # which artificially inflates this uncertainty
+            #     # td[key] = td[key] / nom_mean
+            #     td[key] = td[key] / np.mean(td[key], axis=0)
+            # else:
+            #     td[key] = td[key] / np.mean(td[key], axis=0)
 
         # breakpoint()
 
