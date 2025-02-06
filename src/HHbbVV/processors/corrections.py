@@ -890,6 +890,12 @@ def _get_lund_arrays(
     ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == fatjet_idx]
     pfcands = events.PFCands[ak8_pfcands.pFCandsIdx]
 
+    # dummy particle to pad empty subjets and particles. SF for these subjets will be 1
+    dummy_particle = ak.Array(
+        [{kin_key: 0.0 for kin_key in P4}],
+        with_name="PtEtaPhiMLorentzVector",
+    )
+
     # need to convert to such a structure for FastJet
     pfcands_vector_ptetaphi = ak.Array(
         [
@@ -897,6 +903,11 @@ def _get_lund_arrays(
             for event_cands in pfcands
         ],
         with_name="PtEtaPhiMLorentzVector",
+    )
+
+    # pad in case fewer particles than subjets (otherwise fastjet will give an error)
+    pfcands_vector_ptetaphi = ak.fill_none(
+        ak.pad_none(pfcands_vector_ptetaphi, num_prongs, axis=1), dummy_particle[0]
     )
 
     # cluster first with kT
@@ -912,15 +923,9 @@ def _get_lund_arrays(
     kt_subjets_pt = kt_subjets_vec.pt * jec_correction
     # get constituents
     kt_subjet_consts = kt_clustering.exclusive_jets_constituents(num_prongs)
-    # REMOVING MIN PT CUT!
+    # removing min pT requirement after checking with Oz
     # kt_subjet_consts = kt_subjet_consts[kt_subjet_consts.pt > min_pt]
     kt_subjet_consts = ak.flatten(kt_subjet_consts, axis=1)
-
-    # dummy particle to pad empty subjets. SF for these subjets will be 1
-    dummy_particle = ak.Array(
-        [{kin_key: 0.0 for kin_key in P4}],
-        with_name="PtEtaPhiMLorentzVector",
-    )
 
     # pad empty subjets
     kt_subjet_consts = ak.fill_none(ak.pad_none(kt_subjet_consts, 1, axis=1), dummy_particle[0])
