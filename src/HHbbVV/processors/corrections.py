@@ -11,6 +11,7 @@ Authors: Raghav Kansal, Cristina Suarez
 
 from __future__ import annotations
 
+import logging
 import pickle
 from pathlib import Path
 
@@ -35,6 +36,8 @@ from .utils import P4, PAD_VAL, pad_val
 
 ak.behavior.update(vector.behavior)
 package_path = Path(__file__).parent.parent.resolve()
+
+logging.basicConfig(level=logging.INFO)
 
 
 """
@@ -1264,8 +1267,8 @@ def get_lund_SFs(
             [pt_extrap_lookups_dict["params"]],
         )
 
-        print("lp sfs nom")
-        print(sfs["lp_sf_lnN"][:, 0])
+        logging.info(f"LP SFs (nominal) for {num_prongs}-pronged jets:")
+        logging.info(sfs["lp_sf_lnN"][:, 0])
 
     sfs["lp_sf_sys_down"] = _calc_lund_SFs(
         flat_logD,
@@ -1346,6 +1349,9 @@ def get_lund_SFs(
     # quarks which are not matched in any of the reclusterings constitute another uncertainty
     unmatched_quarks = np.prod(unmatched_quarks, axis=0)
     sfs["lp_sf_rc_unmatched_quarks"] = np.sum(unmatched_quarks, axis=1, keepdims=True)
+
+    logging.info(f"Unmatched quarks: {sfs['lp_sf_unmatched_quarks'][:, 0]}")
+    logging.info(f"Unmatched quarks after re-clustering: {sfs['lp_sf_rc_unmatched_quarks'][:, 0]}")
 
     ################################################################################################
     # ---- b-quark related uncertainties ---- #
