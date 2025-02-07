@@ -17,7 +17,6 @@ import logging
 import pickle
 import pprint
 import sys
-import warnings
 from collections import OrderedDict
 from pathlib import Path
 
@@ -56,6 +55,13 @@ parser.add_argument(
     default="",
     type=str,
     help="input pickle file of dict of hist.Hist templates",
+)
+
+parser.add_argument(
+    "--bg-templates-dir",
+    default="",
+    type=str,
+    help="background templates directory, if different from signal templates (only applies if --sig-separate option given)",
 )
 
 add_bool_arg(parser, "vbf", "VBF category datacards", default=False)
@@ -285,6 +291,16 @@ nuisance_params = {
     ),
 }
 
+# Resonant LP SFs
+if args.resonant:
+    for sr in signal_regions:
+        for sig_key in sig_keys:
+            # values will be added in from the systematics JSON
+            nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{mc_samples[sig_key]}"] = Syst(
+                prior="lnN", samples=[sig_key], regions=[sr], pass_only=True
+            )
+
+
 if args.year != "all":
     # remove other years' keys
     for key in [
@@ -301,27 +317,32 @@ nuisance_params_dict = {
     param: rl.NuisanceParameter(param, syst.prior) for param, syst in nuisance_params.items()
 }
 
-lpsf_params = {}
 
-# LP SFs - uncorrelated across regions to be more conservative (?)
-for sr in signal_regions:
-    lpsf_params[sr] = {}
+# Nonresonant LP SFs - uncorrelated across regions to be more conservative (?)
+# But needs to be a single nuisance parameter for each signal mass point
+if not args.resonant:
+    lpsf_params = {}
+    for sr in signal_regions:
+        lpsf_params[sr] = {}
 
-    # first add a single nuisance parameter per region and production mode
-    for sig_keys_prodmode, pmlabel in [(nonres_sig_keys_ggf, "ggf"), (nonres_sig_keys_vbf, "vbf")]:
-        # check if any signals from this production mode
-        if any(sig_key in sig_keys_prodmode for sig_key in sig_keys):
-            pname = f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{pmlabel}"
-            lpsf_params[sr][pmlabel] = rl.NuisanceParameter(pname, "lnN")
+        # first add a single nuisance parameter per region and production mode
+        for sig_keys_prodmode, pmlabel in [
+            (nonres_sig_keys_ggf, "ggf"),
+            (nonres_sig_keys_vbf, "vbf"),
+        ]:
+            # check if any signals from this production mode
+            if any(sig_key in sig_keys_prodmode for sig_key in sig_keys):
+                pname = f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{pmlabel}"
+                lpsf_params[sr][pmlabel] = rl.NuisanceParameter(pname, "lnN")
 
-    # fill nuisance dictionary, but same NuisanceParameter object for each region + prod mode
-    for sig_key in sig_keys:
-        # values will be added in from the systematics JSON
-        pname = f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{mc_samples[sig_key]}"
-        pmlabel = "ggf" if sig_key in nonres_sig_keys_ggf else "vbf"
+        # fill nuisance dictionary, but same NuisanceParameter object for each region + prod mode
+        for sig_key in sig_keys:
+            # values will be added in from the systematics JSON
+            pname = f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{mc_samples[sig_key]}"
+            pmlabel = "ggf" if sig_key in nonres_sig_keys_ggf else "vbf"
 
-        nuisance_params[pname] = Syst(prior="lnN", samples=[sig_key], regions=[sr])
-        nuisance_params_dict[pname] = lpsf_params[sr][pmlabel]
+            nuisance_params[pname] = Syst(prior="lnN", samples=[sig_key], regions=[sr])
+            nuisance_params_dict[pname] = lpsf_params[sr][pmlabel]
 
 
 # TODO: pileupID, lepton IDs (probably not necessary)
@@ -400,6 +421,7 @@ for skey, syst in uncorr_year_shape_systs.items():
 
 def get_templates(
     templates_dir: Path,
+    bg_templates_dir: Path,
     years: list[str],
     sig_separate: bool,
     scale: float = None,
@@ -418,23 +440,21 @@ def get_templates(
     else:
         # signal and background in different hists - need to combine them into one hist
         for year in years:
-            with (templates_dir / f"backgrounds/{year}_templates.pkl").open("rb") as f:
+            with (bg_templates_dir / f"{year}_templates.pkl").open("rb") as f:
                 bg_templates = rem_neg(pickle.load(f))
 
             sig_templates = []
 
-            for sig_key in sig_keys:
-                with (templates_dir / f"{hist_names[sig_key]}/{year}_templates.pkl").open(
-                    "rb"
-                ) as f:
-                    sig_templates.append(rem_neg(pickle.load(f)))
+            # for sig_key in sig_keys:
+            with (templates_dir / f"{year}_templates.pkl").open("rb") as f:
+                sig_templates.append(rem_neg(pickle.load(f)))
 
             templates_dict[year] = combine_templates(bg_templates, sig_templates)
 
     if scale is not None and scale != 1:
-        for year in templates_dict:
-            for key in templates_dict[year]:
-                for j, sample in enumerate(templates_dict[year][key].axes[0]):
+        for templates in templates_dict.values():
+            for h in templates.values():
+                for j, sample in enumerate(h.axes[0]):
                     # only scale backgrounds / data
                     is_sig_key = False
                     for sig_key in sig_keys:
@@ -443,10 +463,10 @@ def get_templates(
                             break
 
                     if not is_sig_key:
-                        vals = templates_dict[year][key][sample, ...].values()
-                        variances = templates_dict[year][key][sample, ...].variances()
-                        templates_dict[year][key].values()[j, ...] = vals * scale
-                        templates_dict[year][key].variances()[j, ...] = variances * (scale**2)
+                        vals = h[sample, ...].values()
+                        variances = h[sample, ...].variances()
+                        h.values()[j, ...] = vals * scale
+                        h.variances()[j, ...] = variances * (scale**2)
 
     if combine_lasttwo:
         helpers.combine_last_two_bins(templates_dict, years)
@@ -463,21 +483,18 @@ def get_templates(
     return templates_dict, templates_summed
 
 
-def _process_lpsfs(systematics: dict):
+def _process_lpsfs(systematics: dict, sig_separate: bool):
     for sr in signal_regions:
         for sig_key in sig_keys:
-            # already for all years
-            try:
-                lp_sf_unc = systematics[sr][sig_key]["lp_sf_unc"]
-            except KeyError:
-                warnings.warn(
-                    f"No {sr} region in systematics? Trying old convention for LP SFs.",
-                    stacklevel=2,
-                )
-                lp_sf_unc = systematics[sig_key]["lp_sf_unc"]
+            sig_systs = systematics[sig_key] if sig_separate else systematics
 
+            # already for all years
             nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{mc_samples[sig_key]}"].value = (
-                1 + lp_sf_unc
+                1 + sig_systs[sr][sig_key]["lp_sf_unc_up"]
+            )
+
+            nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{mc_samples[sig_key]}"].value_down = (
+                1 + sig_systs[sr][sig_key]["lp_sf_unc_down"]
             )
 
 
@@ -506,7 +523,7 @@ def _process_triggereffs(systematics: dict):
 
 def process_systematics_combined(systematics: dict):
     """Get total uncertainties from per-year systs in ``systematics``"""
-    _process_lpsfs(systematics)
+    _process_lpsfs(systematics, sig_separate=False)
     _process_triggereffs(systematics)
 
     print("Nuisance Parameters")
@@ -516,7 +533,7 @@ def process_systematics_combined(systematics: dict):
 
 def process_systematics_separate(bg_systs: dict, sig_systs: dict[str, dict]):
     """Get total uncertainties from per-year systs separated into bg and sig systs"""
-    _process_lpsfs(sig_systs)
+    _process_lpsfs(sig_systs, sig_separate=True)
     _process_triggereffs(bg_systs)
 
     print("Nuisance Parameters")
@@ -524,7 +541,7 @@ def process_systematics_separate(bg_systs: dict, sig_systs: dict[str, dict]):
     pprint.pprint(nuisance_params_dict)
 
 
-def process_systematics(templates_dir: str, sig_separate: bool):
+def process_systematics(templates_dir: str, bg_templates_dir: str, sig_separate: bool):
     """Processes systematics based on whether signal and background JSONs are combined or not"""
     if not sig_separate:
         with (templates_dir / "systematics.json").open("r") as f:
@@ -532,12 +549,12 @@ def process_systematics(templates_dir: str, sig_separate: bool):
 
         process_systematics_combined(systematics)  # LP SF and trig effs.
     else:
-        with (templates_dir / "backgrounds/systematics.json").open("r") as f:
+        with (bg_templates_dir / "systematics.json").open("r") as f:
             bg_systs = json.load(f)
 
         sig_systs = {}
         for sig_key in sig_keys:
-            with (templates_dir / f"{hist_names[sig_key]}/systematics.json").open("r") as f:
+            with (templates_dir / "systematics.json").open("r") as f:
                 sig_systs[sig_key] = json.load(f)
 
         process_systematics_separate(bg_systs, sig_systs)  # LP SF and trig effs.
@@ -645,7 +662,7 @@ def fill_regions(
             # also skip resonant signals in pass blinded - they are ignored in the validation fits anyway
             if sample_name in sig_keys and (
                 not pass_region
-                or (mX_bin is not None and region not in [sr + MCB_LABEL for sr in signal_regions])
+                or (mX_bin is not None and region in [sr + MCB_LABEL for sr in signal_regions])
             ):
                 logging.info(f"Skipping {sample_name} in {region} region")
                 continue
@@ -1306,11 +1323,15 @@ def createDatacardABCD(args, templates_dict, templates_summed, shape_vars):
 
 def main(args):
     args.templates_dir = Path(args.templates_dir)
+    args.bg_templates_dir = (
+        args.templates_dir if args.bg_templates_dir == "" else Path(args.bg_templates_dir)
+    )
     args.cards_dir = Path(args.cards_dir)
 
     # templates per region per year, templates per region summed across years
     templates_dict, templates_summed = get_templates(
         args.templates_dir,
+        args.bg_templates_dir,
         years,
         args.sig_separate,
         args.scale_templates,
@@ -1320,7 +1341,7 @@ def main(args):
     )
 
     # TODO: check if / how to include signal trig eff uncs. (rn only using bg uncs.)
-    process_systematics(args.templates_dir, args.sig_separate)
+    process_systematics(args.templates_dir, args.bg_templates_dir, args.sig_separate)
 
     # arbitrary template from which to extract shape vars
     sample_templates: Hist = templates_summed[next(iter(templates_summed.keys()))]
@@ -1352,7 +1373,8 @@ def main(args):
     args.models_dir.mkdir(parents=True, exist_ok=True)
 
     with (args.models_dir / "templates.txt").open("w") as f:
-        f.write(str(args.templates_dir.absolute()))
+        f.write("Signals: " + str(args.templates_dir.absolute()))
+        f.write("Backgrounds: " + str(args.bg_templates_dir.absolute()))
 
     dc_args = [args, templates_dict, templates_summed, shape_vars]
     if args.vbf:
