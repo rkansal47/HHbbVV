@@ -500,5 +500,41 @@
             "trig_total": 1392192.3896862478,
             "trig_total_err": 12350.703795077894
         }
+    },
+    "2017": {
+        "passvbf": {
+            "trig_total": 555506.2869147282,
+            "trig_total_err": 9306.819270355865
+        },
+        "passggf": {
+            "trig_total": 181928.60269338766,
+            "trig_total_err": 526.425558740301
+        },
+        "fail": {
+            "trig_total": 1146770.3010282961,
+            "trig_total_err": 2469.4024250114844
+        },
+        "prelpsf": {
+            "trig_total": 3037407.3310695803,
+            "trig_total_err": 21536.803831451085
+        }
+    },
+    "2018": {
+        "passvbf": {
+            "trig_total": 408024.3243929632,
+            "trig_total_err": 6546.125937349094
+        },
+        "passggf": {
+            "trig_total": 132486.82624170082,
+            "trig_total_err": 370.862935513097
+        },
+        "fail": {
+            "trig_total": 847324.6996035075,
+            "trig_total_err": 1628.7185749743082
+        },
+        "prelpsf": {
+            "trig_total": 2183684.4089275626,
+            "trig_total_err": 15271.522995263706
+        }
     }
 }
