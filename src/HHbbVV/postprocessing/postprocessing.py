@@ -234,7 +234,8 @@ def main(args):
     cutflow = pd.DataFrame(index=all_samples)  # save cutflow as pandas table
 
     if args.lpsfs or args.templates:
-        _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples)
+        if len(sig_keys):
+            _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples)
         if not (args.templates or args.bdt_plots or args.control_plots):
             return
 
@@ -247,6 +248,7 @@ def main(args):
     derive_variables(
         events_dict,
         bb_masks,
+        resonant=args.resonant,
         nonres_vars=args.vbf or (args.control_plots and not args.mass_plots),
         # nonres_vars=args.vbf,
         vbf_vars=args.vbf,
@@ -570,6 +572,16 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
         df["vbf_prod_centrality"] = prod_centrality
 
 
+def _add_res_columns(df, bb_mask, ptlabel="", mlabel=""):
+
+    bbJet = utils.make_vector(df, "bbFatJet", bb_mask, ptlabel=ptlabel, mlabel=mlabel)
+    VVJet = utils.make_vector(df, "VVFatJet", bb_mask, ptlabel=ptlabel, mlabel=mlabel)
+    Dijet = bbJet + VVJet
+
+    if f"DijetMass{ptlabel}{mlabel}" not in df.columns:
+        df[f"DijetMass{ptlabel}{mlabel}"] = Dijet.mass
+
+
 def _process_samples(args, BDT_sample_order: list[str] = None):
     sig_samples = res_samples if args.resonant else nonres_samples
     sig_samples = deepcopy(sig_samples)
@@ -859,6 +871,7 @@ def _load_samples(args, samples, sig_samples, cutflow, variations=True):
 
     events_dict = {}
     for d in args.signal_data_dirs:
+        print(f"Loading signals from {d}")
         events_dict = {
             **events_dict,
             **load_samples(
@@ -871,12 +884,35 @@ def _load_samples(args, samples, sig_samples, cutflow, variations=True):
             ),
         }
 
-    if args.data_dir:
+    bg_samples = deepcopy(samples)
+
+    if data_key in samples:
+        bg_samples.pop(data_key)
+        data_samples = {data_key: samples[data_key]}
+
+    print(bg_samples, data_samples)
+
+    for d in args.bg_data_dirs:
+        print(f"Loading backgrounds from {d}")
+        events_dict = {
+            **events_dict,
+            **load_samples(
+                d,
+                bg_samples,
+                args.year,
+                filters,
+                hem_cleaning=args.hem_cleaning,
+                variations=variations,
+            ),
+        }
+
+    if args.data_dir and data_key in samples:
+        print(f"Loading data from {args.data_dir}")
         events_dict = {
             **events_dict,
             **load_samples(
                 args.data_dir,
-                samples,
+                data_samples,
                 args.year,
                 filters,
                 hem_cleaning=args.hem_cleaning,
@@ -995,6 +1031,7 @@ def bb_VV_assignment(events_dict: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
 def derive_variables(
     events_dict: dict[str, pd.DataFrame],
     bb_masks: dict[str, pd.DataFrame],
+    resonant: bool = False,
     nonres_vars: bool = True,
     vbf_vars: bool = False,
     do_jshifts: bool = True,
@@ -1005,22 +1042,29 @@ def derive_variables(
     start = time.time()
 
     for sample, events in events_dict.items():
-        if not nonres_vars:
-            continue
-
         print(f"Deriving variables for {sample} {time.time() - start:.2f}s")
 
         bb_mask = bb_masks[sample]
-        _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars)
+
+        fargs = [events, bb_mask]
+        if resonant:
+            dfunc = _add_res_columns
+        elif nonres_vars:
+            dfunc = _add_nonres_columns
+            fargs.append(vbf_vars)
+        else:
+            continue
+
+        dfunc(*fargs)
 
         if sample == data_key or not do_jshifts:
             continue
 
         for var in jec_shifts:
-            _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars, ptlabel=f"_{var}")
+            dfunc(*fargs, ptlabel=f"_{var}")
 
         for var in jmsr_shifts:
-            _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars, mlabel=f"_{var}")
+            dfunc(*fargs, mlabel=f"_{var}")
 
 
 def _add_bdt_scores(
@@ -1749,6 +1793,8 @@ def get_templates(
                 events, bb_mask, shape_vars, jshift=jshift if sample != data_key else None
             )
             weight = events[weight_key].to_numpy().squeeze()
+
+            # breakpoint()
             h.fill(Sample=sample, **fill_data, weight=weight)
 
             if not do_jshift:
@@ -1949,6 +1995,14 @@ def parse_args(parser=None):
     )
 
     parser.add_argument(
+        "--bg-data-dirs",
+        default=[],
+        help="path to skimmed background parquets, if different from other data",
+        nargs="*",
+        type=str,
+    )
+
+    parser.add_argument(
         "--signal-data-dirs",
         default=[],
         help="path to skimmed signal parquets, if different from other data",
@@ -2142,6 +2196,9 @@ def parse_args(parser=None):
 
     if not args.signal_data_dirs:
         args.signal_data_dirs = [args.data_dir]
+
+    if not args.bg_data_dirs:
+        args.bg_data_dirs = [args.data_dir]
 
     if args.bdt_preds_dir != "" and args.bdt_preds_dir is not None:
         args.bdt_preds_dir = Path(args.bdt_preds_dir)
