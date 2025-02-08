@@ -2192,10 +2192,10 @@ def parse_args(parser=None):
         print("Need to set --template-dir if making templates or measuring LP SFs. Exiting.")
         sys.exit()
 
-    if not args.signal_data_dirs:
+    if not args.signal_data_dirs and args.data_dir:
         args.signal_data_dirs = [args.data_dir]
 
-    if not args.bg_data_dirs:
+    if not args.bg_data_dirs and args.data_dir:
         args.bg_data_dirs = [args.data_dir]
 
     if args.bdt_preds_dir != "" and args.bdt_preds_dir is not None:
