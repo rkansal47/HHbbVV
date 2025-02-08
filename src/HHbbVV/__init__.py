@@ -9,5 +9,3 @@ from __future__ import annotations
 __version__ = "0.1.0"
 
 __all__ = ["__version__", "combine", "corrections", "postprocessing", "processors", "scale_factors"]
-
-from . import combine, corrections, postprocessing, processors, scale_factors

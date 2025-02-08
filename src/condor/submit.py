@@ -61,7 +61,7 @@ def main(args):
     local_dir = Path(f"condor/{args.processor}/{args.tag}")
     logdir = local_dir / "logs"
     logdir.mkdir(parents=True, exist_ok=True)
-    print("CONDOR work dir: ", local_dir)
+    print("Condor work dir: ", local_dir)
 
     fileset = run_utils.get_fileset(
         args.processor,
