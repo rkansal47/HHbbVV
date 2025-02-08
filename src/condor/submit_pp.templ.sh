@@ -48,8 +48,12 @@ do
     for year in 2016 2016APV 2017 2018
     do
         mkdir -p samples/$${year}
-        xrdcp -r root://cmseos.fnal.gov//store/user/rkansal/bbVV/skimmer/25Feb6XHY/$${year}/$${sample}/* samples/$${year}/
+        xrdcp -r root://cmseos.fnal.gov//store/user/rkansal/bbVV/skimmer/25Feb6XHY/$${year}/$${sample} samples/$${year}
     done
+
+    ls -lh samples
+    ls -lh samples/*
+
     for year in 2016 2016APV 2017 2018
     do
         python -u postprocessing.py --templates --resonant --no-data --bg-keys "" --year "$${year}" \
