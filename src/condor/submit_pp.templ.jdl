@@ -11,6 +11,6 @@ output                  = $dir/logs/${prefix}_$jobid.out
 error                   = $dir/logs/${prefix}_$jobid.err
 log                     = $dir/logs/${prefix}_$jobid.log
 
-+SingularityImage = "/cvmfs/unpacked.cern.ch/registry.hub.docker.com/coffeateam/coffea-dask:latest"
++SingularityImage = "/cvmfs/unpacked.cern.ch/registry.hub.docker.com/coffeateam/coffea-dask:latest-py3.8"
 
 Queue 1
