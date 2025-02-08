@@ -47,9 +47,16 @@ for sample in $samples
 do
     for year in 2016 2016APV 2017 2018
     do
+        mkdir -p samples/$${year}
+        xrdcp -r root://cmseos.fnal.gov//store/user/rkansal/bbVV/skimmer/25Feb6XHY/$${year}/$${sample}/* samples/$${year}/
+    done
+    for year in 2016 2016APV 2017 2018
+    do
         python -u postprocessing.py --templates --resonant --no-data --bg-keys "" --year "$${year}" \
         --sig-samples "$${sample}" --template-dir "condor_templates/$${sample}" \
-        --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/25Feb6XHY/"
+        --data-dir "samples"
+
+        rm -rf samples/$${year}/$${sample}
     done
 done
 
