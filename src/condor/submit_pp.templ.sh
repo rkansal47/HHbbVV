@@ -47,8 +47,8 @@ for sample in $samples
 do
     for year in 2016 2016APV 2017 2018
     do
-        python -u postprocessing.py --templates --resonant --no-data --bg-keys "" --year "$year" \
-        --sig-samples "$sample" --template-dir "condor_templates/$sample" \
+        python -u postprocessing.py --templates --resonant --no-data --bg-keys "" --year "$${year}" \
+        --sig-samples "$${sample}" --template-dir "condor_templates/$${sample}" \
         --data-dir "/eos/uscms/store/user/rkansal/bbVV/skimmer/25Feb6XHY/"
     done
 done
