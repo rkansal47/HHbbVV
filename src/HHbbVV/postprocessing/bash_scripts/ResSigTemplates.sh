@@ -9,7 +9,8 @@
 MAIN_DIR="../../.."
 # data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
 # signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Jan29UpdateXHYLP"
-signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/24Feb5LPMatchingFix"
+# signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/24Feb5LPMatchingFix"
+signal_data_dir="/eos/uscms/store/user/rkansal/bbVV/skimmer/24Feb5LPMatchingFix"
 TAG=""
 
 

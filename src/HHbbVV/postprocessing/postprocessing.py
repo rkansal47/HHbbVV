@@ -890,8 +890,6 @@ def _load_samples(args, samples, sig_samples, cutflow, variations=True):
         bg_samples.pop(data_key)
         data_samples = {data_key: samples[data_key]}
 
-    print(bg_samples, data_samples)
-
     for d in args.bg_data_dirs:
         print(f"Loading backgrounds from {d}")
         events_dict = {
