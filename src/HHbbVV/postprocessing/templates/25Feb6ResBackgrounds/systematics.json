@@ -1,0 +1,90 @@
+{
+    "2016APV": {
+        "pass": {
+            "trig_total": 4189.586632887383,
+            "trig_total_err": 18.11390853727137
+        },
+        "fail": {
+            "trig_total": 378724.8985270051,
+            "trig_total_err": 769.3424923199474
+        },
+        "passBlinded": {
+            "trig_total": 3490.057772216199,
+            "trig_total_err": 18.124075985219957
+        },
+        "failBlinded": {
+            "trig_total": 393459.73109943315,
+            "trig_total_err": 662.7813351321267
+        },
+        "prelpsf": {
+            "trig_total": 2018577.9270272944,
+            "trig_total_err": 3052.786794979343
+        }
+    },
+    "2016": {
+        "pass": {
+            "trig_total": 4555.634438834827,
+            "trig_total_err": 30.809456644207778
+        },
+        "fail": {
+            "trig_total": 341796.47461416165,
+            "trig_total_err": 716.3743818281963
+        },
+        "passBlinded": {
+            "trig_total": 3439.889307469707,
+            "trig_total_err": 45.04503528541379
+        },
+        "failBlinded": {
+            "trig_total": 351813.91036410944,
+            "trig_total_err": 707.0106388988181
+        },
+        "prelpsf": {
+            "trig_total": 1805084.8308131592,
+            "trig_total_err": 3641.2101829624025
+        }
+    },
+    "2017": {
+        "pass": {
+            "trig_total": 7173.048331095065,
+            "trig_total_err": 32.75596922381575
+        },
+        "fail": {
+            "trig_total": 371150.33951181616,
+            "trig_total_err": 470.3225828351468
+        },
+        "passBlinded": {
+            "trig_total": 5583.7890629145795,
+            "trig_total_err": 29.340857181187953
+        },
+        "failBlinded": {
+            "trig_total": 380348.3975158569,
+            "trig_total_err": 474.437697666706
+        },
+        "prelpsf": {
+            "trig_total": 2009819.9316923122,
+            "trig_total_err": 2292.271173846073
+        }
+    },
+    "2018": {
+        "pass": {
+            "trig_total": 6220.061561810496,
+            "trig_total_err": 28.44564473196709
+        },
+        "fail": {
+            "trig_total": 300414.1545109557,
+            "trig_total_err": 365.98964047395
+        },
+        "passBlinded": {
+            "trig_total": 4250.051433168198,
+            "trig_total_err": 23.430334123920083
+        },
+        "failBlinded": {
+            "trig_total": 302214.86475835013,
+            "trig_total_err": 350.8041861529769
+        },
+        "prelpsf": {
+            "trig_total": 1625618.6351159029,
+            "trig_total_err": 1828.6093516199242
+        }
+    }
+}

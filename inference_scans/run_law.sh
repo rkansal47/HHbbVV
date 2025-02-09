@@ -10,6 +10,7 @@
 # 2) 1D kL limit scan: --limkl
 # 3) 1D k2V limit scan: --limc2v
 # 4) impacts: --impacts  (should replot the merged json with plotImpacts.py)
+# 5) fit diagnostics: --fitd
 #
 # General options:
 #   --unblinded:    unblinded
@@ -24,6 +25,7 @@
 ####################################################################################################
 
 rmoutput=0
+fitd=0
 limits_at_point=0
 pois="r"
 vbfargs=""
@@ -39,13 +41,16 @@ klscan="kl,-9,-6,2:kl,-6,-5,2:kl,-1,0,2:kl,2,5,4:kl,10,11,2"
 cl=0.95
 workflow="htcondor"
 
-options=$(getopt -o "ips" --long "limpoint,limkl,limc2v,impacts,printdeps,printcommands,inject,vbf,noggf,novbf,unblinded,snapshot,rmoutput:,cl:,workflow:" -- "$@")
+options=$(getopt -o "ips" --long "fitd,limpoint,limkl,limc2v,impacts,printdeps,printcommands,inject,vbf,noggf,novbf,unblinded,snapshot,rmoutput:,cl:,workflow:" -- "$@")
 eval set -- "$options"
 
 while true; do
     case "$1" in
         -s|--snapshot)
             snapshot=1
+            ;;
+        --fitd)
+            fitd=1
             ;;
         --limpoint)
             limits_at_point=1
@@ -61,12 +66,13 @@ while true; do
             ;;
         --vbf)
             pois="r_qqhh"
-            vbfargs="--x-min 0.1 --x-max 10 --parameter-values C2V=0"
+            vbfargs="--x-min 0.1 --x-max 10 --parameter-values C2V=0.9"
             ;;
         --noggf)
             pois="r_qqhh"
             # vbfargs="--parameter-values r_gghh=0"
-            c2vscan="C2V,-1,-0.2,3:C2V,-0.1,0.3,5:C2V,1.0,1.2,2:C2V,1.2,1.5,2:C2V,1.7,2.1,5:C2V,2.2,3,3"
+            # c2vscan="C2V,-1,-0.2,3:C2V,-0.1,0.3,5:C2V,1.0,1.2,2:C2V,1.2,1.5,2:C2V,1.7,2.1,5:C2V,2.2,3,3"
+            c2vscan="C2V,-1,3,41"
             ;;
         --novbf)
             pois="r_gghh"
@@ -114,31 +120,45 @@ done
 
 export DHI_CMS_POSTFIX=""
 
-common_args="--file-types pdf,png --unblinded $unblinded --version $VERSION $printdeps --remove-output $rmoutput,a,y --campaign run2 --use-snapshot True"
+common_args="--file-types pdf,png --unblinded $unblinded --version $VERSION $printdeps --remove-output $rmoutput,a,y --campaign run2 --use-snapshot False"
 custom_args="--rMax 200 --setParameterRanges r_qqhh=-40,1000:r_gghh=-40,200"
 
 
 if [ $snapshot = 1 ]; then
     law run Snapshot \
+        --version $VERSION $printdeps --remove-output $rmoutput,a,y --datacards $cards --parameter-values C2V=0.6 --unblinded $unblinded \
+        --pois $pois \
+        --custom-args="$custom_args" \
+        --workflow "local"
+fi
+
+if [ $fitd = 1 ]; then
+    law run PlotPostfitSOverB \
+        $common_args \
         --datacards $cards \
-        --custom-args=$custom_args
+        --campaign run2 \
+        --pois $pois \
+        --parameter-values C2V=0.6:CV=1:kl=1:kt=1 \
+        --frozen-parameters C2V,CV,kl,kt \
+        --workflow "local"
 fi
 
 
 if [ $limits_at_point = 1 ]; then
     law run PlotUpperLimitsAtPoint \
         $common_args $vbfargs \
-         --datacard-names bbVV \
+        --datacard-names bbVV \
         --multi-datacards $cards \
         --pois $pois \
         --show-parameters kl,kt,C2V,CV \
         --UpperLimits-workflow $workflow \
         --UpperLimits-tasks-per-job 1 \
-        --UpperLimits-custom-args="--cl $cl" \
+        --UpperLimits-custom-args="--cl $cl --verbose 1 --cminDefaultMinimizerStrategy 0 --cminPoiOnlyFit --freezeParameters r,r_gghh,kl,kt,CV,C2V" \
         --x-log \
         --h-lines 1 \
         --save-hep-data True \
         --Snapshot-custom-args="$custom_args"
+        # --frozen-groups signal_norm_xsbr
 fi
 
 
@@ -158,8 +178,8 @@ if [ $limits_1d_kl = 1 ]; then
         --br bbww \
         --save-ranges \
         --save-hep-data False \
-        --Snapshot-custom-args="$custom_args" \
-        --frozen-groups signal_norm_xsbr
+        --Snapshot-custom-args="$custom_args"
+        # --frozen-groups signal_norm_xsbr
 fi
 
 if [ $limits_1d_c2v = 1 ]; then
@@ -172,13 +192,14 @@ if [ $limits_1d_c2v = 1 ]; then
         --scan-parameters $c2vscan \
         --UpperLimits-workflow "htcondor" \
         --UpperLimits-tasks-per-job 1 \
+        --UpperLimits-custom-args="--cminDefaultMinimizerStrategy 2 --cminPoiOnlyFit" \
         --y-log \
         --show-parameters "kt,kl,CV" \
         --br bbww \
         --save-ranges \
         --save-hep-data False \
-        --Snapshot-custom-args="$custom_args" \
-        --frozen-groups signal_norm_xsbr
+        --Snapshot-custom-args="$custom_args"
+        # --frozen-groups signal_norm_xsbr
 fi
 
 

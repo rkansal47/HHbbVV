@@ -1,0 +1,2 @@
+,Pre-selection,bbFatJetPt_JES_down >= 350,VVFatJetPt_JES_down >= 350,bbFatJetPt_JES_down >= 400 or VVFatJetPt_JES_down >= 400,92.5 ≤ bbFatJetParticleNetMass < 110 or 145 ≤ bbFatJetParticleNetMass < 162.5,0.8 ≤ bbFatJetParticleNetMD_Txbb < 0.988,VVFatJetParTMD_THWWvsT < 0.6,0 ≤ nGoodElectronsHbb < 0.9,0 ≤ nGoodMuonsHbb < 0.9
+X[3000]->H(bb)Y[250](VV),40.53369321772518,40.48163567581831,40.41657669038721,40.41127117514239,6.301497933408943,2.847668825545965,1.3487913645107708,1.346638377975896,1.3350032707450594

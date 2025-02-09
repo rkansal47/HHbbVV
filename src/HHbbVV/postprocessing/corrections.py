@@ -273,18 +273,22 @@ def postprocess_lpsfs(
                 jet_match
             ].to_numpy()
 
-            for key in [
-                "lp_sf_sys_down",
-                "lp_sf_sys_up",
-            ] + matching_vars:
+            for key in ["lp_sf_sys_down", "lp_sf_sys_up"] + matching_vars:
                 td[key][jet_match] = events[key][jet_match].squeeze()
 
             # distortion uncertainty
             # dist_sf = np.clip(np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1), 0.5, 2.0)
-            dist_sf = np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1)
-            td["lp_sf_dist_up"][jet_match] = td["lp_sf_nom"][jet_match] * dist_sf
-            td["lp_sf_dist_down"][jet_match] = td["lp_sf_nom"][jet_match] / dist_sf
-            # breakpoint()
+            dist_sfs = np.nan_to_num(events["lp_sf_dist"][jet_match][0], nan=1)
+            # remove low stats values
+            dist_sfs[dist_sfs > 5.0] = 1.0
+            dist_sfs[dist_sfs < (1.0 / 5.0)] = 1.0
+
+            # dist_sfs = np.clip(dist_sfs, 1.0 / CLIP, CLIP)
+            # td["lp_sf_dist_up"] = dist_sfs
+            # td["lp_sf_dist_down"] = 1.0 / dist_sfs
+
+            td["lp_sf_dist_up"][jet_match] = td["lp_sf_nom"][jet_match] * dist_sfs
+            td["lp_sf_dist_down"][jet_match] = td["lp_sf_nom"][jet_match] / dist_sfs
 
             # num prongs uncertainty variations
             up_prong_rc = (  # events which need re-clustering with +1 prong
@@ -309,26 +313,30 @@ def postprocess_lpsfs(
 
             for shift in ["up", "down"]:
                 td[f"lp_sf_unmatched_{shift}"] = deepcopy(td["lp_sf_nom"])
-                # replace with max SF where needed
-                td[f"lp_sf_unmatched_{shift}"][rc_unmatched] = CLIP if shift == "up" else 1.0 / CLIP
-
+                # multiply or divide by 5 if unmatched even after varying prongs up and down
+                unclust_factor = CLIP if shift == "up" else 1.0 / CLIP
+                td[f"lp_sf_unmatched_{shift}"][rc_unmatched] *= unclust_factor
         else:
             raise ValueError("LP SF shapes are invalid")
 
-        nom_mean = None
+        # nom_mean = np.mean(
+        #     np.clip(np.nan_to_num(td["lp_sf_nom"], nan=1.0), 1.0 / CLIP, CLIP), axis=0
+        # )
+
+        # breakpoint()
         for key in ["lp_sf_nom", "lp_sf_toys", "lp_sf_pt_extrap_vars"] + sf_vars:
-            CLIP = 5.0
             td[key] = np.clip(np.nan_to_num(td[key], nan=1.0), 1.0 / CLIP, CLIP)
+            td[key] = td[key] / np.mean(td[key], axis=0)
 
-            if key == "lp_sf_nom":
-                nom_mean = np.mean(td[key], axis=0)
+            # if "unmatched" in key:
+            #     # unmatched normalization is otherwise dominated by unmatched jets which aren't in the pass regions
+            #     # which artificially inflates this uncertainty
+            #     # td[key] = td[key] / nom_mean
+            #     td[key] = td[key] / np.mean(td[key], axis=0)
+            # else:
+            #     td[key] = td[key] / np.mean(td[key], axis=0)
 
-            if "unmatched" not in key:
-                td[key] = td[key] / np.mean(td[key], axis=0)
-            else:
-                # unmatched normalization is otherwise dominated by unmatched jets which aren't in the pass regions
-                # which artificially inflates this uncertainty
-                td[key] = td[key] / nom_mean
+        # breakpoint()
 
         # add to dataframe
         if save_all:
@@ -338,7 +346,7 @@ def postprocess_lpsfs(
                 keys=[f"{jet}_{key}" for key in td],
             )
 
-            events = pd.concat((events, td), axis=1)
+            events = pd.concat([events.reset_index(drop=True), td.reset_index(drop=True)], axis=1)
         else:
             key = "lp_sf_nom"
             events[f"{jet}_{key}"] = td[key]
@@ -398,6 +406,8 @@ def get_lpsf(
             uncs_asym[shift][unc] = np.abs(
                 (np.sum(events[f"{jet}_lp_sf_{unc}_{shift}"][0] * weight) - tot_post) / tot_post
             )
+
+    # breakpoint()
 
     tot_rel_unc_up = np.linalg.norm(list(uncs.values()) + list(uncs_asym["up"].values()))
     tot_rel_unc_down = np.linalg.norm(list(uncs.values()) + list(uncs_asym["down"].values()))

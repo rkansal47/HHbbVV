@@ -16,14 +16,14 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import mplhep as hep
 import numpy as np
-import utils
 from hist import Hist
 from hist.intervals import poisson_interval, ratio_uncertainty
 from numpy.typing import ArrayLike
 from pandas import DataFrame
-from utils import CUT_MAX_VAL
 
 from HHbbVV.hh_vars import LUMI, data_key, hbb_bg_keys
+from HHbbVV.postprocessing import utils
+from HHbbVV.postprocessing.utils import CUT_MAX_VAL
 
 plt.style.use(hep.style.CMS)
 hep.style.use("CMS")
@@ -313,6 +313,8 @@ def ratioHistPlot(
         sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, syst, variation
     )
 
+    bg_tot = np.maximum(sum([hists[sample, :] for sample in bg_keys]).values(), 0.0)
+
     if syst is not None and variation is None:
         # plot up/down variations
         wshift, wsamples = syst
@@ -325,7 +327,7 @@ def ratioHistPlot(
                     bg_sums.append(hists[f"{sample}_{wshift}_{shift}", :].values())
                 elif sample != "Hbb":
                     bg_sums.append(hists[sample, :].values())
-            bg_err.append(np.sum(bg_sums, axis=0))
+            bg_err.append(np.maximum(np.sum(bg_sums, axis=0), 0.0))
 
     pre_divide_hists = hists
     if divide_bin_width:
@@ -360,14 +362,15 @@ def ratioHistPlot(
     ax.set_ylabel(y_label)
 
     # background samples
-    hep.histplot(
-        [hists[sample, :] for sample in bg_keys],
-        ax=ax,
-        histtype="fill",
-        stack=True,
-        label=bg_labels,
-        color=bg_colours,
-    )
+    if len(bg_keys):
+        hep.histplot(
+            [hists[sample, :] for sample in bg_keys],
+            ax=ax,
+            histtype="fill",
+            stack=True,
+            label=bg_labels,
+            color=bg_colours,
+        )
 
     # signal samples
     if len(sig_scale_dict):
@@ -408,7 +411,6 @@ def ratioHistPlot(
         if divide_bin_width:
             raise NotImplementedError("Background error for divide bin width not checked yet")
 
-        bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
         if len(np.array(bg_err).shape) == 1:
             bg_err = [bg_tot - bg_err, bg_tot + bg_err]
 
@@ -425,12 +427,12 @@ def ratioHistPlot(
             )
         else:
             ax.stairs(
-                bg_tot.values(),
+                bg_tot,
                 hists.axes[1].edges,
                 color="black",
                 linewidth=3,
                 label="BG Total",
-                baseline=bg_tot.values(),
+                baseline=bg_tot,
             )
 
             ax.stairs(
@@ -478,23 +480,22 @@ def ratioHistPlot(
     # plot ratio below
     if plot_ratio:
         if plot_data:
-            bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys])
             # new: plotting data errors (black lines) and background errors (shaded) separately
             yerr = np.nan_to_num(
                 np.abs(
-                    poisson_interval(pre_divide_hists[data_key, ...])
-                    - pre_divide_hists[data_key, ...]
+                    poisson_interval(pre_divide_hists[data_key, ...].values())
+                    - pre_divide_hists[data_key, ...].values()
                 )
-                / (bg_tot.values() + 1e-5)
+                / (bg_tot + 1e-5)
             )
 
             # old version: using Garwood ratio intervals
             # yerr = ratio_uncertainty(
-            #     pre_divide_hists[data_key, :].values(), bg_tot.values(), "poisson"
+            #     pre_divide_hists[data_key, :].values(), bg_tot, "poisson"
             # )
 
             hep.histplot(
-                pre_divide_hists[data_key, :] / (bg_tot.values() + 1e-5),
+                pre_divide_hists[data_key, :] / (bg_tot + 1e-5),
                 yerr=yerr,
                 ax=rax,
                 histtype="errorbar",
@@ -506,8 +507,8 @@ def ratioHistPlot(
                 # (bkg + err) / bkg
                 rax.fill_between(
                     np.repeat(hists.axes[1].edges, 2)[1:-1],
-                    np.repeat((bg_err[0].values()) / bg_tot, 2),
-                    np.repeat((bg_err[1].values()) / bg_tot, 2),
+                    np.repeat((bg_err[0]) / bg_tot, 2),
+                    np.repeat((bg_err[1]) / bg_tot, 2),
                     color="black",
                     alpha=0.1,
                     hatch="//",
@@ -525,7 +526,6 @@ def ratioHistPlot(
         rax.grid()
 
     if plot_significance:
-        bg_tot = sum([pre_divide_hists[sample, :] for sample in bg_keys]).values()
         sigs = [pre_divide_hists[sig_key, :].values() for sig_key in sig_scale_dict]
 
         if significance_dir == "left":
@@ -1275,15 +1275,25 @@ def cutsLinePlot(
 
 
 def plot_lund_plane(
-    h: np.ndarray, title: str = "", ax=None, fig=None, name: str = "", show: bool = False
+    h: np.ndarray,
+    title: str = "",
+    ax=None,
+    fig=None,
+    name: str = "",
+    log: bool = False,
+    show: bool = False,
 ):
+    from matplotlib.colors import LogNorm
+
     if ax is None:
         fig, ax = plt.subplots(figsize=(10, 8))
     else:
         assert fig is not None, "Must provide fig if providing ax."
 
     extent = [-1, 8, -5, 7]
-    im = ax.imshow(h.T, origin="lower", extent=extent, cmap="viridis")
+    im = ax.imshow(
+        h.T, origin="lower", extent=extent, cmap="viridis", norm=LogNorm() if log else None
+    )
     ax.set_aspect("auto")
     fig.colorbar(im, ax=ax)
     # cbar.set_label('Density')
@@ -1306,17 +1316,54 @@ def plot_lund_plane(
             plt.close()
 
 
-def plot_lund_plane_six(hists: np.ndarray, edges: np.ndarray, name: str = "", show: bool = False):
+def plot_lund_plane_six(
+    hists: np.ndarray,
+    edges: np.ndarray = None,
+    name: str = "",
+    log: bool = False,
+    show: bool = False,
+):
+    if isinstance(hists, Hist):
+        hists = hists.values()
+
     fig, axs = plt.subplots(2, 3, figsize=(20, 12), sharex=True, sharey=True)
     for i, ax in enumerate(axs.flat):
         plot_lund_plane(
             hists[i],
-            title=rf"$p_T$: [{edges[0][i]:.0f}, {edges[0][i + 1]:.0f}] GeV",
+            title=(
+                rf"$p_T$: [{edges[0][i]:.0f}, {edges[0][i + 1]:.0f}] GeV"
+                if edges is not None
+                else ""
+            ),
             ax=ax,
             fig=fig,
+            log=log,
         )
 
     if len(name):
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def XHYscatter2d(arr, year: str, title: str = None, name: str = "", show: bool = False):
+    """Scatter plot of (mX, mY) plane for resonant analysis"""
+    arr = np.array(arr)
+    colours = np.ones(arr.shape[0]) if arr.shape[1] == 2 else arr[:, 2]
+
+    fig, ax = plt.subplots(figsize=(14, 12))
+    mappable = plt.scatter(arr[:, 0], arr[:, 1], s=150, c=colours, cmap="turbo")
+    plt.title(title)
+    plt.xlabel(r"$m_X$ (GeV)")
+    plt.ylabel(r"$m_Y$ (GeV)")
+    plt.colorbar(mappable)
+
+    hep.cms.label(data=False, year=year, ax=ax)
+
+    if len(str(name)):
         plt.savefig(name, bbox_inches="tight")
 
     if show:

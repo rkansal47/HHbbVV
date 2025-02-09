@@ -122,17 +122,13 @@ class bbVVSkimmer(SkimmerABC):
     # only the branches necessary for templates and post processing
     # IMPORTANT: Add Lund plane branches in hh_vars.py
     min_branches = [  # noqa: RUF012
+        "Gen4qInJet",  # for LP SFs
+        # fat jet vars
         "ak8FatJetPhi",
         "ak8FatJetEta",
         "ak8FatJetPt",
         "ak8FatJetMsd",
         "ak8FatJetParticleNetMass",
-        "VBFJetEta",
-        "VBFJetPt",
-        "VBFJetPhi",
-        "VBFJetMass",
-        "DijetMass",
-        "nGoodVBFJets",
         "ak8FatJetHbb",
         "ak8FatJetHVV",
         "ak8FatJetHVVNumProngs",
@@ -143,16 +139,27 @@ class bbVVSkimmer(SkimmerABC):
         "VVFatJetParTMD_probHWW4q",
         "VVFatJetParTMD_probT",
         "VVFatJetParTMD_THWWvsT",
+        # VBF vars
+        "VBFJetEta",
+        "VBFJetPt",
+        "VBFJetPhi",
+        "VBFJetMass",
+        "DijetMass",
+        "nGoodVBFJets",
+        # Vetoes / BDT vars
         "MET_pt",
         "MET_phi",
         "nGoodElectronsHH",
         "nGoodElectronsHbb",
         "nGoodMuonsHH",
         "nGoodMuonsHbb",
+        # for the semi-merged veto
+        "SemiMergedVeto",
         "ak8FatJetNumWTagged",
         "ak8FatJetLowestWTaggedTxbb",
         "ak8FatJetWTaggedMsd",
         "ak8FatJetWTaggedParticleNetMass",
+        # data vars
         "event",
         "run",
         "luminosityBlock",
@@ -270,11 +277,10 @@ class bbVVSkimmer(SkimmerABC):
         # Save / derive variables
         #########################
 
-        # TODO: resonant selection gets rid of events where Ws decay into Ws first
         # gen vars - saving HH, bb, VV, and 4q 4-vectors + Higgs children information
-        for d in gen_selection_dict:
+        for d, dfunc in gen_selection_dict.items():
             if d in dataset:
-                vars_dict, (genbb, genq) = gen_selection_dict[d](
+                vars_dict, (genbb, genq, quark_in_jet) = dfunc(
                     events, fatjets, selection, cutflow, gen_weights, P4
                 )
                 skimmed_events = {**skimmed_events, **vars_dict}
@@ -602,28 +608,32 @@ class bbVVSkimmer(SkimmerABC):
         skimmed_events["nGoodMuonsHH"] = nmuonsHH.to_numpy()
 
         # XHY->bbWW semi-resolved channel veto
-        Wqq_score = (fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc) / (
+        txbb = fatjets.particleNetMD_Xbb / (fatjets.particleNetMD_QCD + fatjets.particleNetMD_Xbb)
+        twqq = (fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc) / (
             fatjets.particleNetMD_Xqq + fatjets.particleNetMD_Xcc + fatjets.particleNetMD_QCD
         )
 
-        skimmed_events["ak8FatJetNumWTagged"] = ak.sum(Wqq_score[:, :3] >= 0.8, axis=1).to_numpy()
+        sorted_txbb_score = np.argsort(pad_val(txbb, 3, 0, 1), axis=1)[::-1]
+        row_indices = np.arange(len(fatjets))[:, None]
+        sorted_fj = ak.pad_none(fatjets, 3, clip=True)[row_indices, sorted_txbb_score]
+        sorted_txbb = ak.pad_none(txbb, 3, clip=True)[row_indices, sorted_txbb_score]
+        sorted_twqq = ak.pad_none(twqq, 3, clip=True)[row_indices, sorted_txbb_score]
 
-        sorted_wqq_score = np.argsort(pad_val(Wqq_score, 3, 0, 1), axis=1)
+        # one Hbb jet
+        txbbcut = sorted_txbb[:, 0] > 0.98
+        # two Wqq jets
+        twqqcuts = np.prod(
+            ak.fill_none(sorted_twqq[:, 1:3] >= hh_vars.twqq_wps[year]["LP"], False), axis=1
+        )
+        # mass cuts on Wqq jets
+        wmasscuts = ak.prod(
+            ak.fill_none(
+                (sorted_fj.particleNet_mass >= 60) * (sorted_fj.particleNet_mass <= 110), False
+            )[:, 1:3],
+            axis=1,
+        )
 
-        # get TXbb score of the lowest-Wqq-tagged jet
-        skimmed_events["ak8FatJetLowestWTaggedTxbb"] = pad_val(fatjets["Txbb"], 3, 0, 1)[
-            np.arange(len(fatjets)), sorted_wqq_score[:, 0]
-        ]
-
-        # save both SD and regressed masses of the two W-tagged AK8 jets
-        # Amitav will optimize mass cut soon
-
-        mass_dict = {"particleNet_mass": "ParticleNetMass", "msoftdrop": "Msd"}
-        for mkey, mlabel in mass_dict.items():
-            mass_vals = pad_val(fatjets[mkey], 3, 0, 1)
-            mv_fj1 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 2]]
-            mv_fj2 = mass_vals[np.arange(len(fatjets)), sorted_wqq_score[:, 1]]
-            skimmed_events[f"ak8FatJetWTagged{mlabel}"] = np.stack([mv_fj1, mv_fj2]).T
+        skimmed_events["SemiMergedVeto"] = (txbbcut * twqqcuts * wmasscuts).to_numpy()
 
         ######################
         # Remove branches
@@ -666,10 +676,10 @@ class bbVVSkimmer(SkimmerABC):
         ##############################
 
         sel_all = selection.all(*selection.names)
+        tnevents = len(skimmed_events["weight"])
 
         skimmed_events = {
-            key: value.reshape(len(skimmed_events["weight"]), -1)[sel_all]
-            for (key, value) in skimmed_events.items()
+            key: value.reshape(tnevents, -1)[sel_all] for (key, value) in skimmed_events.items()
         }
 
         bb_mask = bb_mask[sel_all]
@@ -686,6 +696,7 @@ class bbVVSkimmer(SkimmerABC):
             if len(skimmed_events["weight"]):
                 genbb = genbb[sel_all]
                 genq = genq[sel_all]
+                quark_in_jet = quark_in_jet[sel_all]
 
                 sf_dicts, lp_hists = [], []
                 lp_num_jets = num_jets if self._save_all else 1
@@ -718,7 +729,14 @@ class bbVVSkimmer(SkimmerABC):
                     selected_sfs = {}
 
                     for key, (selector, gen_quarks, num_prongs) in selectors.items():
+                        # breakpoint()
                         if np.sum(selector) > 0:
+                            if key == "bb":
+                                gen_quarks_temp = gen_quarks[selector]
+                            else:
+                                # pick out the quarks in the jet, i.e. num quarks = num prongs
+                                gen_quarks_temp = gen_quarks[selector][quark_in_jet[selector]]
+
                             selected_sfs[key], lp_hist = get_lund_SFs(
                                 year,
                                 events[sel_all][selector],
@@ -729,7 +747,7 @@ class bbVVSkimmer(SkimmerABC):
                                     else np.array(skimmed_events["ak8FatJetHVV"][selector][:, 1])
                                 ),  # giving HVV jet index if only doing LP SFs for HVV jet
                                 num_prongs,
-                                gen_quarks[selector],
+                                gen_quarks_temp,
                                 weights_dict["weight"][sel_all][selector],
                                 # if not save_skims, means only calculating LP densities, i.e. don't have them yet
                                 sample=dataset if self._save_skims else None,

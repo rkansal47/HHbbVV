@@ -62,6 +62,8 @@ from HHbbVV.run_utils import add_bool_arg
 # ignore these because they don't seem to apply
 # warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
+# from memory_profiler import profile
+
 
 @dataclass
 class Syst:
@@ -233,8 +235,9 @@ def main(args):
     _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
     cutflow = pd.DataFrame(index=all_samples)  # save cutflow as pandas table
 
-    if args.lpsfs:
-        _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples)
+    if args.lpsfs or args.templates:
+        if len(sig_keys):
+            _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples)
         if not (args.templates or args.bdt_plots or args.control_plots):
             return
 
@@ -247,6 +250,7 @@ def main(args):
     derive_variables(
         events_dict,
         bb_masks,
+        resonant=args.resonant,
         nonres_vars=args.vbf or (args.control_plots and not args.mass_plots),
         # nonres_vars=args.vbf,
         vbf_vars=args.vbf,
@@ -335,23 +339,9 @@ def main(args):
 
             # load pre-calculated systematics and those for different years if saved already
             systs_file = template_dir / "systematics.json"
-            systematics = _check_load_systematics(systs_file, args.year)
+            systematics = _check_load_systematics(systs_file, args.year, args.override_systs)
 
-            # Get Lund plane SFs if not calculated previously
-            lpsfs(
-                sig_keys,
-                [region for region in selection_regions.values() if region.lpsf],
-                systematics,
-                events_dict=events_dict,
-                bb_masks=bb_masks,
-                sig_samples=sig_samples,
-                filters=filters,
-                all_years=args.lp_sf_all_years,
-                bdt_preds_dir=args.bdt_preds_dir,
-                template_dir=template_dir,
-                systs_file=systs_file,
-                data_dir=args.signal_data_dirs[0],
-            )
+            print(systematics)
 
             print("\nMaking templates")
             templates = {}
@@ -584,6 +574,16 @@ def _add_nonres_columns(df, bb_mask, vbf_vars=False, ptlabel="", mlabel=""):
         df["vbf_prod_centrality"] = prod_centrality
 
 
+def _add_res_columns(df, bb_mask, ptlabel="", mlabel=""):
+
+    bbJet = utils.make_vector(df, "bbFatJet", bb_mask, ptlabel=ptlabel, mlabel=mlabel)
+    VVJet = utils.make_vector(df, "VVFatJet", bb_mask, ptlabel=ptlabel, mlabel=mlabel)
+    Dijet = bbJet + VVJet
+
+    if f"DijetMass{ptlabel}{mlabel}" not in df.columns:
+        df[f"DijetMass{ptlabel}{mlabel}"] = Dijet.mass
+
+
 def _process_samples(args, BDT_sample_order: list[str] = None):
     sig_samples = res_samples if args.resonant else nonres_samples
     sig_samples = deepcopy(sig_samples)
@@ -799,6 +799,8 @@ def load_samples(
 
     """
     data_dir = Path(data_dir) / year
+    # remove empty parquets, otherwise read_parquet fails
+    utils.remove_empty_parquets(data_dir)
     full_samples_list = os.listdir(data_dir)  # get all directories in data_dir
     events_dict = {}
 
@@ -851,8 +853,8 @@ def load_samples(
     return events_dict
 
 
-def _check_load_systematics(systs_file: str, year: str):
-    if systs_file.exists():
+def _check_load_systematics(systs_file: str, year: str, override_systs: bool):
+    if systs_file.exists() and not override_systs:
         # print("Loading existing systematics")
         with systs_file.open() as f:
             systematics = json.load(f)
@@ -871,6 +873,7 @@ def _load_samples(args, samples, sig_samples, cutflow, variations=True):
 
     events_dict = {}
     for d in args.signal_data_dirs:
+        print(f"Loading signals from {d}")
         events_dict = {
             **events_dict,
             **load_samples(
@@ -883,12 +886,33 @@ def _load_samples(args, samples, sig_samples, cutflow, variations=True):
             ),
         }
 
-    if args.data_dir:
+    bg_samples = deepcopy(samples)
+
+    if data_key in samples:
+        bg_samples.pop(data_key)
+        data_samples = {data_key: samples[data_key]}
+
+    for d in args.bg_data_dirs:
+        print(f"Loading backgrounds from {d}")
+        events_dict = {
+            **events_dict,
+            **load_samples(
+                d,
+                bg_samples,
+                args.year,
+                filters,
+                hem_cleaning=args.hem_cleaning,
+                variations=variations,
+            ),
+        }
+
+    if args.data_dir and data_key in samples:
+        print(f"Loading data from {args.data_dir}")
         events_dict = {
             **events_dict,
             **load_samples(
                 args.data_dir,
-                samples,
+                data_samples,
                 args.year,
                 filters,
                 hem_cleaning=args.hem_cleaning,
@@ -918,8 +942,7 @@ def apply_trigger_weights(events_dict: dict[str, pd.DataFrame], year: str, cutfl
 
     weight_key = "finalWeight"
 
-    for sample in events_dict:
-        events = events_dict[sample]
+    for sample, events in events_dict.items():
         if sample == data_key:
             if weight_key not in events:
                 events[weight_key] = events["weight"]
@@ -1008,6 +1031,7 @@ def bb_VV_assignment(events_dict: dict[str, pd.DataFrame]) -> dict[str, pd.DataF
 def derive_variables(
     events_dict: dict[str, pd.DataFrame],
     bb_masks: dict[str, pd.DataFrame],
+    resonant: bool = False,
     nonres_vars: bool = True,
     vbf_vars: bool = False,
     do_jshifts: bool = True,
@@ -1018,22 +1042,29 @@ def derive_variables(
     start = time.time()
 
     for sample, events in events_dict.items():
-        if not nonres_vars:
-            continue
-
         print(f"Deriving variables for {sample} {time.time() - start:.2f}s")
 
         bb_mask = bb_masks[sample]
-        _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars)
+
+        fargs = [events, bb_mask]
+        if resonant:
+            dfunc = _add_res_columns
+        elif nonres_vars:
+            dfunc = _add_nonres_columns
+            fargs.append(vbf_vars)
+        else:
+            continue
+
+        dfunc(*fargs)
 
         if sample == data_key or not do_jshifts:
             continue
 
         for var in jec_shifts:
-            _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars, ptlabel=f"_{var}")
+            dfunc(*fargs, ptlabel=f"_{var}")
 
         for var in jmsr_shifts:
-            _add_nonres_columns(events, bb_mask, vbf_vars=vbf_vars, mlabel=f"_{var}")
+            dfunc(*fargs, mlabel=f"_{var}")
 
 
 def _add_bdt_scores(
@@ -1129,9 +1160,10 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
 
     # load pre-calculated systematics and those for different years if saved already
     systs_file = args.template_dir / "systematics.json"
-    systematics = _check_load_systematics(systs_file, args.year)
+    systematics = _check_load_systematics(systs_file, args.year, args.override_systs)
 
     lpsf_regions = []
+    prelpsf_region = None
 
     for wps in scan_wps:  # if not scanning, this will just be a single WP
         cutstr, _, selection_regions = _get_scan_regions(args, scan, scan_cuts, wps)
@@ -1142,8 +1174,12 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
                     tregion.lpsf_region += "_" + cutstr
                 lpsf_regions.append(tregion)
 
+            if region.prelpsf:
+                prelpsf_region = region
+
     lpsfs(
         sig_keys,
+        prelpsf_region,
         lpsf_regions,
         systematics,
         sig_samples=sig_samples,
@@ -1161,7 +1197,7 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
         for wps in scan_wps:
             cutstr, template_dir, selection_regions = _get_scan_regions(args, scan, scan_cuts, wps)
             systs_file = template_dir / "systematics.json"
-            wsysts = _check_load_systematics(systs_file, args.year)
+            wsysts = _check_load_systematics(systs_file, args.year, args.override_systs)
 
             for region in selection_regions.values():
                 if region.lpsf:
@@ -1171,11 +1207,13 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
                 json.dump(wsysts, f, indent=4)
 
 
+# @profile
 def _get_signal_all_years(
     sig_key: str,
     data_dir: Path,
     samples: dict,
     filters: list,
+    prelpsf_region: Region,
     bdt_preds_dir: Path = None,
     year: str = None,
 ):
@@ -1189,11 +1227,13 @@ def _get_signal_all_years(
         ("weight", 1),
         ("weight_noTrigEffs", 1),
         ("ak8FatJetPt", 2),
-        ("ak8FatJetMsd", 2),
+        # ("ak8FatJetMsd", 2),
         ("ak8FatJetHVV", 2),
         ("ak8FatJetHVVNumProngs", 1),
         ("ak8FatJetParticleNetMD_Txbb", 2),
         ("VVFatJetParTMD_THWWvsT", 1),
+        ("nGoodElectronsHbb", 1),
+        ("nGoodMuonsHbb", 1),
     ]
 
     load_columns += hh_vars.lp_sf_vars
@@ -1216,22 +1256,43 @@ def _get_signal_all_years(
             variations=False,
         )
 
+        cutflow = pd.DataFrame(index=[sig_key])  # save cutflow as pandas table
+        utils.add_to_cutflow(events_dict, "Pre-selection", "finalWeight", cutflow)
         # print weighted sample yields
-        print(f"{np.sum(events_dict[sig_key]['finalWeight'].to_numpy()):.2f} Events")
+        # print(f"{np.sum(events_dict[sig_key]['finalWeight'].to_numpy()):.2f} Events")
 
         bb_masks = bb_VV_assignment(events_dict)
         derive_variables(events_dict, bb_masks, nonres_vars=False, do_jshifts=False)
-        events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
+        # events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
 
         if bdt_preds_dir is not None:
             load_bdt_preds(events_dict, year, bdt_preds_dir, all_outs=False)
 
-        # sel, _ = utils.make_selection(lp_region.cuts, events_dict, bb_masks)
+        sel, cutflow = utils.make_selection(
+            prelpsf_region.cuts,
+            events_dict,
+            bb_masks,
+            weight_key="finalWeight",
+            prev_cutflow=cutflow,
+        )
+        print(year, cutflow)
 
-        events_all.append(events_dict[sig_key])
+        # drop columns for memory
+        events_dict[sig_key] = events_dict[sig_key].drop(
+            [
+                ("nGoodElectronsHbb", 0),
+                ("nGoodMuonsHbb", 0),
+                ("ak8FatJetPt", 0),
+                ("ak8FatJetPt", 1),
+            ],
+            axis=1,
+            # inplace=True,
+        )
+        events_all.append(events_dict[sig_key][sel[sig_key]])
         # sels_all.append(sel[sig_key])
 
     events_dict = {sig_key: pd.concat(events_all, axis=0)}
+    events_dict[sig_key] = postprocess_lpsfs(events_dict[sig_key])
     # sel = np.concatenate(sels_all, axis=0)
 
     return events_dict  # get_lpsf(events, sel)
@@ -1258,6 +1319,7 @@ def _check_measure_lpsfs(systematics, sig_key, lp_selection_regions):
 
 def lpsfs(
     sig_keys: list[str],
+    prelpsf_region: Region,
     lp_selection_regions: Region | list[Region],
     systematics: dict,
     sig_samples: dict[str, str] = None,
@@ -1295,14 +1357,14 @@ def lpsfs(
         # SFs are correlated across all years so needs to be calculated with full dataset
         if all_years:
             events_dict = _get_signal_all_years(
-                sig_key, data_dir, sig_samples, filters, bdt_preds_dir
+                sig_key, data_dir, sig_samples, filters, prelpsf_region, bdt_preds_dir
             )
             bb_masks = bb_VV_assignment(events_dict)
 
         # ONLY FOR TESTING, can do just for a single year
         else:
             events_dict = _get_signal_all_years(
-                sig_key, data_dir, sig_samples, filters, bdt_preds_dir, year=year
+                sig_key, data_dir, sig_samples, filters, prelpsf_region, bdt_preds_dir, year=year
             )
             bb_masks = bb_VV_assignment(events_dict)
 
@@ -1744,6 +1806,8 @@ def get_templates(
                 events, bb_mask, shape_vars, jshift=jshift if sample != data_key else None
             )
             weight = events[weight_key].to_numpy().squeeze()
+
+            # breakpoint()
             h.fill(Sample=sample, **fill_data, weight=weight)
 
             if not do_jshift:
@@ -1944,6 +2008,14 @@ def parse_args(parser=None):
     )
 
     parser.add_argument(
+        "--bg-data-dirs",
+        default=[],
+        help="path to skimmed background parquets, if different from other data",
+        nargs="*",
+        type=str,
+    )
+
+    parser.add_argument(
         "--signal-data-dirs",
         default=[],
         help="path to skimmed signal parquets, if different from other data",
@@ -1961,7 +2033,7 @@ def parse_args(parser=None):
     parser.add_argument(
         "--bdt-preds-dir",
         help="path to bdt predictions directory, will look in `data dir`/inferences/ by default",
-        default=None,
+        default="",
         type=str,
     )
 
@@ -2012,6 +2084,9 @@ def parse_args(parser=None):
     add_bool_arg(parser, "do-jshifts", "Do JEC/JMC variations", default=True)
     add_bool_arg(parser, "plot-shifts", "Plot systematic variations as well", default=False)
     add_bool_arg(parser, "lp-sf-all-years", "Calculate one LP SF for all run 2", default=True)
+    add_bool_arg(
+        parser, "override-systs", "Override saved systematics file if it exists", default=False
+    )
 
     parser.add_argument(
         "--sig-samples",
@@ -2055,7 +2130,7 @@ def parse_args(parser=None):
     parser.add_argument(
         "--nonres-ggf-bdt-wp",
         help="BDT WP for ggF signal region. If multiple arguments, will make templates for each.",
-        default=[0.9965],
+        default=[0.995],
         nargs="*",
         type=float,
     )
@@ -2097,7 +2172,7 @@ def parse_args(parser=None):
     parser.add_argument(
         "--res-thww-wp",
         help="Thww WP for signal region. If multiple arguments, will make templates for each.",
-        default=[0.8],
+        default=[0.6],
         nargs="*",
         type=float,
     )
@@ -2105,7 +2180,7 @@ def parse_args(parser=None):
     parser.add_argument(
         "--res-leading-pt",
         help="pT cut for leading AK8 jet (resonant only)",
-        default=[300],
+        default=[400],
         nargs="*",
         type=float,
     )
@@ -2113,7 +2188,7 @@ def parse_args(parser=None):
     parser.add_argument(
         "--res-subleading-pt",
         help="pT cut for sub-leading AK8 jet (resonant only)",
-        default=[300],
+        default=[350],
         nargs="*",
         type=float,
     )
@@ -2132,14 +2207,20 @@ def parse_args(parser=None):
         print("Need to set --template-dir if making templates or measuring LP SFs. Exiting.")
         sys.exit()
 
-    if not args.signal_data_dirs:
+    if not args.signal_data_dirs and args.data_dir:
         args.signal_data_dirs = [args.data_dir]
+
+    if not args.bg_data_dirs and args.data_dir:
+        args.bg_data_dirs = [args.data_dir]
 
     if args.bdt_preds_dir != "" and args.bdt_preds_dir is not None:
         args.bdt_preds_dir = Path(args.bdt_preds_dir)
 
     if args.bdt_preds_dir == "" and not args.resonant:
-        args.bdt_preds_dir = f"{args.data_dir}/inferences/"
+        if args.data_dir is None:
+            args.bdt_preds_dir = Path(f"{args.signal_data_dirs[0]}/inferences/")
+        else:
+            args.bdt_preds_dir = Path(f"{args.data_dir}/inferences/")
     elif args.resonant:
         args.bdt_preds_dir = None
 
@@ -2151,6 +2232,7 @@ def parse_args(parser=None):
         args.control_plots = True
         args.filters = False
 
+    print(args)
     return args
 
 

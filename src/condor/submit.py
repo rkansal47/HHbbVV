@@ -9,50 +9,59 @@ from __future__ import annotations
 
 import argparse
 import os
+import warnings
 from math import ceil
 from pathlib import Path
 
+import yaml
+
 from HHbbVV import run_utils
 
+t2_redirectors = {
+    "lpc": "root://cmseos.fnal.gov//",
+    "ucsd": "root://redirector.t2.ucsd.edu:1095//",
+}
 
-def get_site_vars(site):
-    username = os.environ["USER"]
+
+def get_proxy(site, username):
     if site == "lpc":
-        t2_local_prefix = Path("/eos/uscms/")
-        t2_prefix = "root://cmseos.fnal.gov"
-
         try:
             proxy = os.environ["X509_USER_PROXY"]
         except:
             print("No valid proxy. Exiting.")
             exit(1)
     elif site == "ucsd":
-        t2_local_prefix = Path("/ceph/cms/")
-        t2_prefix = "root://redirector.t2.ucsd.edu:1095"
         if username == "rkansal":
             # Reminder: need to re-copy this from /tmp whenever it expires (symlink?)
             proxy = "/home/users/rkansal/x509up_u31735"
         elif username == "annava":
             proxy = "/home/users/annava/projects/HHbbVV/test"
 
-    return username, t2_local_prefix, t2_prefix, proxy
+    return proxy
 
 
 def main(args):
     run_utils.check_branch(args.git_branch, args.git_user, args.allow_diff_local_repo)
-    username, t2_local_prefix, t2_prefix, proxy = get_site_vars(args.site)
 
-    homedir = Path(f"store/user/{username}/bbVV/{args.processor}/")
-    outdir = homedir / args.tag
-    eos_local_dir = t2_local_prefix / outdir
-    eos_local_dir.mkdir(parents=True, exist_ok=True)
-    print("EOS outputs dir: ", eos_local_dir)
+    username = os.environ["USER"]
+    proxy = get_proxy(args.site, username)
+
+    if args.site not in args.save_sites:
+        warnings.warn(
+            f"Your local site {args.site} is not in save sites {args.sites}!", stacklevel=1
+        )
+
+    t2_prefixes = [t2_redirectors[site] for site in args.save_sites]
+
+    # t2 output directory
+    pdir = Path(f"store/user/{username}/bbVV/{args.processor}/")
+    outdir = pdir / args.tag
 
     # make local directory
     local_dir = Path(f"condor/{args.processor}/{args.tag}")
     logdir = local_dir / "logs"
     logdir.mkdir(parents=True, exist_ok=True)
-    print("CONDOR work dir: ", local_dir)
+    print("Condor work dir: ", local_dir)
 
     fileset = run_utils.get_fileset(
         args.processor,
@@ -75,9 +84,7 @@ def main(args):
             if args.submit:
                 print("Submitting " + subsample)
 
-            (eos_local_dir / args.year / subsample).mkdir(parents=True, exist_ok=True)
-            eosoutput_dir = f"{t2_prefix}//{outdir}/{args.year}/{subsample}/"
-
+            sample_dir = outdir / args.year / subsample
             njobs = ceil(tot_files / args.files_per_job)
 
             for j in range(njobs):
@@ -103,12 +110,11 @@ def main(args):
                     "processor": args.processor,
                     "maxchunks": args.maxchunks,
                     "chunksize": args.chunksize,
+                    "t2_prefixes": " ".join(t2_prefixes),
+                    "outdir": sample_dir,
+                    "jobnum": j,
                     "label": args.label,
                     "njets": args.njets,
-                    "eosoutpkl": f"{eosoutput_dir}/pickles/out_{j}.pkl",
-                    "eosoutparquet": f"{eosoutput_dir}/parquet/out_{j}.parquet",
-                    "eosoutroot": f"{eosoutput_dir}/root/nano_skim_{j}.root",
-                    "eosoutgithash": f"{eosoutput_dir}/githashes/commithash_{j}.txt",
                     "save_ak15": "--save-ak15" if args.save_ak15 else "--no-save-ak15",
                     "save_all": "--save-all" if args.save_all else "--no-save-all",
                     "save_skims": "--save-skims" if args.save_skims else "--no-save-skims",
@@ -148,6 +154,14 @@ def parse_args(parser):
         type=str,
         choices=["lpc", "ucsd"],
     )
+    parser.add_argument(
+        "--save-sites",
+        default=["lpc", "ucsd"],
+        help="tier 2s in which we want to save the files",
+        type=str,
+        nargs="+",
+        choices=["lpc", "ucsd"],
+    )
     run_utils.add_bool_arg(
         parser,
         "test",
@@ -175,4 +189,33 @@ if __name__ == "__main__":
     run_utils.parse_common_args(parser)
     parse_args(parser)
     args = parser.parse_args()
-    main(args)
+
+    # YAML check
+    if args.yaml is not None:
+        with Path(args.yaml).open() as file:
+            samples_to_submit = yaml.safe_load(file)
+
+        tag = args.tag
+        for key, tdict in samples_to_submit.items():
+            for sample, sdict in tdict.items():
+                rsample = sample
+                if rsample in ["JetHT", "SingleMu"]:
+                    rsample += args.year[:4]
+
+                args.samples = [rsample]
+                args.subsamples = sdict.get("subsamples", [])
+                args.files_per_job = sdict["files_per_job"]
+                args.njets = sdict.get("njets", 2)
+                args.max_files = sdict.get("max_files", None)
+                args.maxchunks = sdict.get("maxchunks", 0)
+                args.chunksize = sdict.get("chunksize", 10000)
+                args.tag = tag
+                args.label = args.jet + sdict["label"] if "label" in sdict else "None"
+
+                if key == "Validation":
+                    args.tag = f"{args.tag}_Validation"
+
+                print(args)
+                main(args)
+    else:
+        main(args)

@@ -7,7 +7,8 @@
 ####################################################################################################
 
 MAIN_DIR="../../.."
-data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
+# data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
+signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Jan9UpdateLPFix"
 TAG=""
 
 
@@ -40,12 +41,11 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-for year in 2016APV 2016 2017 2018
+# for year in 2016APV 2016 2017 2018
+for year in 2016
 do
     # --sig-samples qqHH_CV_1_C2V_1_kl_2_HHbbVV --bg-keys "" --no-data \
-    python -u postprocessing.py --year $year --data-dir "$data_dir" --templates \
-    --no-lp-sf-all-years \
-    --bdt-preds-dir "$data_dir/24_03_07_new_samples_max_depth_5/inferences" \
+    python -u postprocessing.py --year $year --signal-data-dir "$signal_data_dir" --lpsfs --no-lp-sf-all-years --override-systs \
     --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" \
-    --template-dir "test_templates/$TAG$year" --no-do-jshifts --vbf
+    --template-dir "templates/$TAG" --no-do-jshifts --sig-samples GluGluToHHTobbVV_node_cHHH1 --bg-keys "" --no-data
 done
