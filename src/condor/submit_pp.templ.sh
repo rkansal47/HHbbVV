@@ -62,10 +62,12 @@ do
 
         rm -rf samples/$${year}/$${sample}
     done
-done
 
-#move output to t2s
-for t2_prefix in ${t2_prefixes}
-do
-    xrdcp -f condor_templates/* $${t2_prefix}/${outdir}/
+    #move output to t2s
+    for t2_prefix in ${t2_prefixes}
+    do
+        xrdcp -fr condor_templates/$${sample} $${t2_prefix}/${outdir}/
+    done
+
+    rm -rf condor_templates/$${sample}
 done
