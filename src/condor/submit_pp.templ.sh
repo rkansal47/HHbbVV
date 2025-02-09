@@ -67,5 +67,5 @@ done
 #move output to t2s
 for t2_prefix in ${t2_prefixes}
 do
-    xrdcp -f condor_templates/* $${t2_prefix}/${outdir}/
+    xrdcp -fr condor_templates/* $${t2_prefix}/${outdir}/
 done
