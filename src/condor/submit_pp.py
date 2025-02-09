@@ -16,7 +16,8 @@ from pathlib import Path
 import submit
 
 from HHbbVV import run_utils
-from HHbbVV.hh_vars import res_sigs as samples
+from HHbbVV.hh_vars import res_sigs as full_samples
+from HHbbVV.run_utils import add_bool_arg
 
 
 def main(args):
@@ -49,6 +50,13 @@ def main(args):
     # submit jobs
     nsubmit = 0
     print("Submitting samples")
+
+    if args.check_out_samples:
+        # Get directory names and remove from samples
+        dir_names = [d.name for d in (Path("/eos/uscms") / outdir).iterdir() if d.is_dir()]
+        samples = [s for s in full_samples if s not in dir_names]
+    else:
+        samples = full_samples
 
     njobs = ceil(len(samples) / args.files_per_job)
 
@@ -91,5 +99,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     submit.parse_args(parser)
     parser.add_argument("--tag", default="Test", help="process tag", type=str)
+    add_bool_arg(
+        parser,
+        "check-out-samples",
+        default=False,
+        help="Check previous outputs and remove them from the run list",
+    )
     args = parser.parse_args()
     main(args)
