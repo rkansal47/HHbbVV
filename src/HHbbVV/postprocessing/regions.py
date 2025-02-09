@@ -107,7 +107,7 @@ def get_nonres_selection_regions(
             cuts={
                 "bbFatJetPt": pt_cuts,
                 "VVFatJetPt": pt_cuts,
-                "bbFatJetParticleNetMD_Txbb": [ggf_txbb_cut, CUT_MAX_VAL],
+                # "bbFatJetParticleNetMD_Txbb": [ggf_txbb_cut, CUT_MAX_VAL],
                 **lepton_cuts,
             },
             prelpsf=True,
@@ -305,7 +305,9 @@ def get_res_selection_regions(
     leading_pt_cut = [leadingpt_wp, CUT_MAX_VAL]
     subleading_pt_cut = [subleadingpt_wp, CUT_MAX_VAL]
 
-    for _key, region in regions.items():
+    for key, region in regions.items():
+        if key == "lpsf_pass":
+            continue
         cuts = {
             "bbFatJetPt": subleading_pt_cut,
             "VVFatJetPt": subleading_pt_cut,

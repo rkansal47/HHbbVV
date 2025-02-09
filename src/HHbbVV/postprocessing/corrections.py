@@ -273,10 +273,7 @@ def postprocess_lpsfs(
                 jet_match
             ].to_numpy()
 
-            for key in [
-                "lp_sf_sys_down",
-                "lp_sf_sys_up",
-            ] + matching_vars:
+            for key in ["lp_sf_sys_down", "lp_sf_sys_up"] + matching_vars:
                 td[key][jet_match] = events[key][jet_match].squeeze()
 
             # distortion uncertainty

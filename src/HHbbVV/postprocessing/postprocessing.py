@@ -62,6 +62,8 @@ from HHbbVV.run_utils import add_bool_arg
 # ignore these because they don't seem to apply
 # warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
 
+# from memory_profiler import profile
+
 
 @dataclass
 class Syst:
@@ -1205,6 +1207,7 @@ def _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples):
                 json.dump(wsysts, f, indent=4)
 
 
+# @profile
 def _get_signal_all_years(
     sig_key: str,
     data_dir: Path,
@@ -1224,7 +1227,7 @@ def _get_signal_all_years(
         ("weight", 1),
         ("weight_noTrigEffs", 1),
         ("ak8FatJetPt", 2),
-        ("ak8FatJetMsd", 2),
+        # ("ak8FatJetMsd", 2),
         ("ak8FatJetHVV", 2),
         ("ak8FatJetHVVNumProngs", 1),
         ("ak8FatJetParticleNetMD_Txbb", 2),
@@ -1273,6 +1276,18 @@ def _get_signal_all_years(
             prev_cutflow=cutflow,
         )
         print(year, cutflow)
+
+        # drop columns for memory
+        events_dict[sig_key] = events_dict[sig_key].drop(
+            [
+                ("nGoodElectronsHbb", 0),
+                ("nGoodMuonsHbb", 0),
+                ("ak8FatJetPt", 0),
+                ("ak8FatJetPt", 1),
+            ],
+            axis=1,
+            # inplace=True,
+        )
         events_all.append(events_dict[sig_key][sel[sig_key]])
         # sels_all.append(sel[sig_key])
 
