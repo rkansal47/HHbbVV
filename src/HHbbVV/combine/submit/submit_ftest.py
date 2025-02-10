@@ -86,18 +86,21 @@ def main(args):
 
         localsh = f"{local_dir}/{prefix}_{j}.sh"
         sh_args = {
-            "in_low1": args.low1,
-            "in_low2": args.low2,
-            "in_tag": args.cards_tag,
-            "in_seed": args.seed + j * args.toys_per_job,
-            "in_num_toys": args.toys_per_job,
-            "in_rmax": args.rmax,
+            "branch": args.git_branch,
+            "gituser": args.git_user,
+            "jobnum": j,
+            "low1": args.low1,
+            "low2": args.low2,
+            "tag": args.cards_tag,
+            "seed": args.seed + j * args.toys_per_job,
+            "num_toys": args.toys_per_job,
+            "rmax": args.rmax,
             "bestfitr": bestfitr,
         }
         if not args.resonant:
-            sh_args.pop("in_low2")
+            sh_args.pop("low2")
         if args.blinded:
-            sh_args.pop("in_rmax")
+            sh_args.pop("rmax")
             sh_args.pop("bestfitr")
 
         run_utils.write_template(sh_templ, localsh, sh_args, safe=True)
@@ -114,8 +117,12 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--git-branch", required=True, help="git branch to use", type=str)
+    parser.add_argument(
+        "--git-user", default="rkansal47", help="which user's repo to use", type=str
+    )
     parser.add_argument("--tag", default="Test", help="condor tag", type=str)
-    parser.add_argument("--cards-tag", default="Apr26", help="f tests dir tag", type=str)
+    parser.add_argument("--cards-tag", help="f tests dir tag", type=str, required=True)
     parser.add_argument(
         "--site",
         default="lpc",

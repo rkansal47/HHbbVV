@@ -110,7 +110,7 @@ do
     cd ../.. || exit
 
     # transfer output cards
-    xrdcp -r cards/$${sample} root://cmseos.fnal.gov/${cards_dir}/
+    xrdcp -r cards/$${sample} root://cmseos.fnal.gov/${cards_dir}/$${sample}
     rm -rf templates/$${sample}
     rm -rf cards/$${sample}
 done
