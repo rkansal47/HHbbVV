@@ -51,7 +51,7 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-io_args="--data-dir $data_dir --bdt-preds-dir $bdt_preds_dir --plot-dir ${MAIN_DIR}/plots/PostProcessing/$TAG --template-dir templates/$TAG $sig_samples --nonres-ggf-bdt-wp 0.994"
+io_args="--data-dir $data_dir --bdt-preds-dir $bdt_preds_dir --plot-dir ${MAIN_DIR}/plots/PostProcessing/$TAG --template-dir templates/$TAG $sig_samples"
 
 echo "get LP SFs first for all regions"
 python -u postprocessing.py --year 2016 $io_args --lpsfs --nonres-regions $region
