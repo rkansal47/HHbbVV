@@ -79,13 +79,12 @@ def main(args):
 
     scan_cuts = res_scan_cuts if args.resonant else nonres_scan_cuts
 
-    for sample in samples:
-        if args.scan:
-            for wps in scan_wps:
-                cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
-                os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}/{cutstr}/{sample}")
-        else:
-            os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}/{sample}")
+    if args.scan:
+        for wps in scan_wps:
+            cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
+            os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}/{cutstr}")
+    else:
+        os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}")
 
     # split along WPs for scan or along # of samples for regular jobs
     njobs = len(scan_wps) if args.scan else ceil(len(samples) / args.files_per_job)
@@ -148,7 +147,7 @@ if __name__ == "__main__":
         "--git-user", default="rkansal47", help="which user's repo to use", type=str
     )
     parser.add_argument("--tag", default="Test", help="process tag", type=str)
-    parser.add_argument("--templates-dir", help="EOS templates dir", type=str)
+    parser.add_argument("--templates-dir", help="EOS templates dir", type=str, required=True)
     parser.add_argument(
         "--site",
         default="lpc",

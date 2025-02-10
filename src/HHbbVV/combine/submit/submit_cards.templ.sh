@@ -82,29 +82,37 @@ ls -lh .
 ####################################################################################################
 
 cd src/HHbbVV/ || exit
-mkdir -p templates
+mkdir -p templates/backgrounds
 mkdir -p cards
 
 # get backgrounds templates
-xrdcp -r root://cmseos.fnal.gov/${templates_dir}/backgrounds templates/
+for file in "2016_templates.pkl" "2016APV_templates.pkl" "2017_templates.pkl" "2018_templates.pkl" "systematics.json"
+do
+    xrdcp -r root://redirector.t2.ucsd.edu:1095//${templates_dir}/backgrounds/$${file} templates/backgrounds/
+done
 
 for sample in $samples
 do
     echo -e "\n\n$${sample}"
+    mkdir -p templates/$${sample}
 
     # get sample templates
-    xrdcp -r root://cmseos.fnal.gov/${templates_dir}/$${sample} templates/
+    for file in "2016_templates.pkl" "2016APV_templates.pkl" "2017_templates.pkl" "2018_templates.pkl" "systematics.json"
+    do
+        xrdcp -r root://redirector.t2.ucsd.edu:1095//${templates_dir}/$${sample}/$${file} templates/$${sample}/
+    done
 
-    python3 -u postprocessing/CreateDatacard.py --templates-dir templates --sig-separate --resonant \
-    --model-name $${sample} --sig-sample $${sample} ${datacard_args}
+    python3 -u postprocessing/CreateDatacard.py --templates-dir "templates/$${sample}" --bg-templates-dir "templates/backgrounds" \
+    --sig-separate --resonant --model-name $${sample} --sig-sample $${sample} ${datacard_args}
 
     cd cards/$${sample} || exit
     ../../combine/run_blinded.sh --workspace --bfit --limits --resonant
     cd ../.. || exit
 
     # transfer output cards
-    xrdcp -r cards/$${sample} root://cmseos.fnal.gov/${cards_dir}/$${sample}/
+    xrdcp -r cards/$${sample} root://cmseos.fnal.gov/${cards_dir}/
     rm -rf templates/$${sample}
+    rm -rf cards/$${sample}
 done
 
 rm -rf templates/backgrounds

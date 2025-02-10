@@ -55,6 +55,7 @@ def main(args):
         # Get directory names and remove from samples
         dir_names = [d.name for d in (Path("/eos/uscms") / outdir).iterdir() if d.is_dir()]
         samples = [s for s in full_samples if s not in dir_names]
+        print(" ".join(samples))
     else:
         samples = full_samples
 
