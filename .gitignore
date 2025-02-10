@@ -189,6 +189,7 @@ tau_check.ipynb
 src/HHbbVV/postprocessing/testBDT
 src/HHbbVV/postprocessing/templates/*test*
 src/HHbbVV/postprocessing/templates/*Test*
+src/HHbbVV/postprocessing/templates/25Feb9AllRes
 src/HHbbVV/postprocessing/test_templates
 tmp
 temp
