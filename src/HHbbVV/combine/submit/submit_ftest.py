@@ -103,7 +103,7 @@ def main(args):
             sh_args.pop("rmax")
             sh_args.pop("bestfitr")
 
-        run_utils.write_template(sh_templ, localsh, sh_args, safe=True)
+        run_utils.write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
 
         if local_log.exists():

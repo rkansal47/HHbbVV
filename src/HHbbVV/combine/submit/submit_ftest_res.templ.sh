@@ -50,11 +50,11 @@ cd HHbbVV || exit
 commithash=$$(git rev-parse HEAD)
 echo "https://github.com/rkansal47/HHbbVV/commit/$${commithash}" > commithash.txt
 #move output to eos
-xrdcp -f commithash.txt $eosdir/commithash_${jobnum}.txt
+xrdcp -f commithash.txt $$eosdir/commithash_${jobnum}.txt
 cd .. || exit
 
 outsdir="outs"
-scripts_dir="HHbbVV/src/HHbbVV/combine"
+scripts_dir="$$(pwd)/HHbbVV/src/HHbbVV/combine"
 
 ####################################################################################################
 # Generate toys for lowest order polynomial
@@ -62,39 +62,41 @@ scripts_dir="HHbbVV/src/HHbbVV/combine"
 
 model_name="nTF1_${low1}_nTF2_${low2}"
 toys_name="${low1}${low2}"
+model_dir="$$(pwd)/$tag/$${model_name}"
+echo "Model dir: $${model_dir}"
 
-${scripts_dir}/run_ftest_res.sh -t --seed $seed --numtoys $num_toys --low1 $low1 ---low2 $low2 --cardsdir "." --cardstag $tag --scriptsdir $scripts_dir
+$${scripts_dir}/run_ftest_res.sh -t --seed $seed --numtoys $num_toys --low1 $low1 --low2 $low2 --cardsdir "." --cardstag $tag --scriptsdir $$scripts_dir
 
-toys_file="$(pwd)/higgsCombineToys$${toys_name}.GenerateOnly.mH125.$seed.root"
-xrdcp $$toys_file root://cmseos.fnal.gov//store/user/rkansal/bbVV/cards/f_tests/$tag/$${model_name}/
-xrdcp $${outsdir}/gentoys$seed.txt root://cmseos.fnal.gov//store/user/rkansal/bbVV/cards/f_tests/$tag/$${model_name}/$${outsdir}/
+xrdcp $${model_dir}/higgsCombineToys$${toys_name}.GenerateOnly.mH125.$seed.root $$eosdir/$${model_name}/
+xrdcp $${model_dir}/$${outsdir}/gentoys$seed.txt $$eosdir/$${model_name}/$${outsdir}/
 
 ####################################################################################################
 # Run GoF for each order on generated toys
 ####################################################################################################
 
 
-${scripts_dir}/run_ftest_res.sh -f --seed $seed --numtoys $num_toys --low1 $low1 ---low2 $low2 --cardsdir "." --cardstag $tag --scriptsdir $scripts_dir
+$${scripts_dir}/run_ftest_res.sh -f --seed $seed --numtoys $num_toys --low1 $low1 --low2 $low2 --cardsdir "." --cardstag $tag --scriptsdir $$scripts_dir
 
-for (( ord1=$low1; ord1<=$((low1 + 1)); ord1++ ))
+for (( ord1=$low1; ord1<=$$((low1 + 1)); ord1++ ))
 do
-    for (( ord2=$low2; ord2<=$((low2 + 1)); ord2++ ))
+    for (( ord2=$low2; ord2<=$$((low2 + 1)); ord2++ ))
     do
-        if [ $ord1 -gt $low1 ] && [ $ord2 -gt $low2 ]
+        if [ $$ord1 -gt $low1 ] && [ $$ord2 -gt $low2 ]
         then
             break
         fi
         model_name="nTF1_$${ord1}_nTF2_$${ord2}"
-        cd "$tag/$${model_name}/" || exit
+        cd $tag/$${model_name}/ || exit
 
-        echo $(pwd)
+        echo "Model: $${model_name}"
+        echo $$(pwd)
         ls -lh .
 
-        xrdcp "higgsCombineToys$${toys_name}Seed$seed.GoodnessOfFit.mH125.$seed.root" "root://cmseos.fnal.gov//store/user/rkansal/bbVV/cards/f_tests/$tag/$${model_name}/"
-        xrdcp "$${outsdir}/GoF_toys$${toys_name}$seed.txt" "root://cmseos.fnal.gov//store/user/rkansal/bbVV/cards/f_tests/$tag/$${model_name}/$${outsdir}/"
+        xrdcp higgsCombineToys$${toys_name}.GoodnessOfFit.mH125.$seed.root $$eosdir/$${model_name}/
+        xrdcp $${outsdir}/GoF_toys$${toys_name}$seed.txt $$eosdir/$${model_name}/$${outsdir}/
 
-        rm "higgsCombineToys$${toys_name}Seed$seed.GoodnessOfFit.mH125.$seed.root"
-        rm "$${outsdir}/GoF_toys$${toys_name}$seed.txt"
+        rm higgsCombineToys$${toys_name}.GoodnessOfFit.mH125.$seed.root
+        rm $${outsdir}/GoF_toys$${toys_name}$seed.txt
 
         cd - || exit
     done

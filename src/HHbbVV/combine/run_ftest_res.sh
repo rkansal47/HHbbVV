@@ -96,7 +96,7 @@ while true; do
 done
 
 echo "Arguments: cardstag=$cards_tag templatestag=$templates_tag sigsample=$sig_sample dfit=$dfit \
-goftoys=$goftoys ffits=$ffits seed=$seed numtoys=$numtoys"
+goftoys=$goftoys ffits=$ffits seed=$seed numtoys=$numtoys low1=$low1 low2=$low2 verbose=$verbose"
 
 
 ####################################################################################################
@@ -143,9 +143,10 @@ fi
 # Generate toys for ($low1, $low2) order
 ####################################################################################################
 
+toys_name="${low1}${low2}"
+
 if [ $goftoys = 1 ]; then
     model_name="nTF1_${low1}_nTF2_${low2}"
-    toys_name="${low1}${low2}"
     cd "${cards_dir}/${model_name}/" || exit
     toys_file="$(pwd)/higgsCombineToys${toys_name}.GenerateOnly.mH125.$seed.root"
 
@@ -164,7 +165,7 @@ fi
 
 if [ $ffits = 1 ]; then
     # fit to toys from low1, low2 order
-    toys_file="$(pwd)/${cards_dir}/nTF1_${low1}_nTF2_${low2}/higgsCombineToys${low1}${low2}.GenerateOnly.mH125.$seed.root"
+    toys_file="$(pwd)/${cards_dir}/nTF1_${low1}_nTF2_${low2}/higgsCombineToys${toys_name}.GenerateOnly.mH125.$seed.root"
     for ord1 in {0..1}
     do
         for ord2 in {0..1}
