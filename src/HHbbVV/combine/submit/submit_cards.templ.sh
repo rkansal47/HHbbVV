@@ -109,6 +109,11 @@ do
     ../../combine/run_blinded.sh --workspace --bfit --limits --resonant
     cd ../.. || exit
 
+    echo -e "\n\n\n"
+    echo "Finished $${sample}"
+    echo "Outputs:"
+    ls -lh cards/$${sample}
+
     # transfer output cards
     xrdcp -r cards/$${sample} root://cmseos.fnal.gov/${cards_dir}/$${sample}
     rm -rf templates/$${sample}

@@ -17,6 +17,7 @@ from utils import setup
 
 from HHbbVV import run_utils
 from HHbbVV.hh_vars import res_sigs as full_samples
+from HHbbVV.postprocessing import utils
 from HHbbVV.run_utils import add_bool_arg
 
 res_mps = [
@@ -79,12 +80,13 @@ def main(args):
 
     scan_cuts = res_scan_cuts if args.resonant else nonres_scan_cuts
 
-    if args.scan:
-        for wps in scan_wps:
-            cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
-            os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}/{cutstr}")
-    else:
-        os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}")
+    for sample in samples:
+        if args.scan:
+            for wps in scan_wps:
+                cutstr = "_".join([f"{cut}_{wp}" for cut, wp in zip(scan_cuts, wps)])
+                os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}/{cutstr}/{sample}")
+        else:
+            os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}/{sample}")
 
     # split along WPs for scan or along # of samples for regular jobs
     njobs = len(scan_wps) if args.scan else ceil(len(samples) / args.files_per_job)
@@ -108,17 +110,19 @@ def main(args):
             run_templates_dir = templates_dir
             run_cards_dir = cards_dir
 
+        jobid = "-".join(["_".join([str(n) for n in utils.mxmy(s)]) for s in run_samples])
+
         prefix = "cards" f"{'Scan' if args.scan else ''}"
-        local_jdl = Path(f"{local_dir}/{prefix}_{j}.jdl")
-        local_log = Path(f"{local_dir}/{prefix}_{j}.log")
-        jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": j, "proxy": proxy}
+        local_jdl = Path(f"{local_dir}/{prefix}_{jobid}.jdl")
+        local_log = Path(f"{local_dir}/{prefix}_{jobid}.log")
+        jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": jobid, "proxy": proxy}
         run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
-        localsh = f"{local_dir}/{prefix}_{j}.sh"
+        localsh = f"{local_dir}/{prefix}_{jobid}.sh"
         sh_args = {
             "branch": args.git_branch,
             "gituser": args.git_user,
-            "jobnum": j,
+            "jobnum": jobid,
             "samples": " ".join(run_samples),
             "templates_dir": run_templates_dir,
             "cards_dir": run_cards_dir,

@@ -494,7 +494,7 @@ def _process_lpsfs(systematics: dict, sig_separate: bool):
             )
 
             nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{mc_samples[sig_key]}"].value_down = (
-                1 + sig_systs[sr][sig_key]["lp_sf_unc_down"]
+                1 - sig_systs[sr][sig_key]["lp_sf_unc_down"]
             )
 
 
@@ -701,7 +701,7 @@ def fill_regions(
                 logging.info(f"setting autoMCStats for {sample_name} in {region}")
 
                 # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
-                region_name = region if args.resonant else region_noblinded
+                region_name = (region + binstr) if args.resonant else region_noblinded
                 stats_sample_name = f"{CMS_PARAMS_LABEL}_{region_name}_{card_name}"
                 sample.autoMCStats(
                     sample_name=stats_sample_name,
@@ -820,7 +820,7 @@ def fill_regions(
 
         if bblite and args.mcstats:
             # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
-            channel_name = region if args.resonant else region_noblinded
+            channel_name = (region + binstr) if args.resonant else region_noblinded
             ch.autoMCStats(
                 channel_name=f"{CMS_PARAMS_LABEL}_{channel_name}",
                 threshold=args.mcstats_threshold,

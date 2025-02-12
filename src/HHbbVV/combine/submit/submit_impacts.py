@@ -37,14 +37,16 @@ def getParameters():
     ret_ps = []
     for p in ps:
         if not (
-            "mcstat" in p  # remove in the future?
-            or "qcdparam" in p
-            # or "Blinded" in p
+            # "mcstat" in p  # remove in the future?
+            "qcdparam" in p
+            or "Blinded" in p
             or p.endswith(("_In", "__norm"))
             or p.startswith(("n_exp_", "mask_"))
             or p in pois
             or p in obs
         ):
+            if "mcstat" in p and "fail" in p:  # skip mc stats in the fail region
+                continue
             ret_ps.append(p)
 
     return ret_ps
