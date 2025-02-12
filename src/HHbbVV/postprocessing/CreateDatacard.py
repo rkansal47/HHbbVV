@@ -97,12 +97,24 @@ parser.add_argument(
     help="optionally, double the bin width. option 1: 50-250, option 2: 60-240",
 )
 
-parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
+
+parser.add_argument(
+    "--mcstats-threshold",
+    default=None,
+    type=float,
+    help="uncertainty threshold for using mcstats or not in the bin. Default is 0.01 for nonresonant and 0.03 for resonant.",
+)
+parser.add_argument(
+    "--bblite-threshold",
+    default=None,
+    type=float,
+    help="bblite threshold n_eff. Default is 100 for nonresonant and 10 for resonant.",
+)
 parser.add_argument(
     "--epsilon",
     default=1e-2,
     type=float,
-    help="epsilon to avoid numerical errs - also used to decide whether to add mc stats error",
+    help="epsilon to avoid numerical errs",
 )
 parser.add_argument(
     "--scale-templates", default=None, type=float, help="scale all templates for bias tests"
@@ -141,6 +153,12 @@ args = parser.parse_args()
 CMS_PARAMS_LABEL = "CMS_bbWW_hadronic" if not args.resonant else "CMS_XHYbbWW_boosted"
 MCB_LABEL = "Blinded"  # for templates where MC is "blinded" to get background estimates
 qcd_data_key = "qcd_datadriven"
+
+if args.mcstats_threshold is None:
+    args.mcstats_threshold = 0.03 if args.resonant else 0.01
+
+if args.bblite_threshold is None:
+    args.bblite_threshold = 10 if args.resonant else 100
 
 if args.nTF is None:
     if args.resonant:
@@ -706,7 +724,7 @@ def fill_regions(
                 sample.autoMCStats(
                     sample_name=stats_sample_name,
                     # this function uses a different threshold convention from combine
-                    threshold=np.sqrt(1 / args.mcstats_threshold),
+                    threshold=args.mcstats_threshold,
                     epsilon=args.epsilon,
                 )
 
@@ -823,7 +841,8 @@ def fill_regions(
             channel_name = (region + binstr) if args.resonant else region_noblinded
             ch.autoMCStats(
                 channel_name=f"{CMS_PARAMS_LABEL}_{channel_name}",
-                threshold=args.mcstats_threshold,
+                threshold=args.bblite_threshold,
+                include_threshold=args.mcstats_threshold,
                 epsilon=args.epsilon,
             )
 

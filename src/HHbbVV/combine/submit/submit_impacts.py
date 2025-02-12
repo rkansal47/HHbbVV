@@ -22,7 +22,7 @@ def _tolist(argset):
     return [x.GetName() for x in argset]
 
 
-def getParameters():
+def getParameters(mcstats: bool):
     """Get nuisance parameters from workspace"""
     print("Getting nuisance parameters")
     print(
@@ -37,7 +37,6 @@ def getParameters():
     ret_ps = []
     for p in ps:
         if not (
-            # "mcstat" in p  # remove in the future?
             "qcdparam" in p
             or "Blinded" in p
             or p.endswith(("_In", "__norm"))
@@ -45,7 +44,8 @@ def getParameters():
             or p in pois
             or p in obs
         ):
-            if "mcstat" in p and "fail" in p:  # skip mc stats in the fail region
+            if "mcstat" in p and ("fail" in p or not mcstats):
+                # skip mc stats in the fail region or if not specified
                 continue
             ret_ps.append(p)
 
@@ -65,7 +65,7 @@ def main(args):
     jdl_templ = f"{submitdir}/submit_impacts.templ.jdl"
     sh_templ = f"{submitdir}/submit_impacts.templ.sh"
 
-    ps = getParameters()
+    ps = getParameters(args.mcstats)
     print(f"Running impacts on {len(ps)} parameters:")
     print(*ps, sep="\n")
 
@@ -127,5 +127,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parse_common_args(parser)
     add_bool_arg(parser, "local", help="run locally", default=False)
+    add_bool_arg(parser, "mcstats", help="include mcstats params?", default=True)
     args = parser.parse_args()
     main(args)

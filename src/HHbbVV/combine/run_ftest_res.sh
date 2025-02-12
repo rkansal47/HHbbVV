@@ -113,9 +113,9 @@ echo "Saving datacards to ${cards_dir}"
 ####################################################################################################
 
 if [ $cards = 1 ]; then
-    for ord1 in {0..5}
+    for ord1 in {0..4}
     do
-        for ord2 in {1..5}
+        for ord2 in {0..3}
         do
             model_name="nTF1_${ord1}_nTF2_${ord2}"
             echo "$model_name"
