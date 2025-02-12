@@ -431,7 +431,7 @@ if [ $impactsi = 1 ]; then
     combineTool.py -M Impacts --snapshotName MultiDimFit -m 125 -n "impacts" \
     -t -1 --bypassFrequentistFit --toysFrequentist --expectSignal 1 \
     -d ${wsm_snapshot}.root --doInitialFit --robustFit 1 \
-    "${unblindedparams}" --floatParameters "${freezeparamsblinded}" \
+    ${unblindedparams} --floatParameters ${freezeparamsblinded} \
      --cminDefaultMinimizerStrategy=1 -v 1 2>&1 | tee $outsdir/Impacts_init.txt
 fi
 
@@ -444,7 +444,7 @@ if [ "$impactsf" != 0 ]; then
     combine -M MultiDimFit -n "_paramFit_impacts_$impactsf" --algo impact --redefineSignalPOIs r -P "$impactsf" \
     --floatOtherPOIs 1 --saveInactivePOI 1 --snapshotName MultiDimFit -d ${wsm_snapshot}.root \
     -t -1 --bypassFrequentistFit --toysFrequentist --expectSignal 1 --robustFit 1 \
-    "${unblindedparams}" --floatParameters "${freezeparamsblinded}" \
+    ${unblindedparams} --floatParameters ${freezeparamsblinded} \
     --setParameterRanges r=-0.5,20 --cminDefaultMinimizerStrategy=1 -v 1 -m 125 | tee "$outsdir/Impacts_$impactsf.txt"
 
     # Old Impacts command:

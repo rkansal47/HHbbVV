@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-Splits toy generation into separate condor jobs and fits lowest order + 1 models for F-tests.
+Splits impacts for each nuisance into separate jobs.
 
 Author(s): Raghav Kansal
 """
@@ -24,6 +24,10 @@ def _tolist(argset):
 
 def getParameters():
     """Get nuisance parameters from workspace"""
+    print("Getting nuisance parameters")
+    print(
+        "Remember to use an environment with Root 6.22 and run `ulimit -s unlimited` first to avoid memory issues!"
+    )
     f = ROOT.TFile.Open("combined_withmasks.root", "READ")
     w = f.Get("w")
     ps = _tolist(w.allVars())
@@ -33,8 +37,9 @@ def getParameters():
     ret_ps = []
     for p in ps:
         if not (
-            "mcstat" in p
+            "mcstat" in p  # remove in the future?
             or "qcdparam" in p
+            # or "Blinded" in p
             or p.endswith(("_In", "__norm"))
             or p.startswith(("n_exp_", "mask_"))
             or p in pois

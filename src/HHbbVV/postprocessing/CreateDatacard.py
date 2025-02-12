@@ -121,7 +121,7 @@ parser.add_argument(
     nargs="*",
     type=int,
     help="order of polynomial for TF in [dim/cat 1, dim/cat 2] = [mH(bb) for ggF, mH(bb) for VBF] for nonresonant or [mY, mX] for resonant."
-    "Default is [0, 1] for nonresonant and [1, 2] for resonant.",
+    "Default is [0, 1] for nonresonant and [1, 3] for resonant.",
 )
 
 parser.add_argument("--model-name", default=None, type=str, help="output model name")
@@ -144,7 +144,7 @@ qcd_data_key = "qcd_datadriven"
 
 if args.nTF is None:
     if args.resonant:
-        args.nTF = [1, 2]
+        args.nTF = [1, 3]
     else:
         if args.nonres_regions == "all":
             args.nTF = [0, 1]
