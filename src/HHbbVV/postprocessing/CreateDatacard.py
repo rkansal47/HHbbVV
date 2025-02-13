@@ -607,9 +607,11 @@ def get_year_updown(
             # weight uncertainties saved as different "sample" in dict
             templates[year] = templates_dict[year][region][f"{sample}_{sshift}", ...]
 
+        # breakpoint()
+
         if mX_bin is not None:
-            for year, template in templates.items():
-                templates[year] = template[:, mX_bin]
+            for y, template in templates.items():
+                templates[y] = template[:, mX_bin]
 
         # sum templates with year's template replaced with shifted
         if vbf:
@@ -691,6 +693,7 @@ def fill_regions(
                 continue
 
             logging.info(f"Getting templates for: {sample_name}")
+            print("\n\n")
 
             sample_template = region_templates[sample_name, :]
 
@@ -830,6 +833,13 @@ def fill_regions(
                     effect_up, effect_down = get_effect_updown(
                         values_nominal, values_up, values_down, mask, logger, args.epsilon
                     )
+
+                    # print("\n\n\n")
+                    # print(year)
+                    # print(values_up)
+                    # print(values_nominal)
+                    # print(values_down)
+
                     sample.setParamEffect(
                         shape_systs_dict[f"{skey}_{year}"], effect_up, effect_down
                     )

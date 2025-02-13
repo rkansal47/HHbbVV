@@ -40,6 +40,7 @@ toylimits=0
 significance=0
 dfit=0
 dfit_asimov=0
+dnll=0
 resonant=0
 gofdata=0
 goftoys=0
@@ -58,7 +59,7 @@ mintol=0.1  # --cminDefaultMinimizerTolerance
 nonresggf=1
 nonresvbf=1
 
-options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,dfitasimov,toylimits,resonant,noggf,novbf,gofdata,goftoys,gentoys,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:,toysname:,toysfile:,verbose:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,dfitasimov,toylimits,resonant,noggf,novbf,gofdata,goftoys,gentoys,dnll,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:,toysname:,toysfile:,verbose:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -101,6 +102,9 @@ while true; do
             ;;
         --gentoys)
             gentoys=1
+            ;;
+        --dnll)
+            dnll=1
             ;;
         -i|--impactsi)
             impactsi=1
@@ -479,4 +483,14 @@ if [ "$bias" != -1 ]; then
     ${unblindedparams},r=$bias --floatParameters ${freezeparamsblinded} \
     --robustFit=1 -t "$numtoys" -s "$seed" \
     --X-rtd MINIMIZER_MaxCalls=1000000 --cminDefaultMinimizerTolerance "$mintol" 2>&1 | tee "$outsdir/bias${bias}seed${seed}.txt"
+fi
+
+if [ "$dnll" != 0 ]; then
+    echo "Delta NLL"
+    combine -M MultiDimFit --algo grid -m 125 -n "Scan" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v $verbose \
+    --bypassFrequentistFit --toysFrequentist -t -1 --expectSignal 1 --rMin 0 --rMax 2 --points 21 --alignEdges 1 \
+    ${unblindedparams},r=0 \
+    --floatParameters "${freezeparamsblinded},r" 2>&1 | tee "$outsdir/dnll.txt"
+
+    plot1DScan.py "higgsCombineScan.MultiDimFit.mH125.root" -o scan2
 fi

@@ -45,8 +45,21 @@ export PYTHONUSERBASE=$$(pwd)/local_python
 
 echo "Installing hist"
 pip3 install --user hist==2.7.2
+
 echo "Installing rhalphalib"
-pip3 install --user rhalphalib
+# try 3 times in case of network errors
+(
+    r=3
+    # shallow clone of single branch (keep repo size as small as possible)
+    while ! git clone https://github.com/rkansal47/rhalphalib.git
+    do
+        ((--r)) || exit
+        sleep 60
+    done
+)
+cd rhalphalib || exit
+pip3 install --user .
+cd .. || exit
 
 echo "Installing HHbbVV"
 # try 3 times in case of network errors
