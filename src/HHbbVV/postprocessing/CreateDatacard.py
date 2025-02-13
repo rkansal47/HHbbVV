@@ -95,12 +95,24 @@ parser.add_argument(
     help="optionally, double the bin width. option 1: 50-250, option 2: 60-240",
 )
 
-parser.add_argument("--mcstats-threshold", default=100, type=float, help="mcstats threshold n_eff")
+
+parser.add_argument(
+    "--mcstats-threshold",
+    default=None,
+    type=float,
+    help="uncertainty threshold for using mcstats or not in the bin. Default is 0.01 for nonresonant and 0.03 for resonant.",
+)
+parser.add_argument(
+    "--bblite-threshold",
+    default=None,
+    type=float,
+    help="bblite threshold n_eff. Default is 100 for nonresonant and 10 for resonant.",
+)
 parser.add_argument(
     "--epsilon",
     default=1e-2,
     type=float,
-    help="epsilon to avoid numerical errs - also used to decide whether to add mc stats error",
+    help="epsilon to avoid numerical errs",
 )
 parser.add_argument(
     "--scale-templates", default=None, type=float, help="scale all templates for bias tests"
@@ -119,7 +131,7 @@ parser.add_argument(
     nargs="*",
     type=int,
     help="order of polynomial for TF in [dim/cat 1, dim/cat 2] = [mH(bb) for ggF, mH(bb) for VBF] for nonresonant or [mY, mX] for resonant."
-    "Default is [0, 1] for nonresonant and [1, 2] for resonant.",
+    "Default is [0, 1] for nonresonant and [1, 3] for resonant.",
 )
 
 parser.add_argument("--model-name", default=None, type=str, help="output model name")
@@ -140,9 +152,15 @@ CMS_PARAMS_LABEL = "CMS_bbWW_hadronic" if not args.resonant else "CMS_XHYbbWW_bo
 MCB_LABEL = "Blinded"  # for templates where MC is "blinded" to get background estimates
 qcd_data_key = "qcd_datadriven"
 
+if args.mcstats_threshold is None:
+    args.mcstats_threshold = 0.03 if args.resonant else 0.01
+
+if args.bblite_threshold is None:
+    args.bblite_threshold = 10 if args.resonant else 100
+
 if args.nTF is None:
     if args.resonant:
-        args.nTF = [1, 2]
+        args.nTF = [1, 3]
     else:
         if args.nonres_regions == "all":
             args.nTF = [0, 1]
@@ -428,7 +446,7 @@ def _process_lpsfs(systematics: dict, sig_separate: bool):
             )
 
             nuisance_params[f"{CMS_PARAMS_LABEL}_lp_sf_{sr}_{mc_samples[sig_key]}"].value_down = (
-                1 + sig_systs[sr][sig_key]["lp_sf_unc_down"]
+                1 - sig_systs[sr][sig_key]["lp_sf_unc_down"]
             )
 
 
@@ -523,9 +541,11 @@ def get_year_updown(
             # weight uncertainties saved as different "sample" in dict
             templates[year] = templates_dict[year][region][f"{sample}_{sshift}", ...]
 
+        # breakpoint()
+
         if mX_bin is not None:
-            for year, template in templates.items():
-                templates[year] = template[:, mX_bin]
+            for y, template in templates.items():
+                templates[y] = template[:, mX_bin]
 
         # sum templates with year's template replaced with shifted
         if vbf:
@@ -607,6 +627,7 @@ def fill_regions(
                 continue
 
             logging.info(f"Getting templates for: {sample_name}")
+            print("\n\n")
 
             sample_template = region_templates[sample_name, :]
 
@@ -635,12 +656,12 @@ def fill_regions(
                 logging.info(f"setting autoMCStats for {sample_name} in {region}")
 
                 # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
-                region_name = region if args.resonant else region_noblinded
+                region_name = (region + binstr) if args.resonant else region_noblinded
                 stats_sample_name = f"{CMS_PARAMS_LABEL}_{region_name}_{card_name}"
                 sample.autoMCStats(
                     sample_name=stats_sample_name,
                     # this function uses a different threshold convention from combine
-                    threshold=np.sqrt(1 / args.mcstats_threshold),
+                    threshold=args.mcstats_threshold,
                     epsilon=args.epsilon,
                 )
 
@@ -746,6 +767,13 @@ def fill_regions(
                     effect_up, effect_down = get_effect_updown(
                         values_nominal, values_up, values_down, mask, logger, args.epsilon
                     )
+
+                    # print("\n\n\n")
+                    # print(year)
+                    # print(values_up)
+                    # print(values_nominal)
+                    # print(values_down)
+
                     sample.setParamEffect(
                         shape_systs_dict[f"{skey}_{year}"], effect_up, effect_down
                     )
@@ -754,10 +782,11 @@ def fill_regions(
 
         if bblite and args.mcstats:
             # tie MC stats parameters together in blinded and "unblinded" region in nonresonant
-            channel_name = region if args.resonant else region_noblinded
+            channel_name = (region + binstr) if args.resonant else region_noblinded
             ch.autoMCStats(
                 channel_name=f"{CMS_PARAMS_LABEL}_{channel_name}",
-                threshold=args.mcstats_threshold,
+                threshold=args.bblite_threshold,
+                include_threshold=args.mcstats_threshold,
                 epsilon=args.epsilon,
             )
 

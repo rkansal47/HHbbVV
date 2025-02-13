@@ -17,6 +17,7 @@ from utils import setup
 
 from HHbbVV import run_utils
 from HHbbVV.hh_vars import res_sigs as full_samples
+from HHbbVV.postprocessing import utils
 from HHbbVV.run_utils import add_bool_arg
 
 res_mps = [
@@ -109,17 +110,19 @@ def main(args):
             run_templates_dir = templates_dir
             run_cards_dir = cards_dir
 
+        jobid = "-".join(["_".join([str(n) for n in utils.mxmy(s)]) for s in run_samples])
+
         prefix = "cards" f"{'Scan' if args.scan else ''}"
-        local_jdl = Path(f"{local_dir}/{prefix}_{j}.jdl")
-        local_log = Path(f"{local_dir}/{prefix}_{j}.log")
-        jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": j, "proxy": proxy}
+        local_jdl = Path(f"{local_dir}/{prefix}_{jobid}.jdl")
+        local_log = Path(f"{local_dir}/{prefix}_{jobid}.log")
+        jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": jobid, "proxy": proxy}
         run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
-        localsh = f"{local_dir}/{prefix}_{j}.sh"
+        localsh = f"{local_dir}/{prefix}_{jobid}.sh"
         sh_args = {
             "branch": args.git_branch,
             "gituser": args.git_user,
-            "jobnum": j,
+            "jobnum": jobid,
             "samples": " ".join(run_samples),
             "templates_dir": run_templates_dir,
             "cards_dir": run_cards_dir,
@@ -148,7 +151,7 @@ if __name__ == "__main__":
         "--git-user", default="rkansal47", help="which user's repo to use", type=str
     )
     parser.add_argument("--tag", default="Test", help="process tag", type=str)
-    parser.add_argument("--templates-dir", help="EOS templates dir", type=str)
+    parser.add_argument("--templates-dir", help="EOS templates dir", type=str, required=True)
     parser.add_argument(
         "--site",
         default="lpc",
