@@ -373,6 +373,8 @@ if [ $dfit = 1 ]; then
     -n Blinded --ignoreCovWarning -v $verbose 2>&1 | tee $outsdir/FitDiagnostics.txt
     # --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
 
+    python $CMSSW_BASE/src/HiggsAnalysis/CombinedLimit/test/diffNuisances.py fitDiagnosticsBlinded.root -g nuisance_pulls.root --all --regex='^(?!.*mcstat)'  --vtol=0.3 --stol=0.1 --vtol2=2.0 --stol2=0.5
+
     echo "Fit Shapes"
     PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapes.root \
     -m 125 -f fitDiagnosticsBlinded.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
@@ -488,9 +490,10 @@ fi
 if [ "$dnll" != 0 ]; then
     echo "Delta NLL"
     combine -M MultiDimFit --algo grid -m 125 -n "Scan" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v $verbose \
-    --bypassFrequentistFit --toysFrequentist -t -1 --expectSignal 1 --rMin 0 --rMax 2 --points 21 --alignEdges 1 \
-    ${unblindedparams},r=0 \
+    --bypassFrequentistFit --toysFrequentist -t -1 --expectSignal 1 --rMin 0 --rMax 2 \
+    ${unblindedparams} \
     --floatParameters "${freezeparamsblinded},r" 2>&1 | tee "$outsdir/dnll.txt"
+    #  --points 21 --alignEdges 1
 
-    plot1DScan.py "higgsCombineScan.MultiDimFit.mH125.root" -o scan2
+    plot1DScan.py "higgsCombineScan.MultiDimFit.mH125.root" -o scan
 fi
