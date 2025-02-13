@@ -123,6 +123,7 @@ class bbVVSkimmer(SkimmerABC):
     # IMPORTANT: Add Lund plane branches in hh_vars.py
     min_branches = [  # noqa: RUF012
         "Gen4qInJet",  # for LP SFs
+        "GenHiggsChildren",  # for WW vs ZZ testing
         # fat jet vars
         "ak8FatJetPhi",
         "ak8FatJetEta",
