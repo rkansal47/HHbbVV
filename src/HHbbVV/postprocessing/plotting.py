@@ -179,18 +179,23 @@ def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, sy
     return bg_keys, bg_colours, bg_labels, sig_scale_dict, sig_labels
 
 
-def _divide_bin_widths(hists, data_err):
+def _divide_bin_widths(hists, data_err, bg_tot, bg_err):
     """Divide histograms by bin widths"""
     edges = hists.axes[1].edges
     bin_widths = edges[1:] - edges[:-1]
 
     if data_err is None:
         data_err = (
-            np.abs(poisson_interval(hists[data_key, ...]) - hists[data_key, ...]) / bin_widths
+            np.abs(poisson_interval(hists[data_key, ...].values()) - hists[data_key, ...].values())
+            / bin_widths
         )
 
+    if bg_err is not None:
+        bg_err = bg_err / bin_widths
+
+    bg_tot = bg_tot / bin_widths
     hists = hists / bin_widths[np.newaxis, :]
-    return hists, data_err
+    return hists, data_err, bg_tot, bg_err
 
 
 def _fill_error(ax, edges, down, up, scale=1):
@@ -318,20 +323,23 @@ def ratioHistPlot(
     if syst is not None and variation is None:
         # plot up/down variations
         wshift, wsamples = syst
-        sig_err = wshift  # will plot sig variations below
+        if sig_keys[0] in wsamples:
+            sig_err = wshift  # will plot sig variations below
         bg_err = []
         for shift in ["down", "up"]:
             bg_sums = []
             for sample in bg_keys:
                 if sample in wsamples and f"{sample}_{wshift}_{shift}" in hists.axes[0]:
                     bg_sums.append(hists[f"{sample}_{wshift}_{shift}", :].values())
-                elif sample != "Hbb":
+                # elif sample != "Hbb":
+                else:
                     bg_sums.append(hists[sample, :].values())
             bg_err.append(np.maximum(np.sum(bg_sums, axis=0), 0.0))
+        bg_err = np.array(bg_err)
 
     pre_divide_hists = hists
     if divide_bin_width:
-        hists, data_err = _divide_bin_widths(hists, data_err)
+        hists, data_err, bg_tot, bg_err = _divide_bin_widths(hists, data_err, bg_tot, bg_err)
 
     # set up plots
     if axrax is not None:
@@ -408,8 +416,8 @@ def ratioHistPlot(
                 )
 
     if bg_err is not None:
-        if divide_bin_width:
-            raise NotImplementedError("Background error for divide bin width not checked yet")
+        # if divide_bin_width:
+        #     raise NotImplementedError("Background error for divide bin width not checked yet")
 
         if len(np.array(bg_err).shape) == 1:
             bg_err = [bg_tot - bg_err, bg_tot + bg_err]

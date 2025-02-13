@@ -1886,7 +1886,7 @@ def get_templates(
             if sig_scale_dict is None:
                 sig_scale_dict = {
                     **{skey: 1 for skey in nonres_sig_keys if skey in plot_sig_keys},
-                    **{skey: 1 for skey in res_sig_keys if skey in plot_sig_keys},
+                    **{skey: 10 for skey in res_sig_keys if skey in plot_sig_keys},
                 }
 
             title = (
@@ -1919,6 +1919,7 @@ def get_templates(
                         "year": year,
                         "ylim": pass_ylim if pass_region else fail_ylim,
                         "plot_data": not (rname == "pass" and blind_pass),
+                        "divide_bin_width": args.resonant,
                     }
 
                     plot_name = (
@@ -1929,7 +1930,7 @@ def get_templates(
 
                     plotting.ratioHistPlot(
                         **plot_params,
-                        bg_keys=bg_keys,
+                        bg_keys=p_bg_keys,
                         title=title,
                         name=f"{plot_name}{jlabel}.pdf",
                     )
@@ -1942,7 +1943,7 @@ def get_templates(
                         for wshift, wsyst in weight_shifts.items():
                             plotting.ratioHistPlot(
                                 **plot_params,
-                                bg_keys=bg_keys,
+                                bg_keys=p_bg_keys,
                                 syst=(wshift, wsyst.samples),
                                 title=f"{region.label} Region {wsyst.label} Unc.",
                                 name=f"{plot_name}_{wshift}.pdf",
@@ -1962,7 +1963,7 @@ def get_templates(
                         if region.signal:
                             plotting.ratioHistPlot(
                                 **plot_params,
-                                bg_keys=bg_keys,
+                                bg_keys=p_bg_keys,
                                 sig_err="txbb",
                                 title=rf"{region.label} Region $T_{{Xbb}}$ Shapes",
                                 name=f"{plot_name}_txbb.pdf",
