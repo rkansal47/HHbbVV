@@ -16,14 +16,10 @@ from pathlib import Path
 import awkward as ak
 import numpy as np
 import numpy.ma as ma
-import tritonclient
-import tritonclient.grpc as triton_grpc
-import tritonclient.http as triton_http
 from coffea.nanoevents.methods import candidate
 from coffea.nanoevents.methods.base import NanoEventsArray
 from coffea.nanoevents.methods.nanoaod import FatJetArray
 from numpy.typing import ArrayLike
-from scipy.special import softmax
 from tqdm import tqdm
 
 
@@ -468,9 +464,13 @@ class wrapped_triton:
 
     def __call__(self, input_dict: dict[str, np.ndarray]) -> np.ndarray:
         if self._protocol == "grpc":
+            import tritonclient.grpc as triton_grpc
+
             client = triton_grpc.InferenceServerClient(url=self._address, verbose=False)
             triton_protocol = triton_grpc
         elif self._protocol == "http":
+            import tritonclient.http as triton_http
+
             client = triton_http.InferenceServerClient(
                 url=self._address,
                 verbose=False,
@@ -500,12 +500,14 @@ class wrapped_triton:
     def _do_inference(
         self, input_dict: dict[str, np.ndarray], triton_protocol, client
     ) -> np.ndarray:
+        import tritonclient
+
         # Infer
         inputs = []
 
-        for key in input_dict:
-            input = triton_protocol.InferInput(key, input_dict[key].shape, "FP32")
-            input.set_data_from_numpy(input_dict[key])
+        for key, val in input_dict.items():
+            input = triton_protocol.InferInput(key, val.shape, "FP32")
+            input.set_data_from_numpy(val)
             inputs.append(input)
 
         out_name = "softmax__0" if self._torchscript else "softmax"
@@ -655,6 +657,8 @@ def runInferenceTriton(
     Returns:
         dict: output probabilities / discriminants per event
     """
+    from scipy.special import softmax
+
     if in_jet_idx is not None and num_jets > 1:
         raise ValueError("Can't give in_jet_idx for num_jets != 1")
 

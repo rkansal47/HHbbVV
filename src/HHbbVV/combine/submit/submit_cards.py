@@ -16,129 +16,9 @@ from pathlib import Path
 from utils import setup
 
 from HHbbVV import run_utils
+from HHbbVV.hh_vars import res_sigs as full_samples
+from HHbbVV.postprocessing import utils
 from HHbbVV.run_utils import add_bool_arg
-
-res_mps = [
-    (1000, 100),
-    (1000, 125),
-    (1000, 150),
-    (1000, 190),
-    (1000, 250),
-    (1000, 60),
-    (1000, 80),
-    (1200, 100),
-    (1200, 150),
-    (1200, 190),
-    (1200, 250),
-    (1200, 60),
-    (1200, 80),
-    (1400, 100),
-    (1400, 125),
-    (1400, 150),
-    (1400, 190),
-    (1400, 250),
-    (1400, 60),
-    (1400, 80),
-    (1600, 100),
-    (1600, 125),
-    (1600, 150),
-    (1600, 190),
-    (1600, 250),
-    (1600, 60),
-    (1600, 80),
-    (1800, 100),
-    (1800, 125),
-    (1800, 150),
-    (1800, 190),
-    (1800, 250),
-    (1800, 60),
-    (1800, 80),
-    (2000, 100),
-    (2000, 125),
-    (2000, 150),
-    (2000, 190),
-    (2000, 250),
-    (2000, 60),
-    (2000, 80),
-    (2200, 100),
-    (2200, 125),
-    (2200, 150),
-    (2200, 190),
-    (2200, 250),
-    (2200, 60),
-    (2200, 80),
-    (2400, 100),
-    (2400, 125),
-    (2400, 150),
-    (2400, 190),
-    (2400, 250),
-    (2400, 60),
-    (2400, 80),
-    (2600, 100),
-    (2600, 125),
-    (2600, 150),
-    (2600, 190),
-    (2600, 250),
-    (2600, 80),
-    (2800, 100),
-    (2800, 125),
-    (2800, 150),
-    (2800, 190),
-    (2800, 250),
-    (2800, 60),
-    (2800, 80),
-    (3000, 100),
-    (3000, 125),
-    (3000, 150),
-    (3000, 190),
-    (3000, 250),
-    (3000, 60),
-    (3000, 80),
-    (3500, 100),
-    (3500, 125),
-    (3500, 150),
-    (3500, 190),
-    (3500, 250),
-    (3500, 60),
-    (3500, 80),
-    (4000, 100),
-    (4000, 125),
-    (4000, 150),
-    (4000, 190),
-    (4000, 250),
-    (4000, 60),
-    (4000, 80),
-    (600, 100),
-    (600, 125),
-    (600, 150),
-    (600, 250),
-    (600, 60),
-    (600, 80),
-    (700, 100),
-    (700, 125),
-    (700, 150),
-    (700, 250),
-    (700, 60),
-    (700, 80),
-    (800, 100),
-    (800, 125),
-    (800, 150),
-    (800, 250),
-    (800, 60),
-    (800, 80),
-    (900, 100),
-    (900, 125),
-    (900, 150),
-    (900, 250),
-    (900, 60),
-    (900, 80),
-]
-
-full_samples = []
-
-for mX, mY in res_mps:
-    full_samples.append(f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mX}_MY-{mY}")
-
 
 res_mps = [
     (900, 80),
@@ -181,7 +61,6 @@ def main(args):
 
     # and eos directory
     os.system(f"mkdir -p {t2_local_prefix}/{cards_dir}")
-    os.system(f"mkdir -p {t2_local_prefix}/{templates_dir}")
 
     jdl_templ = f"{submitdir}/submit_cards.templ.jdl"
     sh_templ = f"{submitdir}/submit_cards.templ.sh"
@@ -231,17 +110,22 @@ def main(args):
             run_templates_dir = templates_dir
             run_cards_dir = cards_dir
 
+        jobid = "-".join(["_".join([str(n) for n in utils.mxmy(s)]) for s in run_samples])
+
         prefix = "cards" f"{'Scan' if args.scan else ''}"
-        local_jdl = Path(f"{local_dir}/{prefix}_{j}.jdl")
-        local_log = Path(f"{local_dir}/{prefix}_{j}.log")
-        jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": j, "proxy": proxy}
+        local_jdl = Path(f"{local_dir}/{prefix}_{jobid}.jdl")
+        local_log = Path(f"{local_dir}/{prefix}_{jobid}.log")
+        jdl_args = {"dir": local_dir, "prefix": prefix, "jobid": jobid, "proxy": proxy}
         run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 
-        localsh = f"{local_dir}/{prefix}_{j}.sh"
+        localsh = f"{local_dir}/{prefix}_{jobid}.sh"
         sh_args = {
+            "branch": args.git_branch,
+            "gituser": args.git_user,
+            "jobnum": jobid,
             "samples": " ".join(run_samples),
-            "in_templates_dir": run_templates_dir,
-            "in_cards_dir": run_cards_dir,
+            "templates_dir": run_templates_dir,
+            "cards_dir": run_cards_dir,
             "datacard_args": datacard_args,
         }
         run_utils.write_template(sh_templ, localsh, sh_args)
@@ -262,8 +146,12 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--git-branch", required=True, help="git branch to use", type=str)
+    parser.add_argument(
+        "--git-user", default="rkansal47", help="which user's repo to use", type=str
+    )
     parser.add_argument("--tag", default="Test", help="process tag", type=str)
-    parser.add_argument("--templates-dir", help="EOS templates dir", type=str)
+    parser.add_argument("--templates-dir", help="EOS templates dir", type=str, required=True)
     parser.add_argument(
         "--site",
         default="lpc",

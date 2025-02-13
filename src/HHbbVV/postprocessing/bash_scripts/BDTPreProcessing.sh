@@ -2,7 +2,7 @@
 # shellcheck disable=SC2086,SC2043
 
 ####################################################################################################
-# Script for creating BDT training / inference datases
+# Script for creating BDT training / inference datasets
 # Author: Raghav Kansal
 ####################################################################################################
 

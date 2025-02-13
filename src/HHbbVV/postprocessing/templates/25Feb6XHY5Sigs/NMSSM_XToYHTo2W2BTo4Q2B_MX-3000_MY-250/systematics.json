@@ -1,0 +1,113 @@
+{
+    "2016": {
+        "pass": {
+            "trig_total": 41066.16536249107,
+            "trig_total_err": 8376.112491551354
+        },
+        "fail": {
+            "trig_total": 30143.953399276535,
+            "trig_total_err": 1551.1199510189333
+        },
+        "passBlinded": {
+            "trig_total": 7784.353079919947,
+            "trig_total_err": 925.9656569010886
+        },
+        "failBlinded": {
+            "trig_total": 7534.1037701588075,
+            "trig_total_err": 244.06071877639886
+        },
+        "prelpsf": {
+            "trig_total": 181534.69060287444,
+            "trig_total_err": 19383.46993130698
+        }
+    },
+    "pass": {
+        "X[3000]->H(bb)Y[250](VV)": {
+            "lp_sf": 0.9431863329726198,
+            "lp_sf_unc_up": 0.06958935544798478,
+            "lp_sf_unc_down": 0.059666006067031783,
+            "lp_sf_uncs_sym": {
+                "sys_unc": 0.03314663249203183,
+                "np_unc": 0.006195787812261824,
+                "stat_unc": 0.0058295766669231395,
+                "sj_pt_unc": 0.004682955992391282
+            },
+            "lp_sf_uncs_asym": {
+                "up": {
+                    "dist": 0.03741841118546023,
+                    "unmatched": 0.047429313961970754
+                },
+                "down": {
+                    "dist": 0.04515885319917809,
+                    "unmatched": 0.018102739698939396
+                }
+            }
+        }
+    },
+    "2016APV": {
+        "pass": {
+            "trig_total": 48307.30558283539,
+            "trig_total_err": 9930.602554831863
+        },
+        "fail": {
+            "trig_total": 40569.65361255991,
+            "trig_total_err": 1914.8909976924988
+        },
+        "passBlinded": {
+            "trig_total": 9432.478646906362,
+            "trig_total_err": 1086.026254499543
+        },
+        "failBlinded": {
+            "trig_total": 10865.522507587119,
+            "trig_total_err": 302.1978514031923
+        },
+        "prelpsf": {
+            "trig_total": 232656.83619884375,
+            "trig_total_err": 23646.69690857332
+        }
+    },
+    "2017": {
+        "pass": {
+            "trig_total": 141216.54464765734,
+            "trig_total_err": 18050.58759607067
+        },
+        "fail": {
+            "trig_total": 69557.57944379741,
+            "trig_total_err": 2535.357988326555
+        },
+        "passBlinded": {
+            "trig_total": 23956.014928730277,
+            "trig_total_err": 1864.5796772577303
+        },
+        "failBlinded": {
+            "trig_total": 17436.103601322233,
+            "trig_total_err": 420.4604436926742
+        },
+        "prelpsf": {
+            "trig_total": 507722.2185628375,
+            "trig_total_err": 37105.94184510329
+        }
+    },
+    "2018": {
+        "pass": {
+            "trig_total": 123339.70895565172,
+            "trig_total_err": 16132.607869850955
+        },
+        "fail": {
+            "trig_total": 61495.47315586638,
+            "trig_total_err": 2083.054601021962
+        },
+        "passBlinded": {
+            "trig_total": 22718.687398951224,
+            "trig_total_err": 1563.5556645579156
+        },
+        "failBlinded": {
+            "trig_total": 16122.316217806823,
+            "trig_total_err": 340.50206014441403
+        },
+        "prelpsf": {
+            "trig_total": 451835.42403513077,
+            "trig_total_err": 33013.09362282792
+        }
+    }
+}

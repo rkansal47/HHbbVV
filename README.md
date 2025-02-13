@@ -43,6 +43,7 @@ using the [coffea](https://coffeateam.github.io/coffea/) and
     - [PlotFits](#plotfits)
   - [Combine](#combine)
     - [CMSSW + Combine Quickstart](#cmssw--combine-quickstart)
+    - [Packages](#packages)
     - [Run fits and diagnostics locally](#run-fits-and-diagnostics-locally)
       - [F-tests locally for non-resonant](#f-tests-locally-for-non-resonant)
     - [Run fits on condor](#run-fits-on-condor)
@@ -226,6 +227,28 @@ Or just signal:
 python src/condor/submit.py --year 2017 --tag $TAG --samples HH --subsamples GluGluToHHTobbVV_node_cHHH1 --processor skimmer --submit
 ```
 
+
+Submitting signal files to get only the Lund plane densities of all the signals:
+
+```bash
+for year in 2016APV 2016 2017 2018; do python src/condor/submit_from_yaml.py --year $year --tag 24Jul24LundPlaneDensity --processor skimmer --git-branch update_lp --yaml src/condor/submit_configs/skimmer_24_07_24_signal_lp.yaml --site ucsd --submit --no-save-skims --no-inference; done
+```
+
+#### Get Lund plane ratios
+
+The new LP distortion uncertainty requires first measuring the LP ratios for signal. To do this one should use the `--no-save-skims` and `--no-inference` args, e.g.
+
+```bash
+for year in 2016 2016APV 2017 2018; do python src/condor/submit_from_yaml.py --processor skimmer --yaml src/condor/submit_configs/skimmer_24_07_24_signal_lp.yaml --year $year --git-branch update_lp --site ucsd --tag 24Jan8LPRatios --no-inference --no-save-skims --submit; done
+```
+
+The outputs then need to be accumulated:
+
+```bash
+python src/HHbbVV/scale_factors/accumulate_lp_hists.py --data-path /ceph/cms/store/user/rkansal/bbVV/skimmer/24Jan8LPRatios/
+```
+
+
 ### TaggerInputSkimmer
 
 Applies a loose pre-selection cut, saves ntuples with training inputs.
@@ -272,6 +295,7 @@ Or to submit only the signal:
 
 ```bash
 python src/condor/submit.py --year 2018 --tag $TAG --sample TTbar --subsamples TTToSemiLeptonic --processor ttsfs --submit
+python src/condor/submit.py --year 2018 --tag $TAG --sample SingleTop --subsamples ST_tW_antitop_5f_NoFullyHadronicDecays ST_tW_top_5f_NoFullyHadronicDecays ST_s-channel_4f_leptonDecays ST_t-channel_antitop_4f_InclusiveDecays ST_t-channel_top_4f_InclusiveDecays --processor ttsfs --submit
 ```
 
 ## Condor Scripts
@@ -309,6 +333,12 @@ In `src/HHbbVV/postprocessing':
 
 ```bash
 python BDTPreProcessing.py --data-dir "../../../../data/skimmer/Feb24/" --signal-data-dir "../../../../data/skimmer/Jun10/" --plot-dir "../../../plots/BDTPreProcessing/$TAG/" --year "2017" --bdt-data (--control-plots)
+```
+
+Running inference with a trained model, e.g.:
+
+```bash
+python src/HHbbVV/postprocessing/BDTPreProcessing.py --no-save-data --inference --bdt-preds-dir temp/24_04_05_k2v0_training_eqsig_vbf_vars_rm_deta/ --data-dir temp --year 2016 --sig-samples HHbbVV --bg-keys "" --no-data --no-do-jshifts
 ```
 
 ### BDT Trainings

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import pickle
 from dataclasses import dataclass, field
+from pathlib import Path
 from string import Template
 
 import hist
@@ -212,6 +214,71 @@ def combine_templates(
         ctemplates[region] = ctemplate
 
     return ctemplates
+
+
+def get_templates(
+    templates_dir: Path,
+    bg_templates_dir: Path,
+    years: list[str],
+    sig_keys: list[str],
+    sig_separate: bool,
+    scale: float = None,
+    combine_lasttwo: bool = False,
+    mcutoff: float = 0,
+    merge_bins: int = 0,
+):
+    """Loads templates, combines bg and sig templates if separate, sums across all years"""
+    templates_dict: dict[str, dict[str, Hist]] = {}
+
+    if not sig_separate:
+        # signal and background templates in same hist, just need to load and sum across years
+        for year in years:
+            with (templates_dir / f"{year}_templates.pkl").open("rb") as f:
+                templates_dict[year] = rem_neg(pickle.load(f))
+    else:
+        # signal and background in different hists - need to combine them into one hist
+        for year in years:
+            with (bg_templates_dir / f"{year}_templates.pkl").open("rb") as f:
+                bg_templates = rem_neg(pickle.load(f))
+
+            sig_templates = []
+
+            # for sig_key in sig_keys:
+            with (templates_dir / f"{year}_templates.pkl").open("rb") as f:
+                sig_templates.append(rem_neg(pickle.load(f)))
+
+            templates_dict[year] = combine_templates(bg_templates, sig_templates)
+
+    if scale is not None and scale != 1:
+        for templates in templates_dict.values():
+            for h in templates.values():
+                for j, sample in enumerate(h.axes[0]):
+                    # only scale backgrounds / data
+                    is_sig_key = False
+                    for sig_key in sig_keys:
+                        if sample.startswith(sig_key):
+                            is_sig_key = True
+                            break
+
+                    if not is_sig_key:
+                        vals = h[sample, ...].values()
+                        variances = h[sample, ...].variances()
+                        h.values()[j, ...] = vals * scale
+                        h.variances()[j, ...] = variances * (scale**2)
+
+    if combine_lasttwo:
+        combine_last_two_bins(templates_dict, years)
+
+    if mcutoff > 0:
+        print(f"Cutting templates off at {mcutoff} GeV")
+        cut_off_bins(templates_dict, years, mcutoff)
+
+    if merge_bins > 0:
+        print(f"Merging bins with option {merge_bins}")
+        merge_bins(templates_dict, years, merge_bins)
+
+    templates_summed: dict[str, Hist] = sum_templates(templates_dict, years)  # sum across years
+    return templates_dict, templates_summed
 
 
 #################################################

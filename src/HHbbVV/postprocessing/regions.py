@@ -18,6 +18,7 @@ class Region:
     cuts: dict = None
     label: str = None
     signal: bool = False  # is this a signal region?
+    prelpsf: bool = False  # are these cuts to apply before calculating the LP SF?
     lpsf: bool = False  # is this a region for LP SF calculation?
     lpsf_region: str = None  # if so, name of region for which LP SF is calculated
     cutstr: str = None  # optional label for the region's cuts e.g. when scanning cuts
@@ -102,6 +103,16 @@ def get_nonres_selection_regions(
             },
             label="Fail",
         ),
+        "prelpsf": Region(
+            cuts={
+                "bbFatJetPt": pt_cuts,
+                "VVFatJetPt": pt_cuts,
+                # "bbFatJetParticleNetMD_Txbb": [ggf_txbb_cut, CUT_MAX_VAL],
+                **lepton_cuts,
+            },
+            prelpsf=True,
+            label="Pre LP Cts",
+        ),
         # cuts for which LP SF is calculated
         "lpsf_passvbf": Region(
             cuts={
@@ -140,6 +151,7 @@ def get_nonres_selection_regions(
             "pass": regions["passggf"],
             "fail": regions["fail"],
             "lpsf": lpregion,
+            "prelpsf": regions["prelpsf"],
         }
         regions["pass"].cuts.pop("BDTScoreVBF")
         regions["lpsf"].cuts.pop("BDTScoreVBF")
@@ -227,6 +239,11 @@ def get_res_selection_regions(
     ]
     txbb_cut = txbb_wps[year][txbb_wp]
 
+    lepton_cuts = {
+        "nGoodElectronsHbb": [0, 0.9],
+        "nGoodMuonsHbb": [0, 0.9],
+    }
+
     # first define without pT cuts
     regions = {
         # "unblinded" regions:
@@ -235,6 +252,7 @@ def get_res_selection_regions(
                 "bbFatJetParticleNetMass": mass_window,
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
                 "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+                **lepton_cuts,
             },
             signal=True,
             label="Pass",
@@ -244,6 +262,7 @@ def get_res_selection_regions(
                 "bbFatJetParticleNetMass": mass_window,
                 "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
                 "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, thww_wp],
+                **lepton_cuts,
             },
             label="Fail",
         ),
@@ -253,6 +272,7 @@ def get_res_selection_regions(
                 "bbFatJetParticleNetMass": mw_sidebands,
                 "bbFatJetParticleNetMD_Txbb": [txbb_cut, CUT_MAX_VAL],
                 "VVFatJetParTMD_THWWvsT": [thww_wp, CUT_MAX_VAL],
+                **lepton_cuts,
             },
             label="Validation Pass",
         ),
@@ -261,8 +281,16 @@ def get_res_selection_regions(
                 "bbFatJetParticleNetMass": mw_sidebands,
                 "bbFatJetParticleNetMD_Txbb": [0.8, txbb_cut],
                 "VVFatJetParTMD_THWWvsT": [-CUT_MAX_VAL, thww_wp],
+                **lepton_cuts,
             },
             label="Validation Fail",
+        ),
+        "prelpsf": Region(
+            cuts={
+                **lepton_cuts,
+            },
+            prelpsf=True,
+            label="Pre LP Cts",
         ),
         # cut for which LP SF is calculated
         "lpsf_pass": Region(
@@ -277,7 +305,9 @@ def get_res_selection_regions(
     leading_pt_cut = [leadingpt_wp, CUT_MAX_VAL]
     subleading_pt_cut = [subleadingpt_wp, CUT_MAX_VAL]
 
-    for _key, region in regions.items():
+    for key, region in regions.items():
+        if key == "lpsf_pass":
+            continue
         cuts = {
             "bbFatJetPt": subleading_pt_cut,
             "VVFatJetPt": subleading_pt_cut,

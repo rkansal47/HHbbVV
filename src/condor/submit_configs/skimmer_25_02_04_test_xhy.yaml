@@ -1,0 +1,13 @@
+{ "Skimmer": {
+      # submit script will append year to this
+      "XHY": {
+          "subsamples":
+            [
+              "NMSSM_XToYHTo2W2BTo4Q2B_MX-1000_MY-100",
+            ],
+          "files_per_job": 1,
+          "max_files": 1,
+          "chunksize": 80000,
+          "maxchunks": 1
+        },
+    } }

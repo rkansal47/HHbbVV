@@ -1,5 +1,5 @@
 #!/bin/bash
-# shellcheck disable=SC2086,SC2043
+# shellcheck disable=SC2086,SC2043,SC2089,SC2090
 
 ####################################################################################################
 # Script for creating nonresonant templates + BDT score control plots
@@ -7,14 +7,18 @@
 ####################################################################################################
 
 MAIN_DIR="../../.."
-data_dir="$MAIN_DIR/../data/skimmer/24Mar14UpdateData"
-bdt_preds_dir="$data_dir/24_04_05_k2v0_training_eqsig_vbf_vars_rm_deta/inferences"
+data_dir="--data-dir $MAIN_DIR/../data/skimmer/24Mar14UpdateData"
+signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Jan9UpdateLPFix"
+# bdt_preds_dir="$data_dir/24_04_05_k2v0_training_eqsig_vbf_vars_rm_deta/inferences"
+bdt_preds_dir="$signal_data_dir/inferences"
 sig_samples=""
 region="all"
 TAG=""
+bg_samples=""
+plot_dir="--plot-dir ${MAIN_DIR}/plots/PostProcessing/$TAG"
 
 
-options=$(getopt -o "" --long "sample:,region:,tag:" -- "$@")
+options=$(getopt -o "" --long "sample:,region:,tag:,onlysignal,noplot" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -30,6 +34,13 @@ while true; do
         --tag)
             shift
             TAG=$1
+            ;;
+        --onlysignal)
+            bg_samples="--bg-keys '' --no-data"
+            data_dir=""
+            ;;
+        --noplot)
+            plot_dir=""
             ;;
         --)
             shift
@@ -51,7 +62,7 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-io_args="--data-dir $data_dir --bdt-preds-dir $bdt_preds_dir --plot-dir ${MAIN_DIR}/plots/PostProcessing/$TAG --template-dir templates/$TAG $sig_samples"
+io_args="$data_dir --bdt-preds-dir $bdt_preds_dir  --template-dir templates/$TAG $sig_samples $bg_samples --signal-data-dir $signal_data_dir $plot_dir"
 
 echo "get LP SFs first for all regions"
 python -u postprocessing.py --year 2016 $io_args --lpsfs --nonres-regions $region

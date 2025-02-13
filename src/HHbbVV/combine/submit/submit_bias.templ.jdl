@@ -1,6 +1,7 @@
 #!/usr/bin/env condor_submit
 
 executable              = $dir/${prefix}_$jobid.sh
++DesiredOS              = "SL7"
 should_transfer_files   = YES
 transfer_input_files    = combined_withmasks.root,higgsCombineSnapshot.MultiDimFit.mH125.root,/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh
 transfer_output_files   = higgsCombinebias${bias}.FitDiagnostics.mH125.$seed.root
