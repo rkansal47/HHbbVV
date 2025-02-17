@@ -338,6 +338,7 @@ def ratioHistPlot(
         bg_err = np.array(bg_err)
 
     pre_divide_hists = hists
+    pre_divide_bg_tot = bg_tot
     if divide_bin_width:
         hists, data_err, bg_tot, bg_err = _divide_bin_widths(hists, data_err, bg_tot, bg_err)
 
@@ -494,7 +495,7 @@ def ratioHistPlot(
                     poisson_interval(pre_divide_hists[data_key, ...].values())
                     - pre_divide_hists[data_key, ...].values()
                 )
-                / (bg_tot + 1e-5)
+                / (pre_divide_bg_tot + 1e-5)
             )
 
             # old version: using Garwood ratio intervals
@@ -503,7 +504,7 @@ def ratioHistPlot(
             # )
 
             hep.histplot(
-                pre_divide_hists[data_key, :] / (bg_tot + 1e-5),
+                pre_divide_hists[data_key, :] / (pre_divide_bg_tot + 1e-5),
                 yerr=yerr,
                 ax=rax,
                 histtype="errorbar",

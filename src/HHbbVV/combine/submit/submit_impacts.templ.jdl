@@ -3,7 +3,7 @@
 executable              = $dir/${prefix}_$jobid.sh
 +DesiredOS              = "SL7"
 should_transfer_files   = YES
-transfer_input_files    = combined_withmasks.root,higgsCombineSnapshot.MultiDimFit.mH125.root,/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/run_blinded.sh
+transfer_input_files    = combined_withmasks.root,higgsCombineSnapshot.MultiDimFit.mH125.root,/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/$script
 transfer_output_files   = $impactfile
 when_to_transfer_output = ON_EXIT_OR_EVICT
 request_memory          = 3000

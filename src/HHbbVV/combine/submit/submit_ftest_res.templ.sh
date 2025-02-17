@@ -75,7 +75,7 @@ xrdcp $${model_dir}/$${outsdir}/gentoys$seed.txt $$eosdir/$${model_name}/$${outs
 ####################################################################################################
 
 
-$${scripts_dir}/run_ftest_res.sh -f --seed $seed --numtoys $num_toys --low1 $low1 --low2 $low2 --cardsdir "." --cardstag $tag --scriptsdir $$scripts_dir --verbose 1
+$${scripts_dir}/run_ftest_res.sh -f --seed $seed --numtoys $num_toys --low1 $low1 --low2 $low2 --cardsdir "." --cardstag $tag --scriptsdir $$scripts_dir --verbose 1 $unblinded
 
 for (( ord1=$low1; ord1<=$$(($low1 + 1)); ord1++ ))
 do

@@ -44,3 +44,4 @@ def parse_common_args(parser):
         parser, "submit", default=False, help="submit files as well as create them"
     )
     run_utils.add_bool_arg(parser, "resonant", default=True, help="resonant or nonresonant")
+    run_utils.add_bool_arg(parser, "blinded", help="Blinded or unblinded?", default=True)

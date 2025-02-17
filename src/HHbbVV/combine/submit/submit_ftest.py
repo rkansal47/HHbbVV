@@ -66,6 +66,8 @@ def main(args):
         else f"{submitdir}/submit_ftest_nonres{blind_str}.templ.sh"
     )
 
+    unblindedarg = "" if args.blinded else "-u"
+
     # submit jobs
     if args.submit:
         print("Submitting jobs")
@@ -96,6 +98,7 @@ def main(args):
             "num_toys": args.toys_per_job,
             "rmax": args.rmax,
             "bestfitr": bestfitr,
+            "unblinded": unblindedarg,
         }
         if not args.resonant:
             sh_args.pop("low2")
