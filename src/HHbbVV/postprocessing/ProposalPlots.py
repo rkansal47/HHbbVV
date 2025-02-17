@@ -150,7 +150,7 @@ with (plot_dir / "rocs.pkl").open("rb") as f:
 xlim = [0, 0.6]
 ylim = [1e-6, 1]
 
-for cutstr in cut_labels:
+for cutstr, clabel in cut_labels.items():
     plt.figure(figsize=(12, 12))
     for t, pvars in roc_plot_vars.items():
         plt.plot(
@@ -172,7 +172,7 @@ for cutstr in cut_labels:
     plt.xlabel("Signal Efficiency")
     plt.ylabel("Background Efficiency")
     # plt.suptitle("HVV FatJet ROC Curves", y=0.95)
-    plt.text(0.02, 0.27, cut_labels[cutstr], fontsize=20)
+    plt.text(0.02, 0.27, clabel, fontsize=20)
     plt.xlim(*xlim)
     plt.ylim(*ylim)
     plt.legend()
