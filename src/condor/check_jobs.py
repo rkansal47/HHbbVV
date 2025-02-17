@@ -20,6 +20,8 @@ parser = argparse.ArgumentParser()
 run_utils.parse_common_args(parser)
 
 parser.add_argument("--user", default="rkansal", help="user", type=str)
+parser.add_argument("--site", default="lpc", help="t2 site", choices=["lpc", "ucsd"], type=str)
+run_utils.add_bool_arg(parser, "check-parquet", default=True, help="check parquet files")
 run_utils.add_bool_arg(parser, "submit-missing", default=False, help="submit missing files")
 run_utils.add_bool_arg(
     parser,
@@ -32,8 +34,12 @@ args = parser.parse_args()
 
 trigger_processor = args.processor.startswith("trigger")
 
-eosdir = f"/eos/uscms/store/user/{args.user}/bbVV/{args.processor}/{args.tag}/{args.year}/"
-user_condor_dir = f"/uscms/home/{args.user}/nobackup/HHbbVV/condor/"
+if args.site == "lpc":
+    eosdir = f"/eos/uscms/store/user/{args.user}/bbVV/{args.processor}/{args.tag}/{args.year}/"
+    user_condor_dir = f"/uscms/home/{args.user}/nobackup/HHbbVV/condor/"
+elif args.site == "ucsd":
+    eosdir = f"/ceph/cms/store/user/{args.user}/bbVV/{args.processor}/{args.tag}/{args.year}/"
+    user_condor_dir = f"/home/users/{args.user}/HHbbVV/condor/"
 
 samples = listdir(eosdir)
 jdls = [
@@ -62,7 +68,7 @@ for sample in samples.copy():
 
 running_jobs = []
 if args.check_running:
-    os.system(f"condor_q {args.user}" "| awk '{print $9}' > running_jobs.txt")
+    os.system(f"condor_q {args.user} -nobatch" "| awk '{print $9}' > running_jobs.txt")
     with Path("running_jobs.txt").open() as f:
         lines = f.readlines()
 
@@ -76,7 +82,7 @@ err_files = []
 for sample in samples:
     print(f"Checking {sample}")
 
-    if not trigger_processor:
+    if not trigger_processor and args.check_parquet:
         if not Path(f"{eosdir}/{sample}/parquet").exists():
             print_red(f"No parquet directory for {sample}!")
 
@@ -104,13 +110,29 @@ for sample in samples:
 
     if not Path(f"{eosdir}/{sample}/pickles").exists():
         print_red(f"No pickles directory for {sample}!")
+        if not args.check_parquet:
+            for i in range(jdl_dict[sample]):
+                if f"{args.year}_{sample}_{i}" in running_jobs:
+                    print(f"Job #{i} for sample {sample} is running.")
+                    continue
+
+                jdl_file = (
+                    f"{user_condor_dir}/{args.processor}/{args.tag}/{args.year}_{sample}_{i}.jdl"
+                )
+                err_file = f"{user_condor_dir}/{args.processor}/{args.tag}/logs/{args.year}_{sample}_{i}.err"
+                print(jdl_file)
+                missing_files.append(jdl_file)
+                err_files.append(err_file)
+                if args.submit_missing:
+                    os.system(f"condor_submit {jdl_file}")
+
         continue
 
     outs_pickles = [
         int(out.split(".")[0].split("_")[-1]) for out in listdir(f"{eosdir}/{sample}/pickles")
     ]
 
-    if trigger_processor:
+    if trigger_processor or not args.check_parquet:
         print(f"Out pickles: {outs_pickles}")
 
     for i in range(jdl_dict[sample]):
@@ -129,7 +151,7 @@ for sample in samples:
             if args.submit_missing:
                 os.system(f"condor_submit {jdl_file}")
 
-        if not trigger_processor and i not in outs_parquet:
+        if not trigger_processor and args.check_parquet and i not in outs_parquet:
             print_red(f"Missing output parquet #{i} for sample {sample}")
 
 

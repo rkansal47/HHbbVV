@@ -71,21 +71,31 @@ def timer():
         print(f"Time taken: {new_time - old_time} seconds")
 
 
-def remove_empty_parquets(samples_dir, year):
-    from os import listdir
-
-    full_samples_list = listdir(f"{samples_dir}/{year}")
+def remove_empty_parquets(samples_dir):
+    full_samples_list = listdir(samples_dir)
     print("Checking for empty parquets")
 
     for sample in full_samples_list:
         if sample == ".DS_Store":
             continue
-        parquet_files = listdir(f"{samples_dir}/{year}/{sample}/parquet")
+
+        # if checked_empty_parquet.txt file exists, skip
+        if Path(f"{samples_dir}/{sample}/checked_empty_parquet.txt").exists():
+            continue
+
+        print(f"\tChecking {sample}")
+        parquet_files = listdir(f"{samples_dir}/{sample}/parquet")
         for f in parquet_files:
-            file_path = Path(f"{samples_dir}/{year}/{sample}/parquet/{f}")
-            if not len(pd.read_parquet(file_path)):
-                print("Removing: ", f"{sample}/{f}")
-                file_path.unlink()
+            file_path = Path(f"{samples_dir}/{sample}/parquet/{f}")
+
+            # if file size is < 5kb, move file one directory up
+            if file_path.stat().st_size < 5000:
+                print(f"Moving {sample}/{f} outside.")
+                file_path.rename(f"{samples_dir}/{sample}/{f}")
+
+        # create checked_empty_parquet.txt file to avoid repeating in the future
+        with Path(f"{samples_dir}/{sample}/checked_empty_parquet.txt").open("w") as file:
+            file.write("Removed empty parquets!")
 
 
 def remove_variation_suffix(var: str):
@@ -681,6 +691,10 @@ def mxmy(sample):
     mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
 
     return (mX, mY)
+
+
+def inverse_mxmy(point):
+    return f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{point[0]}_MY-{point[1]}"
 
 
 def merge_dictionaries(dict1, dict2):

@@ -41,20 +41,51 @@ combine
 ####################################################################################################
 
 mkdir local_python
-export PYTHONUSERBASE=$(pwd)/local_python
+export PYTHONUSERBASE=$$(pwd)/local_python
 
 echo "Installing hist"
 pip3 install --user hist==2.7.2
-git clone -b square_coef https://github.com/rkansal47/rhalphalib.git
-cd rhalphalib || exit
+
 echo "Installing rhalphalib"
+# try 3 times in case of network errors
+(
+    r=3
+    # shallow clone of single branch (keep repo size as small as possible)
+    while ! git clone https://github.com/rkansal47/rhalphalib.git
+    do
+        ((--r)) || exit
+        sleep 60
+    done
+)
+cd rhalphalib || exit
 pip3 install --user .
 cd .. || exit
 
-export PYTHONPATH=$(pwd)/local_python/lib/python3.8/site-packages/:$PYTHONPATH
+echo "Installing HHbbVV"
+# try 3 times in case of network errors
+(
+    r=3
+    # shallow clone of single branch (keep repo size as small as possible)
+    while ! git clone --single-branch --branch $branch --depth=1 https://github.com/$gituser/HHbbVV/
+    do
+        ((--r)) || exit
+        sleep 60
+    done
+)
+cd HHbbVV || exit
+
+commithash=$$(git rev-parse HEAD)
+echo "https://github.com/rkansal47/HHbbVV/commit/$${commithash}" > commithash.txt
+
+#move output to t2s
+xrdcp -f commithash.txt root://cmseos.fnal.gov/${cards_dir}/commithash_${jobnum}.txt
+
+pip3 install --user .
+
+export PYTHONPATH=$$(pwd)/local_python/lib/python3.8/site-packages/:$$PYTHONPATH
 
 echo "testing installed libraries"
-echo "import hist; import rhalphalib; print('Import successful! hist version:', hist.__version__)" > lib_test.py
+echo "import hist; import rhalphalib; import HHbbVV; print('Import successful! hist version:', hist.__version__)" > lib_test.py
 python3 lib_test.py
 
 ls -lh .
@@ -63,32 +94,43 @@ ls -lh .
 # Get templates from EOS directory and run fit script
 ####################################################################################################
 
-mkdir templates
-mkdir cards
-
-templates_dir=${in_templates_dir}
-cards_dir=${in_cards_dir}
+cd src/HHbbVV/ || exit
+mkdir -p templates/backgrounds
+mkdir -p cards
 
 # get backgrounds templates
-xrdcp -r root://cmseos.fnal.gov/${templates_dir}/backgrounds templates/
+for file in "2016_templates.pkl" "2016APV_templates.pkl" "2017_templates.pkl" "2018_templates.pkl" "systematics.json"
+do
+    xrdcp -r root://redirector.t2.ucsd.edu:1095//${templates_dir}/backgrounds/$${file} templates/backgrounds/
+done
 
 for sample in $samples
 do
-    echo -e "\n\n$sample"
+    echo -e "\n\n$${sample}"
+    mkdir -p templates/$${sample}
 
     # get sample templates
-    xrdcp -r root://cmseos.fnal.gov/${templates_dir}/$sample templates/
+    for file in "2016_templates.pkl" "2016APV_templates.pkl" "2017_templates.pkl" "2018_templates.pkl" "systematics.json"
+    do
+        xrdcp -r root://redirector.t2.ucsd.edu:1095//${templates_dir}/$${sample}/$${file} templates/$${sample}/
+    done
 
-    python3 -u postprocessing/CreateDatacard.py --templates-dir templates --sig-separate --resonant \
-    --model-name $sample --sig-sample $sample ${datacard_args}
+    python3 -u postprocessing/CreateDatacard.py --templates-dir "templates/$${sample}" --bg-templates-dir "templates/backgrounds" \
+    --sig-separate --resonant --model-name $${sample} --sig-sample $${sample} ${datacard_args}
 
-    cd cards/$sample || exit
+    cd cards/$${sample} || exit
     ../../combine/run_blinded.sh --workspace --bfit --limits --resonant
     cd ../.. || exit
 
+    echo -e "\n\n\n"
+    echo "Finished $${sample}"
+    echo "Outputs:"
+    ls -lh cards/$${sample}
+
     # transfer output cards
-    xrdcp -r cards/$sample root://cmseos.fnal.gov/${cards_dir}/$sample/
-    rm -rf templates/$sample
+    xrdcp -r cards/$${sample} root://cmseos.fnal.gov/${cards_dir}/$${sample}
+    rm -rf templates/$${sample}
+    rm -rf cards/$${sample}
 done
 
 rm -rf templates/backgrounds

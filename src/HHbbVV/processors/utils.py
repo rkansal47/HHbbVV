@@ -37,6 +37,25 @@ def pad_val(
     return ret.to_numpy() if to_numpy else ret
 
 
+def ak_clip(array: ak.Array, min_val: float, max_val: float):
+    """
+    Clip the values in an Awkward Array to lie within the interval [min_val, max_val].
+
+    Parameters:
+    - array: ak.Array
+        The input Awkward Array.
+    - min_val: scalar
+        The minimum value to clip to.
+    - max_val: scalar
+        The maximum value to clip to.
+
+    Returns:
+    - ak.Array
+        A new Awkward Array with values clipped within the specified range.
+    """
+    return ak.where(array < min_val, min_val, ak.where(array > max_val, max_val, array))
+
+
 def add_selection(
     name: str,
     sel: np.ndarray,
