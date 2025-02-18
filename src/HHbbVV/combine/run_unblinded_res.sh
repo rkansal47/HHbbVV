@@ -257,8 +257,8 @@ if [ $bfit = 1 ]; then
     echo "Multidim fit"
     combine -D $dataset -M MultiDimFit --saveWorkspace -m 125 -d ${wsm}.root -v $verbose \
     --cminDefaultMinimizerStrategy 1 --cminDefaultMinimizerTolerance "$mintol" --X-rtd MINIMIZER_MaxCalls=400000 \
-    --setParameters "${maskblindedargs},${setparamsunblinded}"  \
-    --freezeParameters ${freezeparamsunblinded} \
+    --setParameters "${maskblindedargs},${setparamsunblinded}"  --setParameterRanges r=-2,20 \
+    --freezeParameters ${freezeparamsunblinded}  \
     -n Snapshot 2>&1 | tee $outsdir/MultiDimFit.txt
 else
     if [ ! -f "higgsCombineSnapshot.MultiDimFit.mH125.root" ]; then
@@ -271,7 +271,7 @@ fi
 if [ $limits = 1 ]; then
     echo "Limits"
     combine -M AsymptoticLimits -m 125 -n "" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v $verbose \
-    --saveWorkspace --saveToys --bypassFrequentistFit \
+    --saveWorkspace --saveToys --bypassFrequentistFit  --setParameterRanges r=-2,20  \
     ${unblindedparams} -s "$seed" --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
 fi
 
@@ -299,8 +299,8 @@ fi
 
 if [ $dfit = 1 ]; then
     echo "Fit Diagnostics"
-    combine -M FitDiagnostics -m 125 -d ${wsm}.root \
-    ${unblindedparams} \
+    combine -M FitDiagnostics -m 125 -d ${wsm}.root -n "" \
+    ${unblindedparams} --setParameterRanges r=-2,20 \
     --cminDefaultMinimizerStrategy 1  --cminDefaultMinimizerTolerance "$mintol" --X-rtd MINIMIZER_MaxCalls=400000 \
     --ignoreCovWarning -v $verbose 2>&1 | tee $outsdir/FitDiagnostics.txt
     # --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
@@ -309,11 +309,11 @@ if [ $dfit = 1 ]; then
 
     echo "Fit Shapes B"
     PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapesB.root \
-    -m 125 -f fitDiagnosticsBlinded.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
+    -m 125 -f fitDiagnostics.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
 
     echo "Fit Shapes S+B"
     PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapesS.root \
-    -m 125 -f fitDiagnosticsBlinded.root:fit_s --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
+    -m 125 -f fitDiagnostics.root:fit_s --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
 fi
 
 
@@ -358,8 +358,8 @@ fi
 if [ $impactsi = 1 ]; then
     echo "Initial fit for impacts"
     combineTool.py -M Impacts --snapshotName MultiDimFit -m 125 -n "impacts" \
-    -d ${wsm_snapshot}.root --doInitialFit --robustFit 1 --toysFrequentist \
-    ${unblindedparams} --cminDefaultMinimizerStrategy=1 -v 1 2>&1 | tee $outsdir/Impacts_init.txt
+    -d ${wsm_snapshot}.root --doInitialFit --toysFrequentist --robustFit 1 \
+    ${unblindedparams} --setParameterRanges r=-2,20 --cminDefaultMinimizerStrategy=1 -v 1 2>&1 | tee $outsdir/Impacts_init.txt
 fi
 
 
@@ -370,8 +370,8 @@ if [ "$impactsf" != 0 ]; then
     # (also need to do this for submitting to condor anywhere other than lxplus)
     combine -M MultiDimFit -n "_paramFit_impacts_$impactsf" --algo impact --redefineSignalPOIs r -P "$impactsf" \
     --floatOtherPOIs 1 --saveInactivePOI 1 --snapshotName MultiDimFit -d ${wsm_snapshot}.root \
-    --toysFrequentist --robustFit 1 \
-    ${unblindedparams} --setParameterRanges r=-0.5,20 --cminDefaultMinimizerStrategy=1 -v 1 -m 125 | tee "$outsdir/Impacts_$impactsf.txt"
+    --toysFrequentist --robustFit 1 --cminDefaultMinimizerTolerance "$mintol" --setRobustFitTolerance 10 \
+    ${unblindedparams} --setParameterRanges r=-2,20 --cminDefaultMinimizerStrategy=1 -v 1 -m 125 | tee "$outsdir/Impacts_$impactsf.txt"
 fi
 
 
@@ -381,7 +381,7 @@ if [ "$impactsc" != 0 ]; then
     -m 125 -n "impacts" -d ${wsm_snapshot}.root \
     --setParameters "${maskblindedargs}" \
     --named "$impactsc" \
-    --setParameterRanges r=-0.5,20 -v 1 -o impacts.json 2>&1 | tee $outsdir/Impacts_collect.txt
+    --setParameterRanges r=-2,20 -v 1 -o impacts.json 2>&1 | tee $outsdir/Impacts_collect.txt
 
     plotImpacts.py -i impacts.json -o impacts # --run blind
 fi
