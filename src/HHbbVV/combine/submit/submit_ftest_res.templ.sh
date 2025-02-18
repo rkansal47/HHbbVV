@@ -65,7 +65,7 @@ toys_name="${low1}${low2}"
 model_dir="$$(pwd)/$tag/$${model_name}"
 echo "Model dir: $${model_dir}"
 
-$${scripts_dir}/run_ftest_res.sh -t --seed $seed --numtoys $num_toys --low1 $low1 --low2 $low2 --cardsdir "." --cardstag $tag --scriptsdir $$scripts_dir --verbose 1
+$${scripts_dir}/run_ftest_res.sh -t --seed $seed --numtoys $num_toys --low1 $low1 --low2 $low2 --cardsdir "." --cardstag $tag --scriptsdir $$scripts_dir --verbose 1 $unblindedarg
 
 xrdcp $${model_dir}/higgsCombineToys$${toys_name}.GenerateOnly.mH125.$seed.root $$eosdir/$${model_name}/
 xrdcp $${model_dir}/$${outsdir}/gentoys$seed.txt $$eosdir/$${model_name}/$${outsdir}/
@@ -75,7 +75,7 @@ xrdcp $${model_dir}/$${outsdir}/gentoys$seed.txt $$eosdir/$${model_name}/$${outs
 ####################################################################################################
 
 
-$${scripts_dir}/run_ftest_res.sh -f --seed $seed --numtoys $num_toys --low1 $low1 --low2 $low2 --cardsdir "." --cardstag $tag --scriptsdir $$scripts_dir --verbose 1 $unblinded
+$${scripts_dir}/run_ftest_res.sh -f --seed $seed --numtoys $num_toys --low1 $low1 --low2 $low2 --cardsdir "." --cardstag $tag --scriptsdir $$scripts_dir --verbose 1 $unblindedarg
 
 for (( ord1=$low1; ord1<=$$(($low1 + 1)); ord1++ ))
 do

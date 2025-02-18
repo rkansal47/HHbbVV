@@ -81,10 +81,10 @@ while true; do
             resonant=1
             ;;
         --noggf)
-            echo ""
+            echo ""  # dummy options to keep compatibility with run_blinded.sh
             ;;
         --novbf)
-            echo ""
+            echo ""  # dummy options to keep compatibility with run_blinded.sh
             ;;
         -g|--gofdata)
             gofdata=1
@@ -351,7 +351,7 @@ fi
 if [ $gentoys = 1 ]; then
     echo "Generating toys"
     combine -M GenerateOnly -m 125 -d ${wsm_snapshot}.root \
-    ${unblindedparams} -n "Toys${toysname}" -t "$numtoys" --saveToys -s "$seed" \
+    ${unblindedparams} -n "Toys${toysname}" -t "$numtoys" --saveToys -s "$seed" --toysFrequentist \
     -v $verbose 2>&1 | tee $outsdir/gentoys${seed}.txt
 fi
 

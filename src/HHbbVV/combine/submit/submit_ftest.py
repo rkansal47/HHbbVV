@@ -49,10 +49,11 @@ def main(args):
                 f"nTF_{args.low1 + i}/outs/"
             )
 
-    if not args.blinded:
+    if not args.blinded and not args.resonant:
         cards_dir = (
             f"nTF_{args.low1}" if not args.resonant else f"nTF1_{args.low1}_nTF2_{args.low2}"
         )
+        cards_dir = f"/uscms/home/rkansal/hhcombine/cards/f_tests/{args.cards_tag}/" + cards_dir
         bestfitr = getBestFitR(cards_dir)
         print("Best Fit r:", bestfitr)
     else:
@@ -61,7 +62,7 @@ def main(args):
     jdl_templ = f"{submitdir}/submit_ftest.templ.jdl"
     blind_str = "_unblinded" if not args.blinded else ""
     sh_templ = (
-        f"{submitdir}/submit_ftest_res{blind_str}.templ.sh"
+        f"{submitdir}/submit_ftest_res.templ.sh"
         if args.resonant
         else f"{submitdir}/submit_ftest_nonres{blind_str}.templ.sh"
     )
@@ -98,7 +99,7 @@ def main(args):
             "num_toys": args.toys_per_job,
             "rmax": args.rmax,
             "bestfitr": bestfitr,
-            "unblinded": unblindedarg,
+            "unblindedarg": unblindedarg,
         }
         if not args.resonant:
             sh_args.pop("low2")
