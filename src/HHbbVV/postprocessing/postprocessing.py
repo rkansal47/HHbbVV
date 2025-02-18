@@ -82,28 +82,28 @@ load_filters = [
 
 # {var: (bins, label)}
 control_plot_vars = [
-    # ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[20, 0, 300]),
+    # ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ [GeV]", bins=[20, 0, 300]),
     # ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[20, -8, 8]),
-    # ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[20, 0, 750]),
-    # ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[20, 600, 4000]),
+    # ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ [GeV]", bins=[20, 0, 750]),
+    # ShapeVar(var="DijetMass", label=r"$m^{jj}$ [GeV]", bins=[20, 600, 4000]),
     # ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[20, -2.4, 2.4]),
     # ShapeVar(var="bbFatJetPhi", label=r"$\varphi^{bb}$", bins=[20, -3, 3]),
     # ShapeVar(
-    #     var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[20, 300, 2300], significance_dir="right"
+    #     var="bbFatJetPt", label=r"$p^{bb}_T$ [GeV]", bins=[20, 300, 2300], significance_dir="right"
     # ),
     # ShapeVar(
     #     var="bbFatJetParticleNetMass",
-    #     label=r"$m^{bb}_{reg}$ (GeV)",
+    #     label=r"$m^{bb}_{reg}$ [GeV]",
     #     bins=[20, 50, 250],
     #     significance_dir="bin",
     # ),
-    # ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ [GeV]", bins=[20, 50, 250]),
     # ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[20, 0.8, 1]),
     # ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[20, -2.4, 2.4]),
     # ShapeVar(var="VVFatJetPhi", label=r"$\varphi^{VV}$", bins=[20, -3, 3]),
-    # ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[20, 300, 2300]),
-    # ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
-    # ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ [GeV]", bins=[20, 300, 2300]),
+    # ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ [GeV]", bins=[20, 50, 250]),
+    # ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ [GeV]", bins=[20, 50, 250]),
     # ShapeVar(
     #     var="VVFatJetParticleNet_Th4q",
     #     label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)",
@@ -141,10 +141,10 @@ control_plot_vars = [
 
 # for msd vs mreg comparison plots only
 mass_plot_vars = [
-    ShapeVar(var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[30, 0, 300]),
-    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[30, 0, 300]),
-    ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[30, 0, 300]),
-    ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[30, 0, 300]),
+    ShapeVar(var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ [GeV]", bins=[30, 0, 300]),
+    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ [GeV]", bins=[30, 0, 300]),
+    ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ [GeV]", bins=[30, 0, 300]),
+    ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ [GeV]", bins=[30, 0, 300]),
 ]
 
 
@@ -152,7 +152,7 @@ mass_plot_vars = [
 nonres_shape_vars = [
     ShapeVar(
         "bbFatJetParticleNetMass",
-        r"$m^{bb}_\mathrm{Reg}$ (GeV)",
+        r"$m^{bb}_\mathrm{Reg}$ [GeV]",
         [20, 50, 250],
         reg=True,
         blind_window=[100, 150],
@@ -164,7 +164,7 @@ nonres_shape_vars = [
 nonres_vbf_shape_vars = [
     ShapeVar(
         "bbFatJetParticleNetMass",
-        r"$m^{bb}_\mathrm{Reg}$ (GeV)",
+        r"$m^{bb}_\mathrm{Reg}$ [GeV]",
         [20, 50, 250],
         reg=True,
         blind_window=[100, 150],
@@ -176,13 +176,13 @@ nonres_vbf_shape_vars = [
 res_shape_vars = [
     ShapeVar(
         "VVFatJetParticleNetMass",
-        r"$m^{VV}_\mathrm{Reg}$ (GeV)",
+        r"$m^{VV}_\mathrm{Reg}$ [GeV]",
         list(range(50, 110, 10)) + list(range(110, 200, 15)) + [200, 220, 250],
         reg=False,
     ),
     ShapeVar(
         "DijetMass",
-        r"$m^{jj}$ (GeV)",
+        r"$m^{jj}$ [GeV]",
         list(range(800, 1400, 100)) + [1400, 1600, 2000, 3000, 4400],
         reg=False,
     ),
@@ -1599,7 +1599,7 @@ def plot_bdt_sculpting(
     plot_keys = ["QCD", "TT", "Z+Jets", "HHbbVV", "qqHH_CV_1_C2V_0_kl_1_HHbbVV"]
 
     shape_var = ShapeVar(
-        var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[20, 50, 250]
+        var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ [GeV]", bins=[20, 50, 250]
     )
 
     for var in bdtvars:

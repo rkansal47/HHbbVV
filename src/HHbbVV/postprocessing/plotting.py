@@ -36,6 +36,8 @@ formatter.set_powerlimits((-3, 3))
 # plt.close()
 
 
+BG_UNC_LABEL = "Total Bkg. Uncertainty"
+
 bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "TT", "QCD"]
 
 sample_label_map = {
@@ -49,19 +51,25 @@ sample_label_map = {
 }
 
 colours = {
-    "darkblue": "#1f78b4",
-    "lightblue": "#a6cee3",
-    "lightred": "#FF502E",
-    "red": "#e31a1c",
+    # CMS 10-colour-scheme from
+    # https://cms-analysis.docs.cern.ch/guidelines/plotting/colors/#categorical-data-eg-1d-stackplots
+    "darkblue": "#3f90da",
+    "lightblue": "#92dadd",
+    "orange": "#e76300",
+    "red": "#bd1f01",
+    "darkpurple": "#832db6",
+    "brown": "#a96b59",
+    "gray": "#717581",
+    "beige": "#b9ac70",
+    "yellow": "#ffa90e",
+    "lightgray": "#94a4a2",
+    # extra colours
     "darkred": "#A21315",
-    "orange": "#ff7f00",
     "green": "#7CB518",
     "mantis": "#81C14B",
     "forestgreen": "#2E933C",
     "darkgreen": "#064635",
     "purple": "#9381FF",
-    "darkpurple": "#7F2CCB",
-    "slategray": "#63768D",
     "deeppurple": "#36213E",
     "ashgrey": "#ACBFA4",
     "canary": "#FFE51F",
@@ -74,15 +82,16 @@ colours = {
 }
 
 BG_COLOURS = {
-    "QCD": "lightblue",
-    "TT": "darkblue",
-    "V+Jets": "green",
-    "W+Jets": "green",
-    "Z+Jets": "flax",
-    "ST": "orange",
-    "Diboson": "canary",
-    "Hbb": "deeppurple",
-    "HWW": "lightred",
+    "QCD": "darkblue",
+    "TT": "brown",
+    # "V+Jets": "gray",
+    "W+Jets": "orange",
+    "Z+Jets": "yellow",
+    "ST": "lightblue",
+    "Diboson": "lightgray",
+    "Hbb": "beige",
+    "HWW": "gray",
+    # below not needed anymore
     "HH": "ashgrey",
     "HHbbVV": "red",
     "qqHH_CV_1_C2V_0_kl_1_HHbbVV": "darkpurple",
@@ -218,7 +227,7 @@ def _asimov_significance(s, b):
     return np.sqrt(2 * ((s + b) * np.log(1 + (s / b)) - s))
 
 
-def add_cms_label(ax, year, label="Preliminary"):
+def add_cms_label(ax, year, label="Preliminary", loc=2):
     if year == "all":
         hep.cms.label(
             label,
@@ -226,9 +235,10 @@ def add_cms_label(ax, year, label="Preliminary"):
             lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
             year=None,
             ax=ax,
+            loc=loc,
         )
     else:
-        hep.cms.label(label, data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
+        hep.cms.label(label, data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax, loc=loc)
 
 
 def ratioHistPlot(
@@ -260,6 +270,7 @@ def ratioHistPlot(
     axrax: tuple = None,
     ncol: int = None,
     cmslabel: str = None,
+    cmsloc: int = None,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -367,7 +378,7 @@ def ratioHistPlot(
     plt.rcParams.update({"font.size": 24})
 
     # plot histograms
-    y_label = r"Events / Bin Width (GeV$^{-1}$)" if divide_bin_width else "Events"
+    y_label = r"Events / GeV" if divide_bin_width else "Events"
     ax.set_ylabel(y_label)
 
     # background samples
@@ -432,7 +443,7 @@ def ratioHistPlot(
                 alpha=0.2,
                 hatch="//",
                 linewidth=0,
-                label="Total Background Uncertainty",
+                label=BG_UNC_LABEL,
             )
         else:
             ax.stairs(
@@ -476,9 +487,16 @@ def ratioHistPlot(
     if log:
         ax.set_yscale("log")
         # two column legend
-        ax.legend(fontsize=20, ncol=2)
+        ax.legend(fontsize=24, ncol=2)
     else:
-        ax.legend(fontsize=20, ncol=ncol)
+        legend_order = [data_key] + list(sig_labels.values()) + bg_order[::-1] + [BG_UNC_LABEL]
+        legend_order = [sample_label_map.get(k, k) for k in legend_order]
+        handles, labels = ax.get_legend_handles_labels()
+        ordered_handles = [
+            handles[labels.index(label)] for label in legend_order if label in labels
+        ]
+        ordered_labels = [label for label in legend_order if label in labels]
+        ax.legend(ordered_handles, ordered_labels, fontsize=24, ncol=ncol)
 
     y_lowlim = 0 if not log else 1e-5
     if ylim is not None:
@@ -526,7 +544,7 @@ def ratioHistPlot(
         else:
             rax.set_xlabel(hists.axes[1].label)
 
-        rax.set_ylabel("Data/MC")
+        rax.set_ylabel("Data / Bkg.")
         # rax.set_yscale("log")
         # formatter = mticker.ScalarFormatter(useOffset=False)
         # formatter.set_scientific(False)
@@ -569,7 +587,7 @@ def ratioHistPlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    add_cms_label(ax, year, label=cmslabel)
+    add_cms_label(ax, year, label=cmslabel, loc=cmsloc)
 
     if axrax is None:
         if len(name):
