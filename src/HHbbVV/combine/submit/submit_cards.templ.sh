@@ -119,7 +119,7 @@ do
     --sig-separate --resonant --model-name $${sample} --sig-sample $${sample} ${datacard_args}
 
     cd cards/$${sample} || exit
-    ../../combine/$script --workspace --bfit --limits --resonant
+    ../../combine/$script --workspace --bfit --limits --resonant --significance
     cd ../.. || exit
 
     echo -e "\n\n\n"

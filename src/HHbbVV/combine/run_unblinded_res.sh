@@ -272,9 +272,16 @@ if [ $limits = 1 ]; then
     echo "Limits"
     combine -M AsymptoticLimits -m 125 -n "" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v $verbose \
     --saveWorkspace --saveToys --bypassFrequentistFit  --setParameterRanges r=-2,20  \
-    ${unblindedparams} -s "$seed" --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
+    ${unblindedparams} -s "$seed" --toysFrequentist 2>&1 | tee $outsdir/AsymptoticLimits.txt
 fi
 
+
+if [ $significance = 1 ]; then
+    echo "Significance"
+    combine -M Significance -d ${wsm_snapshot}.root -n "" --significance -m 125 --snapshotName MultiDimFit -v $verbose \
+    --saveWorkspace --saveToys --bypassFrequentistFit  --setParameterRanges r=-2,20  \
+    ${unblindedparams} --toysFrequentist -s "$seed" 2>&1 | tee $outsdir/Significance.txt
+fi
 
 if [ $toylimits = 1 ]; then
     echo "Expected limits (MC Unblinded) using toys"
@@ -286,16 +293,6 @@ if [ $toylimits = 1 ]; then
     # ${unblindedparams},r=0 -s "$seed" --bypassFrequentistFit --rAbsAcc 1.0 -T 100 --clsAcc 10 \
     # --floatParameters "${freezeparamsblinded},r" --toysFrequentist 2>&1 | tee $outsdir/ToysLimitsSP.txt
 fi
-
-
-if [ $significance = 1 ]; then
-    echo "Expected significance (MC Unblinded)"
-    combine -M Significance -d ${wsm_snapshot}.root -n "" --significance -m 125 --snapshotName MultiDimFit -v $verbose \
-    -t -1 --expectSignal=1 --saveWorkspace --saveToys --bypassFrequentistFit \
-    "${unblindedparams},r=1" \
-    --floatParameters "${freezeparamsblinded},r" --toysFrequentist 2>&1 | tee $outsdir/Significance.txt
-fi
-
 
 if [ $dfit = 1 ]; then
     echo "Fit Diagnostics"
@@ -402,7 +399,7 @@ fi
 if [ "$dnll" != 0 ]; then
     echo "Delta NLL"
     combine -M MultiDimFit --algo grid -m 125 -n "Scan" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v $verbose \
-    --bypassFrequentistFit --toysFrequentist --rMin -1 --rMax 1 \
+    --bypassFrequentistFit --toysFrequentist --rMin -1 --rMax 1 -P CMS_XHYbbWW_boosted_jmr_2016APV \
     ${unblindedparams} 2>&1 | tee "$outsdir/dnll.txt"
 
     plot1DScan.py "higgsCombineScan.MultiDimFit.mH125.root" -o scan
