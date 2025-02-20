@@ -152,6 +152,7 @@ ignore = [
   "RET504", # unnecessary assignment before return
   "RET505", # unnecessary else after return statement
   "NPY002", # np.random.rand -> np.random.Generator
+  "C408",   # Unnecessary dict call
 ]
 
 isort.required-imports = ["from __future__ import annotations"]

@@ -258,6 +258,7 @@ def ratioHistPlot(
     show: bool = True,
     syst: tuple = None,
     variation: str = None,
+    region_label: str = None,
     bg_err_type: str = "shaded",
     plot_data: bool = True,
     bg_order: list[str] = bg_order,
@@ -518,11 +519,6 @@ def ratioHistPlot(
                 / (pre_divide_bg_tot + 1e-5)
             )
 
-            # old version: using Garwood ratio intervals
-            # yerr = ratio_uncertainty(
-            #     pre_divide_hists[data_key, :].values(), bg_tot, "poisson"
-            # )
-
             hep.histplot(
                 pre_divide_hists[data_key, :] / (pre_divide_bg_tot + 1e-5),
                 yerr=yerr,
@@ -548,10 +544,6 @@ def ratioHistPlot(
             rax.set_xlabel(hists.axes[1].label)
 
         rax.set_ylabel("Data / Bkg.")
-        # rax.set_yscale("log")
-        # formatter = mticker.ScalarFormatter(useOffset=False)
-        # formatter.set_scientific(False)
-        # rax.yaxis.set_major_formatter(formatter)
         rax.set_ylim(ratio_ylims)
         rax.grid()
 
@@ -589,6 +581,16 @@ def ratioHistPlot(
 
     if title is not None:
         ax.set_title(title, y=1.08)
+
+    if region_label is not None:
+        ax.text(
+            0.29,
+            0.915,
+            region_label,
+            transform=ax.transAxes,
+            fontsize=24,
+            fontproperties="Tex Gyre Heros:bold",
+        )
 
     add_cms_label(ax, year, label=cmslabel, loc=cmsloc)
 
@@ -654,15 +656,6 @@ def ratioLinePlot(
             label="Lund Plane Uncertainty",
         )
 
-    # if sig_key in hists:
-    #     hep.histplot(
-    #         hists[sig_key, :] * sig_scale,
-    #         ax=ax,
-    #         histtype="step",
-    #         label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
-    #         color=colours[sig_colour],
-    #     )
-
     hep.histplot(
         hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
     )
@@ -681,15 +674,6 @@ def ratioLinePlot(
     data_vals = hists[data_key, :].values()
 
     if not pulls:
-        # datamc_ratio = data_vals / (bg_tot + 1e-5)
-
-        # if bg_err == "ratio":
-        #     yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
-        # elif bg_err is None:
-        #     yerr = 0
-        # else:
-        #     yerr = datamc_ratio * (bg_err / (bg_tot + 1e-8))
-
         yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
 
         hep.histplot(
