@@ -19,17 +19,18 @@ from HHbbVV.run_utils import add_bool_arg
 
 shapes = {
     "prefit": "Pre-Fit",
-    "postfit": "Post-Fit",
+    "postfitb": "Post-Fit B-only",
+    "postfits": "Post-Fit S+B",
 }
 
 shape_vars = res_shape_vars
 
 selection_regions = OrderedDict(
     [
-        ("fail", "Fail"),
-        ("pass", "Pass"),
-        ("failBlinded", "Validation Fail"),
-        ("passBlinded", "Validation Pass"),
+        ("fail", "SR Fail"),
+        ("pass", "SR Pass"),
+        ("failBlinded", "VR Fail"),
+        ("passBlinded", "VR Pass"),
     ]
 )
 
@@ -45,6 +46,7 @@ def plot_fits_combined(
     sig_key: str,
     p_bg_keys: list[str],
     preliminary: bool = True,
+    sig_scale: float = 10,
 ):
     plabel = "preliminary" if preliminary else "final"
     for shape in shapes:
@@ -78,7 +80,7 @@ def plot_fits_combined(
                     "sig_keys": [sig_key],
                     "bg_keys": p_bg_keys,
                     "bg_err": bgerr,
-                    "sig_scale_dict": {sig_key: 10},
+                    "sig_scale_dict": {sig_key: sig_scale},
                     "show": False,
                     "year": "all",
                     "ylim": pass_ylims[i] * scale if pass_region else fail_ylims[i] * scale,
@@ -104,6 +106,7 @@ def plot_fits_separate(
     sig_key: str,
     p_bg_keys: list[str],
     preliminary: bool = True,
+    sig_scale: float = 10,
 ):
     plabel = "preliminary" if preliminary else "final"
     for shape in shapes:
@@ -118,7 +121,7 @@ def plot_fits_separate(
                     "sig_keys": [sig_key],
                     "bg_keys": p_bg_keys,
                     "bg_err": bgerr,
-                    "sig_scale_dict": {sig_key: 10},
+                    "sig_scale_dict": {sig_key: sig_scale},
                     "show": False,
                     "year": "all",
                     "ylim": pass_ylims[i] * scale if pass_region else fail_ylims[i] * scale,
@@ -133,13 +136,34 @@ def plot_fits_separate(
 
 
 def main(args):
-    plot_dir = Path(args.plots_dir)
-    for p in ["Preliminary", "Final"]:
-        for c in ["Combined", "Separate"]:
-            (plot_dir / p / c).mkdir(parents=True, exist_ok=True)
+    plot_dir = Path(f"/uscms/home/rkansal/nobackup/HHbbVV/plots/PostFit/{args.plots_tag}")
 
+    # TODO: add option to do both
+    if args.b_only:
+        del shapes["postfits"]
+        file_name = "FitShapesB.root"
+    else:
+        del shapes["postfitb"]
+        file_name = "FitShapesS.root"
+
+    mx, my = args.mxmy
     cards_dir = Path(f"/uscms/home/rkansal/hhcombine/cards/{args.cards_tag}")
-    file_name = "FitShapesB" if args.b_only else "FitShapesS"
+
+    if not (cards_dir / file_name).exists():
+        cards_dir = cards_dir / f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mx}_MY-{my}"
+        plot_dir = plot_dir / f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mx}_MY-{my}"
+        if not (cards_dir / file_name).exists():
+            print(f"{cards_dir / file_name} does not exist! Exiting.")
+            return
+
+    for p in ["Preliminary", "Final"]:
+        if args.hists1d:
+            for c in ["Combined", "Separate"]:
+                (plot_dir / p / c).mkdir(parents=True, exist_ok=True)
+
+        if args.hists2d:
+            for shape in shapes:
+                (plot_dir / p / shape).mkdir(parents=True, exist_ok=True)
 
     file = uproot.open(cards_dir / file_name)
 
@@ -151,8 +175,6 @@ def main(args):
             templates_dict[year] = pickle.load(f)
 
     pre_templates = sum_templates(templates_dict, years)
-
-    mx, my = args.mxmy
 
     p_bg_keys = [k for k in bg_keys if k != "HWW"]
     sig_key = f"X[{mx}]->HY[{my}]"
@@ -167,7 +189,7 @@ def main(args):
             ("Z+Jets", "zjets"),
             ("W+Jets", "wjets"),
             # ("X[3000]->H(bb)Y[190](VV)", "xhy_mx3000_my190"),
-            (f"X[{mx}]->HY[{my}]", f"xhy_mx{mx}_my{my}"),
+            (sig_key, f"xhy_mx{mx}_my{my}"),
             (data_key, "data_obs"),
         ]
     )
@@ -197,7 +219,8 @@ def main(args):
 
             for i in range(len(shape_vars[1].axis)):  # mX bins
                 # templates = file[shape][f"mXbin{i}{region}"]
-                templates = file[f"mXbin{i}{region}_{shape}"]
+                skey = "prefit" if shape == "prefit" else "postfit"
+                templates = file[f"mXbin{i}{region}_{skey}"]
                 for key, file_key in hist_label_map_inverse.items():
                     if key != data_key:
                         if file_key not in templates:
@@ -228,20 +251,56 @@ def main(args):
             bgerrs[shape][region] = np.minimum(bgerrs[shape][region], bgtots[shape][region])
 
     for preliminary, plabel in zip([True, False], ["Preliminary", "Final"]):
-        plot_fits_combined(
-            hists, bgerrs, args.plots_dir / plabel / "Combined", sig_key, p_bg_keys, preliminary
-        )
-        plot_fits_separate(
-            hists, bgerrs, args.plots_dir / plabel / "Final", sig_key, p_bg_keys, preliminary
-        )
+        print(plabel)
+        if args.hists1d:
+            print("\t", "Combined")
+            plot_fits_combined(
+                hists,
+                bgerrs,
+                plot_dir / plabel / "Combined",
+                sig_key,
+                p_bg_keys,
+                preliminary,
+                sig_scale=args.sig_scale,
+            )
+            print("\t", "Separate")
+            plot_fits_separate(
+                hists,
+                bgerrs,
+                plot_dir / plabel / "Separate",
+                sig_key,
+                p_bg_keys,
+                preliminary,
+                sig_scale=args.sig_scale,
+            )
+
+        if preliminary and args.hists2d:
+            print("\t 2d")
+            for shape in shapes:
+                samples = ["Data", "TT", "Z+Jets", "W+Jets", "QCD", "Hbb", "Diboson", sig_key]
+                if shape == "shapes_prefit":
+                    samples = samples[1:]  # no need to plot data again in post-fit
+
+                plotting.hist2ds(
+                    hists[shape],
+                    plot_dir / plabel / shape,
+                    regions=["pass", "fail"],
+                    region_labels=selection_regions,
+                    samples=samples,
+                    fail_zlim=[1, 1e5],
+                    pass_zlim=[1e-4, 100],
+                )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--cards-tag", help="Cards directory", required=True, type=str)
-    parser.add_argument("--plots-dir", help="plots directory", type=str, required=True)
+    parser.add_argument("--plots-tag", help="plots directory", type=str, required=True)
     parser.add_argument("--mxmy", help="mX mY", type=int, required=True, nargs=2)
+    parser.add_argument("--sig-scale", help="optional signal scaling", default=10, type=float)
     add_bool_arg(parser, "b-only", "B-only fit or not", default=True)
+    add_bool_arg(parser, "hists1d", "make 1D hists", default=True)
+    add_bool_arg(parser, "hists2d", "make 2D hists", default=True)
     args = parser.parse_args()
     main(args)

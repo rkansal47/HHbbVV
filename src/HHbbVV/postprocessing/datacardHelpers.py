@@ -11,6 +11,7 @@ from hist import Hist
 
 from HHbbVV import common_utils
 from HHbbVV.hh_vars import years as all_years
+from HHbbVV.postprocessing import utils
 
 #################################################
 # Common
@@ -226,6 +227,7 @@ def get_templates(
     combine_lasttwo: bool = False,
     mcutoff: float = 0,
     merge_bins: int = 0,
+    fithbb: bool = False,
 ):
     """Loads templates, combines bg and sig templates if separate, sums across all years"""
     templates_dict: dict[str, dict[str, Hist]] = {}
@@ -276,6 +278,11 @@ def get_templates(
     if merge_bins > 0:
         print(f"Merging bins with option {merge_bins}")
         merge_bins(templates_dict, years, merge_bins)
+
+    if fithbb:
+        print("Combining Hbb backgrounds.")
+        for year, templates in templates_dict.items():
+            templates_dict[year] = utils.combine_hbb_bgs(templates)
 
     templates_summed: dict[str, Hist] = sum_templates(templates_dict, years)  # sum across years
     return templates_dict, templates_summed

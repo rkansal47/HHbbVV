@@ -399,8 +399,9 @@ fi
 if [ "$dnll" != 0 ]; then
     echo "Delta NLL"
     combine -M MultiDimFit --algo grid -m 125 -n "Scan" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v $verbose \
-    --bypassFrequentistFit --toysFrequentist --rMin -1 --rMax 1 -P CMS_XHYbbWW_boosted_jmr_2016APV \
+    --bypassFrequentistFit --toysFrequentist --rMin -1 --rMax 1 \
     ${unblindedparams} 2>&1 | tee "$outsdir/dnll.txt"
+    #  -P CMS_XHYbbWW_boosted_jmr_2016APV
 
     plot1DScan.py "higgsCombineScan.MultiDimFit.mH125.root" -o scan
 fi

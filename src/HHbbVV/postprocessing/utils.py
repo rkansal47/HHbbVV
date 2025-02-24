@@ -22,6 +22,7 @@ from hist import Hist
 
 from HHbbVV.hh_vars import (
     data_key,
+    hbb_bg_keys,
     jec_shifts,
     jec_vars,
     jmsr_shifts,
@@ -466,6 +467,30 @@ def check_get_jec_var(var, jshift):
         return var + "_" + jshift
 
     return var
+
+
+def combine_hbb_bgs(hists):
+    """Combine the single Hbb backgrounds into one"""
+
+    hbb_hists = []
+    for key in hbb_bg_keys:
+        hbb_hists.append(hists[key, ...])
+
+    hbb_hist = sum(hbb_hists)
+
+    # have to recreate hist with "Hbb" sample included
+    h = Hist(
+        hist.axis.StrCategory(list(hists.axes[0]) + ["Hbb"], name="Sample"),
+        *hists.axes[1:],
+        storage="double" if hists.storage_type == hist.storage.Double else "weight",
+    )
+
+    for i, sample in enumerate(hists.axes[0]):
+        h.view()[i] = hists[sample, ...].view()
+
+    h.view()[-1] = hbb_hist.view()
+
+    return h
 
 
 def _var_selection(

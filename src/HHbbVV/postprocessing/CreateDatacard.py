@@ -125,6 +125,10 @@ parser.add_argument(
     "--sig-sample", default=None, type=str, help="can specify a specific signal key"
 )
 
+add_bool_arg(
+    parser, "fithbb", "for Hbb backgrounds as well (all combined into one template)", default=False
+)
+
 parser.add_argument(
     "--nTF",
     default=None,
@@ -187,8 +191,12 @@ mc_samples = OrderedDict(
         ("Z+Jets", "zjets"),
         # ("Diboson", "diboson"),
         ("ST", "singletop"),
+        ("Hbb", "hbb"),
     ]
 )
+
+if not args.fithbb:
+    del mc_samples["Hbb"]
 
 # TODO: float VJets normalization?
 
@@ -276,7 +284,10 @@ nuisance_params = {
     ),
     # https://gitlab.cern.ch/hh/naming-conventions#theory-uncertainties
     "BR_hbb": Syst(
-        prior="lnN", samples=nonres_sig_keys + res_sig_keys, value=1.0124, value_down=0.9874
+        prior="lnN",
+        samples=nonres_sig_keys + res_sig_keys + ["Hbb"],
+        value=1.0124,
+        value_down=0.9874,
     ),
     "BR_hww": Syst(prior="lnN", samples=nonres_sig_keys, value=1.0153, value_down=0.9848),
     "pdf_gg": Syst(prior="lnN", samples=["TT"], value=1.042),
@@ -295,6 +306,8 @@ nuisance_params = {
     "QCDscale_qqHH": Syst(
         prior="lnN", samples=nonres_sig_keys_vbf, value=1.0003, value_down=0.9996
     ),
+    # using most conservative uncertainty for all Hbb backgrounds combined
+    "QCDscale_singleH": Syst(prior="lnN", samples=["Hbb"], value=1.201, value_down=(1.0 - 0.239)),
     # "QCDscale_ggH": Syst(
     #     prior="lnN",
     #     samples=ggfh_keys,

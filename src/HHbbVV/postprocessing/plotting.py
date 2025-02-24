@@ -10,7 +10,6 @@ from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
 
-import hist
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -113,33 +112,18 @@ SIG_COLOURS = [
 
 
 def _combine_hbb_bgs(hists, bg_keys):
+    """combine all hbb backgrounds into a single "Hbb" background for plotting"""
+
     # skip this if no hbb bg keys specified
     if len(set(bg_keys) & set(hbb_bg_keys)) == 0:
         return hists, bg_keys
 
-    # combine all hbb backgrounds into a single "Hbb" background for plotting
-    hbb_hists = []
-    for key in hbb_bg_keys:
-        if key in bg_keys:
-            hbb_hists.append(hists[key, ...])
-            bg_keys.remove(key)
+    h = utils.combine_hbb_bgs(hists)
+
+    bg_keys = [key for key in bg_keys if key not in hbb_bg_keys]
 
     if "Hbb" not in bg_keys:
         bg_keys.append("Hbb")
-
-    hbb_hist = sum(hbb_hists)
-
-    # have to recreate hist with "Hbb" sample included
-    h = Hist(
-        hist.axis.StrCategory(list(hists.axes[0]) + ["Hbb"], name="Sample"),
-        *hists.axes[1:],
-        storage="double" if hists.storage_type == hist.storage.Double else "weight",
-    )
-
-    for i, sample in enumerate(hists.axes[0]):
-        h.view()[i] = hists[sample, ...].view()
-
-    h.view()[-1] = hbb_hist.view()
 
     return h, bg_keys
 
@@ -734,11 +718,13 @@ def hist2ds(
     hists: dict[str, Hist],
     plot_dir: str,
     regions: list[str] = None,
-    region_labels: dict[str, str] = None,
+    region_labels: dict[str, str] = None,  # noqa: ARG001
     samples: list[str] = None,
     fail_zlim: float = None,
     pass_zlim: float = None,
-    show: bool = True,
+    skip_blinded: bool = True,
+    preliminary: bool = True,
+    show: bool = False,
 ):
     """
     2D hists for each region and sample in ``hists``.
@@ -760,25 +746,47 @@ def hist2ds(
         regions = list(hists.keys())
 
     for region in regions:
-        hists[region]
-        region_label = region_labels[region] if region_labels is not None else region
+        h = utils.combine_hbb_bgs(hists[region])
+        if region.endswith("Blinded") and skip_blinded:
+            continue
+
+        print(f"\t\t{region}")
+
+        # region_label = region_labels[region] if region_labels is not None else region
         pass_region = region.startswith("pass")
         lim = pass_zlim if pass_region else fail_zlim
         for sample in samples:
-            if sample == "Data" and region == "pass":
+            if "->HY" in sample and not pass_region:
                 continue
 
-            if "->H(bb)Y" in sample and not pass_region:
-                continue
+            print(f"\t\t\t{sample}")
+            slabel = sample_label_map.get(sample, sample)
 
             if lim is not None:
-                norm = mpl.colors.LogNorm(vmax=lim)
+                norm = mpl.colors.LogNorm(vmin=lim[0], vmax=lim[1])
             else:
                 norm = mpl.colors.LogNorm()
 
-            plt.figure(figsize=(12, 12))
-            hep.hist2dplot(hists[region][sample, ...], cmap="turbo", norm=norm)
-            plt.title(f"{sample} in {region_label} Region")
+            fig, ax = plt.subplots(figsize=(12, 12))
+            h2d = hep.hist2dplot(h[sample, ...], cmap="turbo", norm=norm)
+            h2d.cbar.set_label(f"{slabel} Events")
+
+            v, mYbins, mXbins = h[sample, ...].to_numpy()
+            for i in range(len(mYbins) - 1):
+                for j in range(len(mXbins) - 1):
+                    if not np.isnan(v[i, j]):
+                        ax.text(
+                            (mYbins[i] + mYbins[i + 1]) / 2,
+                            (mXbins[j] + mXbins[j + 1]) / 2,
+                            v[i, j].round(2),
+                            color="black",
+                            ha="center",
+                            va="center",
+                            fontsize=12,
+                        )
+
+            # plt.title(f"{sample} in {region_label} Region")
+            add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
             plt.savefig(f"{plot_dir}/{region}_{sample}_2d.pdf", bbox_inches="tight")
 
             if show:
@@ -1378,6 +1386,97 @@ def XHYscatter2d(arr, year: str, title: str = None, name: str = "", show: bool =
 
     if len(str(name)):
         plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def scatter2d_limits(
+    arr, label: str = None, name: str = "", show: bool = False, preliminary: bool = True
+):
+    """Scatter plot of limits in the  (mX, mY) plane for resonant analysis"""
+    fig, ax = plt.subplots(figsize=(14, 12))
+    mappable = plt.scatter(
+        arr[:, 0],
+        arr[:, 1],
+        s=150,
+        c=arr[:, 2],
+        cmap="viridis",
+        norm=mpl.colors.LogNorm(vmin=0.01, vmax=100),
+    )
+    plt.xlabel(r"$m_X$ (GeV)")
+    plt.ylabel(r"$m_Y$ (GeV)")
+    plt.colorbar(mappable, label=label)
+    plt.savefig(name, bbox_inches="tight")
+
+    add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def scatter2d_overlay(
+    arr,
+    overlay_arr,
+    label: str = None,
+    name: str = "",
+    show: bool = False,
+    preliminary: bool = True,
+):
+    fig, ax = plt.subplots(figsize=(14, 12))
+    mappable = ax.scatter(
+        arr[:, 0],
+        arr[:, 1],
+        s=150,
+        c=arr[:, 2],
+        cmap="viridis",
+        norm=mpl.colors.LogNorm(vmin=0.01, vmax=100),
+    )
+    _ = ax.scatter(
+        overlay_arr[:, 0],
+        overlay_arr[:, 1],
+        s=300,
+        marker="s",
+        alpha=overlay_arr[:, 2],
+        c=np.ones(overlay_arr.shape[0]),
+        vmax=1,
+    )
+    plt.xlabel(r"$m_X$ (GeV)")
+    plt.ylabel(r"$m_Y$ (GeV)")
+    plt.colorbar(mappable, label=label)
+    plt.savefig(name, bbox_inches="tight")
+
+    add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def colormesh(
+    xx,
+    yy,
+    lims,
+    label: str = None,
+    name: str = "",
+    show: bool = False,
+    preliminary: bool = True,
+    figsize=(12, 8),
+):
+    fig, ax = plt.subplots(figsize=figsize)
+    _ = plt.pcolormesh(xx, yy, lims, norm=mpl.colors.LogNorm(vmin=0.05, vmax=1e4), cmap="viridis")
+    # plt.title(title)
+    plt.xlabel(r"$m_X$ (GeV)")
+    plt.ylabel(r"$m_Y$ (GeV)")
+    plt.colorbar(label=label)
+
+    add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
+    plt.savefig(name, bbox_inches="tight")
 
     if show:
         plt.show()

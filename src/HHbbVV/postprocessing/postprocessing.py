@@ -177,12 +177,14 @@ res_shape_vars = [
     ShapeVar(
         "VVFatJetParticleNetMass",
         r"$m^{VV}_\mathrm{Reg}$ [GeV]",
+        # r"$M_Y$ [GeV]",
         list(range(50, 110, 10)) + list(range(110, 200, 15)) + [200, 220, 250],
         reg=False,
     ),
     ShapeVar(
         "DijetMass",
         r"$m^{jj}$ [GeV]",
+        # r"$M_X$ [GeV]",
         list(range(800, 1400, 100)) + [1400, 1600, 2000, 3000, 4400],
         reg=False,
     ),
