@@ -282,7 +282,8 @@ def get_templates(
     if fithbb:
         print("Combining Hbb backgrounds.")
         for year, templates in templates_dict.items():
-            templates_dict[year] = utils.combine_hbb_bgs(templates)
+            for key, h in templates.items():
+                templates_dict[year][key] = utils.combine_hbb_bgs(h)
 
     templates_summed: dict[str, Hist] = sum_templates(templates_dict, years)  # sum across years
     return templates_dict, templates_summed

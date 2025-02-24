@@ -94,8 +94,6 @@ parser.add_argument(
     type=int,
     help="optionally, double the bin width. option 1: 50-250, option 2: 60-240",
 )
-
-
 parser.add_argument(
     "--mcstats-threshold",
     default=None,
@@ -123,6 +121,10 @@ parser.add_argument(
 
 parser.add_argument(
     "--sig-sample", default=None, type=str, help="can specify a specific signal key"
+)
+
+parser.add_argument(
+    "--float-samples", default=[], type=str, nargs="*", help="samples to float in the fit"
 )
 
 add_bool_arg(
@@ -255,9 +257,9 @@ if args.year != "all":
 else:
     full_lumi = np.sum(list(LUMI.values()))
 
+# rate params for optionally floating signals or backgrounds
 rate_params = {
-    sig_key: rl.IndependentParameter(f"{mc_samples[sig_key]}Rate", 1.0, 0, 1)
-    for sig_key in sig_keys
+    key: rl.IndependentParameter(f"{mc_samples[key]}Rate", 1.0, 0, 20) for key in sig_keys + bg_keys
 }
 
 # dictionary of nuisance params -> (modifier, samples affected by it, value)
@@ -581,6 +583,7 @@ def fill_regions(
     uncorr_year_shape_systs: dict[str, Syst],
     shape_systs_dict: dict[str, rl.NuisanceParameter],
     bblite: bool = True,
+    float_samples: list[str] = (),
     mX_bin: int = None,
 ):
     """Fill samples per region including given rate, shape and mcstats systematics.
@@ -624,7 +627,7 @@ def fill_regions(
         model.addChannel(ch)
 
         for sample_name, card_name in mc_samples.items():
-            print("")
+            print("\n\n")
             # don't add signals in fail regions
             # also skip resonant signals in pass blinded - they are ignored in the validation fits anyway
             if sample_name in sig_keys and (
@@ -640,10 +643,8 @@ def fill_regions(
                 continue
 
             logging.info(f"Getting templates for: {sample_name}")
-            print("\n\n")
 
             sample_template = region_templates[sample_name, :]
-
             stype = rl.Sample.SIGNAL if sample_name in sig_keys else rl.Sample.BACKGROUND
             sample = rl.TemplateSample(ch.name + "_" + card_name, stype, sample_template)
 
@@ -651,6 +652,10 @@ def fill_regions(
             # if stype == rl.Sample.SIGNAL and len(sig_keys) > 1:
             #     srate = rate_params[sample_name]
             #     sample.setParamEffect(srate, 1 * srate)
+
+            if sample_name in float_samples:
+                srate = rate_params[sample_name]
+                sample.setParamEffect(srate, 1 * srate)
 
             # nominal values, errors
             values_nominal = np.maximum(sample_template.values(), 0.0)
@@ -714,6 +719,10 @@ def fill_regions(
                     logging.info(f"Skipping {skey} shapes")
                     continue
 
+                if sample_name == "Hbb":
+                    logging.info(f"WARNING: Skipping {skey} for Hbb")
+                    continue
+
                 logging.info(f"Getting {skey} shapes")
 
                 if skey in jecs or skey in jmsr:
@@ -757,6 +766,10 @@ def fill_regions(
                     or (syst.regions is not None and region_name not in syst.regions)
                 ):
                     logging.info(f"Skipping {skey} shapes")
+                    continue
+
+                if sample_name == "Hbb":
+                    logging.info(f"WARNING: Skipping {skey} for Hbb")
                     continue
 
                 logging.info(f"Getting {skey} shapes")
@@ -1035,6 +1048,7 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
         uncorr_year_shape_systs,
         shape_systs_dict,
         args.bblite,
+        args.float_samples,
     ]
 
     fit_args = [model, shape_vars, templates_summed, args.scale_templates, args.min_qcd_val]
@@ -1315,6 +1329,7 @@ def main(args):
         args.combine_lasttwo,
         args.mcutoff,
         args.merge_bins,
+        args.fithbb,
     )
 
     # TODO: check if / how to include signal trig eff uncs. (rn only using bg uncs.)

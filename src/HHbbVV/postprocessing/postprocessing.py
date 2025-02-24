@@ -46,6 +46,7 @@ from HHbbVV import hh_vars
 from HHbbVV.hh_vars import (
     bg_keys,
     data_key,
+    hbb_bg_keys,
     jec_shifts,
     jmsr_shifts,
     nonres_samples,
@@ -201,7 +202,12 @@ nonres_sig_keys_ggf = [
     "ggHH_kl_0_kt_1_HHbbVV",
 ]
 
-fit_bgs = ["TT", "ST", "W+Jets", "Z+Jets"]  # only the BG MC samples that are used in the fits
+fit_bgs = [
+    "TT",
+    "ST",
+    "W+Jets",
+    "Z+Jets",
+] + hbb_bg_keys  # only the BG MC samples that are used in the fits
 fit_mcs = nonres_sig_keys + res_sig_keys + fit_bgs
 
 weight_shifts = {
@@ -1710,6 +1716,9 @@ def get_templates(
     do_jshift = jshift != ""
     jlabel = "" if not do_jshift else "_" + jshift
     templates = {}
+
+    # do TXbb SFs + uncs. for signals and Hbb samples only
+    # txbb_samples = sig_keys + [key for key in bg_keys if key in hbb_bg_keys]
 
     for rname, region in selection_regions.items():
         if region.lpsf:
