@@ -135,7 +135,10 @@ add_bool_arg(
 )
 
 add_bool_arg(
-    parser, "fithbb", "for Hbb backgrounds as well (all combined into one template)", default=False
+    parser,
+    "fithbb",
+    "for Hbb backgrounds as well (all combined into one template). DISABLED FOR NONRESONANT.",
+    default=True,
 )
 
 parser.add_argument(
@@ -209,6 +212,8 @@ if not args.resonant:
         signal_regions = ["passggf"]
     elif args.nonres_regions == "vbf":
         signal_regions = ["passvbf"]
+
+    args.fithbb = False
 else:
     signal_regions = ["pass"]
 
