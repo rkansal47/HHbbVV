@@ -338,14 +338,14 @@ if [ $goftoys = 1 ]; then
     echo "GoF on toys"
     # snapshot and --bypassFrequentistFit and --toysFrequentist used for generating toys if toys file not provided (default value of $toysfile)
     combine -M GoodnessOfFit -d ${wsm_snapshot}.root --algo saturated -m 125 \
-    ${unblindedparams} $toysfile \
+    --freezeParameters ${freezeparamsunblinded},r --setParameters ${maskblindedargs},${setparamsunblinded},r=0 $toysfile \
     -n "Toys${toysname}" -v $verbose -s "$seed" -t "$numtoys" 2>&1 | tee "$outsdir/GoF_toys${toysname}${seed}.txt"
 fi
 
 if [ $gentoys = 1 ]; then
     echo "Generating toys"
     combine -M GenerateOnly -m 125 -d ${wsm_snapshot}.root \
-    ${unblindedparams} -n "Toys${toysname}" -t "$numtoys" --saveToys -s "$seed" --toysFrequentist  --bypassFrequentistFit \
+    --freezeParameters ${freezeparamsunblinded},r --setParameters ${maskblindedargs},${setparamsunblinded},r=0 -n "Toys${toysname}" -t "$numtoys" --saveToys -s "$seed" --toysFrequentist  --bypassFrequentistFit \
     -v $verbose 2>&1 | tee $outsdir/gentoys${seed}.txt
 fi
 
