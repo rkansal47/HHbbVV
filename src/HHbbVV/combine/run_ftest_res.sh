@@ -109,6 +109,7 @@ echo "Running script: $script"
 ####################################################################################################
 
 templates_dir="/eos/uscms/store/user/rkansal/bbVV/templates/${templates_tag}"
+qcd_fit_dir="/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/qcdfit22"
 cards_dir="$cardsdir/${cards_tag}/"
 mkdir -p "${cards_dir}"
 echo "Saving datacards to ${cards_dir}"
@@ -118,16 +119,16 @@ echo "Saving datacards to ${cards_dir}"
 ####################################################################################################
 
 if [ $cards = 1 ]; then
-    for ord1 in {0..4}
+    for ord1 in {0..2}
     do
-        for ord2 in {0..3}
+        for ord2 in {0..2}
         do
             model_name="nTF1_${ord1}_nTF2_${ord2}"
             echo "$model_name"
             if [ ! -f "${cards_dir}/${model_name}/XHYModel.root" ]; then
                 echo "Making Datacard for $model_name"
 
-                python3 -u postprocessing/CreateDatacard.py --templates-dir "${templates_dir}/${sig_sample}" --bg-templates-dir "${templates_dir}/backgrounds" \
+                python3 -u postprocessing/CreateDatacard.py --templates-dir "${templates_dir}/${sig_sample}" --bg-templates-dir "${templates_dir}/backgrounds" --qcd-fit-dir $qcd_fit_dir \
                 --sig-separate --resonant --model-name "${model_name}" --sig-sample "${sig_sample}" \
                 --nTF "${ord2}" "${ord1}" --cards-dir "${cards_dir}"
             fi
