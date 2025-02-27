@@ -50,7 +50,9 @@ def plot_fits_combined(
 ):
     plabel = "preliminary" if preliminary else "final"
     for shape in shapes:
+        print("\t\t", shape)
         for i, shape_var in enumerate(shape_vars):
+            print("\t\t\t", shape_var.var)
             # add "invisible" subplots between main plots to add spacing
             # https://stackoverflow.com/a/53643819/3759946
             fig, axs = plt.subplots(
@@ -69,6 +71,7 @@ def plot_fits_combined(
                 ax.set_visible(False)
 
             for j, (region, region_label) in enumerate(selection_regions.items()):
+                # print("\t\t\t\t", region_label)
                 row = (j // 2) * 3
                 col = (j % 2) * 2
                 pass_region = region.startswith("pass")
@@ -110,7 +113,9 @@ def plot_fits_separate(
 ):
     plabel = "preliminary" if preliminary else "final"
     for shape in shapes:
+        print("\t\t", shape)
         for i, shape_var in enumerate(shape_vars):
+            print("\t\t\t", shape_var.var)
             for _j, (region, region_label) in enumerate(selection_regions.items()):
                 pass_region = region.startswith("pass")
 
