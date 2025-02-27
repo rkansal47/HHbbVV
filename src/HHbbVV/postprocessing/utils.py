@@ -10,6 +10,7 @@ import contextlib
 import pickle
 import time
 import warnings
+from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass
 from os import listdir
@@ -469,18 +470,34 @@ def check_get_jec_var(var, jshift):
     return var
 
 
-def combine_hbb_bgs(hists):
-    """Combine the single Hbb backgrounds into one"""
+def combine_hbb_bgs(hists, systs: list[str] = ()):
+    """Combine the single Hbb backgrounds into one. Optionally combine systematics."""
 
     hbb_hists = []
+    hbb_systs = OrderedDict(
+        [(f"Hbb_{syst}_{updown}", []) for syst in systs for updown in ["up", "down"]]
+    )
     for key in hbb_bg_keys:
         hbb_hists.append(hists[key, ...])
+        for syst in systs:
+            for updown in ["up", "down"]:
+                try:
+                    hbb_systs[f"Hbb_{syst}_{updown}"].append(hists[f"{key}_{syst}_{updown}", ...])
+                except KeyError:
+                    warnings.warn(
+                        f"Couldn't find {key}_{syst}_{updown} for sample {key}!", stacklevel=2
+                    )
 
     hbb_hist = sum(hbb_hists)
+    for syst in systs:
+        for updown in ["up", "down"]:
+            hbb_systs[f"Hbb_{syst}_{updown}"] = sum(hbb_systs[f"Hbb_{syst}_{updown}"])
 
     # have to recreate hist with "Hbb" sample included
     h = Hist(
-        hist.axis.StrCategory(list(hists.axes[0]) + ["Hbb"], name="Sample"),
+        hist.axis.StrCategory(
+            list(hists.axes[0]) + ["Hbb"] + list(hbb_systs.keys()), name="Sample"
+        ),
         *hists.axes[1:],
         storage="double" if hists.storage_type == hist.storage.Double else "weight",
     )
@@ -488,7 +505,10 @@ def combine_hbb_bgs(hists):
     for i, sample in enumerate(hists.axes[0]):
         h.view()[i] = hists[sample, ...].view()
 
-    h.view()[-1] = hbb_hist.view()
+    nsamples = len(hists.axes[0])
+    h.view()[nsamples] = hbb_hist.view()
+    for i, (_syst, hbbhist) in enumerate(hbb_systs.items()):
+        h.view()[nsamples + 1 + i] = hbbhist.view()
 
     return h
 

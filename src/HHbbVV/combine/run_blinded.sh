@@ -263,13 +263,13 @@ else
     maskunblindedargs=${maskunblindedargs%,}
     maskblindedargs=${maskblindedargs%,}
 
-    setparamsblinded="var{.*pass_.*mcstat.*}=0,var{.*fail_.*mcstat.*}=0"
-    freezeparamsblinded='var{.*pass_.*mcstat.*},var{.*fail_.*mcstat.*},var{.*xhy_mx.*},CMS_XHYbbWW_boosted_PNetHbbScaleFactors_correlated'
+    setparamsblinded="var{.*pass.*mcstat.*}=0,var{.*fail.*mcstat.*}=0"
+    freezeparamsblinded='var{.*pass.*mcstat.*},var{.*fail.*mcstat.*},var{.*xhy_mx.*},rgx{tf_MCtempl.*},CMS_XHYbbWW_boosted_PNetHbbScaleFactors_correlated'
     # freezing them here meant they weren't included in the impacts, so unfreezing now
     # freezeparamsblinded="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*}"
 
-    setparamsunblinded="rgx{.*passBlinded_.*mcstat.*}=0,rgx{.*failBlinded_.*mcstat.*}=0"
-    freezeparamsunblinded="rgx{.*passBlinded_.*mcstat.*},rgx{.*failBlinded_.*mcstat.*}"
+    setparamsunblinded="rgx{.*passBlinded.*mcstat.*}=0,rgx{.*failBlinded.*mcstat.*}=0"
+    freezeparamsunblinded="rgx{.*passBlinded.*mcstat.*},rgx{.*failBlinded.*mcstat.*},rgx{tf_MCtempl.*}"
 
     # floating parameters using var{} floats a bunch of parameters which shouldn't be floated,
     # so countering this inside --freezeParameters which takes priority.

@@ -135,8 +135,57 @@ def plot_fits_separate(
                 plotting.ratioHistPlot(**plot_params)
 
 
+def plot_fits_slices(
+    hists: dict,
+    bgerrs: dict,
+    plot_dir: str,
+    sig_key: str,
+    p_bg_keys: list[str],
+    preliminary: bool = True,
+    sig_scale: float = 10,
+):
+    plabel = "preliminary" if preliminary else "final"
+    for shape in shapes:
+        for i in range(10):
+            for _j, (region, region_label) in enumerate(selection_regions.items()):
+                pass_region = region.startswith("pass")
+
+                plot_params = {
+                    "hists": hists[shape][region][:, :, i],
+                    "sig_keys": [sig_key],
+                    "bg_keys": p_bg_keys,
+                    "bg_err": bgerrs[shape][region][i],
+                    "sig_scale_dict": {sig_key: sig_scale},
+                    "show": False,
+                    "year": "all",
+                    "ylim": (
+                        (pass_ylims[0] * scale / 5.0)
+                        if pass_region
+                        else (fail_ylims[0] * scale / 5.0)
+                    ),
+                    "name": f"{plot_dir}/{shape}_{region}_mXbin{i}_{plabel}.pdf",
+                    "divide_bin_width": True,
+                    "cmslabel": "Preliminary" if preliminary else None,
+                    "cmsloc": 2,
+                    "region_label": region_label,
+                }
+
+                plotting.ratioHistPlot(**plot_params)
+
+
 def main(args):
-    plot_dir = Path(f"/uscms/home/rkansal/nobackup/HHbbVV/plots/PostFit/{args.plots_tag}")
+    cards_dir = Path("/uscms/home/rkansal/hhcombine/cards")
+    plot_dir = Path("/uscms/home/rkansal/nobackup/HHbbVV/plots/PostFit")
+    if not cards_dir.exists():
+        print(f"{cards_dir} not found. Trying UCSD.")
+        cards_dir = Path("/home/users/rkansal/combineenv/CMSSW_11_3_4/src/cards")
+        plot_dir = Path("/home/users/rkansal/HHbbVV/plots/PostFit")
+        if not cards_dir.exists():
+            print(f"{cards_dir} also not found. Exiting!")
+            return
+
+    cards_dir = cards_dir / args.cards_tag
+    plot_dir = plot_dir / args.plots_tag
 
     # TODO: add option to do both
     if args.b_only:
@@ -147,7 +196,6 @@ def main(args):
         file_name = "FitShapesS.root"
 
     mx, my = args.mxmy
-    cards_dir = Path(f"/uscms/home/rkansal/hhcombine/cards/{args.cards_tag}")
 
     if not (cards_dir / file_name).exists():
         cards_dir = cards_dir / f"NMSSM_XToYHTo2W2BTo4Q2B_MX-{mx}_MY-{my}"
@@ -158,7 +206,7 @@ def main(args):
 
     for p in ["Preliminary", "Final"]:
         if args.hists1d:
-            for c in ["Combined", "Separate"]:
+            for c in ["Combined", "Separate", "Slices"]:
                 (plot_dir / p / c).mkdir(parents=True, exist_ok=True)
 
         if args.hists2d:
@@ -274,6 +322,18 @@ def main(args):
                 sig_scale=args.sig_scale,
             )
 
+        if preliminary and args.slices:
+            print("\t", "Slices")
+            plot_fits_slices(
+                hists,
+                bgerrs,
+                plot_dir / plabel / "Slices",
+                sig_key,
+                p_bg_keys,
+                preliminary,
+                sig_scale=args.sig_scale,
+            )
+
         if preliminary and args.hists2d:
             print("\t 2d")
             for shape in shapes:
@@ -301,6 +361,7 @@ if __name__ == "__main__":
     parser.add_argument("--sig-scale", help="optional signal scaling", default=10, type=float)
     add_bool_arg(parser, "b-only", "B-only fit or not", default=True)
     add_bool_arg(parser, "hists1d", "make 1D hists", default=True)
+    add_bool_arg(parser, "slices", "1d slices", default=True)
     add_bool_arg(parser, "hists2d", "make 2D hists", default=True)
     args = parser.parse_args()
     main(args)

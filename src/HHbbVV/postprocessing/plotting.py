@@ -6,10 +6,12 @@ Author(s): Raghav Kansal
 
 from __future__ import annotations
 
+import pickle
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
 
+import hist
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
@@ -20,7 +22,7 @@ from hist.intervals import poisson_interval, ratio_uncertainty
 from numpy.typing import ArrayLike
 from pandas import DataFrame
 
-from HHbbVV.hh_vars import LUMI, data_key, hbb_bg_keys
+from HHbbVV.hh_vars import LUMI, data_key, hbb_bg_keys, txbb_wps
 from HHbbVV.postprocessing import utils
 from HHbbVV.postprocessing.utils import CUT_MAX_VAL
 
@@ -1288,6 +1290,169 @@ def cutsLinePlot(
 
     if len(name):
         plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def plotMassSculpting(
+    bbmass,
+    vvmass,
+    weights,
+    tagger,
+    taggercuts,
+    mlabel,
+    tlabel,
+    year,
+    name: Path = None,
+    show: bool = False,
+):
+    fig, axs = plt.subplots(
+        2,
+        2,
+        figsize=(20, 12),
+        gridspec_kw={"height_ratios": [3, 1], "hspace": 0},
+        sharex=True,
+    )
+
+    for i, (jet, mass) in enumerate(zip(["bb", "VV"], [bbmass, vvmass])):
+        ax, rax = axs[0][i], axs[1][i]
+        ax.set_prop_cycle(plt.rcParamsDefault["axes.prop_cycle"])
+        hists = []
+
+        for cut in taggercuts:
+            if isinstance(cut, float):
+                sel = tagger > cut
+                hlabel = rf"{tlabel} > {cut}" if cut > 0 else "Inclusive"
+            elif cut in txbb_wps[year]:
+                sel = tagger > txbb_wps[year][cut]
+                hlabel = rf"{tlabel} > {cut}"
+
+            h = Hist(hist.axis.Regular(20, 50, 250, name="mass", label="mass"), storage="weight")
+            # h = np.histogram(mass[sel], np.arange(50, 250, 10))
+            h.fill(mass[sel], weight=weights[sel])
+            h = h / np.sum(h.values())
+            hists.append(h)
+
+            hep.histplot(
+                h,
+                label=hlabel,
+                ax=ax,
+                histtype="step",
+                yerr=True,
+                linewidth=2,
+                alpha=0.8,
+            )
+
+        if name is not None:
+            (name.parent / "pickles").mkdir(exist_ok=True)
+            with Path.open(name.parent / "pickles" / f"{jet}_{name.stem}.pkl").open("wb") as f:
+                pickle.dump(hists, f)
+
+        add_cms_label(ax, year, "Preliminary", loc=0)
+
+        ax.set_ylabel("Normalized Events [A.U.]")
+        ax.legend(fontsize=16)
+
+        # do ratios
+        rax.set_prop_cycle(plt.rcParamsDefault["axes.prop_cycle"][1:])  # skip first colour
+        rax.hlines(1, 50, 250, linestyle="--", alpha=0.5)
+        rax.grid(True, which="both", axis="y", linestyle="--", alpha=0.5)
+        vals_nocut = hists[0].values()
+
+        # next(rax.prop_cycler)  # skip first
+        for j, cut in enumerate(taggercuts[1:]):
+            hep.histplot(
+                hists[j + 1] / vals_nocut,
+                yerr=True,
+                label=rf"{tlabel} > {cut}",
+                ax=rax,
+                histtype="errorbar",
+            )
+
+        rax.set_ylim([0, 2.2])
+        rax.set_ylabel("Cut / Inclusive")
+        rax.set_xlabel(rf"$m_\mathrm{{{mlabel}}}^{{{jet}}}$ [GeV]")
+
+    if name is not None:
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def plotMassSculptingAllYears(
+    hists,
+    taggercuts,
+    mlabel,
+    tlabel,
+    name: Path = None,
+    show: bool = False,
+):
+    fig, axs = plt.subplots(
+        2,
+        2,
+        figsize=(20, 12),
+        gridspec_kw={"height_ratios": [3, 1], "hspace": 0},
+        sharex=True,
+    )
+
+    for i, jet in enumerate(["bb", "VV"]):
+        ax, rax = axs[0][i], axs[1][i]
+        ax.set_prop_cycle(plt.rcParamsDefault["axes.prop_cycle"])
+
+        for j, cut in enumerate(taggercuts):
+            if isinstance(cut, float):
+                hlabel = rf"{tlabel} > {cut}" if cut > 0 else "Inclusive"
+            else:
+                hlabel = rf"{tlabel} > {cut}"
+
+            hep.histplot(
+                hists[jet][j],
+                label=hlabel,
+                ax=ax,
+                histtype="step",
+                yerr=True,
+                linewidth=2,
+                alpha=0.8,
+            )
+
+        if name is not None:
+            (name.parent / "pickles").mkdir(exist_ok=True)
+            with Path(name.parent / "pickles" / f"{jet}_{name.stem}.pkl").open("wb") as f:
+                pickle.dump(hists, f)
+
+        add_cms_label(ax, "all", "Preliminary", loc=0)
+
+        ax.set_ylabel("Normalized Events [A.U.]")
+        ax.legend(fontsize=16)
+
+        # do ratios
+        rax.set_prop_cycle(plt.rcParamsDefault["axes.prop_cycle"][1:])  # skip first colour
+        rax.hlines(1, 50, 250, linestyle="--", alpha=0.5)
+        rax.grid(True, which="both", axis="y", linestyle="--", alpha=0.5)
+        vals_nocut = hists[jet][0].values()
+
+        # next(rax.prop_cycler)  # skip first
+        for j, cut in enumerate(taggercuts[1:]):
+            hep.histplot(
+                hists[jet][j + 1] / vals_nocut,
+                yerr=True,
+                label=rf"{tlabel} > {cut}",
+                ax=rax,
+                histtype="errorbar",
+            )
+
+        rax.set_ylim([0, 2.2])
+        rax.set_ylabel("Cut / Inclusive")
+        rax.set_xlabel(rf"$m_\mathrm{{{mlabel}}}^{{{jet}}}$ [GeV]")
+
+    if name is not None:
+        plt.savefig(name, bbox_inches="tight")
 
     if show:
         plt.show()

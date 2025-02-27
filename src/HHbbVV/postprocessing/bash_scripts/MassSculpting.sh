@@ -2,19 +2,18 @@
 # shellcheck disable=SC2086,SC2043,SC2034
 
 ####################################################################################################
-# Resonant datacards
+# Mass sculpting plots
 # Author: Raghav Kansal
 ####################################################################################################
 
+# signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Jan29UpdateXHYLP"
+data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/24Mar14UpdateData"
+signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Feb6XHY"
+bg_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/24Mar6AllYearsBDTVars"
 TAG=""
-sig_sample=NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80
-# templates_dir=/eos/uscms/store/user/rkansal/bbVV/templates/25Feb8XHYFix
-templates_dir=/ceph/cms/store/user/rkansal/bbVV/templates/25Feb8XHYFix
-# bg_templates_dir="${templates_dir}/backgrounds"
-bg_templates_dir="templates/25Feb23ResTemplatesHbbUncs"
-extraargs=""
 
-options=$(getopt -o "" --long "tag:,extraargs:" -- "$@")
+
+options=$(getopt -o "" --long "tag:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -22,10 +21,6 @@ while true; do
         --tag)
             shift
             TAG=$1
-            ;;
-        --extraargs)
-            shift
-            extraargs=$1
             ;;
         --)
             shift
@@ -47,7 +42,10 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-python3 -u postprocessing/CreateDatacard.py --templates-dir "${templates_dir}/${sig_sample}" --bg-templates-dir $bg_templates_dir --sig-separate --resonant --model-name $TAG --sig-sample "${sig_sample}" $extraargs || exit
 
-cd cards/$TAG || exit
-run_unblinded_res.sh -wbsg
+for year in 2016APV 2016 2017 2018
+do
+    python -u postprocessing.py --mass-sculpting-plots --year $year --template-dir "templates/$TAG" --resonant \
+    --data-dir "$data_dir" --bg-data-dirs "$bg_data_dir" --signal-data-dirs $signal_data_dir --bg-keys QCD --plot-dir "../../../plots/PostProcessing/$TAG" --sig-samples ""
+    # --sig-samples "NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80"
+done

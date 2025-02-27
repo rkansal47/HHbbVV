@@ -10,6 +10,7 @@ import numpy as np
 from hist import Hist
 
 from HHbbVV import common_utils
+from HHbbVV.hh_vars import jecs, jmsr
 from HHbbVV.hh_vars import years as all_years
 from HHbbVV.postprocessing import utils
 
@@ -56,6 +57,7 @@ class ShapeVar:
     name: str = None
     bins: np.ndarray = None  # bin edges
     orders: dict = None  # TF order: dict of categories -> order
+    orders_qcd: dict = None  # QCD TF order: dict of categories -> order
 
     def __post_init__(self):
         # use bin centers for polynomial fit
@@ -228,9 +230,12 @@ def get_templates(
     mcutoff: float = 0,
     merge_bins: int = 0,
     fithbb: bool = False,
+    shape_systs: dict[str, Syst] = None,
 ):
     """Loads templates, combines bg and sig templates if separate, sums across all years"""
     templates_dict: dict[str, dict[str, Hist]] = {}
+    if shape_systs is None:
+        shape_systs = {}
 
     if not sig_separate:
         # signal and background templates in same hist, just need to load and sum across years
@@ -281,9 +286,22 @@ def get_templates(
 
     if fithbb:
         print("Combining Hbb backgrounds.")
+        # finding which systs affect Hbb samples
+        hbb_shape_syst_keys = []
+        jshiftkeys = list({**jecs, **jmsr}.keys())
+        for key, syst in shape_systs.items():
+            if "Hbb" in syst.samples and key not in jshiftkeys:
+                hbb_shape_syst_keys.append(key)
+
         for year, templates in templates_dict.items():
             for key, h in templates.items():
-                templates_dict[year][key] = utils.combine_hbb_bgs(h)
+                splitkey = key.split("_")
+                if len(splitkey) > 1 and splitkey[1] in jshiftkeys:
+                    # combine jec/jmsr shifts
+                    templates_dict[year][key] = utils.combine_hbb_bgs(h)
+                else:
+                    # combine nominal + other shape systs
+                    templates_dict[year][key] = utils.combine_hbb_bgs(h, hbb_shape_syst_keys)
 
     templates_summed: dict[str, Hist] = sum_templates(templates_dict, years)  # sum across years
     return templates_dict, templates_summed
