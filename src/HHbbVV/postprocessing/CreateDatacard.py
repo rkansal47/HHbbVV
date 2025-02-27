@@ -167,7 +167,7 @@ add_bool_arg(
     parser,
     "fit-qcd",
     "do an initial polynomial fit to QCD first? For resonant only.",
-    default=False,
+    default=True,
 )
 parser.add_argument(
     "--qcd-fit-dir",

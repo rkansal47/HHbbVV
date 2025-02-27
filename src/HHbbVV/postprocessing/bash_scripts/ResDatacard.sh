@@ -10,9 +10,14 @@ TAG=""
 sig_sample=NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80
 # templates_dir=/eos/uscms/store/user/rkansal/bbVV/templates/25Feb8XHYFix
 templates_dir=/ceph/cms/store/user/rkansal/bbVV/templates/25Feb8XHYFix
-# bg_templates_dir="${templates_dir}/backgrounds"
-bg_templates_dir="templates/25Feb23ResTemplatesHbbUncs"
+# bg_templates_dir="templates/25Feb23ResTemplatesHbbUncs"
 extraargs=""
+
+if [[ ! -d /ceph/cms/store/user/rkansal/bbVV/templates ]]; then
+  templates_dir=/eos/uscms/store/user/rkansal/bbVV/templates/25Feb8XHYFix
+fi
+
+bg_templates_dir="${templates_dir}/backgrounds"
 
 options=$(getopt -o "" --long "tag:,extraargs:" -- "$@")
 eval set -- "$options"
