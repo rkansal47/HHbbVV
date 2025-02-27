@@ -154,6 +154,7 @@ ignore = [
   "NPY002", # np.random.rand -> np.random.Generator
   "C408",   # Unnecessary dict call
   "PD901",  # pd.DataFrame -> pd.DataFrame
+  "UP031",  # use f-string
 ]
 
 isort.required-imports = ["from __future__ import annotations"]

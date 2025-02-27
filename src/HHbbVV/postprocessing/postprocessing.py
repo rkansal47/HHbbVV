@@ -28,6 +28,7 @@ import corrections
 
 # from pandas.errors import SettingWithCopyWarning
 import hist
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 import plotting
@@ -331,6 +332,12 @@ def main(args):
             events_dict, bb_masks, args.bdt_sculpting_plots_dir, args.year, show=False
         )
 
+    if args.mass_sculpting_plots:
+        print("\nMaking mass sculpting plots\n")
+        plot_tagger_sculpting(
+            events_dict, bb_masks, args.mass_sculpting_plots_dir, args.year, show=False
+        )
+
     if args.templates:
         if args.resonant:
             sig_scale_dict = None
@@ -400,9 +407,15 @@ def main(args):
 
 
 def _init(args):
-    if not (args.control_plots or args.bdt_plots or args.templates or args.lpsfs):
+    if not (
+        args.control_plots
+        or args.bdt_plots
+        or args.templates
+        or args.lpsfs
+        or args.mass_sculpting_plots
+    ):
         print(
-            "You need to pass at least one of --control-plots, --bdt-plots, --templates, or --lpsfs"
+            "You need to pass at least one of --control-plots, --bdt-plots, --templates, --lpsfs, or --mass-sculpting-plots"
         )
         return None
 
@@ -680,6 +693,10 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
             args.bdt_sculpting_plots_dir = args.plot_dir / "BDTSculpting"
             args.bdt_sculpting_plots_dir.mkdir(parents=True, exist_ok=True)
 
+        if args.mass_sculpting_plots:
+            args.mass_sculpting_plots_dir = args.plot_dir / "MassSculpting" / args.year
+            args.mass_sculpting_plots_dir.mkdir(parents=True, exist_ok=True)
+
         if args.templates:
             args.templates_plots_dir = args.plot_dir / "Templates" / args.year
             args.templates_plots_dir.mkdir(parents=True, exist_ok=True)
@@ -699,7 +716,7 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
                 if args.resonant:
                     (args.templates_plots_dir / "hists2d").mkdir(parents=True, exist_ok=True)
 
-    elif args.control_plots or args.bdt_plots:
+    elif args.control_plots or args.bdt_plots or args.mass_sculpting_plots:
         print(
             "You need to pass --plot-dir if you want to make control plots or BDT plots. Exiting."
         )
@@ -1631,6 +1648,52 @@ def plot_bdt_sculpting(
             )
 
 
+def plot_tagger_sculpting(
+    events_dict: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame],
+    plot_dir: Path,
+    year: str,
+    weight_key: str = "finalWeight",
+    show: bool = False,
+):
+    """Plot jet masses for different tagger cuts to check sculpting."""
+    for key, events in events_dict.items():
+        print("\t", key)
+        bb_mask = bb_masks[key]
+        vvtagger = utils.get_feat(events, "VVFatJetParTMD_THWWvsT", bb_mask)
+        bbtagger = utils.get_feat(events, "bbFatJetParticleNetMD_Txbb", bb_mask)
+        # bbregmass = utils.get_feat(events, "bbFatJetParticleNetMass", bb_mask)
+
+        for mass_var, mlabel in zip(["Msd", "ParticleNetMass"], ["SD", "reg"]):
+            print("\t\t", mass_var)
+            vvmass = utils.get_feat(events, f"VVFatJet{mass_var}", bb_mask)
+            bbmass = utils.get_feat(events, f"bbFatJet{mass_var}", bb_mask)
+            plotting.plotMassSculpting(
+                bbmass,
+                vvmass,
+                events[weight_key],
+                vvtagger,
+                [0.0, 0.4, 0.6, 0.8, 0.9, 0.96],
+                mlabel,
+                r"$T_{HVV}$",
+                year,
+                name=plot_dir / f"{key}_vvcuts_{mlabel}.pdf",
+                show=show,
+            )
+            plotting.plotMassSculpting(
+                bbmass,
+                vvmass,
+                events[weight_key],
+                bbtagger,
+                [0.8, "LP", "MP", "HP"],
+                mlabel,
+                r"$T_{Xbb}$",
+                year,
+                name=plot_dir / f"{key}_bbcuts_{mlabel}.pdf",
+                show=show,
+            )
+
+
 def _get_fill_data(
     events: pd.DataFrame, bb_mask: pd.DataFrame, shape_vars: list[ShapeVar], jshift: str = ""
 ):
@@ -2088,6 +2151,7 @@ def parse_args(parser=None):
     )
     add_bool_arg(parser, "blinded", "blind the data in the Higgs mass window", default=True)
     add_bool_arg(parser, "bdt-plots", "make bdt sculpting plots", default=False)
+    add_bool_arg(parser, "mass-sculpting-plots", "make mass sculpting plots", default=False)
     add_bool_arg(parser, "lpsfs", "measure LP SFs for given WPs", default=False)
     add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
     add_bool_arg(
@@ -2249,5 +2313,6 @@ def parse_args(parser=None):
 
 
 if __name__ == "__main__":
+    mpl.use("Agg")
     args = parse_args()
     main(args)

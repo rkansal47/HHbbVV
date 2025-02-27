@@ -163,7 +163,7 @@ echo "Model: $(pwd)"
 # Set up fit arguments
 #
 # We use channel masking to "mask" the blinded and "unblinded" regions in the same workspace.
-# (mask = 1 means the channel is masked off)
+# (mask = 1 means the channel is masked OFF)
 ####################################################################################################
 
 dataset=data_obs
@@ -198,19 +198,19 @@ done
 maskunblindedargs=${maskunblindedargs%,}
 maskblindedargs=${maskblindedargs%,}
 
-setparamsblinded="var{.*pass_.*mcstat.*}=0,var{.*fail_.*mcstat.*}=0"
-freezeparamsblinded='var{.*pass_.*mcstat.*},var{.*fail_.*mcstat.*},var{.*xhy_mx.*},CMS_XHYbbWW_boosted_PNetHbbScaleFactors_correlated'
+setparamsblinded="var{.*pass.*mcstat.*}=0,var{.*fail.*mcstat.*}=0"
+freezeparamsblinded='var{.*pass.*mcstat.*},var{.*fail.*mcstat.*},var{.*xhy_mx.*},rgx{tf_MCtempl.*},CMS_XHYbbWW_boosted_PNetHbbScaleFactors_correlated'
 # freezing them here meant they weren't included in the impacts, so unfreezing now
 # freezeparamsblinded="rgx{pass_.*mcstat.*},rgx{fail_.*mcstat.*}"
 
-setparamsunblinded="rgx{.*passBlinded_.*mcstat.*}=0,rgx{.*failBlinded_.*mcstat.*}=0"
-freezeparamsunblinded="rgx{.*passBlinded_.*mcstat.*},rgx{.*failBlinded_.*mcstat.*}"
+setparamsunblinded="rgx{.*passBlinded.*mcstat.*}=0,rgx{.*failBlinded.*mcstat.*}=0"
+freezeparamsunblinded="rgx{.*passBlinded.*mcstat.*},rgx{.*failBlinded.*mcstat.*},rgx{tf_MCtempl.*}"
 
 # floating parameters using var{} floats a bunch of parameters which shouldn't be floated,
 # so countering this inside --freezeParameters which takes priority.
 # Although, practically even if those are set to "float", I didn't see them ever being fitted,
 # so this is just to be extra safe.
-unblindedparams="--freezeParameters ${freezeparamsunblinded},var{.*_In},var{.*__norm},var{n_exp_.*} --setParameters ${maskblindedargs},${setparamsunblinded}"
+unblindedparams="--freezeParameters ${freezeparamsunblinded} --setParameters ${maskblindedargs},${setparamsunblinded}"
 
 # excludeimpactparams='rgx{.*qcdparam_mXbin.*},rgx{passBlinded_.*mcstat.*},rgx{failBlinded_.*mcstat.*}'
 # excludeimpactparams='rgx{.*qcdparam_mXbin.*},rgx{.*mcstat.*}'
@@ -257,8 +257,7 @@ if [ $bfit = 1 ]; then
     echo "Multidim fit"
     combine -D $dataset -M MultiDimFit --saveWorkspace -m 125 -d ${wsm}.root -v $verbose \
     --cminDefaultMinimizerStrategy 1 --cminDefaultMinimizerTolerance "$mintol" --X-rtd MINIMIZER_MaxCalls=400000 \
-    --setParameters "${maskblindedargs},${setparamsunblinded}"  --setParameterRanges r=-2,20 \
-    --freezeParameters ${freezeparamsunblinded}  \
+    ${unblindedparams}  --setParameterRanges r=-2,20 \
     -n Snapshot 2>&1 | tee $outsdir/MultiDimFit.txt
 else
     if [ ! -f "higgsCombineSnapshot.MultiDimFit.mH125.root" ]; then
@@ -267,14 +266,12 @@ else
     fi
 fi
 
-
 if [ $limits = 1 ]; then
     echo "Limits"
     combine -M AsymptoticLimits -m 125 -n "" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v $verbose \
     --saveWorkspace --saveToys --bypassFrequentistFit  --setParameterRanges r=-2,20  \
     ${unblindedparams} -s "$seed" --toysFrequentist 2>&1 | tee $outsdir/AsymptoticLimits.txt
 fi
-
 
 if [ $significance = 1 ]; then
     echo "Significance"
@@ -304,13 +301,13 @@ if [ $dfit = 1 ]; then
 
     python $CMSSW_BASE/src/HiggsAnalysis/CombinedLimit/test/diffNuisances.py fitDiagnostics.root -g nuisance_pulls.root --all --regex='^(?!.*mcstat)'  --vtol=0.3 --stol=0.1 --vtol2=2.0 --stol2=0.5
 
-    echo "Fit Shapes B"
-    PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapesB.root \
-    -m 125 -f fitDiagnostics.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
+    # echo "Fit Shapes B"
+    # PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapesB.root \
+    # -m 125 -f fitDiagnostics.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapesB.txt
 
     echo "Fit Shapes S+B"
     PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapesS.root \
-    -m 125 -f fitDiagnostics.root:fit_s --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
+    -m 125 -f fitDiagnostics.root:fit_s --postfit --print 2>&1 | tee $outsdir/FitShapesS.txt
 fi
 
 
@@ -333,7 +330,7 @@ fi
 if [ $gofdata = 1 ]; then
     echo "GoF on data"
     combine -M GoodnessOfFit -d ${wsm_snapshot}.root --algo saturated -m 125 \
-    ${unblindedparams} -n Data -v $verbose 2>&1 | tee $outsdir/GoF_data.txt
+    --freezeParameters ${freezeparamsunblinded},r --setParameters ${maskblindedargs},${setparamsunblinded},r=0 -n Data -v $verbose 2>&1 | tee $outsdir/GoF_data.txt
 fi
 
 
