@@ -696,7 +696,7 @@ def fill_regions(
                     sample.setParamEffect(srate, 1 * srate)
                 else:
                     srate = constrained_rate_params[sample_name]
-                    sample.setParamEffect(srate, 20)
+                    sample.setParamEffect(srate, 2)
 
             # nominal values, errors
             values_nominal = np.maximum(sample_template.values(), 0.0)
