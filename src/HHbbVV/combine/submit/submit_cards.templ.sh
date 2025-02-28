@@ -97,6 +97,7 @@ ls -lh .
 cd src/HHbbVV/ || exit
 mkdir -p templates/backgrounds
 mkdir -p cards
+qcd_fit_dir=$$(pwd)/combine/qcdfit22sl7
 
 # get backgrounds templates
 for file in "2016_templates.pkl" "2016APV_templates.pkl" "2017_templates.pkl" "2018_templates.pkl" "systematics.json"
@@ -116,7 +117,7 @@ do
     done
 
     python3 -u postprocessing/CreateDatacard.py --templates-dir "templates/$${sample}" --bg-templates-dir "templates/backgrounds" \
-    --sig-separate --resonant --model-name $${sample} --sig-sample $${sample} ${datacard_args}
+    --sig-separate --resonant --model-name $${sample} --sig-sample $${sample} ${datacard_args} --qcd-fit-dir $qcd_fit_dir
 
     cd cards/$${sample} || exit
     ../../combine/$script --workspace --bfit --limits --resonant --significance
