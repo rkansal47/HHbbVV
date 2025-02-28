@@ -196,7 +196,7 @@ if args.bblite_threshold is None:
 
 if args.nTF is None:
     if args.resonant:
-        args.nTF = [1, 1]
+        args.nTF = [2, 2]
     else:
         if args.nonres_regions == "all":
             args.nTF = [0, 1]

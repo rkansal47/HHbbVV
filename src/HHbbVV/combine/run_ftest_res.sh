@@ -109,7 +109,7 @@ echo "Running script: $script"
 ####################################################################################################
 
 templates_dir="/eos/uscms/store/user/rkansal/bbVV/templates/${templates_tag}"
-qcd_fit_dir="/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/qcdfit22"
+qcd_fit_dir="/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/qcdfit22sl7"
 cards_dir="$cardsdir/${cards_tag}/"
 mkdir -p "${cards_dir}"
 echo "Saving datacards to ${cards_dir}"
@@ -119,9 +119,9 @@ echo "Saving datacards to ${cards_dir}"
 ####################################################################################################
 
 if [ $cards = 1 ]; then
-    for ord1 in {0..2}
+    for ord1 in {0..3}
     do
-        for ord2 in {0..2}
+        for ord2 in {0..3}
         do
             model_name="nTF1_${ord1}_nTF2_${ord2}"
             echo "$model_name"

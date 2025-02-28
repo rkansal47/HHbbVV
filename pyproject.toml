@@ -153,7 +153,7 @@ ignore = [
   "RET505", # unnecessary else after return statement
   "NPY002", # np.random.rand -> np.random.Generator
   "C408",   # Unnecessary dict call
-  "PD901",  # pd.DataFrame -> pd.DataFrame
+  "PD901",  # don't use variable name `df` for DataFrames
   "UP031",  # use f-string
 ]
 
