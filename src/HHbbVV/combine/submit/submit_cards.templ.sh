@@ -117,7 +117,7 @@ do
     done
 
     python3 -u postprocessing/CreateDatacard.py --templates-dir "templates/$${sample}" --bg-templates-dir "templates/backgrounds" \
-    --sig-separate --resonant --model-name $${sample} --sig-sample $${sample} ${datacard_args} --qcd-fit-dir $qcd_fit_dir
+    --sig-separate --resonant --model-name $${sample} --sig-sample $${sample} ${datacard_args} --qcd-fit-dir $$qcd_fit_dir
 
     cd cards/$${sample} || exit
     ../../combine/$script --workspace --bfit --limits --resonant --significance
