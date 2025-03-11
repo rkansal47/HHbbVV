@@ -8,6 +8,9 @@
 # 4) Generates toys and gets test statistics for each (-t|--goftoys)
 # 5) Fits +1 order models to all 100 toys and gets test statistics (-f|--ffits)
 #
+# Example usage for cards and initial fits:
+# run_ftest_res.sh --cardstag 25Mar11nTFQCD11 --templatestag 25Feb8XHYFix --sigsample NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250 --cards -u
+#
 # Author: Raghav Kansal
 ####################################################################################################
 
@@ -109,7 +112,8 @@ echo "Running script: $script"
 ####################################################################################################
 
 templates_dir="/eos/uscms/store/user/rkansal/bbVV/templates/${templates_tag}"
-qcd_fit_dir="/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/qcdfit22sl7"
+# qcd_fit_dir="/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/qcdfit22sl7"
+qcd_fit_dir="/uscms_data/d3/rkansal/combine/CMSSW_11_3_4/src/cards/25Mar11QCDTF11"
 cards_dir="$cardsdir/${cards_tag}/"
 mkdir -p "${cards_dir}"
 echo "Saving datacards to ${cards_dir}"

@@ -152,7 +152,7 @@ parser.add_argument(
 
 parser.add_argument(
     "--nTFQCD",
-    default=[2, 2],
+    default=[1, 1],
     nargs=2,
     type=int,
     help="order of polynomial for QCD TF in [dim/cat 1, dim/cat 2] = [mH(bb) for ggF, mH(bb) for VBF] for nonresonant or [mY, mX] for resonant.",
