@@ -1,0 +1,37 @@
+independent_variables:
+  - header:
+      name: Measurement
+    values:
+      - value: bbVV
+dependent_variables:
+  - header:
+      name: Expected limit, 68%
+    qualifiers:
+      - name: POI
+        value: $\sigma$(pp $\rightarrow$ HH) / $\sigma_{Theory}$
+    values:
+      - value: 67.8
+        errors:
+          - label: 68%
+            asymerror:
+              plus: 43.0
+              minus: -22.7
+  - header:
+      name: Expected limit, 95%
+    qualifiers:
+      - name: POI
+        value: $\sigma$(pp $\rightarrow$ HH) / $\sigma_{Theory}$
+    values:
+      - value: 68
+        errors:
+          - label: 95%
+            asymerror:
+              plus: 112
+              minus: -35
+  - header:
+      name: Observed limit
+    qualifiers:
+      - name: POI
+        value: $\sigma$(pp $\rightarrow$ HH) / $\sigma_{Theory}$
+    values:
+      - value: 98.9
