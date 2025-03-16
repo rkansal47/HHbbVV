@@ -1546,7 +1546,7 @@ def main(args):
 
     with (args.models_dir / "templates.txt").open("w") as f:
         f.write("Signals: " + str(args.templates_dir.absolute()))
-        f.write("Backgrounds: " + str(args.bg_templates_dir.absolute()))
+        f.write("Backgrounds: " + str(args.bg_templates_dir.absolute()) + "\n")
 
     dc_args = [args, templates_dict, templates_summed, shape_vars]
     if args.vbf:

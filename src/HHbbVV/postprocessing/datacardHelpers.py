@@ -191,6 +191,9 @@ def combine_templates(
             s for sig_template in sig_templates for s in list(sig_template[region].axes[0])
         ]
 
+        # remove duplicates
+        csamples = list(dict.fromkeys(csamples))
+
         # new hist with all samples
         ctemplate = Hist(
             hist.axis.StrCategory(csamples, name="Sample"),
@@ -205,7 +208,7 @@ def combine_templates(
                 flow=True
             )
 
-        # add signal hists
+        # add signal hists (and overwrite any signals that are in the background hists for some reason)
         for st in sig_templates:
             sig_template = st[region]
             for sample in sig_template.axes[0]:
