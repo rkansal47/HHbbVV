@@ -6,6 +6,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 import hist
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import plotting
@@ -358,6 +359,8 @@ def main(args):
 
 
 if __name__ == "__main__":
+    mpl.use("Agg")
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--cards-tag", help="Cards directory", required=True, type=str)
