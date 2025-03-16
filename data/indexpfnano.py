@@ -254,15 +254,13 @@ for pyear in ["2016", "2016APV", "2017", "2018"]:
                             index[year][sample_short][subsample_short].extend(root_files)
 
     if pyear == "2016APV":
-        for sample_short in index_APV:
-            for subsample_short in index_APV[sample_short]:
+        for sample_short, sample_vals in index_APV.items():
+            for subsample_short, subsample_vals in sample_vals.items():
                 if sample_short not in index[pyear]:
                     index[pyear][sample_short] = {}
                 if subsample_short not in index[pyear][sample_short]:
                     index[pyear][sample_short][subsample_short] = []
-                index[pyear][sample_short][subsample_short] = index_APV[sample_short][
-                    subsample_short
-                ]
+                index[pyear][sample_short][subsample_short] = subsample_vals
 
     with Path(f"pfnanoindex_{pyear}.json").open("w") as f:
         json.dump(index, f, sort_keys=True, indent=2)

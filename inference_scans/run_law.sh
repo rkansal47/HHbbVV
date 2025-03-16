@@ -33,15 +33,18 @@ limits_1d_kl=0
 limits_1d_c2v=0
 impacts=0
 snapshot=0
+gof=0
 printdeps=""
 cards="$Cbbww4q"
 unblinded=$UNBLINDED
-c2vscan="C2V,-1,-0.2,3:C2V,-0.1,0.3,5:C2V,0.9,1.1,2:C2V,1.5,2.1,7:C2V,2.2,3,3"
-klscan="kl,-9,-6,2:kl,-6,-5,2:kl,-1,0,2:kl,2,5,4:kl,10,11,2"
+c2vscan="C2V,-1,3,41"
+# c2vscan="C2V"
+# klscan="kl,-9,-6,2:kl,-6,-5,2:kl,-1,0,2:kl,2,5,4:kl,10,11,2"
+klscan="kl,-8,10,19"
 cl=0.95
 workflow="htcondor"
 
-options=$(getopt -o "ips" --long "fitd,limpoint,limkl,limc2v,impacts,printdeps,printcommands,inject,vbf,noggf,novbf,unblinded,snapshot,rmoutput:,cl:,workflow:" -- "$@")
+options=$(getopt -o "ips" --long "fitd,limpoint,limkl,limc2v,impacts,gof,printdeps,printcommands,inject,vbf,noggf,novbf,unblinded,snapshot,rmoutput:,cl:,workflow:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -64,20 +67,19 @@ while true; do
         --impacts)
             impacts=1
             ;;
+        --gof)
+            gof=1
+            ;;
         --vbf)
             pois="r_qqhh"
-            vbfargs="--x-min 0.1 --x-max 10 --parameter-values C2V=0.9"
+            vbfargs="--x-min 0.1 --x-max 10 --parameter-values C2V=0"
             ;;
         --noggf)
             pois="r_qqhh"
-            # vbfargs="--parameter-values r_gghh=0"
             # c2vscan="C2V,-1,-0.2,3:C2V,-0.1,0.3,5:C2V,1.0,1.2,2:C2V,1.2,1.5,2:C2V,1.7,2.1,5:C2V,2.2,3,3"
-            c2vscan="C2V,-1,3,41"
             ;;
         --novbf)
             pois="r_gghh"
-            # vbfargs="--parameter-values r_qqhh=0"
-            klscan="kl,-8,-7,2:kl,-2,0,2:kl,0,5,6:kl,10,11,2"
             ;;
         --unblinded)
             unblinded=True
@@ -192,7 +194,7 @@ if [ $limits_1d_c2v = 1 ]; then
         --scan-parameters $c2vscan \
         --UpperLimits-workflow "htcondor" \
         --UpperLimits-tasks-per-job 1 \
-        --UpperLimits-custom-args="--cminDefaultMinimizerStrategy 2 --cminPoiOnlyFit" \
+        --UpperLimits-custom-args="--cminDefaultMinimizerStrategy 0" \
         --y-log \
         --show-parameters "kt,kl,CV" \
         --br bbww \
@@ -218,4 +220,20 @@ if [ $impacts = 1 ]; then
         --page -1 \
         --pull-range 3 \
         --Snapshot-custom-args="$custom_args"
+fi
+
+
+if [ $gof = 1 ]; then
+    law run PlotGoodnessOfFit \
+        --file-types pdf,png --version $VERSION $printdeps --remove-output $rmoutput,a,y --campaign run2 --use-snapshot False \
+        $vbfargs \
+        --datacards $cards \
+        --pois $pois \
+        --show-parameters kl,kt,C2V,CV \
+        --toys 500 \
+        --toys-per-branch 20 \
+        --frequentist-toys \
+        --GoodnessOfFit-workflow $workflow \
+        --Snapshot-custom-args="$custom_args"
+        # --frozen-groups signal_norm_xsbr
 fi

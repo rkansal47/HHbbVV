@@ -1,8 +1,8 @@
 #!/usr/bin/env condor_submit
 
 executable              = $dir/${prefix}_$jobid.sh
++DesiredOS              = "SL7"
 should_transfer_files   = YES
-transfer_input_files    = src/HHbbVV/postprocessing,src/HHbbVV/combine
 when_to_transfer_output = ON_EXIT_OR_EVICT
 request_memory          = 3000
 use_x509userproxy       = true

@@ -74,7 +74,7 @@ AllTaggerBDTVars = [
     "VVFatJetPtOverbbFatJetPt",
     "vbf_dEta_jj",
     "DijetdPhi",  # TODO: current dPhi is buggy
-    "DijetdEta",
+    # "DijetdEta",
 ]
 
 
@@ -786,6 +786,63 @@ def evaluate_model(
         pickle.dump(test, f)
 
 
+def do_inference_year(
+    model: xgb.XGBClassifier,
+    model_dir: str | Path,
+    year: str,
+    data: pd.DataFrame,
+    bdtVars: list[str],
+    jec_jmsr_shifts: bool = True,
+    multiclass: bool = False,
+):
+    import time
+
+    inf_dir = model_dir / "inferences" / year
+    inf_dir.mkdir(exist_ok=True, parents=True)
+
+    year_data_dict = {year: data}
+
+    sample_order = list(pd.unique(data["Dataset"]))
+    value_counts = data["Dataset"].value_counts()
+    sample_order_dict = OrderedDict([(sample, value_counts[sample]) for sample in sample_order])
+
+    with (inf_dir / "sample_order.txt").open("w") as f:
+        f.write(str(sample_order_dict))
+
+    print("Running inference")
+    X = get_X(year_data_dict, bdtVars)
+    model.get_booster().feature_names = bdtVars
+
+    print(X)
+
+    start = time.time()
+    preds = model.predict_proba(X)
+    print(f"Finished in {time.time() - start:.2f}s")
+    # preds = preds[:, :-1] if multiclass else preds[:, 1]  # save n-1 probs to save space
+    preds = preds if multiclass else preds[:, 1]
+    np.save(inf_dir / "preds.npy", preds)
+    print(preds)
+
+    if jec_jmsr_shifts:
+        for jshift in jec_shifts:
+            print("Running inference for", jshift)
+            X, mcvars = get_X(year_data_dict, bdtVars, jec_shift=jshift)
+            # have to change model's feature names since we're passing in a dataframe
+            model.get_booster().feature_names = mcvars
+            preds = model.predict_proba(X)
+            preds = preds if multiclass else preds[:, 1]
+            np.save(inf_dir / f"preds_{jshift}.npy", preds)
+
+        for jshift in jmsr_shifts:
+            print("Running inference for", jshift)
+            X, mcvars = get_X(year_data_dict, bdtVars, jmsr_shift=jshift)
+            # have to change model's feature names since we're passing in a dataframe
+            model.get_booster().feature_names = mcvars
+            preds = model.predict_proba(X)
+            preds = preds if multiclass else preds[:, 1]
+            np.save(inf_dir / f"preds_{jshift}.npy", preds)
+
+
 def do_inference(
     model: xgb.XGBClassifier,
     model_dir: str,
@@ -794,51 +851,9 @@ def do_inference(
     jec_jmsr_shifts: bool = True,
     multiclass: bool = False,
 ):
-    """ """
-    import time
-
-    (model_dir / "inferences").mkdir(exist_ok=True, parents=True)
-
+    """Wrapper to run inference over all years"""
     for year, data in data_dict.items():
-        year_data_dict = {year: data}
-        (model_dir / "inferences" / year).mkdir(exist_ok=True, parents=True)
-
-        sample_order = list(pd.unique(data["Dataset"]))
-        value_counts = data["Dataset"].value_counts()
-        sample_order_dict = OrderedDict([(sample, value_counts[sample]) for sample in sample_order])
-
-        with (model_dir / f"inferences/{year}/sample_order.txt").open("w") as f:
-            f.write(str(sample_order_dict))
-
-        print("Running inference")
-        X = get_X(year_data_dict, bdtVars)
-        model.get_booster().feature_names = bdtVars
-
-        start = time.time()
-        preds = model.predict_proba(X)
-        print(f"Finished in {time.time() - start:.2f}s")
-        # preds = preds[:, :-1] if multiclass else preds[:, 1]  # save n-1 probs to save space
-        preds = preds if multiclass else preds[:, 1]
-        np.save(f"{model_dir}/inferences/{year}/preds.npy", preds)
-
-        if jec_jmsr_shifts:
-            for jshift in jec_shifts:
-                print("Running inference for", jshift)
-                X, mcvars = get_X(year_data_dict, bdtVars, jec_shift=jshift)
-                # have to change model's feature names since we're passing in a dataframe
-                model.get_booster().feature_names = mcvars
-                preds = model.predict_proba(X)
-                preds = preds if multiclass else preds[:, 1]
-                np.save(f"{model_dir}/inferences/{year}/preds_{jshift}.npy", preds)
-
-            for jshift in jmsr_shifts:
-                print("Running inference for", jshift)
-                X, mcvars = get_X(year_data_dict, bdtVars, jmsr_shift=jshift)
-                # have to change model's feature names since we're passing in a dataframe
-                model.get_booster().feature_names = mcvars
-                preds = model.predict_proba(X)
-                preds = preds if multiclass else preds[:, 1]
-                np.save(f"{model_dir}/inferences/{year}/preds_{jshift}.npy", preds)
+        do_inference_year(model, model_dir, year, data, bdtVars, jec_jmsr_shifts, multiclass)
 
 
 if __name__ == "__main__":

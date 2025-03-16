@@ -1,5 +1,5 @@
 #!/bin/bash
-# shellcheck disable=SC2086,SC2043
+# shellcheck disable=SC2086,SC2043,SC1091
 
 ####################################################################################################
 # Script for creating nonresonant vbf templates scanning over variables

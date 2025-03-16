@@ -86,21 +86,24 @@ def main(args):
 
         localsh = f"{local_dir}/{prefix}_{j}.sh"
         sh_args = {
-            "in_low1": args.low1,
-            "in_low2": args.low2,
-            "in_tag": args.cards_tag,
-            "in_seed": args.seed + j * args.toys_per_job,
-            "in_num_toys": args.toys_per_job,
-            "in_rmax": args.rmax,
+            "branch": args.git_branch,
+            "gituser": args.git_user,
+            "jobnum": j,
+            "low1": args.low1,
+            "low2": args.low2,
+            "tag": args.cards_tag,
+            "seed": args.seed + j * args.toys_per_job,
+            "num_toys": args.toys_per_job,
+            "rmax": args.rmax,
             "bestfitr": bestfitr,
         }
         if not args.resonant:
-            sh_args.pop("in_low2")
+            sh_args.pop("low2")
         if args.blinded:
-            sh_args.pop("in_rmax")
+            sh_args.pop("rmax")
             sh_args.pop("bestfitr")
 
-        run_utils.write_template(sh_templ, localsh, sh_args, safe=True)
+        run_utils.write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
 
         if local_log.exists():
@@ -114,8 +117,12 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--git-branch", required=True, help="git branch to use", type=str)
+    parser.add_argument(
+        "--git-user", default="rkansal47", help="which user's repo to use", type=str
+    )
     parser.add_argument("--tag", default="Test", help="condor tag", type=str)
-    parser.add_argument("--cards-tag", default="Apr26", help="f tests dir tag", type=str)
+    parser.add_argument("--cards-tag", help="f tests dir tag", type=str, required=True)
     parser.add_argument(
         "--site",
         default="lpc",
@@ -125,8 +132,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--low1", default=0, help="low order poly in dim 1", type=int)
     parser.add_argument("--low2", default=0, help="low order poly in dim 2", type=int)
-    parser.add_argument("--toys-per-job", default=100, help="# toys per condor job", type=int)
-    parser.add_argument("--num-jobs", default=10, help="# condor jobs", type=int)
+    parser.add_argument("--toys-per-job", default=20, help="# toys per condor job", type=int)
+    parser.add_argument("--num-jobs", default=25, help="# condor jobs", type=int)
     parser.add_argument("--seed", default=444, help="# condor jobs", type=int)
     parser.add_argument("--rmax", default=200, help="signal rmax for unblinded fits", type=float)
     add_bool_arg(parser, "submit", default=False, help="submit files as well as create them")

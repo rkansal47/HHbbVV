@@ -5,6 +5,7 @@
         {
           "subsamples": ["NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-190"],
           "files_per_job": 4,
+          "chunksize": 80000,
         },
     },
 }

@@ -40,9 +40,9 @@ class wrapped_triton:
         # Infer
         inputs = []
 
-        for key in input_dict:
-            input = triton_protocol.InferInput(key, input_dict[key].shape, "FP32")
-            input.set_data_from_numpy(input_dict[key])
+        for key, val in input_dict.items():
+            input = triton_protocol.InferInput(key, val.shape, "FP32")
+            input.set_data_from_numpy(val)
             inputs.append(input)
 
         output = triton_protocol.InferRequestedOutput("softmax__0")
