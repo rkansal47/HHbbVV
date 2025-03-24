@@ -627,7 +627,7 @@ def ratioLinePlot(
         histtype="step",
         label=bg_keys + ["Total"],
         color=[colours[bg_colours[sample]] for sample in bg_keys] + ["black"],
-        yerr=0,
+        yerr=False,
     )
 
     if bg_err is not None:
@@ -683,7 +683,7 @@ def ratioLinePlot(
                 linewidth=0,
             )
 
-        rax.set_ylabel("Data/MC")
+        rax.set_ylabel("Data / Bkg.")
         rax.set_ylim(0.5, 1.5)
         rax.grid()
     else:
@@ -705,7 +705,181 @@ def ratioLinePlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    add_cms_label(ax, year)
+    add_cms_label(ax, year, loc=0)
+
+    if len(name):
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def ratioLinePlotPrePost(
+    hists: Hist,
+    pre_hists: Hist,
+    bg_keys: list[str],
+    year: str,
+    bg_colours: dict[str, str] = None,
+    sig_colour: str = sig_colour,  # noqa: ARG001
+    bg_err: np.ndarray | str = None,
+    data_err: ArrayLike | bool | None = None,
+    title: str = None,
+    pulls: bool = False,
+    name: str = "",
+    sig_scale: float = 1.0,  # noqa: ARG001
+    show: bool = True,
+):
+    """
+    Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
+    scaled) with a data/mc ratio plot below
+    """
+    if bg_colours is None:
+        bg_colours = BG_COLOURS
+
+    plt.rcParams.update({"font.size": 24})
+
+    fig, (ax, rax) = plt.subplots(
+        2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
+    )
+
+    bg_tot = np.sum(hists[bg_keys, :].values(), axis=0)
+
+    plot_hists = []
+    labels = []
+    colors = []
+    linestyles = []
+    alpha = []
+    for k in bg_keys:
+        if k == "Top Matched":
+            plot_hists.append(pre_hists[k, :])
+            labels.append("Pre Top Matched")
+            colors.append(colours[bg_colours[k]])
+            linestyles.append("--")
+            alpha.append(0.5)
+
+            plot_hists.append(hists[k, :])
+            labels.append("Post Top Matched")
+            colors.append(colours[bg_colours[k]])
+            linestyles.append("-")
+            alpha.append(1)
+        else:
+            plot_hists.append(hists[k, :])
+            labels.append(k)
+            colors.append(colours[bg_colours[k]])
+            linestyles.append("-")
+            alpha.append(1)
+
+    plot_hists = plot_hists + [
+        sum([pre_hists[sample, :] for sample in bg_keys]),
+        sum([hists[sample, :] for sample in bg_keys]),
+    ]
+    labels = labels + ["Pre Total", "Post Total"]
+    colors = colors + ["black", "black"]
+    linestyles = linestyles + ["--", "-"]
+    alpha = alpha + [0.5, 1]
+
+    ax.set_ylabel("Events")
+    hep.histplot(
+        plot_hists,
+        ax=ax,
+        histtype="step",
+        label=labels,
+        color=colors,
+        linestyle=linestyles,
+        alpha=alpha,
+        yerr=False,
+    )
+
+    if bg_err is not None:
+        ax.fill_between(
+            np.repeat(hists.axes[1].edges, 2)[1:-1],
+            np.repeat(bg_tot - bg_err, 2),
+            np.repeat(bg_tot + bg_err, 2),
+            color="black",
+            alpha=0.2,
+            hatch="//",
+            linewidth=0,
+            label="Lund Plane Uncertainty",
+        )
+
+    hep.histplot(
+        hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
+    )
+
+    if bg_err is not None:
+        # Switch order so that uncertainty label comes at the end
+        # handles, labels = ax.get_legend_handles_labels()
+        # handles = handles[1:] + handles[:1]
+        # labels = labels[1:] + labels[:1]
+        # ax.legend(handles, labels, ncol=2)
+        ax.legend(ncol=2)
+    else:
+        ax.legend(ncol=2)
+
+    ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
+
+    data_vals = hists[data_key, :].values()
+
+    if not pulls:
+        yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
+
+        hep.histplot(
+            hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
+            yerr=yerr,
+            ax=rax,
+            histtype="errorbar",
+            color="black",
+            capsize=4,
+        )
+
+        hep.histplot(
+            hists[data_key, :]
+            / (sum([pre_hists[sample, :] for sample in bg_keys]).values() + 1e-5),
+            yerr=yerr,
+            ax=rax,
+            histtype="errorbar",
+            color="black",
+            capsize=4,
+            alpha=0.5,
+        )
+
+        if bg_err is not None:
+            # (bkg + err) / bkg
+            rax.fill_between(
+                np.repeat(hists.axes[1].edges, 2)[1:-1],
+                np.repeat((bg_tot - bg_err) / bg_tot, 2),
+                np.repeat((bg_tot + bg_err) / bg_tot, 2),
+                color="black",
+                alpha=0.1,
+                hatch="//",
+                linewidth=0,
+            )
+
+        rax.set_ylabel("Data / Bkg.")
+        rax.set_ylim(0.5, 1.5)
+        rax.grid()
+    else:
+        bg_tot / (data_vals + 1e-5)
+        yerr = bg_err / data_vals
+
+        hep.histplot(
+            (sum([hists[sample, :] for sample in bg_keys]) / (data_vals + 1e-5) - 1) * (-1),
+            yerr=yerr,
+            ax=rax,
+            histtype="errorbar",
+            color="black",
+            capsize=4,
+        )
+        rax.set_ylabel("(Data - MC) / Data")
+        rax.set_ylim(-0.5, 0.5)
+        rax.grid()
+
+    if title is not None:
+        ax.set_title(title, y=1.08)
+
+    add_cms_label(ax, year, loc=0)
 
     if len(name):
         plt.savefig(name, bbox_inches="tight")
