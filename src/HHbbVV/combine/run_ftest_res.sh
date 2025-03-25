@@ -123,9 +123,9 @@ echo "Saving datacards to ${cards_dir}"
 ####################################################################################################
 
 if [ $cards = 1 ]; then
-    for ord1 in {0..3}
+    for ord1 in {0..4}
     do
-        for ord2 in {0..3}
+        for ord2 in {0..4}
         do
             model_name="nTF1_${ord1}_nTF2_${ord2}"
             echo "$model_name"
@@ -134,7 +134,7 @@ if [ $cards = 1 ]; then
 
                 python3 -u postprocessing/CreateDatacard.py --templates-dir "${templates_dir}/${sig_sample}" --bg-templates-dir "${templates_dir}/backgrounds" --qcd-fit-dir $qcd_fit_dir \
                 --sig-separate --resonant --model-name "${model_name}" --sig-sample "${sig_sample}" \
-                --nTF "${ord2}" "${ord1}" --cards-dir "${cards_dir}"
+                --nTF "${ord1}" "${ord2}" --cards-dir "${cards_dir}"
             fi
 
             cd "${cards_dir}/${model_name}"/ || exit
