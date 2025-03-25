@@ -76,6 +76,8 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             "particleNetMD_QCD": "ParticleNetMD_QCD",
             "particleNetMD_Xbb": "ParticleNetMD_Xbb",
             "particleNet_H4qvsQCD": "ParticleNet_Th4q",
+            "deepTagMD_H4qvsQCD": "deepTagMD_H4qvsQCD",
+            "deepTagMD_WvsQCD": "deepTagMD_WvsQCD",
             "nConstituents": "nPFCands",
         },
         "Jet": P4,
