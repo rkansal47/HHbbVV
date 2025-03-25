@@ -1,11 +1,22 @@
 { "TTbarScaleFactors": {
-      # "SingleMu2018": { "files_per_job": 10 },
-      # "TTbar": { "files_per_job": 8, "subsamples": ["TTTo2L2Nu", "TTToHadronic", "TTToSemiLeptonic"]},
-      # "SingleTop": { "files_per_job": 10 },
-      # "QCD": { "files_per_job": 20 },
+      "SingleMu2017": { "files_per_job": 10 },
+      "TTbar": { "files_per_job": 10, "subsamples": ["TTTo2L2Nu", "TTToHadronic", "TTToSemiLeptonic"]},
+      "SingleTop":
+        {
+          "files_per_job": 20,
+          "subsamples":
+            [
+              "ST_tW_antitop_5f_NoFullyHadronicDecays",
+              "ST_tW_top_5f_NoFullyHadronicDecays",
+              "ST_s-channel_4f_leptonDecays",
+              "ST_t-channel_antitop_4f_InclusiveDecays",
+              "ST_t-channel_top_4f_InclusiveDecays",
+            ],
+        },
+      "QCD": { "files_per_job": 20 },
       "WJetsToLNu": { "files_per_job": 20 },
-      # "Diboson": {
-      #     "subsamples": ["WW", "WZ", "ZZ"],
-      #     "files_per_job": 20,
-      # },
+      "Diboson": {
+          "subsamples": ["WW", "WZ", "ZZ"],
+          "files_per_job": 20,
+      },
     } }
