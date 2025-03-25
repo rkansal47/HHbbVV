@@ -8,6 +8,9 @@
 # 4) Generates toys and gets test statistics for each (-t|--goftoys)
 # 5) Fits +1 order models to all 100 toys and gets test statistics (-f|--ffits)
 #
+# Example usage for cards and initial fits:
+# run_ftest_res.sh --cardstag 25Mar11nTFQCD11 --templatestag 25Feb8XHYFix --sigsample NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250 --cards -u
+#
 # Author: Raghav Kansal
 ####################################################################################################
 
@@ -21,9 +24,10 @@ low1=0
 low2=0
 cardsdir="cards/f_tests"
 scripts_dir="/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine"
+script="run_blinded.sh"
 verbose=9
 
-options=$(getopt -o "ctfd" --long "scriptsdir:,cardsdir:,cardstag:,templatestag:,sigsample:,low1:,low2:,cards,goftoys,ffits,dfit,numtoys:,seed:,verbose:" -- "$@")
+options=$(getopt -o "ctfdu" --long "scriptsdir:,cardsdir:,cardstag:,templatestag:,sigsample:,low1:,low2:,unblinded,cards,goftoys,ffits,dfit,numtoys:,seed:,verbose:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -47,6 +51,9 @@ while true; do
             ;;
         -c|--cards)
             cards=1
+            ;;
+        -u|--unblinded)
+            script="run_unblinded_res.sh"
             ;;
         --cardstag)
             shift
@@ -98,12 +105,15 @@ done
 echo "Arguments: cardstag=$cards_tag templatestag=$templates_tag sigsample=$sig_sample dfit=$dfit \
 goftoys=$goftoys ffits=$ffits seed=$seed numtoys=$numtoys low1=$low1 low2=$low2 verbose=$verbose"
 
+echo "Running script: $script"
 
 ####################################################################################################
 # Set up fit args
 ####################################################################################################
 
 templates_dir="/eos/uscms/store/user/rkansal/bbVV/templates/${templates_tag}"
+# qcd_fit_dir="/uscms/home/rkansal/nobackup/HHbbVV/src/HHbbVV/combine/qcdfit22sl7"
+qcd_fit_dir="/uscms_data/d3/rkansal/combine/CMSSW_11_3_4/src/cards/25Mar11QCDTF11"
 cards_dir="$cardsdir/${cards_tag}/"
 mkdir -p "${cards_dir}"
 echo "Saving datacards to ${cards_dir}"
@@ -115,24 +125,24 @@ echo "Saving datacards to ${cards_dir}"
 if [ $cards = 1 ]; then
     for ord1 in {0..4}
     do
-        for ord2 in {0..3}
+        for ord2 in {0..4}
         do
             model_name="nTF1_${ord1}_nTF2_${ord2}"
             echo "$model_name"
             if [ ! -f "${cards_dir}/${model_name}/XHYModel.root" ]; then
                 echo "Making Datacard for $model_name"
 
-                python3 -u postprocessing/CreateDatacard.py --templates-dir "${templates_dir}/${sig_sample}" --bg-templates-dir "${templates_dir}/backgrounds" \
+                python3 -u postprocessing/CreateDatacard.py --templates-dir "${templates_dir}/${sig_sample}" --bg-templates-dir "${templates_dir}/backgrounds" --qcd-fit-dir $qcd_fit_dir \
                 --sig-separate --resonant --model-name "${model_name}" --sig-sample "${sig_sample}" \
-                --nTF "${ord2}" "${ord1}" --cards-dir "${cards_dir}"
+                --nTF "${ord1}" "${ord2}" --cards-dir "${cards_dir}"
             fi
 
             cd "${cards_dir}/${model_name}"/ || exit
             if [ ! -f "higgsCombineData.GoodnessOfFit.mH125.root" ]; then
-                ${scripts_dir}/run_blinded.sh -wbgr --verbose $verbose
+                ${scripts_dir}/$script -wbgr --verbose $verbose
             fi
             if [ $dfit = 1 ] && [ ! -f "FitShapes.root" ]; then
-                ${scripts_dir}/run_blinded.sh -dr --verbose $verbose
+                ${scripts_dir}/$script -dr --verbose $verbose
             fi
             cd - > /dev/null || exit
         done
@@ -153,7 +163,7 @@ if [ $goftoys = 1 ]; then
     ulimit -s unlimited
 
     echo "Toys for ($low1, $low2) order fit"
-    ${scripts_dir}/run_blinded.sh -r --gentoys --toysname "${toys_name}" --seed "$seed" --numtoys "$numtoys" --verbose $verbose
+    ${scripts_dir}/$script -r --gentoys --toysname "${toys_name}" --seed "$seed" --numtoys "$numtoys" --verbose $verbose
 
     cd - || exit
 fi
@@ -184,7 +194,7 @@ if [ $ffits = 1 ]; then
             cd "${cards_dir}/${model_name}/" || exit
 
             ulimit -s unlimited
-            ${scripts_dir}/run_blinded.sh -r --goftoys --toysname "${toys_name}" --seed "$seed" --toysfile "${toys_file}" --numtoys "$numtoys" --verbose $verbose
+            ${scripts_dir}/$script -r --goftoys --toysname "${toys_name}" --seed "$seed" --toysfile "${toys_file}" --numtoys "$numtoys" --verbose $verbose
 
             cd - || exit
         done

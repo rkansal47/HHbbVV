@@ -69,15 +69,20 @@ def main(args):
     print(f"Running impacts on {len(ps)} parameters:")
     print(*ps, sep="\n")
 
+    if args.blinded:
+        script = "run_blinded.sh"
+    elif args.resonant:
+        script = "run_unblinded_res.sh"
+    else:
+        script = "run_unblinded.sh"
+
     res_str = "-r" if args.resonant else ""
-    commands = [f"run_blinded.sh {res_str} -i"] + [
-        f"run_blinded.sh {res_str} --impactsf {p}" for p in ps
-    ]
+    commands = [f"{script} {res_str} -i"] + [f"{script} {res_str} --impactsf {p}" for p in ps]
     impactfiles = ["higgsCombine_initialFit_impacts.MultiDimFit.mH125.root"] + [
         f"higgsCombine_paramFit_impacts_{p}.MultiDimFit.mH125.root" for p in ps
     ]
 
-    collect_command = f"run_blinded.sh {res_str} --impactsc {','.join(ps)}"
+    collect_command = f"{script} {res_str} --impactsc {','.join(ps)}"
 
     if args.local:
         print("Running locally")
@@ -106,6 +111,7 @@ def main(args):
             "jobid": p,
             "proxy": proxy,
             "impactfile": impactfile,
+            "script": script,
         }
         run_utils.write_template(jdl_templ, local_jdl, jdl_args)
 

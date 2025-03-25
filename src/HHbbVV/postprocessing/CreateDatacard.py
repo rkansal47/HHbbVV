@@ -17,6 +17,7 @@ import logging
 import pickle
 import pprint
 import sys
+import warnings
 from collections import OrderedDict
 from pathlib import Path
 
@@ -40,8 +41,10 @@ from HHbbVV.hh_vars import LUMI, data_key, jecs, jmsr, qcd_key, res_sig_keys, ye
 try:
     rl.util.install_roofit_helpers()
     rl.ParametericSample.PreferRooParametricHist = False
+    import ROOT
 except:
-    print("rootfit install failed (not an issue for VBF)")
+    print("roofit install failed (not an issue for VBF)")
+
 
 # logging.basicConfig(level=logging.DEBUG)
 logging.basicConfig(level=logging.INFO)
@@ -94,8 +97,6 @@ parser.add_argument(
     type=int,
     help="optionally, double the bin width. option 1: 50-250, option 2: 60-240",
 )
-
-
 parser.add_argument(
     "--mcstats-threshold",
     default=None,
@@ -126,12 +127,35 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    "--float-samples", default=["Hbb"], type=str, nargs="*", help="samples to float in the fit"
+)
+
+add_bool_arg(
+    parser, "freely-float", "Freely float the samples or with a x2 lnN constraint.", default=False
+)
+
+add_bool_arg(
+    parser,
+    "fithbb",
+    "for Hbb backgrounds as well (all combined into one template). DISABLED FOR NONRESONANT.",
+    default=True,
+)
+
+parser.add_argument(
     "--nTF",
     default=None,
-    nargs="*",
+    nargs=2,
     type=int,
-    help="order of polynomial for TF in [dim/cat 1, dim/cat 2] = [mH(bb) for ggF, mH(bb) for VBF] for nonresonant or [mY, mX] for resonant."
-    "Default is [0, 1] for nonresonant and [1, 3] for resonant.",
+    help="order of polynomial for TF in [dim/cat 1, dim/cat 2] = [mH(bb) for ggF, mH(bb) for VBF] for nonresonant or [mX, mY] for resonant."
+    "Default is [0, 1] for nonresonant and [2, 1] for resonant.",
+)
+
+parser.add_argument(
+    "--nTFQCD",
+    default=[1, 1],
+    nargs=2,
+    type=int,
+    help="order of polynomial for QCD TF in [dim/cat 1, dim/cat 2] = [mH(bb) for ggF, mH(bb) for VBF] for nonresonant or [mY, mX] for resonant.",
 )
 
 parser.add_argument("--model-name", default=None, type=str, help="output model name")
@@ -141,6 +165,18 @@ parser.add_argument(
     type=str,
     default="all",
     choices=["2016APV", "2016", "2017", "2018", "all"],
+)
+add_bool_arg(
+    parser,
+    "fit-qcd",
+    "do an initial polynomial fit to QCD first? For resonant only.",
+    default=True,
+)
+parser.add_argument(
+    "--qcd-fit-dir",
+    default=None,
+    type=str,
+    help="if doing a QCD fit, directory in which to store or read the fit",
 )
 add_bool_arg(parser, "mcstats", "add mc stats nuisances", default=True)
 add_bool_arg(parser, "bblite", "use barlow-beeston-lite method", default=True)
@@ -160,7 +196,7 @@ if args.bblite_threshold is None:
 
 if args.nTF is None:
     if args.resonant:
-        args.nTF = [1, 3]
+        args.nTF = [2, 2]
     else:
         if args.nonres_regions == "all":
             args.nTF = [0, 1]
@@ -176,6 +212,8 @@ if not args.resonant:
         signal_regions = ["passggf"]
     elif args.nonres_regions == "vbf":
         signal_regions = ["passvbf"]
+
+    args.fithbb = False
 else:
     signal_regions = ["pass"]
 
@@ -187,8 +225,12 @@ mc_samples = OrderedDict(
         ("Z+Jets", "zjets"),
         # ("Diboson", "diboson"),
         ("ST", "singletop"),
+        ("Hbb", "hbb"),
     ]
 )
+
+if not args.fithbb:
+    del mc_samples["Hbb"]
 
 # TODO: float VJets normalization?
 
@@ -247,9 +289,13 @@ if args.year != "all":
 else:
     full_lumi = np.sum(list(LUMI.values()))
 
-rate_params = {
-    sig_key: rl.IndependentParameter(f"{mc_samples[sig_key]}Rate", 1.0, 0, 1)
-    for sig_key in sig_keys
+# rate params for optionally floating signals or backgrounds
+free_rate_params = {
+    key: rl.IndependentParameter(f"{mc_samples[key]}Rate", 1.0, 0, 20) for key in sig_keys + bg_keys
+}
+
+constrained_rate_params = {
+    key: rl.NuisanceParameter(f"{mc_samples[key]}Rate", "lnN") for key in sig_keys + bg_keys
 }
 
 # dictionary of nuisance params -> (modifier, samples affected by it, value)
@@ -276,7 +322,10 @@ nuisance_params = {
     ),
     # https://gitlab.cern.ch/hh/naming-conventions#theory-uncertainties
     "BR_hbb": Syst(
-        prior="lnN", samples=nonres_sig_keys + res_sig_keys, value=1.0124, value_down=0.9874
+        prior="lnN",
+        samples=nonres_sig_keys + res_sig_keys + ["Hbb"],
+        value=1.0124,
+        value_down=0.9874,
     ),
     "BR_hww": Syst(prior="lnN", samples=nonres_sig_keys, value=1.0153, value_down=0.9848),
     "pdf_gg": Syst(prior="lnN", samples=["TT"], value=1.042),
@@ -295,6 +344,8 @@ nuisance_params = {
     "QCDscale_qqHH": Syst(
         prior="lnN", samples=nonres_sig_keys_vbf, value=1.0003, value_down=0.9996
     ),
+    # using most conservative uncertainty for all Hbb backgrounds combined
+    "QCDscale_singleH": Syst(prior="lnN", samples=["Hbb"], value=1.201, value_down=(1.0 - 0.239)),
     # "QCDscale_ggH": Syst(
     #     prior="lnN",
     #     samples=ggfh_keys,
@@ -568,6 +619,8 @@ def fill_regions(
     uncorr_year_shape_systs: dict[str, Syst],
     shape_systs_dict: dict[str, rl.NuisanceParameter],
     bblite: bool = True,
+    float_samples: list[str] = (),
+    float_freely: bool = False,
     mX_bin: int = None,
 ):
     """Fill samples per region including given rate, shape and mcstats systematics.
@@ -611,7 +664,7 @@ def fill_regions(
         model.addChannel(ch)
 
         for sample_name, card_name in mc_samples.items():
-            print("")
+            print("\n\n")
             # don't add signals in fail regions
             # also skip resonant signals in pass blinded - they are ignored in the validation fits anyway
             if sample_name in sig_keys and (
@@ -627,10 +680,8 @@ def fill_regions(
                 continue
 
             logging.info(f"Getting templates for: {sample_name}")
-            print("\n\n")
 
             sample_template = region_templates[sample_name, :]
-
             stype = rl.Sample.SIGNAL if sample_name in sig_keys else rl.Sample.BACKGROUND
             sample = rl.TemplateSample(ch.name + "_" + card_name, stype, sample_template)
 
@@ -638,6 +689,14 @@ def fill_regions(
             # if stype == rl.Sample.SIGNAL and len(sig_keys) > 1:
             #     srate = rate_params[sample_name]
             #     sample.setParamEffect(srate, 1 * srate)
+
+            if sample_name in float_samples:
+                if float_freely:
+                    srate = free_rate_params[sample_name]
+                    sample.setParamEffect(srate, 1 * srate)
+                else:
+                    srate = constrained_rate_params[sample_name]
+                    sample.setParamEffect(srate, 2)
 
             # nominal values, errors
             values_nominal = np.maximum(sample_template.values(), 0.0)
@@ -701,6 +760,10 @@ def fill_regions(
                     logging.info(f"Skipping {skey} shapes")
                     continue
 
+                if sample_name == "Hbb":
+                    logging.info(f"WARNING: Skipping {skey} for Hbb")
+                    continue
+
                 logging.info(f"Getting {skey} shapes")
 
                 if skey in jecs or skey in jmsr:
@@ -744,6 +807,10 @@ def fill_regions(
                     or (syst.regions is not None and region_name not in syst.regions)
                 ):
                     logging.info(f"Skipping {skey} shapes")
+                    continue
+
+                if sample_name == "Hbb":
+                    logging.info(f"WARNING: Skipping {skey} for Hbb")
                     continue
 
                 logging.info(f"Getting {skey} shapes")
@@ -900,12 +967,125 @@ def nonres_alphabet_fit(
             passCh.addSample(pass_qcd)
 
 
+def res_qcd_fit(
+    shape_vars: list[ShapeVar],
+    templates_summed: dict,
+    scaled_grids: list[np.ndarray],
+    qcd_fit_dir: Path,
+):
+    # with (qcd_fit_dir / "shape_vars.pkl").open("wb") as f:
+    #     pickle.dump(shape_vars, f)
+    # with (qcd_fit_dir / "templates_summed.pkl").open("wb") as f:
+    #     pickle.dump(templates_summed, f)
+    # with (qcd_fit_dir / "scaled_grids.pkl").open("wb") as f:
+    #     pickle.dump(scaled_grids, f)
+
+    # sys.exit()
+
+    shape_var_mY, shape_var_mX = shape_vars
+    sr = signal_regions[0]
+    m_obs = rl.Observable(shape_var_mY.name, shape_var_mY.bins)
+    qcdfitfile = qcd_fit_dir / "qcdfit.root"
+
+    tf_MCtempl = rl.BasisPoly(
+        "tf_MCtempl",
+        (shape_var_mX.orders_qcd[sr], shape_var_mY.orders_qcd[sr]),
+        [shape_var_mX.name, shape_var_mY.name],
+        limits=(0, 10),
+        basis="Bernstein",
+    )
+
+    if qcdfitfile.exists():
+        file = ROOT.TFile(str(qcdfitfile), "READ")
+        w = file.Get("qcdfit_ws")
+        qcdfit = w.obj("fitresult_qcdmodel_simPdf_qcdmodel_observation")
+    else:
+        # Build qcd MC pass+fail model and fit to polynomial
+        # from https://github.com/nsmith-/rhalphalib/blob/61289a00488a014b3b6ca688e38166e3faf0193d/tests/test_rhalphalib.py#L46
+        qcdmodel = rl.Model("qcdmodel")
+        qcdpass, qcdfail = 0.0, 0.0
+        for mXbin in range(len(shape_var_mX.pts)):
+            failCh = rl.Channel("mXbin%d%s" % (mXbin, "fail"))
+            passCh = rl.Channel("mXbin%d%s" % (mXbin, "pass"))
+            qcdmodel.addChannel(failCh)
+            qcdmodel.addChannel(passCh)
+            failCh.setObservation(templates_summed["fail"][qcd_key, :, mXbin])
+            passCh.setObservation(templates_summed["pass"][qcd_key, :, mXbin])
+            qcdfail += failCh.getObservation().sum()
+            qcdpass += passCh.getObservation().sum()
+
+        qcdeff = qcdpass / qcdfail
+        tf_MCtempl_params = qcdeff * tf_MCtempl(*scaled_grids)
+        for mXbin in range(len(shape_var_mX.pts)):
+            failCh = qcdmodel["mXbin%dfail" % mXbin]
+            passCh = qcdmodel["mXbin%dpass" % mXbin]
+            failObs = failCh.getObservation()
+            qcdparams = np.array(
+                [
+                    rl.IndependentParameter("qcdparam_pXbin%d_mYbin%d" % (mXbin, i), 0)
+                    for i in range(m_obs.nbins)
+                ]
+            )
+            sigmascale = 10.0
+            scaledparams = (
+                failObs * (1 + sigmascale / np.maximum(1.0, np.sqrt(failObs))) ** qcdparams
+            )
+            fail_qcd = rl.ParametericSample(
+                "mXbin%dfail_qcd" % mXbin, rl.Sample.BACKGROUND, m_obs, scaledparams
+            )
+            failCh.addSample(fail_qcd)
+            pass_qcd = rl.TransferFactorSample(
+                "mXbin%dpass_qcd" % mXbin,
+                rl.Sample.BACKGROUND,
+                tf_MCtempl_params[mXbin, :],
+                fail_qcd,
+            )
+            passCh.addSample(pass_qcd)
+
+        qcdfit_ws = ROOT.RooWorkspace("qcdfit_ws")
+        simpdf, obs = qcdmodel.renderRoofit(qcdfit_ws)
+        qcdfit = simpdf.fitTo(
+            obs,
+            ROOT.RooFit.Extended(True),
+            ROOT.RooFit.SumW2Error(True),
+            ROOT.RooFit.Strategy(2),
+            ROOT.RooFit.Save(),
+            ROOT.RooFit.Minimizer("Minuit2", "migrad"),
+            ROOT.RooFit.PrintLevel(2),
+        )
+
+        qcdfit_ws.add(qcdfit)
+        qcdfit_ws.writeToFile(str(qcd_fit_dir / "qcdfit.root"))
+
+        # need fake signal sample to render combine workspae
+        passCh.addSample(
+            rl.TemplateSample(
+                "mXbin9pass_signal", rl.Sample.SIGNAL, templates_summed["pass"][qcd_key, :, mXbin]
+            )
+        )
+        qcdmodel.renderCombine(str(qcd_fit_dir / "qcdmodel"))
+
+    if qcdfit.status() != 0:
+        warnings.warn("Could not fit qcd", stacklevel=2)
+
+    param_names = [p.name for p in tf_MCtempl.parameters.reshape(-1)]
+    decoVector = rl.DecorrelatedNuisanceVector.fromRooFitResult(
+        tf_MCtempl.name + "_deco", qcdfit, param_names
+    )
+    tf_MCtempl.parameters = decoVector.correlated_params.reshape(tf_MCtempl.parameters.shape)
+    tf_MCtempl_params_final = tf_MCtempl(*scaled_grids)
+
+    return tf_MCtempl_params_final
+
+
 def res_alphabet_fit(
     model: rl.Model,
     shape_vars: list[ShapeVar],
     templates_summed: dict,
     scale: float = None,
     min_qcd_val: float = None,
+    qcd_fit: bool = False,
+    qcd_fit_dir: Path = None,
 ):
     shape_var_mY, shape_var_mX = shape_vars
     m_obs = rl.Observable(shape_var_mY.name, shape_var_mY.bins)
@@ -931,9 +1111,16 @@ def res_alphabet_fit(
     mX_scaled_grid, mY_scaled_grid = np.meshgrid(
         shape_var_mX.scaled, shape_var_mY.scaled, indexing="ij"
     )
-    # numpy array of
     tf_dataResidual_params = tf_dataResidual(mX_scaled_grid, mY_scaled_grid)
-    tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
+
+    if qcd_fit:
+        tf_MCtempl_params_final = res_qcd_fit(
+            shape_vars, templates_summed, [mX_scaled_grid, mY_scaled_grid], qcd_fit_dir
+        )
+        # scale params initially by qcd eff and polynomial fit between fail and pass QCD
+        tf_params_pass = qcd_eff * tf_MCtempl_params_final * tf_dataResidual_params
+    else:
+        tf_params_pass = qcd_eff * tf_dataResidual_params  # scale params initially by qcd eff
 
     for mX_bin in range(len(shape_var_mX.pts)):
         # qcd params
@@ -1022,9 +1209,17 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
         uncorr_year_shape_systs,
         shape_systs_dict,
         args.bblite,
+        args.float_samples,
+        args.freely_float,
     ]
 
-    fit_args = [model, shape_vars, templates_summed, args.scale_templates, args.min_qcd_val]
+    fit_args = [
+        model,
+        shape_vars,
+        templates_summed,
+        args.scale_templates,
+        args.min_qcd_val,
+    ]
 
     if args.resonant:
         # fill 1 channel per mX bin
@@ -1032,7 +1227,7 @@ def createDatacardAlphabet(args, templates_dict, templates_summed, shape_vars):
             logging.info(f"\n\nFilling templates for mXbin {i}")
             fill_regions(*fill_args, mX_bin=i)
 
-        res_alphabet_fit(*fit_args)
+        res_alphabet_fit(*fit_args, args.fit_qcd, args.qcd_fit_dir)
     else:
         fill_regions(*fill_args)
         nonres_alphabet_fit(*fit_args, args.blinded)
@@ -1302,6 +1497,8 @@ def main(args):
         args.combine_lasttwo,
         args.mcutoff,
         args.merge_bins,
+        args.fithbb,
+        {**uncorr_year_shape_systs, **corr_year_shape_systs},
     )
 
     # TODO: check if / how to include signal trig eff uncs. (rn only using bg uncs.)
@@ -1317,6 +1514,7 @@ def main(args):
                 name=axis.name,
                 bins=axis.edges,
                 orders={sr: args.nTF[i] for i, sr in enumerate(signal_regions)},
+                orders_qcd={sr: args.nTFQCD[i] for i, sr in enumerate(signal_regions)},
             )
             for _, axis in enumerate(sample_templates.axes[1:])
         ]
@@ -1327,7 +1525,12 @@ def main(args):
             )
 
         shape_vars = [
-            ShapeVar(name=axis.name, bins=axis.edges, orders={signal_regions[0]: args.nTF[i]})
+            ShapeVar(
+                name=axis.name,
+                bins=axis.edges,
+                orders={signal_regions[0]: args.nTF[1 - i]},
+                orders_qcd={signal_regions[0]: args.nTFQCD[1 - i]},
+            )
             for i, axis in enumerate(sample_templates.axes[1:])
         ]
 
@@ -1336,9 +1539,14 @@ def main(args):
     )
     args.models_dir.mkdir(parents=True, exist_ok=True)
 
+    args.qcd_fit_dir = (
+        args.cards_dir / args.qcd_fit_dir if args.qcd_fit_dir is not None else args.models_dir
+    )
+    args.qcd_fit_dir.mkdir(parents=True, exist_ok=True)
+
     with (args.models_dir / "templates.txt").open("w") as f:
         f.write("Signals: " + str(args.templates_dir.absolute()))
-        f.write("Backgrounds: " + str(args.bg_templates_dir.absolute()))
+        f.write("Backgrounds: " + str(args.bg_templates_dir.absolute()) + "\n")
 
     dc_args = [args, templates_dict, templates_summed, shape_vars]
     if args.vbf:

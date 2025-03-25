@@ -6,6 +6,7 @@ Author(s): Raghav Kansal
 
 from __future__ import annotations
 
+import pickle
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
@@ -21,7 +22,7 @@ from hist.intervals import poisson_interval, ratio_uncertainty
 from numpy.typing import ArrayLike
 from pandas import DataFrame
 
-from HHbbVV.hh_vars import LUMI, data_key, hbb_bg_keys
+from HHbbVV.hh_vars import LUMI, data_key, hbb_bg_keys, txbb_wps
 from HHbbVV.postprocessing import utils
 from HHbbVV.postprocessing.utils import CUT_MAX_VAL
 
@@ -36,6 +37,8 @@ formatter.set_powerlimits((-3, 3))
 # plt.close()
 
 
+BG_UNC_LABEL = "Total Bkg. Uncertainty"
+
 bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "TT", "QCD"]
 
 sample_label_map = {
@@ -49,19 +52,25 @@ sample_label_map = {
 }
 
 colours = {
-    "darkblue": "#1f78b4",
-    "lightblue": "#a6cee3",
-    "lightred": "#FF502E",
-    "red": "#e31a1c",
+    # CMS 10-colour-scheme from
+    # https://cms-analysis.docs.cern.ch/guidelines/plotting/colors/#categorical-data-eg-1d-stackplots
+    "darkblue": "#3f90da",
+    "lightblue": "#92dadd",
+    "orange": "#e76300",
+    "red": "#bd1f01",
+    "darkpurple": "#832db6",
+    "brown": "#a96b59",
+    "gray": "#717581",
+    "beige": "#b9ac70",
+    "yellow": "#ffa90e",
+    "lightgray": "#94a4a2",
+    # extra colours
     "darkred": "#A21315",
-    "orange": "#ff7f00",
     "green": "#7CB518",
     "mantis": "#81C14B",
     "forestgreen": "#2E933C",
     "darkgreen": "#064635",
     "purple": "#9381FF",
-    "darkpurple": "#7F2CCB",
-    "slategray": "#63768D",
     "deeppurple": "#36213E",
     "ashgrey": "#ACBFA4",
     "canary": "#FFE51F",
@@ -74,15 +83,16 @@ colours = {
 }
 
 BG_COLOURS = {
-    "QCD": "lightblue",
-    "TT": "darkblue",
-    "V+Jets": "green",
-    "W+Jets": "green",
-    "Z+Jets": "flax",
-    "ST": "orange",
-    "Diboson": "canary",
-    "Hbb": "deeppurple",
-    "HWW": "lightred",
+    "QCD": "darkblue",
+    "TT": "brown",
+    # "V+Jets": "gray",
+    "W+Jets": "orange",
+    "Z+Jets": "yellow",
+    "ST": "lightblue",
+    "Diboson": "lightgray",
+    "Hbb": "beige",
+    "HWW": "gray",
+    # below not needed anymore
     "HH": "ashgrey",
     "HHbbVV": "red",
     "qqHH_CV_1_C2V_0_kl_1_HHbbVV": "darkpurple",
@@ -104,33 +114,18 @@ SIG_COLOURS = [
 
 
 def _combine_hbb_bgs(hists, bg_keys):
+    """combine all hbb backgrounds into a single "Hbb" background for plotting"""
+
     # skip this if no hbb bg keys specified
     if len(set(bg_keys) & set(hbb_bg_keys)) == 0:
         return hists, bg_keys
 
-    # combine all hbb backgrounds into a single "Hbb" background for plotting
-    hbb_hists = []
-    for key in hbb_bg_keys:
-        if key in bg_keys:
-            hbb_hists.append(hists[key, ...])
-            bg_keys.remove(key)
+    h = utils.combine_hbb_bgs(hists)
+
+    bg_keys = [key for key in bg_keys if key not in hbb_bg_keys]
 
     if "Hbb" not in bg_keys:
         bg_keys.append("Hbb")
-
-    hbb_hist = sum(hbb_hists)
-
-    # have to recreate hist with "Hbb" sample included
-    h = Hist(
-        hist.axis.StrCategory(list(hists.axes[0]) + ["Hbb"], name="Sample"),
-        *hists.axes[1:],
-        storage="double" if hists.storage_type == hist.storage.Double else "weight",
-    )
-
-    for i, sample in enumerate(hists.axes[0]):
-        h.view()[i] = hists[sample, ...].view()
-
-    h.view()[-1] = hbb_hist.view()
 
     return h, bg_keys
 
@@ -218,17 +213,18 @@ def _asimov_significance(s, b):
     return np.sqrt(2 * ((s + b) * np.log(1 + (s / b)) - s))
 
 
-def add_cms_label(ax, year, label="Preliminary"):
+def add_cms_label(ax, year, data=True, label="Preliminary", loc=2):
     if year == "all":
         hep.cms.label(
             label,
-            data=True,
+            data=data,
             lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
             year=None,
             ax=ax,
+            loc=loc,
         )
     else:
-        hep.cms.label(label, data=True, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax)
+        hep.cms.label(label, data=data, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax, loc=loc)
 
 
 def ratioHistPlot(
@@ -248,6 +244,7 @@ def ratioHistPlot(
     show: bool = True,
     syst: tuple = None,
     variation: str = None,
+    region_label: str = None,
     bg_err_type: str = "shaded",
     plot_data: bool = True,
     bg_order: list[str] = bg_order,
@@ -260,6 +257,7 @@ def ratioHistPlot(
     axrax: tuple = None,
     ncol: int = None,
     cmslabel: str = None,
+    cmsloc: int = None,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -338,6 +336,8 @@ def ratioHistPlot(
         bg_err = np.array(bg_err)
 
     pre_divide_hists = hists
+    pre_divide_bg_tot = bg_tot
+
     if divide_bin_width:
         hists, data_err, bg_tot, bg_err = _divide_bin_widths(hists, data_err, bg_tot, bg_err)
 
@@ -366,7 +366,7 @@ def ratioHistPlot(
     plt.rcParams.update({"font.size": 24})
 
     # plot histograms
-    y_label = r"Events / Bin Width (GeV$^{-1}$)" if divide_bin_width else "Events"
+    y_label = r"Events / GeV" if divide_bin_width else "Events"
     ax.set_ylabel(y_label)
 
     # background samples
@@ -431,7 +431,7 @@ def ratioHistPlot(
                 alpha=0.2,
                 hatch="//",
                 linewidth=0,
-                label="Total Background Uncertainty",
+                label=BG_UNC_LABEL,
             )
         else:
             ax.stairs(
@@ -467,6 +467,7 @@ def ratioHistPlot(
             hists[data_key, :],
             ax=ax,
             yerr=data_err,
+            xerr=divide_bin_width,
             histtype="errorbar",
             label=data_key,
             color="black",
@@ -475,9 +476,16 @@ def ratioHistPlot(
     if log:
         ax.set_yscale("log")
         # two column legend
-        ax.legend(fontsize=20, ncol=2)
+        ax.legend(fontsize=24, ncol=2)
     else:
-        ax.legend(fontsize=20, ncol=ncol)
+        legend_order = [data_key] + list(sig_labels.values()) + bg_order[::-1] + [BG_UNC_LABEL]
+        legend_order = [sample_label_map.get(k, k) for k in legend_order]
+        handles, labels = ax.get_legend_handles_labels()
+        ordered_handles = [
+            handles[labels.index(label)] for label in legend_order if label in labels
+        ]
+        ordered_labels = [label for label in legend_order if label in labels]
+        ax.legend(ordered_handles, ordered_labels, fontsize=24, ncol=ncol)
 
     y_lowlim = 0 if not log else 1e-5
     if ylim is not None:
@@ -494,17 +502,13 @@ def ratioHistPlot(
                     poisson_interval(pre_divide_hists[data_key, ...].values())
                     - pre_divide_hists[data_key, ...].values()
                 )
-                / (bg_tot + 1e-5)
+                / (pre_divide_bg_tot + 1e-5)
             )
 
-            # old version: using Garwood ratio intervals
-            # yerr = ratio_uncertainty(
-            #     pre_divide_hists[data_key, :].values(), bg_tot, "poisson"
-            # )
-
             hep.histplot(
-                pre_divide_hists[data_key, :] / (bg_tot + 1e-5),
+                pre_divide_hists[data_key, :] / (pre_divide_bg_tot + 1e-5),
                 yerr=yerr,
+                xerr=divide_bin_width,
                 ax=rax,
                 histtype="errorbar",
                 color="black",
@@ -525,11 +529,7 @@ def ratioHistPlot(
         else:
             rax.set_xlabel(hists.axes[1].label)
 
-        rax.set_ylabel("Data/MC")
-        # rax.set_yscale("log")
-        # formatter = mticker.ScalarFormatter(useOffset=False)
-        # formatter.set_scientific(False)
-        # rax.yaxis.set_major_formatter(formatter)
+        rax.set_ylabel("Data / Bkg.")
         rax.set_ylim(ratio_ylims)
         rax.grid()
 
@@ -568,7 +568,17 @@ def ratioHistPlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    add_cms_label(ax, year, label=cmslabel)
+    if region_label is not None:
+        ax.text(
+            0.29,
+            0.915,
+            region_label,
+            transform=ax.transAxes,
+            fontsize=24,
+            fontproperties="Tex Gyre Heros:bold",
+        )
+
+    add_cms_label(ax, year, label=cmslabel, loc=cmsloc)
 
     if axrax is None:
         if len(name):
@@ -617,7 +627,7 @@ def ratioLinePlot(
         histtype="step",
         label=bg_keys + ["Total"],
         color=[colours[bg_colours[sample]] for sample in bg_keys] + ["black"],
-        yerr=0,
+        yerr=False,
     )
 
     if bg_err is not None:
@@ -631,15 +641,6 @@ def ratioLinePlot(
             linewidth=0,
             label="Lund Plane Uncertainty",
         )
-
-    # if sig_key in hists:
-    #     hep.histplot(
-    #         hists[sig_key, :] * sig_scale,
-    #         ax=ax,
-    #         histtype="step",
-    #         label=f"{sig_key} $\\times$ {sig_scale:.1e}" if sig_scale != 1 else sig_key,
-    #         color=colours[sig_colour],
-    #     )
 
     hep.histplot(
         hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
@@ -659,15 +660,6 @@ def ratioLinePlot(
     data_vals = hists[data_key, :].values()
 
     if not pulls:
-        # datamc_ratio = data_vals / (bg_tot + 1e-5)
-
-        # if bg_err == "ratio":
-        #     yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
-        # elif bg_err is None:
-        #     yerr = 0
-        # else:
-        #     yerr = datamc_ratio * (bg_err / (bg_tot + 1e-8))
-
         yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
 
         hep.histplot(
@@ -691,7 +683,7 @@ def ratioLinePlot(
                 linewidth=0,
             )
 
-        rax.set_ylabel("Data/MC")
+        rax.set_ylabel("Data / Bkg.")
         rax.set_ylim(0.5, 1.5)
         rax.grid()
     else:
@@ -713,7 +705,181 @@ def ratioLinePlot(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    add_cms_label(ax, year)
+    add_cms_label(ax, year, loc=0)
+
+    if len(name):
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def ratioLinePlotPrePost(
+    hists: Hist,
+    pre_hists: Hist,
+    bg_keys: list[str],
+    year: str,
+    bg_colours: dict[str, str] = None,
+    sig_colour: str = sig_colour,  # noqa: ARG001
+    bg_err: np.ndarray | str = None,
+    data_err: ArrayLike | bool | None = None,
+    title: str = None,
+    pulls: bool = False,
+    name: str = "",
+    sig_scale: float = 1.0,  # noqa: ARG001
+    show: bool = True,
+):
+    """
+    Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
+    scaled) with a data/mc ratio plot below
+    """
+    if bg_colours is None:
+        bg_colours = BG_COLOURS
+
+    plt.rcParams.update({"font.size": 24})
+
+    fig, (ax, rax) = plt.subplots(
+        2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
+    )
+
+    bg_tot = np.sum(hists[bg_keys, :].values(), axis=0)
+
+    plot_hists = []
+    labels = []
+    colors = []
+    linestyles = []
+    alpha = []
+    for k in bg_keys:
+        if k == "Top Matched":
+            plot_hists.append(pre_hists[k, :])
+            labels.append("Pre Top Matched")
+            colors.append(colours[bg_colours[k]])
+            linestyles.append("--")
+            alpha.append(0.5)
+
+            plot_hists.append(hists[k, :])
+            labels.append("Post Top Matched")
+            colors.append(colours[bg_colours[k]])
+            linestyles.append("-")
+            alpha.append(1)
+        else:
+            plot_hists.append(hists[k, :])
+            labels.append(k)
+            colors.append(colours[bg_colours[k]])
+            linestyles.append("-")
+            alpha.append(1)
+
+    plot_hists = plot_hists + [
+        sum([pre_hists[sample, :] for sample in bg_keys]),
+        sum([hists[sample, :] for sample in bg_keys]),
+    ]
+    labels = labels + ["Pre Total", "Post Total"]
+    colors = colors + ["black", "black"]
+    linestyles = linestyles + ["--", "-"]
+    alpha = alpha + [0.5, 1]
+
+    ax.set_ylabel("Events")
+    hep.histplot(
+        plot_hists,
+        ax=ax,
+        histtype="step",
+        label=labels,
+        color=colors,
+        linestyle=linestyles,
+        alpha=alpha,
+        yerr=False,
+    )
+
+    if bg_err is not None:
+        ax.fill_between(
+            np.repeat(hists.axes[1].edges, 2)[1:-1],
+            np.repeat(bg_tot - bg_err, 2),
+            np.repeat(bg_tot + bg_err, 2),
+            color="black",
+            alpha=0.2,
+            hatch="//",
+            linewidth=0,
+            label="Lund Plane Uncertainty",
+        )
+
+    hep.histplot(
+        hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
+    )
+
+    if bg_err is not None:
+        # Switch order so that uncertainty label comes at the end
+        # handles, labels = ax.get_legend_handles_labels()
+        # handles = handles[1:] + handles[:1]
+        # labels = labels[1:] + labels[:1]
+        # ax.legend(handles, labels, ncol=2)
+        ax.legend(ncol=2)
+    else:
+        ax.legend(ncol=2)
+
+    ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
+
+    data_vals = hists[data_key, :].values()
+
+    if not pulls:
+        yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
+
+        hep.histplot(
+            hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
+            yerr=yerr,
+            ax=rax,
+            histtype="errorbar",
+            color="black",
+            capsize=4,
+        )
+
+        hep.histplot(
+            hists[data_key, :]
+            / (sum([pre_hists[sample, :] for sample in bg_keys]).values() + 1e-5),
+            yerr=yerr,
+            ax=rax,
+            histtype="errorbar",
+            color="black",
+            capsize=4,
+            alpha=0.5,
+        )
+
+        if bg_err is not None:
+            # (bkg + err) / bkg
+            rax.fill_between(
+                np.repeat(hists.axes[1].edges, 2)[1:-1],
+                np.repeat((bg_tot - bg_err) / bg_tot, 2),
+                np.repeat((bg_tot + bg_err) / bg_tot, 2),
+                color="black",
+                alpha=0.1,
+                hatch="//",
+                linewidth=0,
+            )
+
+        rax.set_ylabel("Data / Bkg.")
+        rax.set_ylim(0.5, 1.5)
+        rax.grid()
+    else:
+        bg_tot / (data_vals + 1e-5)
+        yerr = bg_err / data_vals
+
+        hep.histplot(
+            (sum([hists[sample, :] for sample in bg_keys]) / (data_vals + 1e-5) - 1) * (-1),
+            yerr=yerr,
+            ax=rax,
+            histtype="errorbar",
+            color="black",
+            capsize=4,
+        )
+        rax.set_ylabel("(Data - MC) / Data")
+        rax.set_ylim(-0.5, 0.5)
+        rax.grid()
+
+    if title is not None:
+        ax.set_title(title, y=1.08)
+
+    add_cms_label(ax, year, loc=0)
 
     if len(name):
         plt.savefig(name, bbox_inches="tight")
@@ -728,11 +894,13 @@ def hist2ds(
     hists: dict[str, Hist],
     plot_dir: str,
     regions: list[str] = None,
-    region_labels: dict[str, str] = None,
+    region_labels: dict[str, str] = None,  # noqa: ARG001
     samples: list[str] = None,
     fail_zlim: float = None,
     pass_zlim: float = None,
-    show: bool = True,
+    skip_blinded: bool = True,
+    preliminary: bool = True,
+    show: bool = False,
 ):
     """
     2D hists for each region and sample in ``hists``.
@@ -754,25 +922,47 @@ def hist2ds(
         regions = list(hists.keys())
 
     for region in regions:
-        hists[region]
-        region_label = region_labels[region] if region_labels is not None else region
+        h = utils.combine_hbb_bgs(hists[region])
+        if region.endswith("Blinded") and skip_blinded:
+            continue
+
+        print(f"\t\t{region}")
+
+        # region_label = region_labels[region] if region_labels is not None else region
         pass_region = region.startswith("pass")
         lim = pass_zlim if pass_region else fail_zlim
         for sample in samples:
-            if sample == "Data" and region == "pass":
+            if "->HY" in sample and not pass_region:
                 continue
 
-            if "->H(bb)Y" in sample and not pass_region:
-                continue
+            print(f"\t\t\t{sample}")
+            slabel = sample_label_map.get(sample, sample)
 
             if lim is not None:
-                norm = mpl.colors.LogNorm(vmax=lim)
+                norm = mpl.colors.LogNorm(vmin=lim[0], vmax=lim[1])
             else:
                 norm = mpl.colors.LogNorm()
 
-            plt.figure(figsize=(12, 12))
-            hep.hist2dplot(hists[region][sample, ...], cmap="turbo", norm=norm)
-            plt.title(f"{sample} in {region_label} Region")
+            fig, ax = plt.subplots(figsize=(12, 12))
+            h2d = hep.hist2dplot(h[sample, ...], cmap="turbo", norm=norm)
+            h2d.cbar.set_label(f"{slabel} Events")
+
+            v, mYbins, mXbins = h[sample, ...].to_numpy()
+            for i in range(len(mYbins) - 1):
+                for j in range(len(mXbins) - 1):
+                    if not np.isnan(v[i, j]):
+                        ax.text(
+                            (mYbins[i] + mYbins[i + 1]) / 2,
+                            (mXbins[j] + mXbins[j + 1]) / 2,
+                            v[i, j].round(2),
+                            color="black",
+                            ha="center",
+                            va="center",
+                            fontsize=12,
+                        )
+
+            # plt.title(f"{sample} in {region_label} Region")
+            add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
             plt.savefig(f"{plot_dir}/{region}_{sample}_2d.pdf", bbox_inches="tight")
 
             if show:
@@ -1281,6 +1471,169 @@ def cutsLinePlot(
         plt.close()
 
 
+def plotMassSculpting(
+    bbmass,
+    vvmass,
+    weights,
+    tagger,
+    taggercuts,
+    mlabel,
+    tlabel,
+    year,
+    name: Path = None,
+    show: bool = False,
+):
+    fig, axs = plt.subplots(
+        2,
+        2,
+        figsize=(20, 12),
+        gridspec_kw={"height_ratios": [3, 1], "hspace": 0},
+        sharex=True,
+    )
+
+    for i, (jet, mass) in enumerate(zip(["bb", "VV"], [bbmass, vvmass])):
+        ax, rax = axs[0][i], axs[1][i]
+        ax.set_prop_cycle(plt.rcParamsDefault["axes.prop_cycle"])
+        hists = []
+
+        for cut in taggercuts:
+            if isinstance(cut, float):
+                sel = tagger > cut
+                hlabel = rf"{tlabel} > {cut}" if cut > 0 else "Inclusive"
+            elif cut in txbb_wps[year]:
+                sel = tagger > txbb_wps[year][cut]
+                hlabel = rf"{tlabel} > {cut}"
+
+            h = Hist(hist.axis.Regular(20, 50, 250, name="mass", label="mass"), storage="weight")
+            # h = np.histogram(mass[sel], np.arange(50, 250, 10))
+            h.fill(mass[sel], weight=weights[sel])
+            h = h / np.sum(h.values())
+            hists.append(h)
+
+            hep.histplot(
+                h,
+                label=hlabel,
+                ax=ax,
+                histtype="step",
+                yerr=True,
+                linewidth=2,
+                alpha=0.8,
+            )
+
+        if name is not None:
+            (name.parent / "pickles").mkdir(exist_ok=True)
+            with Path.open(name.parent / "pickles" / f"{jet}_{name.stem}.pkl").open("wb") as f:
+                pickle.dump(hists, f)
+
+        add_cms_label(ax, year, "Preliminary", loc=0)
+
+        ax.set_ylabel("Normalized Events [A.U.]")
+        ax.legend(fontsize=16)
+
+        # do ratios
+        rax.set_prop_cycle(plt.rcParamsDefault["axes.prop_cycle"][1:])  # skip first colour
+        rax.hlines(1, 50, 250, linestyle="--", alpha=0.5)
+        rax.grid(True, which="both", axis="y", linestyle="--", alpha=0.5)
+        vals_nocut = hists[0].values()
+
+        # next(rax.prop_cycler)  # skip first
+        for j, cut in enumerate(taggercuts[1:]):
+            hep.histplot(
+                hists[j + 1] / vals_nocut,
+                yerr=True,
+                label=rf"{tlabel} > {cut}",
+                ax=rax,
+                histtype="errorbar",
+            )
+
+        rax.set_ylim([0, 2.2])
+        rax.set_ylabel("Cut / Inclusive")
+        rax.set_xlabel(rf"$m_\mathrm{{{mlabel}}}^{{{jet}}}$ [GeV]")
+
+    if name is not None:
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def plotMassSculptingAllYears(
+    hists,
+    taggercuts,
+    mlabel,
+    tlabel,
+    name: Path = None,
+    show: bool = False,
+):
+    fig, axs = plt.subplots(
+        2,
+        2,
+        figsize=(20, 12),
+        gridspec_kw={"height_ratios": [3, 1], "hspace": 0},
+        sharex=True,
+    )
+
+    for i, jet in enumerate(["bb", "VV"]):
+        ax, rax = axs[0][i], axs[1][i]
+        ax.set_prop_cycle(plt.rcParamsDefault["axes.prop_cycle"])
+
+        for j, cut in enumerate(taggercuts):
+            if isinstance(cut, float):
+                hlabel = rf"{tlabel} > {cut}" if cut > 0 else "Inclusive"
+            else:
+                hlabel = rf"{tlabel} > {cut}"
+
+            hep.histplot(
+                hists[jet][j],
+                label=hlabel,
+                ax=ax,
+                histtype="step",
+                yerr=True,
+                linewidth=2,
+                alpha=0.8,
+            )
+
+        if name is not None:
+            (name.parent / "pickles").mkdir(exist_ok=True)
+            with Path(name.parent / "pickles" / f"{jet}_{name.stem}.pkl").open("wb") as f:
+                pickle.dump(hists, f)
+
+        add_cms_label(ax, "all", "Preliminary", loc=0)
+
+        ax.set_ylabel("Normalized Events [A.U.]")
+        ax.legend(fontsize=16)
+
+        # do ratios
+        rax.set_prop_cycle(plt.rcParamsDefault["axes.prop_cycle"][1:])  # skip first colour
+        rax.hlines(1, 50, 250, linestyle="--", alpha=0.5)
+        rax.grid(True, which="both", axis="y", linestyle="--", alpha=0.5)
+        vals_nocut = hists[jet][0].values()
+
+        # next(rax.prop_cycler)  # skip first
+        for j, cut in enumerate(taggercuts[1:]):
+            hep.histplot(
+                hists[jet][j + 1] / vals_nocut,
+                yerr=True,
+                label=rf"{tlabel} > {cut}",
+                ax=rax,
+                histtype="errorbar",
+            )
+
+        rax.set_ylim([0, 2.2])
+        rax.set_ylabel("Cut / Inclusive")
+        rax.set_xlabel(rf"$m_\mathrm{{{mlabel}}}^{{{jet}}}$ [GeV]")
+
+    if name is not None:
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
 def plot_lund_plane(
     h: np.ndarray,
     title: str = "",
@@ -1372,6 +1725,97 @@ def XHYscatter2d(arr, year: str, title: str = None, name: str = "", show: bool =
 
     if len(str(name)):
         plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def scatter2d_limits(
+    arr, label: str = None, name: str = "", show: bool = False, preliminary: bool = True
+):
+    """Scatter plot of limits in the  (mX, mY) plane for resonant analysis"""
+    fig, ax = plt.subplots(figsize=(14, 12))
+    mappable = plt.scatter(
+        arr[:, 0],
+        arr[:, 1],
+        s=150,
+        c=arr[:, 2],
+        cmap="viridis",
+        norm=mpl.colors.LogNorm(vmin=0.01, vmax=100),
+    )
+    plt.xlabel(r"$m_X$ (GeV)")
+    plt.ylabel(r"$m_Y$ (GeV)")
+    plt.colorbar(mappable, label=label)
+    plt.savefig(name, bbox_inches="tight")
+
+    add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def scatter2d_overlay(
+    arr,
+    overlay_arr,
+    label: str = None,
+    name: str = "",
+    show: bool = False,
+    preliminary: bool = True,
+):
+    fig, ax = plt.subplots(figsize=(14, 12))
+    mappable = ax.scatter(
+        arr[:, 0],
+        arr[:, 1],
+        s=150,
+        c=arr[:, 2],
+        cmap="viridis",
+        norm=mpl.colors.LogNorm(vmin=0.01, vmax=100),
+    )
+    _ = ax.scatter(
+        overlay_arr[:, 0],
+        overlay_arr[:, 1],
+        s=300,
+        marker="s",
+        alpha=overlay_arr[:, 2],
+        c=np.ones(overlay_arr.shape[0]),
+        vmax=1,
+    )
+    plt.xlabel(r"$m_X$ (GeV)")
+    plt.ylabel(r"$m_Y$ (GeV)")
+    plt.colorbar(mappable, label=label)
+    plt.savefig(name, bbox_inches="tight")
+
+    add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def colormesh(
+    xx,
+    yy,
+    lims,
+    label: str = None,
+    name: str = "",
+    show: bool = False,
+    preliminary: bool = True,
+    figsize=(12, 8),
+):
+    fig, ax = plt.subplots(figsize=figsize)
+    _ = plt.pcolormesh(xx, yy, lims, norm=mpl.colors.LogNorm(vmin=0.05, vmax=1e4), cmap="viridis")
+    # plt.title(title)
+    plt.xlabel(r"$m_X$ (GeV)")
+    plt.ylabel(r"$m_Y$ (GeV)")
+    plt.colorbar(label=label)
+
+    add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
+    plt.savefig(name, bbox_inches="tight")
 
     if show:
         plt.show()

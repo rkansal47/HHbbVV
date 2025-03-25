@@ -65,6 +65,13 @@ def main(args):
     jdl_templ = f"{submitdir}/submit_cards.templ.jdl"
     sh_templ = f"{submitdir}/submit_cards.templ.sh"
 
+    if args.blinded:
+        script = "run_blinded.sh"
+    elif args.resonant:
+        script = "run_unblinded_res.sh"
+    else:
+        script = "run_unblinded.sh"
+
     samples = scan_samples if args.scan else full_samples
 
     if args.test:
@@ -127,6 +134,7 @@ def main(args):
             "templates_dir": run_templates_dir,
             "cards_dir": run_cards_dir,
             "datacard_args": datacard_args,
+            "script": script,
         }
         run_utils.write_template(sh_templ, localsh, sh_args)
         os.system(f"chmod u+x {localsh}")
@@ -165,6 +173,7 @@ if __name__ == "__main__":
     add_bool_arg(parser, "resonant", default=True, help="Resonant or nonresonant")
     add_bool_arg(parser, "scan", default=False, help="Scan working points")
     add_bool_arg(parser, "test", default=False, help="run on only 2 samples")
+    add_bool_arg(parser, "blinded", default=True, help="blinded or not")
 
     args = parser.parse_args()
 

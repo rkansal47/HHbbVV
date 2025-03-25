@@ -200,3 +200,5 @@ src/HHbbVV/postprocessing/outs
 
 paper/plots
 temp
+
+!src/HHbbVV/combine/**/*.root

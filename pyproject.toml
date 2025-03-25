@@ -152,6 +152,9 @@ ignore = [
   "RET504", # unnecessary assignment before return
   "RET505", # unnecessary else after return statement
   "NPY002", # np.random.rand -> np.random.Generator
+  "C408",   # Unnecessary dict call
+  "PD901",  # don't use variable name `df` for DataFrames
+  "UP031",  # use f-string
 ]
 
 isort.required-imports = ["from __future__ import annotations"]

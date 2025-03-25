@@ -28,6 +28,7 @@ import corrections
 
 # from pandas.errors import SettingWithCopyWarning
 import hist
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
 import plotting
@@ -46,6 +47,7 @@ from HHbbVV import hh_vars
 from HHbbVV.hh_vars import (
     bg_keys,
     data_key,
+    hbb_bg_keys,
     jec_shifts,
     jmsr_shifts,
     nonres_samples,
@@ -82,28 +84,28 @@ load_filters = [
 
 # {var: (bins, label)}
 control_plot_vars = [
-    # ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ (GeV)", bins=[20, 0, 300]),
+    # ShapeVar(var="MET_pt", label=r"$p^{miss}_T$ [GeV]", bins=[20, 0, 300]),
     # ShapeVar(var="DijetEta", label=r"$\eta^{jj}$", bins=[20, -8, 8]),
-    # ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ (GeV)", bins=[20, 0, 750]),
-    # ShapeVar(var="DijetMass", label=r"$m^{jj}$ (GeV)", bins=[20, 600, 4000]),
+    # ShapeVar(var="DijetPt", label=r"$p_T^{jj}$ [GeV]", bins=[20, 0, 750]),
+    # ShapeVar(var="DijetMass", label=r"$m^{jj}$ [GeV]", bins=[20, 600, 4000]),
     # ShapeVar(var="bbFatJetEta", label=r"$\eta^{bb}$", bins=[20, -2.4, 2.4]),
     # ShapeVar(var="bbFatJetPhi", label=r"$\varphi^{bb}$", bins=[20, -3, 3]),
     # ShapeVar(
-    #     var="bbFatJetPt", label=r"$p^{bb}_T$ (GeV)", bins=[20, 300, 2300], significance_dir="right"
+    #     var="bbFatJetPt", label=r"$p^{bb}_T$ [GeV]", bins=[20, 300, 2300], significance_dir="right"
     # ),
     # ShapeVar(
     #     var="bbFatJetParticleNetMass",
-    #     label=r"$m^{bb}_{reg}$ (GeV)",
+    #     label=r"$m^{bb}_{reg}$ [GeV]",
     #     bins=[20, 50, 250],
     #     significance_dir="bin",
     # ),
-    # ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ [GeV]", bins=[20, 50, 250]),
     # ShapeVar(var="bbFatJetParticleNetMD_Txbb", label=r"$T^{bb}_{Xbb}$", bins=[20, 0.8, 1]),
     # ShapeVar(var="VVFatJetEta", label=r"$\eta^{VV}$", bins=[20, -2.4, 2.4]),
     # ShapeVar(var="VVFatJetPhi", label=r"$\varphi^{VV}$", bins=[20, -3, 3]),
-    # ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ (GeV)", bins=[20, 300, 2300]),
-    # ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[20, 50, 250]),
-    # ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[20, 50, 250]),
+    # ShapeVar(var="VVFatJetPt", label=r"$p^{VV}_T$ [GeV]", bins=[20, 300, 2300]),
+    # ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ [GeV]", bins=[20, 50, 250]),
+    # ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ [GeV]", bins=[20, 50, 250]),
     # ShapeVar(
     #     var="VVFatJetParticleNet_Th4q",
     #     label=r"Prob($H \to 4q$) vs Prob(QCD) (Non-MD)",
@@ -141,10 +143,10 @@ control_plot_vars = [
 
 # for msd vs mreg comparison plots only
 mass_plot_vars = [
-    ShapeVar(var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[30, 0, 300]),
-    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ (GeV)", bins=[30, 0, 300]),
-    ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ (GeV)", bins=[30, 0, 300]),
-    ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ (GeV)", bins=[30, 0, 300]),
+    ShapeVar(var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ [GeV]", bins=[30, 0, 300]),
+    ShapeVar(var="bbFatJetMsd", label=r"$m^{bb}_{msd}$ [GeV]", bins=[30, 0, 300]),
+    ShapeVar(var="VVFatJetParticleNetMass", label=r"$m^{VV}_{reg}$ [GeV]", bins=[30, 0, 300]),
+    ShapeVar(var="VVFatJetMsd", label=r"$m^{VV}_{msd}$ [GeV]", bins=[30, 0, 300]),
 ]
 
 
@@ -152,7 +154,7 @@ mass_plot_vars = [
 nonres_shape_vars = [
     ShapeVar(
         "bbFatJetParticleNetMass",
-        r"$m^{bb}_\mathrm{Reg}$ (GeV)",
+        r"$m^{bb}_\mathrm{Reg}$ [GeV]",
         [20, 50, 250],
         reg=True,
         blind_window=[100, 150],
@@ -164,7 +166,7 @@ nonres_shape_vars = [
 nonres_vbf_shape_vars = [
     ShapeVar(
         "bbFatJetParticleNetMass",
-        r"$m^{bb}_\mathrm{Reg}$ (GeV)",
+        r"$m^{bb}_\mathrm{Reg}$ [GeV]",
         [20, 50, 250],
         reg=True,
         blind_window=[100, 150],
@@ -176,13 +178,15 @@ nonres_vbf_shape_vars = [
 res_shape_vars = [
     ShapeVar(
         "VVFatJetParticleNetMass",
-        r"$m^{VV}_\mathrm{Reg}$ (GeV)",
+        r"$m^{VV}_\mathrm{Reg}$ [GeV]",
+        # r"$M_Y$ [GeV]",
         list(range(50, 110, 10)) + list(range(110, 200, 15)) + [200, 220, 250],
         reg=False,
     ),
     ShapeVar(
         "DijetMass",
-        r"$m^{jj}$ (GeV)",
+        r"$m^{jj}$ [GeV]",
+        # r"$M_X$ [GeV]",
         list(range(800, 1400, 100)) + [1400, 1600, 2000, 3000, 4400],
         reg=False,
     ),
@@ -199,7 +203,12 @@ nonres_sig_keys_ggf = [
     "ggHH_kl_0_kt_1_HHbbVV",
 ]
 
-fit_bgs = ["TT", "ST", "W+Jets", "Z+Jets"]  # only the BG MC samples that are used in the fits
+fit_bgs = [
+    "TT",
+    "ST",
+    "W+Jets",
+    "Z+Jets",
+] + hbb_bg_keys  # only the BG MC samples that are used in the fits
 fit_mcs = nonres_sig_keys + res_sig_keys + fit_bgs
 
 weight_shifts = {
@@ -323,6 +332,12 @@ def main(args):
             events_dict, bb_masks, args.bdt_sculpting_plots_dir, args.year, show=False
         )
 
+    if args.mass_sculpting_plots:
+        print("\nMaking mass sculpting plots\n")
+        plot_tagger_sculpting(
+            events_dict, bb_masks, args.mass_sculpting_plots_dir, args.year, show=False
+        )
+
     if args.templates:
         if args.resonant:
             sig_scale_dict = None
@@ -392,9 +407,15 @@ def main(args):
 
 
 def _init(args):
-    if not (args.control_plots or args.bdt_plots or args.templates or args.lpsfs):
+    if not (
+        args.control_plots
+        or args.bdt_plots
+        or args.templates
+        or args.lpsfs
+        or args.mass_sculpting_plots
+    ):
         print(
-            "You need to pass at least one of --control-plots, --bdt-plots, --templates, or --lpsfs"
+            "You need to pass at least one of --control-plots, --bdt-plots, --templates, --lpsfs, or --mass-sculpting-plots"
         )
         return None
 
@@ -672,6 +693,10 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
             args.bdt_sculpting_plots_dir = args.plot_dir / "BDTSculpting"
             args.bdt_sculpting_plots_dir.mkdir(parents=True, exist_ok=True)
 
+        if args.mass_sculpting_plots:
+            args.mass_sculpting_plots_dir = args.plot_dir / "MassSculpting" / args.year
+            args.mass_sculpting_plots_dir.mkdir(parents=True, exist_ok=True)
+
         if args.templates:
             args.templates_plots_dir = args.plot_dir / "Templates" / args.year
             args.templates_plots_dir.mkdir(parents=True, exist_ok=True)
@@ -691,7 +716,7 @@ def _make_dirs(args, scan, scan_cuts, scan_wps):
                 if args.resonant:
                     (args.templates_plots_dir / "hists2d").mkdir(parents=True, exist_ok=True)
 
-    elif args.control_plots or args.bdt_plots:
+    elif args.control_plots or args.bdt_plots or args.mass_sculpting_plots:
         print(
             "You need to pass --plot-dir if you want to make control plots or BDT plots. Exiting."
         )
@@ -1599,7 +1624,7 @@ def plot_bdt_sculpting(
     plot_keys = ["QCD", "TT", "Z+Jets", "HHbbVV", "qqHH_CV_1_C2V_0_kl_1_HHbbVV"]
 
     shape_var = ShapeVar(
-        var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ (GeV)", bins=[20, 50, 250]
+        var="bbFatJetParticleNetMass", label=r"$m^{bb}_{reg}$ [GeV]", bins=[20, 50, 250]
     )
 
     for var in bdtvars:
@@ -1619,6 +1644,52 @@ def plot_bdt_sculpting(
                 bb_masks=bbm_key,
                 plot_dir=plot_dir,
                 name=f"{year}_BDT{var}Cuts_{shape_var.var}_{key}",
+                show=show,
+            )
+
+
+def plot_tagger_sculpting(
+    events_dict: dict[str, pd.DataFrame],
+    bb_masks: dict[str, pd.DataFrame],
+    plot_dir: Path,
+    year: str,
+    weight_key: str = "finalWeight",
+    show: bool = False,
+):
+    """Plot jet masses for different tagger cuts to check sculpting."""
+    for key, events in events_dict.items():
+        print("\t", key)
+        bb_mask = bb_masks[key]
+        vvtagger = utils.get_feat(events, "VVFatJetParTMD_THWWvsT", bb_mask)
+        bbtagger = utils.get_feat(events, "bbFatJetParticleNetMD_Txbb", bb_mask)
+        # bbregmass = utils.get_feat(events, "bbFatJetParticleNetMass", bb_mask)
+
+        for mass_var, mlabel in zip(["Msd", "ParticleNetMass"], ["SD", "reg"]):
+            print("\t\t", mass_var)
+            vvmass = utils.get_feat(events, f"VVFatJet{mass_var}", bb_mask)
+            bbmass = utils.get_feat(events, f"bbFatJet{mass_var}", bb_mask)
+            plotting.plotMassSculpting(
+                bbmass,
+                vvmass,
+                events[weight_key],
+                vvtagger,
+                [0.0, 0.4, 0.6, 0.8, 0.9, 0.96],
+                mlabel,
+                r"$T_{HVV}$",
+                year,
+                name=plot_dir / f"{key}_vvcuts_{mlabel}.pdf",
+                show=show,
+            )
+            plotting.plotMassSculpting(
+                bbmass,
+                vvmass,
+                events[weight_key],
+                bbtagger,
+                [0.8, "LP", "MP", "HP"],
+                mlabel,
+                r"$T_{Xbb}$",
+                year,
+                name=plot_dir / f"{key}_bbcuts_{mlabel}.pdf",
                 show=show,
             )
 
@@ -1708,6 +1779,9 @@ def get_templates(
     do_jshift = jshift != ""
     jlabel = "" if not do_jshift else "_" + jshift
     templates = {}
+
+    # do TXbb SFs + uncs. for signals and Hbb samples only
+    # txbb_samples = sig_keys + [key for key in bg_keys if key in hbb_bg_keys]
 
     for rname, region in selection_regions.items():
         if region.lpsf:
@@ -2077,6 +2151,7 @@ def parse_args(parser=None):
     )
     add_bool_arg(parser, "blinded", "blind the data in the Higgs mass window", default=True)
     add_bool_arg(parser, "bdt-plots", "make bdt sculpting plots", default=False)
+    add_bool_arg(parser, "mass-sculpting-plots", "make mass sculpting plots", default=False)
     add_bool_arg(parser, "lpsfs", "measure LP SFs for given WPs", default=False)
     add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
     add_bool_arg(
@@ -2238,5 +2313,6 @@ def parse_args(parser=None):
 
 
 if __name__ == "__main__":
+    mpl.use("Agg")
     args = parse_args()
     main(args)
