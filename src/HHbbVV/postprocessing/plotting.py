@@ -98,6 +98,28 @@ BG_COLOURS = {
     "qqHH_CV_1_C2V_0_kl_1_HHbbVV": "darkpurple",
 }
 
+MARKERS = [
+    "o",
+    "^",
+    "v",
+    "<",
+    ">",
+    "s",
+    "+",
+    "x",
+    "d",
+    "1",
+    "2",
+    "3",
+    "4",
+    "h",
+    "p",
+    "|",
+    "_",
+    "D",
+    "H",
+]
+
 sig_colour = "red"
 
 SIG_COLOURS = [
@@ -751,24 +773,28 @@ def ratioLinePlotPrePost(
     colors = []
     linestyles = []
     alpha = []
-    for k in bg_keys:
+    markers = []
+    for i, k in enumerate(bg_keys):
         if k == "Top Matched":
             plot_hists.append(pre_hists[k, :])
             labels.append("Pre Top Matched")
             colors.append(colours[bg_colours[k]])
             linestyles.append("--")
             alpha.append(0.5)
+            markers.append(None)
 
             plot_hists.append(hists[k, :])
             labels.append("Post Top Matched")
             colors.append(colours[bg_colours[k]])
             linestyles.append("-")
             alpha.append(1)
+            markers.append(None)
         else:
             plot_hists.append(hists[k, :])
             labels.append(k)
             colors.append(colours[bg_colours[k]])
             linestyles.append("-")
+            markers.append(MARKERS[i])
             alpha.append(1)
 
     plot_hists = plot_hists + [
@@ -779,15 +805,43 @@ def ratioLinePlotPrePost(
     colors = colors + ["black", "black"]
     linestyles = linestyles + ["--", "-"]
     alpha = alpha + [0.5, 1]
+    markers = markers + [None, None]
 
     ax.set_ylabel("Events")
     hep.histplot(
         plot_hists,
         ax=ax,
         histtype="step",
+        # label=labels,
+        color=colors,
+        linestyle=linestyles,
+        # marker=markers,
+        alpha=alpha,
+        yerr=False,
+    )
+
+    hep.histplot(
+        plot_hists,
+        ax=ax,
+        histtype="errorbar",
+        # label=labels,
+        color=colors,
+        # linestyle=linestyles,
+        marker=markers,
+        markerfacecolor="none",
+        alpha=alpha,
+        yerr=False,
+    )
+
+    hep.histplot(
+        [h * -1 for h in plot_hists],
+        ax=ax,
+        histtype="errorbar",
         label=labels,
         color=colors,
         linestyle=linestyles,
+        marker=markers,
+        markerfacecolor="none",
         alpha=alpha,
         yerr=False,
     )
