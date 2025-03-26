@@ -1,5 +1,5 @@
 { "TTbarScaleFactors": {
-      "SingleMu2017": { "files_per_job": 10 },
+      "SingleMu2017": { "files_per_job": 20 },
       "TTbar": { "files_per_job": 10, "subsamples": ["TTTo2L2Nu", "TTToHadronic", "TTToSemiLeptonic"]},
       "SingleTop":
         {
