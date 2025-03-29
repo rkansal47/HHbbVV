@@ -72,7 +72,10 @@ plot_vars = {
     # "MET_pt": ([30, 0, 200], r"MET (GeV)"),
     # "ak8FatJetnPFCands": ([20, 0, 120], r"# of PF Candidates"),
     # "ak8FatJetParticleNet_Th4q": ([20, 0.6, 1], r"ParticleNet $T_{H4q}$ Non-MD"),
-    "ak8FatJetParTMD_THWW4q": ([20, 0.2, 1], r"$T_{HVV}$"),
+    "ak8FatJetParTMD_THWW4q": ([20, 0.2, 1], r"$ParT\ T^{No Top}_{HVV}$"),
+    "ak8FatJetdeepTagMD_WHvsQCD": ([20, 0.2, 1], r"DeepAK8 (QCD veto)"),
+    # "ak8FatJetdeepTagMD_H4qvsQCD": ([20, 0.2, 1], r"DeepAK8 (QCD veto)"),
+    # "ak8FatJetdeepTagMD_WvsQCD": ([20, 0.2, 1], r"DeepAK8 WvsQCD (QCD veto)"),
     # "tau21": ([20, 0.04, 0.8], r"$\tau_{21}$"),
     # "tau32": ([20, 0.2, 1], r"$\tau_{32}$"),
     # "tau43": ([20, 0.42, 1], r"$\tau_{43}$"),
@@ -97,6 +100,7 @@ def main(args):
     )
     utils.add_to_cutflow(events_dict, "Selection", "weight", cutflow)
 
+    derive_variables(events_dict)
     normalize_events(events_dict)
     utils.add_to_cutflow(events_dict, "Scale", "weight", cutflow)
 
@@ -110,6 +114,16 @@ def main(args):
     lp_sf_normalization(events)
 
     # TODO: plotting and SF analysis
+
+
+def derive_variables(events_dict):
+    for _sample, events in events_dict.items():
+        wq = events["ak8FatJetdeepTagMD_WvsQCD"].to_numpy()
+        hq = events["ak8FatJetdeepTagMD_H4qvsQCD"].to_numpy()
+        wdivq = wq / (1 - wq)
+        hdivq = hq / (1 - hq)
+        whvsq = (wdivq + hdivq) / (1 + wdivq + hdivq)
+        events[("ak8FatJetdeepTagMD_WHvsQCD", 0)] = whvsq
 
 
 def normalize_events(events_dict):
@@ -389,6 +403,23 @@ def plot_post_hists(events_dict, pre_hists, plot_dir, year, show=False) -> tuple
         pickle.dump(post_lnN_hists_err, f)
 
     return post_lnN_hists, uncs_lnN_dict, post_lnN_hists_err
+
+
+def plot_prepost(pre_hists, post_lnN_hists, post_lnN_hists_err, plot_dir, year, show=False):
+    for var, var_hist in post_lnN_hists.items():
+        for prelim, label in [(False, ""), (True, "prelim_")]:
+            name = f"{plot_dir}/{label}PrePostlnN_{var}.pdf"
+            plotting.ratioLinePlotPrePost(
+                var_hist,
+                pre_hists[var],
+                plot_samples,
+                year,
+                bg_colours=bg_colours,
+                bg_err=post_lnN_hists_err[var],
+                name=name,
+                preliminary=prelim,
+                show=show and prelim,
+            )
 
 
 def bin_sf(pre_hists, post_lnN_hists, uncs_lnN_dict, post_lnN_hists_err, plot_dir, binn=-1):
