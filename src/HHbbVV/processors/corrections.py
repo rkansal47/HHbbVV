@@ -743,7 +743,7 @@ def _get_lund_lookups(
     if sample is not None:
         mc_nom = f["mc_nom"].to_numpy()[0]
 
-        with (package_path / f"corrections/lp_ratios/signals/{year}_{sample}.hist").open(
+        with (package_path / f"corrections/lp_ratios/signals/2018_{sample}.hist").open(
             "rb"
         ) as histf:
             sig_lp_hist = pickle.load(histf)

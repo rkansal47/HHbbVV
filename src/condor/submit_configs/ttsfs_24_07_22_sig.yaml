@@ -1,10 +1,10 @@
 {
   "TTbarScaleFactors":
     {
-      # "TTbar": { "files_per_job": 20, "subsamples": ["TTToSemiLeptonic"] },
+      "TTbar": { "files_per_job": 10, "subsamples": ["TTToSemiLeptonic"] },
       "SingleTop":
         {
-          "files_per_job": 20,
+          "files_per_job": 10,
           "subsamples":
             [
               "ST_tW_antitop_5f_NoFullyHadronicDecays",
