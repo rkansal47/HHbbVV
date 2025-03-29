@@ -178,15 +178,13 @@ nonres_vbf_shape_vars = [
 res_shape_vars = [
     ShapeVar(
         "VVFatJetParticleNetMass",
-        r"$m^{VV}_\mathrm{Reg}$ [GeV]",
-        # r"$M_Y$ [GeV]",
+        r"$M_Y^{rec}$ [GeV]",
         list(range(50, 110, 10)) + list(range(110, 200, 15)) + [200, 220, 250],
         reg=False,
     ),
     ShapeVar(
         "DijetMass",
-        r"$m^{jj}$ [GeV]",
-        # r"$M_X$ [GeV]",
+        r"$M_X^{rec}$ [GeV]",
         list(range(800, 1400, 100)) + [1400, 1600, 2000, 3000, 4400],
         reg=False,
     ),
@@ -334,8 +332,14 @@ def main(args):
 
     if args.mass_sculpting_plots:
         print("\nMaking mass sculpting plots\n")
+        selection_regions = _get_scan_regions(args, scan, scan_cuts, scan_wps[0])[2]
         plot_tagger_sculpting(
-            events_dict, bb_masks, args.mass_sculpting_plots_dir, args.year, show=False
+            events_dict,
+            bb_masks,
+            selection_regions,
+            args.mass_sculpting_plots_dir,
+            args.year,
+            show=False,
         )
 
     if args.templates:
@@ -1651,47 +1655,80 @@ def plot_bdt_sculpting(
 def plot_tagger_sculpting(
     events_dict: dict[str, pd.DataFrame],
     bb_masks: dict[str, pd.DataFrame],
+    selection_regions: dict[str, Region],
     plot_dir: Path,
     year: str,
     weight_key: str = "finalWeight",
     show: bool = False,
 ):
     """Plot jet masses for different tagger cuts to check sculpting."""
-    for key, events in events_dict.items():
-        print("\t", key)
-        bb_mask = bb_masks[key]
-        vvtagger = utils.get_feat(events, "VVFatJetParTMD_THWWvsT", bb_mask)
-        bbtagger = utils.get_feat(events, "bbFatJetParticleNetMD_Txbb", bb_mask)
-        # bbregmass = utils.get_feat(events, "bbFatJetParticleNetMass", bb_mask)
+    cuts_dict = {
+        "Inclusive": selection_regions["pass"].cuts.copy(),
+        "SR": selection_regions["pass"].cuts.copy(),
+        "VR": selection_regions["passBlinded"].cuts.copy(),
+        "SR+VR": selection_regions["pass"].cuts.copy(),
+    }
 
-        for mass_var, mlabel in zip(["Msd", "ParticleNetMass"], ["SD", "reg"]):
-            print("\t\t", mass_var)
-            vvmass = utils.get_feat(events, f"VVFatJet{mass_var}", bb_mask)
-            bbmass = utils.get_feat(events, f"bbFatJet{mass_var}", bb_mask)
-            plotting.plotMassSculpting(
-                bbmass,
-                vvmass,
-                events[weight_key],
-                vvtagger,
-                [0.0, 0.4, 0.6, 0.8, 0.9, 0.96],
-                mlabel,
-                r"$T_{HVV}$",
-                year,
-                name=plot_dir / f"{key}_vvcuts_{mlabel}.pdf",
-                show=show,
-            )
-            plotting.plotMassSculpting(
-                bbmass,
-                vvmass,
-                events[weight_key],
-                bbtagger,
-                [0.8, "LP", "MP", "HP"],
-                mlabel,
-                r"$T_{Xbb}$",
-                year,
-                name=plot_dir / f"{key}_bbcuts_{mlabel}.pdf",
-                show=show,
-            )
+    cuts_dict["Inclusive"].pop("bbFatJetParticleNetMass", None)
+    cuts_dict["Inclusive"].pop("bbFatJetParticleNetMD_Txbb", None)
+    cuts_dict["Inclusive"].pop("VVFatJetParTMD_THWWvsT", None)
+
+    cuts_dict["SR+VR"]["bbFatJetParticleNetMass"] = [92.5, 127.5]
+
+    for clabel, cuts in cuts_dict.items():
+        print(clabel)
+        cuts_nobb = cuts.copy()
+        cuts_nobb.pop("bbFatJetParticleNetMD_Txbb", None)
+        cuts_novv = cuts.copy()
+        cuts_novv.pop("VVFatJetParTMD_THWWvsT", None)
+        print(cuts_nobb)
+        print(cuts_novv)
+
+        sel_nobb, _ = utils.make_selection(cuts_nobb, events_dict, bb_masks)
+        sel_novv, _ = utils.make_selection(cuts_novv, events_dict, bb_masks)
+
+        plot_dirt = plot_dir / clabel
+        plot_dirt.mkdir(exist_ok=True)
+
+        for key, events in events_dict.items():
+            print("\t", key)
+            bb_mask = bb_masks[key]
+            vvtagger = utils.get_feat(events, "VVFatJetParTMD_THWWvsT", bb_mask)
+            bbtagger = utils.get_feat(events, "bbFatJetParticleNetMD_Txbb", bb_mask)
+            # bbregmass = utils.get_feat(events, "bbFatJetParticleNetMass", bb_mask)
+
+            for mass_var, mlabel in zip(["Msd", "ParticleNetMass"], ["SD", "reg"]):
+                print("\t\t", mass_var)
+                vvmass = utils.get_feat(events, f"VVFatJet{mass_var}", bb_mask)
+                bbmass = utils.get_feat(events, f"bbFatJet{mass_var}", bb_mask)
+
+                sel_temp = sel_nobb[key]
+                plotting.plotMassSculpting(
+                    bbmass[sel_temp],
+                    vvmass[sel_temp],
+                    events[weight_key][sel_temp],
+                    vvtagger[sel_temp],
+                    [0.0, 0.4, 0.6, 0.8, 0.9, 0.96],
+                    mlabel,
+                    r"$T_{HVV}$",
+                    year,
+                    name=plot_dirt / f"{key}_vvcuts_{mlabel}.pdf",
+                    show=show,
+                )
+
+                sel_temp = sel_novv[key]
+                plotting.plotMassSculpting(
+                    bbmass[sel_temp],
+                    vvmass[sel_temp],
+                    events[weight_key][sel_temp],
+                    bbtagger[sel_temp],
+                    [0.8, "LP", "MP", "HP"],
+                    mlabel,
+                    r"$T_{Xbb}$",
+                    year,
+                    name=plot_dirt / f"{key}_bbcuts_{mlabel}.pdf",
+                    show=show,
+                )
 
 
 def _get_fill_data(

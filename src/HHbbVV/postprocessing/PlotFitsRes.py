@@ -152,10 +152,14 @@ def plot_fits_slices(
 ):
     plabel = "preliminary" if preliminary else "final"
     for shape in shapes:
-        for i in range(10):
-            for _j, (region, region_label) in enumerate(selection_regions.items()):
+        print("\t\t", shape)
+        for _j, (region, region_label) in enumerate(selection_regions.items()):
+            print("\t\t\t", region_label)
+            pdir = plot_dir / shape / region
+            pdir.mkdir(parents=True, exist_ok=True)
+            for i in range(10):
                 pass_region = region.startswith("pass")
-
+                mxbin = hists[shape][region].axes[2][i]
                 plot_params = {
                     "hists": hists[shape][region][:, :, i],
                     "sig_keys": [sig_key],
@@ -169,11 +173,14 @@ def plot_fits_slices(
                         if pass_region
                         else (fail_ylims[0] * scale / 5.0)
                     ),
-                    "name": f"{plot_dir}/{shape}_{region}_mXbin{i}_{plabel}.pdf",
+                    "name": f"{pdir}/mXbin{i}_{plabel}.pdf",
                     "divide_bin_width": True,
                     "cmslabel": "Preliminary" if preliminary else None,
                     "cmsloc": 2,
-                    "region_label": region_label,
+                    "region_label": "\n"
+                    + region_label
+                    + "\n"
+                    + rf"$M^{{rec}}_X \in [{mxbin[0]:.0f}, {mxbin[1]:.0f}]$",
                 }
 
                 plotting.ratioHistPlot(**plot_params)
