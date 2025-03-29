@@ -78,6 +78,9 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             "particleNet_H4qvsQCD": "ParticleNet_Th4q",
             "deepTagMD_H4qvsQCD": "deepTagMD_H4qvsQCD",
             "deepTagMD_WvsQCD": "deepTagMD_WvsQCD",
+            "deepTagMD_ZvsQCD": "deepTagMD_ZvsQCD",
+            "deepTagMD_TvsQCD": "deepTagMD_TvsQCD",
+            "deepTagMD_HbbvsQCD": "deepTagMD_HbbvsQCD",
             "nConstituents": "nPFCands",
         },
         "Jet": P4,
@@ -440,6 +443,7 @@ class TTScaleFactorsSkimmer(SkimmerABC):
             top_matched = match_dict["top_matched"].astype(bool) * selection.all(*selection.names)
 
             skimmed_events = {**skimmed_events, **match_dict}
+            sf_dict = {}
 
             if np.any(top_matched):
                 sf_dict_temp, lp_hist = get_lund_SFs(
@@ -456,8 +460,6 @@ class TTScaleFactorsSkimmer(SkimmerABC):
                     sample="TTToSemiLeptonic",
                 )
 
-                sf_dict = {}
-
                 # fill in 1s for non-top-matched jets
                 for key, shape in hh_vars.lp_sf_vars:
                     # breakpoint()
@@ -465,7 +467,13 @@ class TTScaleFactorsSkimmer(SkimmerABC):
                     arr[top_matched] = sf_dict_temp[key]
                     sf_dict[key] = arr
 
-                skimmed_events = {**skimmed_events, **sf_dict}
+            else:
+                logging.info("No signal events selected")
+                for key, shape in hh_vars.lp_sf_vars:
+                    arr = np.ones((len(events), shape))
+                    sf_dict[key] = arr
+
+            skimmed_events = {**skimmed_events, **sf_dict}
 
         ##############################
         # Apply selections

@@ -51,7 +51,7 @@ sample_label_map = {
     "TT": r"$t\bar{t}$",
 }
 
-colours = {
+COLOURS = {
     # CMS 10-colour-scheme from
     # https://cms-analysis.docs.cern.ch/guidelines/plotting/colors/#categorical-data-eg-1d-stackplots
     "darkblue": "#3f90da",
@@ -98,6 +98,28 @@ BG_COLOURS = {
     "qqHH_CV_1_C2V_0_kl_1_HHbbVV": "darkpurple",
 }
 
+MARKERS = [
+    "o",
+    "^",
+    "v",
+    "<",
+    ">",
+    "s",
+    "+",
+    "x",
+    "d",
+    "1",
+    "2",
+    "3",
+    "4",
+    "h",
+    "p",
+    "|",
+    "_",
+    "D",
+    "H",
+]
+
 sig_colour = "red"
 
 SIG_COLOURS = [
@@ -133,7 +155,7 @@ def _combine_hbb_bgs(hists, bg_keys):
 def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, syst, variation):
     # set up samples, colours and labels
     bg_keys = [key for key in bg_order if key in bg_keys]
-    bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
+    bg_colours = [COLOURS[bg_colours[sample]] for sample in bg_keys]
     bg_labels = [sample_label_map.get(bg_key, bg_key) for bg_key in bg_keys]
 
     if sig_scale_dict is None:
@@ -626,7 +648,7 @@ def ratioLinePlot(
         ax=ax,
         histtype="step",
         label=bg_keys + ["Total"],
-        color=[colours[bg_colours[sample]] for sample in bg_keys] + ["black"],
+        color=[COLOURS[bg_colours[sample]] for sample in bg_keys] + ["black"],
         yerr=False,
     )
 
@@ -729,6 +751,7 @@ def ratioLinePlotPrePost(
     pulls: bool = False,
     name: str = "",
     sig_scale: float = 1.0,  # noqa: ARG001
+    preliminary: bool = True,
     show: bool = True,
 ):
     """
@@ -751,24 +774,28 @@ def ratioLinePlotPrePost(
     colors = []
     linestyles = []
     alpha = []
-    for k in bg_keys:
+    markers = []
+    for i, k in enumerate(bg_keys):
         if k == "Top Matched":
             plot_hists.append(pre_hists[k, :])
             labels.append("Pre Top Matched")
-            colors.append(colours[bg_colours[k]])
+            colors.append(COLOURS[bg_colours[k]])
             linestyles.append("--")
             alpha.append(0.5)
+            markers.append(None)
 
             plot_hists.append(hists[k, :])
             labels.append("Post Top Matched")
-            colors.append(colours[bg_colours[k]])
+            colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
             alpha.append(1)
+            markers.append(None)
         else:
             plot_hists.append(hists[k, :])
             labels.append(k)
-            colors.append(colours[bg_colours[k]])
+            colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
+            markers.append(MARKERS[i])
             alpha.append(1)
 
     plot_hists = plot_hists + [
@@ -779,15 +806,43 @@ def ratioLinePlotPrePost(
     colors = colors + ["black", "black"]
     linestyles = linestyles + ["--", "-"]
     alpha = alpha + [0.5, 1]
+    markers = markers + [None, None]
 
     ax.set_ylabel("Events")
     hep.histplot(
         plot_hists,
         ax=ax,
         histtype="step",
+        # label=labels,
+        color=colors,
+        linestyle=linestyles,
+        # marker=markers,
+        alpha=alpha,
+        yerr=False,
+    )
+
+    hep.histplot(
+        plot_hists,
+        ax=ax,
+        histtype="errorbar",
+        # label=labels,
+        color=colors,
+        # linestyle=linestyles,
+        marker=markers,
+        markerfacecolor="none",
+        alpha=alpha,
+        yerr=False,
+    )
+
+    hep.histplot(
+        [h * -1 for h in plot_hists],
+        ax=ax,
+        histtype="errorbar",
         label=labels,
         color=colors,
         linestyle=linestyles,
+        marker=markers,
+        markerfacecolor="none",
         alpha=alpha,
         yerr=False,
     )
@@ -826,23 +881,28 @@ def ratioLinePlotPrePost(
         yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
 
         hep.histplot(
+            hists[data_key, :]
+            / (sum([pre_hists[sample, :] for sample in bg_keys]).values() + 1e-5),
+            # yerr=yerr,
+            yerr=False,
+            ax=rax,
+            histtype="errorbar",
+            color=COLOURS["red"],
+            capsize=4,
+            # alpha=0.5,
+            label="Pre",
+            markerfacecolor="none",
+            marker="^",
+        )
+
+        hep.histplot(
             hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
             yerr=yerr,
             ax=rax,
             histtype="errorbar",
             color="black",
             capsize=4,
-        )
-
-        hep.histplot(
-            hists[data_key, :]
-            / (sum([pre_hists[sample, :] for sample in bg_keys]).values() + 1e-5),
-            yerr=yerr,
-            ax=rax,
-            histtype="errorbar",
-            color="black",
-            capsize=4,
-            alpha=0.5,
+            label="Post",
         )
 
         if bg_err is not None:
@@ -860,6 +920,7 @@ def ratioLinePlotPrePost(
         rax.set_ylabel("Data / Bkg.")
         rax.set_ylim(0.5, 1.5)
         rax.grid()
+        rax.legend()
     else:
         bg_tot / (data_vals + 1e-5)
         yerr = bg_err / data_vals
@@ -879,7 +940,7 @@ def ratioLinePlotPrePost(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    add_cms_label(ax, year, loc=0)
+    add_cms_label(ax, year, loc=0, label="Preliminary" if preliminary else None)
 
     if len(name):
         plt.savefig(name, bbox_inches="tight")
@@ -1322,7 +1383,7 @@ def ratioTestTrain(
             ax=ax,
             histtype="step",
             label=[data + " " + label for label in labels],
-            color=[colours[BG_COLOURS[sample]] for sample in training_keys],
+            color=[COLOURS[BG_COLOURS[sample]] for sample in training_keys],
             yerr=True,
             **style[data],
         )
@@ -1350,7 +1411,7 @@ def ratioTestTrain(
         ax=rax,
         histtype="errorbar",
         label=labels,
-        color=[colours[BG_COLOURS[sample]] for sample in training_keys],
+        color=[COLOURS[BG_COLOURS[sample]] for sample in training_keys],
         yerr=np.abs([err[i] * plot_hists[i].values() for i in range(len(plot_hists))]),
     )
 

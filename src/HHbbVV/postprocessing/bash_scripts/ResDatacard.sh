@@ -7,7 +7,7 @@
 ####################################################################################################
 
 TAG=""
-sig_sample=NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80
+sig_sample=NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250
 # templates_dir=/eos/uscms/store/user/rkansal/bbVV/templates/25Feb8XHYFix
 templates_dir=/ceph/cms/store/user/rkansal/bbVV/templates/25Feb8XHYFix
 # bg_templates_dir="templates/25Feb23ResTemplatesHbbUncs"
