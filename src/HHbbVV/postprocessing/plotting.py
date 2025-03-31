@@ -123,6 +123,7 @@ MARKERS = [
 sig_colour = "red"
 
 SIG_COLOURS = [
+    "#bd1f01",
     "#ff5252",
     "#7F2CCB",
     "#ffbaba",
@@ -279,7 +280,7 @@ def ratioHistPlot(
     axrax: tuple = None,
     ncol: int = None,
     cmslabel: str = None,
-    cmsloc: int = None,
+    cmsloc: int = 0,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -380,7 +381,11 @@ def ratioHistPlot(
         )
     elif plot_ratio:
         fig, (ax, rax) = plt.subplots(
-            2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
+            2,
+            1,
+            figsize=(12, 14),
+            gridspec_kw={"height_ratios": [3, 1], "hspace": 0.1},
+            sharex=True,
         )
     else:
         fig, ax = plt.subplots(1, 1, figsize=(12, 11))
@@ -410,6 +415,7 @@ def ratioHistPlot(
             histtype="step",
             label=list(sig_labels.values()),
             color=sig_colours[: len(sig_keys)],
+            linewidth=3,
         )
 
         # plot signal errors
@@ -515,6 +521,8 @@ def ratioHistPlot(
     else:
         ax.set_ylim(y_lowlim)
 
+    ax.margins(x=0)
+
     # plot ratio below
     if plot_ratio:
         if plot_data:
@@ -554,6 +562,9 @@ def ratioHistPlot(
         rax.set_ylabel("Data / Bkg.")
         rax.set_ylim(ratio_ylims)
         rax.grid()
+        rax.margins(x=0)
+
+        ax.set_xlabel(None)
 
     if plot_significance:
         sigs = [pre_divide_hists[sig_key, :].values() for sig_key in sig_scale_dict]
