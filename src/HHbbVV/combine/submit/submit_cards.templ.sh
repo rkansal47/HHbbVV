@@ -97,7 +97,7 @@ ls -lh .
 cd src/HHbbVV/ || exit
 mkdir -p templates/backgrounds
 mkdir -p cards
-qcd_fit_dir=$$(pwd)/combine/qcdfit22sl7
+qcd_fit_dir=$$(pwd)/combine/qcdfit11sl7
 
 # get backgrounds templates
 for file in "2016_templates.pkl" "2016APV_templates.pkl" "2017_templates.pkl" "2018_templates.pkl" "systematics.json"
