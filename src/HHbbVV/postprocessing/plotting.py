@@ -22,7 +22,7 @@ from hist.intervals import poisson_interval, ratio_uncertainty
 from numpy.typing import ArrayLike
 from pandas import DataFrame
 
-from HHbbVV.hh_vars import LUMI, data_key, hbb_bg_keys, txbb_wps
+from HHbbVV.hh_vars import LUMI, data_key, hbb_bg_keys, res_sig_keys, txbb_wps
 from HHbbVV.postprocessing import utils
 from HHbbVV.postprocessing.utils import CUT_MAX_VAL
 
@@ -123,6 +123,7 @@ MARKERS = [
 sig_colour = "red"
 
 SIG_COLOURS = [
+    "#bd1f01",
     "#ff5252",
     "#7F2CCB",
     "#ffbaba",
@@ -279,7 +280,7 @@ def ratioHistPlot(
     axrax: tuple = None,
     ncol: int = None,
     cmslabel: str = None,
-    cmsloc: int = None,
+    cmsloc: int = 0,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -380,7 +381,11 @@ def ratioHistPlot(
         )
     elif plot_ratio:
         fig, (ax, rax) = plt.subplots(
-            2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
+            2,
+            1,
+            figsize=(12, 14),
+            gridspec_kw={"height_ratios": [3, 1], "hspace": 0.1},
+            sharex=True,
         )
     else:
         fig, ax = plt.subplots(1, 1, figsize=(12, 11))
@@ -410,6 +415,7 @@ def ratioHistPlot(
             histtype="step",
             label=list(sig_labels.values()),
             color=sig_colours[: len(sig_keys)],
+            linewidth=3,
         )
 
         # plot signal errors
@@ -515,6 +521,8 @@ def ratioHistPlot(
     else:
         ax.set_ylim(y_lowlim)
 
+    ax.margins(x=0)
+
     # plot ratio below
     if plot_ratio:
         if plot_data:
@@ -554,6 +562,9 @@ def ratioHistPlot(
         rax.set_ylabel("Data / Bkg.")
         rax.set_ylim(ratio_ylims)
         rax.grid()
+        rax.margins(x=0)
+
+        ax.set_xlabel(None)
 
     if plot_significance:
         sigs = [pre_divide_hists[sig_key, :].values() for sig_key in sig_scale_dict]
@@ -591,9 +602,12 @@ def ratioHistPlot(
         ax.set_title(title, y=1.08)
 
     if region_label is not None:
+        mline = "\n" in region_label
+        xpos = 0.29 if not mline else 0.24
+        ypos = 0.915 if not mline else 0.87
         ax.text(
-            0.29,
-            0.915,
+            xpos,
+            ypos,
             region_label,
             transform=ax.transAxes,
             fontsize=24,
@@ -992,12 +1006,30 @@ def hist2ds(
         # region_label = region_labels[region] if region_labels is not None else region
         pass_region = region.startswith("pass")
         lim = pass_zlim if pass_region else fail_zlim
-        for sample in samples:
-            if "->HY" in sample and not pass_region:
+
+        bg_samps = [
+            s
+            for s in samples
+            if ((s != data_key) and (s not in res_sig_keys) and ("->HY" not in s))
+        ]
+        print("\t\t\tBG samples: ", bg_samps)
+        bg_hists = [h[sample, ...] for sample in bg_samps]
+        bg_tot = sum(bg_hists)
+
+        dbg_ratio = h[data_key, ...] / (bg_tot + 1e-6)
+
+        phists = [h[sample, ...] for sample in samples] + [bg_tot, dbg_ratio]
+        skeys = samples + ["Bkg.", "Data / Bkg."]
+
+        for phist, skey in zip(phists, skeys):
+            if "->HY" in skey and not pass_region:
                 continue
 
-            print(f"\t\t\t{sample}")
-            slabel = sample_label_map.get(sample, sample)
+            if skey != "Data / Bkg.":
+                continue
+
+            print(f"\t\t\t{skey}")
+            slabel = sample_label_map.get(skey, skey)
 
             if lim is not None:
                 norm = mpl.colors.LogNorm(vmin=lim[0], vmax=lim[1])
@@ -1005,10 +1037,13 @@ def hist2ds(
                 norm = mpl.colors.LogNorm()
 
             fig, ax = plt.subplots(figsize=(12, 12))
-            h2d = hep.hist2dplot(h[sample, ...], cmap="turbo", norm=norm)
+            if skey == "Data / Bkg.":
+                h2d = hep.hist2dplot(phist, cmap="turbo", cmin=0, cmax=2)
+            else:
+                h2d = hep.hist2dplot(phist, cmap="turbo", norm=norm)
             h2d.cbar.set_label(f"{slabel} Events")
 
-            v, mYbins, mXbins = h[sample, ...].to_numpy()
+            v, mYbins, mXbins = phist.to_numpy()
             for i in range(len(mYbins) - 1):
                 for j in range(len(mXbins) - 1):
                     if not np.isnan(v[i, j]):
@@ -1024,7 +1059,8 @@ def hist2ds(
 
             # plt.title(f"{sample} in {region_label} Region")
             add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
-            plt.savefig(f"{plot_dir}/{region}_{sample}_2d.pdf", bbox_inches="tight")
+            pkey = skey.replace(" / ", "_").replace(".", "")
+            plt.savefig(f"{plot_dir}/{region}_{pkey}_2d.pdf", bbox_inches="tight")
 
             if show:
                 plt.show()
@@ -1583,7 +1619,7 @@ def plotMassSculpting(
 
         if name is not None:
             (name.parent / "pickles").mkdir(exist_ok=True)
-            with Path.open(name.parent / "pickles" / f"{jet}_{name.stem}.pkl").open("wb") as f:
+            with Path(name.parent / "pickles" / f"{jet}_{name.stem}.pkl").open("wb") as f:
                 pickle.dump(hists, f)
 
         add_cms_label(ax, year, "Preliminary", loc=0)
