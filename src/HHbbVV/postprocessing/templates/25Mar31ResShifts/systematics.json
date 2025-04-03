@@ -65,5 +65,49 @@
             "trig_total": 1986625.5299881075,
             "trig_total_err": 19722.69603035213
         }
+    },
+    "2017": {
+        "pass": {
+            "trig_total": 148507.37955660094,
+            "trig_total_err": 18045.713774207627
+        },
+        "fail": {
+            "trig_total": 440548.1354043246,
+            "trig_total_err": 2601.7672936037384
+        },
+        "passBlinded": {
+            "trig_total": 29476.602922342194,
+            "trig_total_err": 1875.307725025426
+        },
+        "failBlinded": {
+            "trig_total": 397709.5613203016,
+            "trig_total_err": 631.0899027571602
+        },
+        "prelpsf": {
+            "trig_total": 2517337.9949711887,
+            "trig_total_err": 37176.35760864991
+        }
+    },
+    "2018": {
+        "pass": {
+            "trig_total": 129784.19851784155,
+            "trig_total_err": 16147.970190514925
+        },
+        "fail": {
+            "trig_total": 361923.55492146633,
+            "trig_total_err": 2108.263185661041
+        },
+        "passBlinded": {
+            "trig_total": 26781.545862586143,
+            "trig_total_err": 1541.5198546419738
+        },
+        "failBlinded": {
+            "trig_total": 318312.9395495258,
+            "trig_total_err": 487.2504674503187
+        },
+        "prelpsf": {
+            "trig_total": 2077487.0988283365,
+            "trig_total_err": 33059.495083308604
+        }
     }
 }
