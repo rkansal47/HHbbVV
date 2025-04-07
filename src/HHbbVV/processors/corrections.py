@@ -895,7 +895,7 @@ def _get_lund_arrays(
 
     # dummy particle to pad empty subjets and particles. SF for these subjets will be 1
     dummy_particle = ak.Array(
-        [{kin_key: 0.0 for kin_key in P4}],
+        [dict.fromkeys(P4, 0.0)],
         with_name="PtEtaPhiMLorentzVector",
     )
 
