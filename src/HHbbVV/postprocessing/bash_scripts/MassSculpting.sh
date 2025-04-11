@@ -45,7 +45,9 @@ fi
 
 for year in 2016APV 2016 2017 2018
 do
-    python -u postprocessing.py --mass-sculpting-plots --year $year --template-dir "templates/$TAG" --resonant \
+    python -W ignore -u postprocessing.py --mass-sculpting-plots --year $year --template-dir "templates/$TAG" --resonant \
     --data-dir "$data_dir" --bg-data-dirs "$bg_data_dir" --signal-data-dirs $signal_data_dir --bg-keys QCD --plot-dir "../../../plots/PostProcessing/$TAG" --sig-samples ""
     # --sig-samples "NMSSM_XToYHTo2W2BTo4Q2B_MX-900_MY-80"
 done
+
+# plots for all years are combined in PostProcessRes.ipynb

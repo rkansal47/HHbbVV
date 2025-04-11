@@ -47,5 +47,5 @@ sample=NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250
 for year in 2016APV 2016 2017 2018
 do
     python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG" --resonant \
-    --data-dir "$data_dir" --bg-data-dirs "$bg_data_dir" --sig-samples $sample --no-do-jshifts --plot-shifts  --signal-data-dirs "$signal_data_dir" --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG"
+    --data-dir "$data_dir" --bg-data-dirs "$bg_data_dir" --sig-samples $sample --do-jshifts --plot-shifts  --signal-data-dirs "$signal_data_dir" --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG"
 done

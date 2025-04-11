@@ -22,7 +22,7 @@ from hist.intervals import poisson_interval, ratio_uncertainty
 from numpy.typing import ArrayLike
 from pandas import DataFrame
 
-from HHbbVV.hh_vars import LUMI, data_key, hbb_bg_keys, txbb_wps
+from HHbbVV.hh_vars import LUMI, data_key, hbb_bg_keys, res_sig_keys, txbb_wps
 from HHbbVV.postprocessing import utils
 from HHbbVV.postprocessing.utils import CUT_MAX_VAL
 
@@ -51,7 +51,7 @@ sample_label_map = {
     "TT": r"$t\bar{t}$",
 }
 
-colours = {
+COLOURS = {
     # CMS 10-colour-scheme from
     # https://cms-analysis.docs.cern.ch/guidelines/plotting/colors/#categorical-data-eg-1d-stackplots
     "darkblue": "#3f90da",
@@ -98,9 +98,32 @@ BG_COLOURS = {
     "qqHH_CV_1_C2V_0_kl_1_HHbbVV": "darkpurple",
 }
 
+MARKERS = [
+    "o",
+    "^",
+    "v",
+    "<",
+    ">",
+    "s",
+    "+",
+    "x",
+    "d",
+    "1",
+    "2",
+    "3",
+    "4",
+    "h",
+    "p",
+    "|",
+    "_",
+    "D",
+    "H",
+]
+
 sig_colour = "red"
 
 SIG_COLOURS = [
+    "#bd1f01",
     "#ff5252",
     "#7F2CCB",
     "#ffbaba",
@@ -133,7 +156,7 @@ def _combine_hbb_bgs(hists, bg_keys):
 def _process_samples(sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, syst, variation):
     # set up samples, colours and labels
     bg_keys = [key for key in bg_order if key in bg_keys]
-    bg_colours = [colours[bg_colours[sample]] for sample in bg_keys]
+    bg_colours = [COLOURS[bg_colours[sample]] for sample in bg_keys]
     bg_labels = [sample_label_map.get(bg_key, bg_key) for bg_key in bg_keys]
 
     if sig_scale_dict is None:
@@ -257,7 +280,7 @@ def ratioHistPlot(
     axrax: tuple = None,
     ncol: int = None,
     cmslabel: str = None,
-    cmsloc: int = None,
+    cmsloc: int = 0,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -358,7 +381,11 @@ def ratioHistPlot(
         )
     elif plot_ratio:
         fig, (ax, rax) = plt.subplots(
-            2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
+            2,
+            1,
+            figsize=(12, 14),
+            gridspec_kw={"height_ratios": [3, 1], "hspace": 0.1},
+            sharex=True,
         )
     else:
         fig, ax = plt.subplots(1, 1, figsize=(12, 11))
@@ -388,6 +415,7 @@ def ratioHistPlot(
             histtype="step",
             label=list(sig_labels.values()),
             color=sig_colours[: len(sig_keys)],
+            linewidth=3,
         )
 
         # plot signal errors
@@ -493,6 +521,8 @@ def ratioHistPlot(
     else:
         ax.set_ylim(y_lowlim)
 
+    ax.margins(x=0)
+
     # plot ratio below
     if plot_ratio:
         if plot_data:
@@ -532,6 +562,9 @@ def ratioHistPlot(
         rax.set_ylabel("Data / Bkg.")
         rax.set_ylim(ratio_ylims)
         rax.grid()
+        rax.margins(x=0)
+
+        ax.set_xlabel(None)
 
     if plot_significance:
         sigs = [pre_divide_hists[sig_key, :].values() for sig_key in sig_scale_dict]
@@ -569,9 +602,12 @@ def ratioHistPlot(
         ax.set_title(title, y=1.08)
 
     if region_label is not None:
+        mline = "\n" in region_label
+        xpos = 0.29 if not mline else 0.24
+        ypos = 0.915 if not mline else 0.87
         ax.text(
-            0.29,
-            0.915,
+            xpos,
+            ypos,
             region_label,
             transform=ax.transAxes,
             fontsize=24,
@@ -626,7 +662,7 @@ def ratioLinePlot(
         ax=ax,
         histtype="step",
         label=bg_keys + ["Total"],
-        color=[colours[bg_colours[sample]] for sample in bg_keys] + ["black"],
+        color=[COLOURS[bg_colours[sample]] for sample in bg_keys] + ["black"],
         yerr=False,
     )
 
@@ -729,6 +765,7 @@ def ratioLinePlotPrePost(
     pulls: bool = False,
     name: str = "",
     sig_scale: float = 1.0,  # noqa: ARG001
+    preliminary: bool = True,
     show: bool = True,
 ):
     """
@@ -751,24 +788,28 @@ def ratioLinePlotPrePost(
     colors = []
     linestyles = []
     alpha = []
-    for k in bg_keys:
+    markers = []
+    for i, k in enumerate(bg_keys):
         if k == "Top Matched":
             plot_hists.append(pre_hists[k, :])
             labels.append("Pre Top Matched")
-            colors.append(colours[bg_colours[k]])
+            colors.append(COLOURS[bg_colours[k]])
             linestyles.append("--")
             alpha.append(0.5)
+            markers.append(None)
 
             plot_hists.append(hists[k, :])
             labels.append("Post Top Matched")
-            colors.append(colours[bg_colours[k]])
+            colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
             alpha.append(1)
+            markers.append(None)
         else:
             plot_hists.append(hists[k, :])
             labels.append(k)
-            colors.append(colours[bg_colours[k]])
+            colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
+            markers.append(MARKERS[i])
             alpha.append(1)
 
     plot_hists = plot_hists + [
@@ -779,15 +820,43 @@ def ratioLinePlotPrePost(
     colors = colors + ["black", "black"]
     linestyles = linestyles + ["--", "-"]
     alpha = alpha + [0.5, 1]
+    markers = markers + [None, None]
 
     ax.set_ylabel("Events")
     hep.histplot(
         plot_hists,
         ax=ax,
         histtype="step",
+        # label=labels,
+        color=colors,
+        linestyle=linestyles,
+        # marker=markers,
+        alpha=alpha,
+        yerr=False,
+    )
+
+    hep.histplot(
+        plot_hists,
+        ax=ax,
+        histtype="errorbar",
+        # label=labels,
+        color=colors,
+        # linestyle=linestyles,
+        marker=markers,
+        markerfacecolor="none",
+        alpha=alpha,
+        yerr=False,
+    )
+
+    hep.histplot(
+        [h * -1 for h in plot_hists],
+        ax=ax,
+        histtype="errorbar",
         label=labels,
         color=colors,
         linestyle=linestyles,
+        marker=markers,
+        markerfacecolor="none",
         alpha=alpha,
         yerr=False,
     )
@@ -826,23 +895,28 @@ def ratioLinePlotPrePost(
         yerr = ratio_uncertainty(data_vals, bg_tot, "poisson")
 
         hep.histplot(
+            hists[data_key, :]
+            / (sum([pre_hists[sample, :] for sample in bg_keys]).values() + 1e-5),
+            # yerr=yerr,
+            yerr=False,
+            ax=rax,
+            histtype="errorbar",
+            color=COLOURS["red"],
+            capsize=4,
+            # alpha=0.5,
+            label="Pre",
+            markerfacecolor="none",
+            marker="^",
+        )
+
+        hep.histplot(
             hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
             yerr=yerr,
             ax=rax,
             histtype="errorbar",
             color="black",
             capsize=4,
-        )
-
-        hep.histplot(
-            hists[data_key, :]
-            / (sum([pre_hists[sample, :] for sample in bg_keys]).values() + 1e-5),
-            yerr=yerr,
-            ax=rax,
-            histtype="errorbar",
-            color="black",
-            capsize=4,
-            alpha=0.5,
+            label="Post",
         )
 
         if bg_err is not None:
@@ -860,6 +934,7 @@ def ratioLinePlotPrePost(
         rax.set_ylabel("Data / Bkg.")
         rax.set_ylim(0.5, 1.5)
         rax.grid()
+        rax.legend()
     else:
         bg_tot / (data_vals + 1e-5)
         yerr = bg_err / data_vals
@@ -879,7 +954,7 @@ def ratioLinePlotPrePost(
     if title is not None:
         ax.set_title(title, y=1.08)
 
-    add_cms_label(ax, year, loc=0)
+    add_cms_label(ax, year, loc=0, label="Preliminary" if preliminary else None)
 
     if len(name):
         plt.savefig(name, bbox_inches="tight")
@@ -931,12 +1006,30 @@ def hist2ds(
         # region_label = region_labels[region] if region_labels is not None else region
         pass_region = region.startswith("pass")
         lim = pass_zlim if pass_region else fail_zlim
-        for sample in samples:
-            if "->HY" in sample and not pass_region:
+
+        bg_samps = [
+            s
+            for s in samples
+            if ((s != data_key) and (s not in res_sig_keys) and ("->HY" not in s))
+        ]
+        print("\t\t\tBG samples: ", bg_samps)
+        bg_hists = [h[sample, ...] for sample in bg_samps]
+        bg_tot = sum(bg_hists)
+
+        dbg_ratio = h[data_key, ...] / (bg_tot + 1e-6)
+
+        phists = [h[sample, ...] for sample in samples] + [bg_tot, dbg_ratio]
+        skeys = samples + ["Bkg.", "Data / Bkg."]
+
+        for phist, skey in zip(phists, skeys):
+            if "->HY" in skey and not pass_region:
                 continue
 
-            print(f"\t\t\t{sample}")
-            slabel = sample_label_map.get(sample, sample)
+            if skey != "Data / Bkg.":
+                continue
+
+            print(f"\t\t\t{skey}")
+            slabel = sample_label_map.get(skey, skey)
 
             if lim is not None:
                 norm = mpl.colors.LogNorm(vmin=lim[0], vmax=lim[1])
@@ -944,10 +1037,13 @@ def hist2ds(
                 norm = mpl.colors.LogNorm()
 
             fig, ax = plt.subplots(figsize=(12, 12))
-            h2d = hep.hist2dplot(h[sample, ...], cmap="turbo", norm=norm)
+            if skey == "Data / Bkg.":
+                h2d = hep.hist2dplot(phist, cmap="turbo", cmin=0, cmax=2)
+            else:
+                h2d = hep.hist2dplot(phist, cmap="turbo", norm=norm)
             h2d.cbar.set_label(f"{slabel} Events")
 
-            v, mYbins, mXbins = h[sample, ...].to_numpy()
+            v, mYbins, mXbins = phist.to_numpy()
             for i in range(len(mYbins) - 1):
                 for j in range(len(mXbins) - 1):
                     if not np.isnan(v[i, j]):
@@ -963,7 +1059,8 @@ def hist2ds(
 
             # plt.title(f"{sample} in {region_label} Region")
             add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
-            plt.savefig(f"{plot_dir}/{region}_{sample}_2d.pdf", bbox_inches="tight")
+            pkey = skey.replace(" / ", "_").replace(".", "")
+            plt.savefig(f"{plot_dir}/{region}_{pkey}_2d.pdf", bbox_inches="tight")
 
             if show:
                 plt.show()
@@ -1322,7 +1419,7 @@ def ratioTestTrain(
             ax=ax,
             histtype="step",
             label=[data + " " + label for label in labels],
-            color=[colours[BG_COLOURS[sample]] for sample in training_keys],
+            color=[COLOURS[BG_COLOURS[sample]] for sample in training_keys],
             yerr=True,
             **style[data],
         )
@@ -1350,7 +1447,7 @@ def ratioTestTrain(
         ax=rax,
         histtype="errorbar",
         label=labels,
-        color=[colours[BG_COLOURS[sample]] for sample in training_keys],
+        color=[COLOURS[BG_COLOURS[sample]] for sample in training_keys],
         yerr=np.abs([err[i] * plot_hists[i].values() for i in range(len(plot_hists))]),
     )
 
@@ -1522,7 +1619,7 @@ def plotMassSculpting(
 
         if name is not None:
             (name.parent / "pickles").mkdir(exist_ok=True)
-            with Path.open(name.parent / "pickles" / f"{jet}_{name.stem}.pkl").open("wb") as f:
+            with Path(name.parent / "pickles" / f"{jet}_{name.stem}.pkl").open("wb") as f:
                 pickle.dump(hists, f)
 
         add_cms_label(ax, year, "Preliminary", loc=0)
