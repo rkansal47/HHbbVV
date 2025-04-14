@@ -297,7 +297,7 @@ def main(args):
         print("Plotting: ", [var.var for var in plot_vars])
         if args.resonant:
             p_sig_keys = sig_keys
-            sig_scale_dict = {"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | {key: 2e4 for key in res_sig_keys}
+            sig_scale_dict = {"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | dict.fromkeys(res_sig_keys, 20000.0)
         else:
             p_sig_keys = plot_sig_keys_nonres
             sig_scale_dict = {
@@ -1543,7 +1543,7 @@ def control_plots(
     if hists is None:
         hists = {}
     if sig_scale_dict is None:
-        sig_scale_dict = {sig_key: 2e5 for sig_key in sig_keys}
+        sig_scale_dict = dict.fromkeys(sig_keys, 200000.0)
 
     print(control_plot_vars)
     print(selection)
