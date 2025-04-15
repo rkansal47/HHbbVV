@@ -56,11 +56,11 @@ plot_samples = [
 bg_colours = {
     "QCD": "lightblue",
     "Single Top": "darkblue",
-    top_unmatched_key: "darkgreen",
-    top_wmatched_key: "green",
+    top_unmatched_key: "brown",
+    top_wmatched_key: "red",
     top_matched_key: "orange",
-    "W+Jets": "darkred",
-    "Diboson": "red",
+    "W+Jets": "beige",
+    "Diboson": "darkpurple",
 }
 
 
@@ -72,8 +72,8 @@ plot_vars = {
     # "MET_pt": ([30, 0, 200], r"MET (GeV)"),
     # "ak8FatJetnPFCands": ([20, 0, 120], r"# of PF Candidates"),
     # "ak8FatJetParticleNet_Th4q": ([20, 0.6, 1], r"ParticleNet $T_{H4q}$ Non-MD"),
-    "ak8FatJetParTMD_THWW4q": ([20, 0.2, 1], r"$ParT\ T^{No Top}_{HVV}$"),
-    "ak8FatJetdeepTagMD_WHvsQCD": ([20, 0.2, 1], r"DeepAK8 (QCD veto)"),
+    "ak8FatJetParTMD_THWW4q": ([20, 0.2, 1], r"$ParT\ T^{No Top}_{HWW}$"),
+    "ak8FatJetdeepTagMD_WHvsQCD": ([20, 0.2, 1], r"DeepAK8-MD score (No Top)"),
     # "ak8FatJetdeepTagMD_H4qvsQCD": ([20, 0.2, 1], r"DeepAK8 (QCD veto)"),
     # "ak8FatJetdeepTagMD_WvsQCD": ([20, 0.2, 1], r"DeepAK8 WvsQCD (QCD veto)"),
     # "tau21": ([20, 0.04, 0.8], r"$\tau_{21}$"),
@@ -405,7 +405,7 @@ def plot_post_hists(events_dict, pre_hists, plot_dir, year, show=False) -> tuple
     return post_lnN_hists, uncs_lnN_dict, post_lnN_hists_err
 
 
-def plot_prepost(pre_hists, post_lnN_hists, post_lnN_hists_err, plot_dir, year, show=False):
+def plot_prepost(pre_hists, post_lnN_hists, post_lnN_hists_err, chi2s, plot_dir, year, show=False):
     for var, var_hist in post_lnN_hists.items():
         for prelim, label in [(False, ""), (True, "prelim_")]:
             name = f"{plot_dir}/{label}PrePostlnN_{var}.pdf"
@@ -416,6 +416,7 @@ def plot_prepost(pre_hists, post_lnN_hists, post_lnN_hists_err, plot_dir, year, 
                 year,
                 bg_colours=bg_colours,
                 bg_err=post_lnN_hists_err[var],
+                chi2s=chi2s[var],
                 name=name,
                 preliminary=prelim,
                 show=show and prelim,
@@ -448,32 +449,40 @@ def bin_sf(pre_hists, post_lnN_hists, uncs_lnN_dict, post_lnN_hists_err, plot_di
     print(Path(f"{plot_dir}/lp_sf_bin{binn}.txt").read_text())
 
 
-def chisq_diff(pre_hists, post_lnN_hists, plot_dir, lb=20):
+def chisq_diff(pre_hists, post_lnN_hists, tvars: list[str], plot_dir, lb=20):
     """Check improvement in chi^2"""
-    tvar = "ak8FatJetParTMD_THWW4q"
-    data_vals = pre_hists[tvar]["Data", ...].values()
-    pre_MC_vals = (
-        pre_hists[tvar][sum, :].values()
-        - data_vals
-        - pre_hists[tvar]["TTbar", :].values()  # remove repeated data
-        - pre_hists[tvar]["Top", :].values()
-        # - pre_hists[tvar]["SingleTop", :].values()
-    )
-    post_lnN_MC_vals = (
-        post_lnN_hists[tvar][sum, :].values()
-        - data_vals
-        - post_lnN_hists[tvar]["TTbar", :].values()  # remove repeated data
-        - post_lnN_hists[tvar]["Top", :].values()
-        # - post_lnN_hists[tvar]["SingleTop", :].values()
-    )
+    chi2s = {}
+    for tvar in tvars:
+        data_vals = pre_hists[tvar]["Data", ...].values()
+        pre_MC_vals = (
+            pre_hists[tvar][sum, :].values()
+            - data_vals
+            - pre_hists[tvar]["TTbar", :].values()  # remove repeated data
+            - pre_hists[tvar]["Top", :].values()
+            # - pre_hists[tvar]["SingleTop", :].values()
+        )
+        post_lnN_MC_vals = (
+            post_lnN_hists[tvar][sum, :].values()
+            - data_vals
+            - post_lnN_hists[tvar]["TTbar", :].values()  # remove repeated data
+            - post_lnN_hists[tvar]["Top", :].values()
+            # - post_lnN_hists[tvar]["SingleTop", :].values()
+        )
 
-    # save all the text above in a .txt file
-    with Path(f"{plot_dir}/chi2_lb{lb}.txt").open("w") as f:
-        f.write(f"Pre chi2: {chisquare(pre_MC_vals[-lb:], data_vals[-lb:])}\n")
-        f.write(f"Post chi2: {chisquare(post_lnN_MC_vals[-lb:], data_vals[-lb:])}\n")
+        pre_chi2 = chisquare(pre_MC_vals[-lb:], data_vals[-lb:])
+        post_chi2 = chisquare(post_lnN_MC_vals[-lb:], data_vals[-lb:])
 
-    # print out contents of the .txt file
-    print(Path(f"{plot_dir}/chi2_lb{lb}.txt").read_text())
+        # save all the text above in a .txt file
+        with Path(f"{plot_dir}/chi2_{tvar}_lb{lb}.txt").open("w") as f:
+            f.write(f"Pre chi2: {pre_chi2}\n")
+            f.write(f"Post chi2: {post_chi2}\n")
+
+        # print out contents of the .txt file
+        # print(Path(f"{plot_dir}/chi2_{tvar}_lb{lb}.txt").read_text())
+
+        chi2s[tvar] = [pre_chi2, post_chi2, lb]
+
+    return chi2s
 
 
 def parse_args(parser=None):
