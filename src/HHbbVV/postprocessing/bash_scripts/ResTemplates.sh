@@ -12,9 +12,10 @@ data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/24Mar14UpdateData"
 signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Feb6XHY"
 bg_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/24Mar6AllYearsBDTVars"
 TAG=""
+extraargs=""
+sample=NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250
 
-
-options=$(getopt -o "" --long "tag:" -- "$@")
+options=$(getopt -o "" --long "tag:,extraargs:,sample:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -22,6 +23,14 @@ while true; do
         --tag)
             shift
             TAG=$1
+            ;;
+        --extraargs)
+            shift
+            extraargs=$1
+            ;;
+        --sample)
+            shift
+            sample=$1
             ;;
         --)
             shift
@@ -43,9 +52,9 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
-sample=NMSSM_XToYHTo2W2BTo4Q2B_MX-3000_MY-250
+
 for year in 2016APV 2016 2017 2018
 do
     python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG" --resonant \
-    --data-dir "$data_dir" --bg-data-dirs "$bg_data_dir" --sig-samples $sample --do-jshifts --plot-shifts  --signal-data-dirs "$signal_data_dir" --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG"
+    --data-dir "$data_dir" --bg-data-dirs "$bg_data_dir" --sig-samples $sample --do-jshifts --no-plot-shifts  --signal-data-dirs "$signal_data_dir" --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" $extraargs
 done

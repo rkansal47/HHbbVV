@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import itertools
 import json
-import os
 import pickle
 import sys
 import warnings
@@ -242,7 +241,7 @@ def main(args):
     _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
     cutflow = pd.DataFrame(index=all_samples)  # save cutflow as pandas table
 
-    if args.lpsfs or args.templates:
+    if (args.lpsfs or args.templates) and not args.skip_lpsfs:
         if len(sig_keys):
             _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples)
         if not (args.templates or args.bdt_plots or args.control_plots):
@@ -297,7 +296,9 @@ def main(args):
         print("Plotting: ", [var.var for var in plot_vars])
         if args.resonant:
             p_sig_keys = sig_keys
-            sig_scale_dict = {"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | {key: 2e4 for key in res_sig_keys}
+            sig_scale_dict = {"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | dict.fromkeys(
+                res_sig_keys, 20000.0
+            )
         else:
             p_sig_keys = plot_sig_keys_nonres
             sig_scale_dict = {
@@ -392,8 +393,9 @@ def main(args):
                     jshift=jshift,
                     blind=args.blinded,
                     blind_pass=bool(args.resonant),
-                    show=False,
+                    resonant=args.resonant,
                     plot_shifts=args.plot_shifts,
+                    show=False,
                 )
                 templates = {**templates, **temps}
 
@@ -476,7 +478,9 @@ def _get_scan_regions(args, scan, scan_cuts, wps):
 
     cutargs = {f"{cut}_wp": wp for cut, wp in zip(scan_cuts, wps)}
     if args.resonant:
-        selection_regions = get_res_selection_regions(args.year, **cutargs)
+        selection_regions = get_res_selection_regions(
+            args.year, mass_window=args.res_mass_window, **cutargs
+        )
     elif args.vbf:
         selection_regions = get_nonres_vbf_selection_regions(args.year, **cutargs)
     else:
@@ -619,9 +623,8 @@ def _process_samples(args, BDT_sample_order: list[str] = None):
 
     if args.read_sig_samples:
         # read all signal samples in directory
-        read_samples = os.listdir(f"{args.signal_data_dirs[0]}/{args.year}")
         sig_samples = OrderedDict()
-        for sample in read_samples:
+        for sample in (Path(args.signal_data_dirs[0]) / args.year).iterdir():
             if sample.startswith("NMSSM_XToYHTo2W2BTo4Q2B_MX-"):
                 mY = int(sample.split("-")[-1])
                 mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
@@ -830,7 +833,9 @@ def load_samples(
     data_dir = Path(data_dir) / year
     # remove empty parquets, otherwise read_parquet fails
     utils.remove_empty_parquets(data_dir)
-    full_samples_list = os.listdir(data_dir)  # get all directories in data_dir
+    full_samples_list = [
+        d.name for d in data_dir.iterdir() if d.is_dir()
+    ]  # get all directories in data_dir
     events_dict = {}
 
     # label - key of sample in events_dict
@@ -949,7 +954,9 @@ def _load_samples(args, samples, sig_samples, cutflow, variations=True):
             ),
         }
 
-    utils.add_to_cutflow(events_dict, "Pre-selection", "finalWeight", cutflow)
+    utils.add_to_cutflow(events_dict, "Pre-selection", "weight_noTrigEffs", cutflow)
+    utils.add_to_cutflow(events_dict, "Triggers", "finalWeight", cutflow)
+    print("TESTINGING")
     print(cutflow)
 
     return events_dict
@@ -1504,6 +1511,7 @@ def control_plots(
     control_plot_vars: list[ShapeVar],
     plot_dir: Path,
     year: str,
+    resonant: bool,
     weight_key: str = "finalWeight",
     hists: dict = None,
     cutstr: str = "",
@@ -1543,7 +1551,7 @@ def control_plots(
     if hists is None:
         hists = {}
     if sig_scale_dict is None:
-        sig_scale_dict = {sig_key: 2e5 for sig_key in sig_keys}
+        sig_scale_dict = dict.fromkeys(sig_keys, 200000.0)
 
     print(control_plot_vars)
     print(selection)
@@ -1585,6 +1593,7 @@ def control_plots(
                     year,
                     plot_sig_keys,
                     bg_keys,
+                    resonant,
                     name=name,
                     title=title,
                     sig_scale_dict=tsig_scale_dict if not log else None,
@@ -1789,6 +1798,7 @@ def get_templates(
     fail_ylim: int = None,
     blind: bool = True,
     blind_pass: bool = False,
+    resonant: bool = False,
     show: bool = False,
 ) -> dict[str, Hist]:
     """
@@ -2019,6 +2029,7 @@ def get_templates(
                 for j, p_sig_keys in enumerate(sig_splits):
                     split_str = "" if len(sig_splits) == 1 else f"sigs{j}_"
                     plot_params = {
+                        "resonant": resonant,
                         "hists": h.project(0, i + 1),
                         "sig_keys": p_sig_keys,
                         "sig_scale_dict": (
@@ -2030,7 +2041,7 @@ def get_templates(
                         "year": year,
                         "ylim": pass_ylim if pass_region else fail_ylim,
                         "plot_data": not (rname == "pass" and blind_pass),
-                        "divide_bin_width": args.resonant,
+                        "divide_bin_width": resonant,
                     }
 
                     plot_name = (
@@ -2190,7 +2201,13 @@ def parse_args(parser=None):
     add_bool_arg(parser, "bdt-plots", "make bdt sculpting plots", default=False)
     add_bool_arg(parser, "mass-sculpting-plots", "make mass sculpting plots", default=False)
     add_bool_arg(parser, "lpsfs", "measure LP SFs for given WPs", default=False)
-    add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
+    add_bool_arg(
+        parser,
+        "skip-lpsfs",
+        "skip LP SFs for templates - temp argument - will result in an error during templates...",
+        default=False,
+    )
+    add_bool_arg(parser, "templates", "save m_bb templates using - bdt cut", default=False)
     add_bool_arg(
         parser, "overwrite-template", "if template file already exists, overwrite it", default=False
     )
@@ -2303,6 +2320,14 @@ def parse_args(parser=None):
         help="pT cut for sub-leading AK8 jet (resonant only)",
         default=[350],
         nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--res-mass-window",
+        help="bb masswindow for resonant signal region",
+        default=[110, 145],
+        nargs=2,
         type=float,
     )
 
