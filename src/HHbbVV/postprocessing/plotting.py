@@ -1820,7 +1820,7 @@ def XHYscatter2d(arr, year: str, title: str = None, name: str = "", show: bool =
 
     hep.cms.label(data=False, year=year, ax=ax)
 
-    if len(str(name)):
+    if str(name):
         plt.savefig(name, bbox_inches="tight")
 
     if show:
