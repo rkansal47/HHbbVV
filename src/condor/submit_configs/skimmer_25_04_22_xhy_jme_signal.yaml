@@ -1,0 +1,16 @@
+{ "Skimmer": {
+      # submit script will append year to this
+      "XHY":
+        {
+          "subsamples":
+            [
+              "NMSSM_XToYHTo2W2BTo4Q2B_MX-1600_MY-80",
+              "NMSSM_XToYHTo2W2BTo4Q2B_MX-1600_MY-125",
+              "NMSSM_XToYHTo2W2BTo4Q2B_MX-1600_MY-150",
+              "NMSSM_XToYHTo2W2BTo4Q2B_MX-1600_MY-190",
+              "NMSSM_XToYHTo2W2BTo4Q2B_MX-1800_MY-250",
+            ],
+          "files_per_job": 20,
+          "chunksize": 10000,
+        },
+    } }

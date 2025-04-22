@@ -155,6 +155,7 @@ def main(args):
         args.save_all,
         args.save_skims,
         args.lp_sfs,
+        args.jme_presel,
     )
 
     if len(args.files):

@@ -178,6 +178,7 @@ def get_processor(
     save_all: bool = None,
     save_skims: bool = None,
     lp_sfs: bool = None,
+    jme_presel: bool = None,
 ):
     # define processor
     if processor == "trigger":
@@ -199,6 +200,7 @@ def get_processor(
             save_all=save_all,
             save_skims=save_skims,
             lp_sfs=lp_sfs,
+            jme_presel=jme_presel,
         )
     elif processor == "input":
         from HHbbVV.processors import TaggerInputSkimmer
@@ -257,3 +259,4 @@ def parse_common_args(parser):
     add_bool_arg(parser, "save-all", default=False, help="save all branches")
     add_bool_arg(parser, "save-skims", default=True, help="save skims")
     add_bool_arg(parser, "lp-sfs", default=True, help="run LP SFs for signals")
+    add_bool_arg(parser, "jme-presel", default=True, help="run JME preselections")

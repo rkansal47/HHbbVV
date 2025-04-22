@@ -41,7 +41,7 @@ pip3 install -e .
 
 # run code
 # pip install --user onnxruntime
-python3 -u -W ignore $script --year $year --starti $starti --endi $endi --samples $sample --subsamples $subsample --processor $processor --maxchunks $maxchunks --chunksize $chunksize --label $label --njets $njets ${save_ak15} ${save_systematics} ${inference} ${save_all} ${save_skims} ${lp_sfs}
+python3 -u -W ignore $script --year $year --starti $starti --endi $endi --samples $sample --subsamples $subsample --processor $processor --maxchunks $maxchunks --chunksize $chunksize --label $label --njets $njets ${save_ak15} ${save_systematics} ${inference} ${save_all} ${save_skims} ${lp_sfs} ${jme_presel}
 
 #move output to t2s
 for t2_prefix in ${t2_prefixes}

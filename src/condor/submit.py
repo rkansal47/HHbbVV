@@ -123,6 +123,7 @@ def main(args):
                         "--save-systematics" if args.save_systematics else "--no-save-systematics"
                     ),
                     "inference": "--inference" if args.inference else "--no-inference",
+                    "jme_presel": "--jme-presel" if args.jme_presel else "--no-jme-presel",
                 }
                 run_utils.write_template(sh_templ, localsh, sh_args)
                 os.system(f"chmod u+x {localsh}")
