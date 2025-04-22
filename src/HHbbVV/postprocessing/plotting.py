@@ -31,6 +31,15 @@ hep.style.use("CMS")
 formatter = mticker.ScalarFormatter(useMathText=True)
 formatter.set_powerlimits((-3, 3))
 
+# Data point styling parameters
+DATA_STYLE = {
+    "histtype": "errorbar",
+    "color": "black",
+    "markersize": 15,
+    "elinewidth": 2,
+    "capsize": 0,
+}
+
 # this is needed for some reason to update the font size for the first plot
 # fig, ax = plt.subplots(1, 1, figsize=(12, 12))
 # plt.rcParams.update({"font.size": 24})
@@ -42,13 +51,14 @@ BG_UNC_LABEL = "Total Bkg. Uncertainty"
 bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "TT", "QCD"]
 
 sample_label_map = {
-    "HHbbVV": "ggF HHbbVV",
-    "VBFHHbbVV": "VBF HHbbVV",
-    "qqHH_CV_1_C2V_1_kl_1_HHbbVV": "VBF HHbbVV",
-    "qqHH_CV_1_C2V_0_kl_1_HHbbVV": r"VBF HHbbVV ($\kappa_{2V} = 0$)",
-    "qqHH_CV_1_C2V_2_kl_1_HHbbVV": r"VBF HHbbVV ($\kappa_{2V} = 2$)",
+    "HHbbVV": r"ggF HH$\rightarrow b\overline{b}VV$",
+    "VBFHHbbVV": r"VBF HH$\rightarrow b\overline{b}VV$",
+    "qqHH_CV_1_C2V_1_kl_1_HHbbVV": r"VBF HH$\rightarrow b\overline{b}VV$",
+    "qqHH_CV_1_C2V_0_kl_1_HHbbVV": r"VBF HH$\rightarrow b\overline{b}VV$ ($\kappa_{2V} = 0$)",
+    "qqHH_CV_1_C2V_2_kl_1_HHbbVV": r"VBF HH$\rightarrow b\overline{b}VV$ ($\kappa_{2V} = 2$)",
     "ST": r"Single-$t$",
     "TT": r"$t\bar{t}$",
+    "Hbb": r"H$\rightarrow b\overline{b}$",
 }
 
 COLOURS = {
@@ -82,22 +92,6 @@ COLOURS = {
     "dutchwhite": "#F5E5B8",
 }
 
-BG_COLOURS = {
-    "QCD": "darkblue",
-    "TT": "brown",
-    # "V+Jets": "gray",
-    "W+Jets": "orange",
-    "Z+Jets": "yellow",
-    "ST": "lightblue",
-    "Diboson": "lightgray",
-    "Hbb": "beige",
-    "HWW": "gray",
-    # below not needed anymore
-    "HH": "ashgrey",
-    "HHbbVV": "red",
-    "qqHH_CV_1_C2V_0_kl_1_HHbbVV": "darkpurple",
-}
-
 MARKERS = [
     "o",
     "^",
@@ -120,9 +114,36 @@ MARKERS = [
     "H",
 ]
 
+# for more than 5, probably better to use different MARKERS
+LINESTYLES = [
+    "-",
+    "--",
+    "-.",
+    ":",
+    (0, (3, 5, 1, 5, 1, 5)),
+]
+
+
+BG_COLOURS = {
+    "QCD": "darkblue",
+    "TT": "brown",
+    # "V+Jets": "gray",
+    "W+Jets": "orange",
+    "Z+Jets": "yellow",
+    "ST": "lightblue",
+    "Diboson": "lightgray",
+    "Hbb": "beige",
+    "HWW": "gray",
+    # below not needed anymore
+    "HH": "ashgrey",
+    "HHbbVV": "red",
+    "qqHH_CV_1_C2V_0_kl_1_HHbbVV": "darkpurple",
+}
+
 sig_colour = "red"
 
 SIG_COLOURS = [
+    "#bd1f01",
     "#ff5252",
     "#7F2CCB",
     "#ffbaba",
@@ -132,6 +153,18 @@ SIG_COLOURS = [
     "#5A1807",
     "#3C0919",
     "#353535",
+]
+
+ROC_COLOURS = [
+    "darkblue",
+    "lightblue",
+    "orange",
+    "brown",
+    "darkpurple",
+    "red",
+    "gray",
+    "beige",
+    "yellow",
 ]
 
 
@@ -235,18 +268,25 @@ def _asimov_significance(s, b):
     return np.sqrt(2 * ((s + b) * np.log(1 + (s / b)) - s))
 
 
-def add_cms_label(ax, year, data=True, label="Preliminary", loc=2):
+def add_cms_label(ax, year, data=True, label="Preliminary", loc=2, lumi=True):
     if year == "all":
         hep.cms.label(
             label,
             data=data,
-            lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}",
+            lumi=f"{np.sum(list(LUMI.values())) / 1e3:.0f}" if lumi else None,
             year=None,
             ax=ax,
             loc=loc,
         )
     else:
-        hep.cms.label(label, data=data, lumi=f"{LUMI[year] / 1e3:.0f}", year=year, ax=ax, loc=loc)
+        hep.cms.label(
+            label,
+            data=data,
+            lumi=f"{LUMI[year] / 1e3:.0f}" if lumi else None,
+            year=year,
+            ax=ax,
+            loc=loc,
+        )
 
 
 def ratioHistPlot(
@@ -254,6 +294,7 @@ def ratioHistPlot(
     year: str,
     sig_keys: list[str],
     bg_keys: list[str],
+    resonant: bool,
     sig_colours: list[str] = None,
     bg_colours: dict[str, str] = None,
     sig_err: ArrayLike | str = None,
@@ -277,9 +318,9 @@ def ratioHistPlot(
     significance_dir: str = "right",
     plot_ratio: bool = True,
     axrax: tuple = None,
-    ncol: int = None,
+    leg_args: dict = None,
     cmslabel: str = None,
-    cmsloc: int = None,
+    cmsloc: int = 0,
 ):
     """
     Makes and saves a histogram plot, with backgrounds stacked, signal separate (and optionally
@@ -327,8 +368,8 @@ def ratioHistPlot(
         bg_colours = BG_COLOURS
     if sig_colours is None:
         sig_colours = SIG_COLOURS
-    if ncol is None:
-        ncol = 2 if log else 1
+    if leg_args is None:
+        leg_args = {"ncol": 2 if log else 1, "fontsize": 24}
 
     # copy hists and bg_keys so input objects are not changed
     hists, bg_keys = deepcopy(hists), deepcopy(bg_keys)
@@ -380,7 +421,11 @@ def ratioHistPlot(
         )
     elif plot_ratio:
         fig, (ax, rax) = plt.subplots(
-            2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
+            2,
+            1,
+            figsize=(12, 14),
+            gridspec_kw={"height_ratios": [3, 1], "hspace": 0.1},
+            sharex=True,
         )
     else:
         fig, ax = plt.subplots(1, 1, figsize=(12, 11))
@@ -410,6 +455,7 @@ def ratioHistPlot(
             histtype="step",
             label=list(sig_labels.values()),
             color=sig_colours[: len(sig_keys)],
+            linewidth=3,
         )
 
         # plot signal errors
@@ -490,30 +536,35 @@ def ratioHistPlot(
             ax=ax,
             yerr=data_err,
             xerr=divide_bin_width,
-            histtype="errorbar",
             label=data_key,
-            color="black",
+            **DATA_STYLE,
         )
 
     if log:
         ax.set_yscale("log")
         # two column legend
-        ax.legend(fontsize=24, ncol=2)
+        ax.legend(**leg_args)
     else:
-        legend_order = [data_key] + list(sig_labels.values()) + bg_order[::-1] + [BG_UNC_LABEL]
+        if resonant:
+            legend_order = [data_key] + list(sig_labels.values()) + bg_order[::-1] + [BG_UNC_LABEL]
+        else:
+            legend_order = [data_key] + bg_order[::-1] + list(sig_labels.values()) + [BG_UNC_LABEL]
         legend_order = [sample_label_map.get(k, k) for k in legend_order]
+
         handles, labels = ax.get_legend_handles_labels()
         ordered_handles = [
             handles[labels.index(label)] for label in legend_order if label in labels
         ]
         ordered_labels = [label for label in legend_order if label in labels]
-        ax.legend(ordered_handles, ordered_labels, fontsize=24, ncol=ncol)
+        ax.legend(ordered_handles, ordered_labels, **leg_args)
 
     y_lowlim = 0 if not log else 1e-5
     if ylim is not None:
         ax.set_ylim([y_lowlim, ylim])
     else:
         ax.set_ylim(y_lowlim)
+
+    ax.margins(x=0)
 
     # plot ratio below
     if plot_ratio:
@@ -532,9 +583,7 @@ def ratioHistPlot(
                 yerr=yerr,
                 xerr=divide_bin_width,
                 ax=rax,
-                histtype="errorbar",
-                color="black",
-                capsize=4,
+                **DATA_STYLE,
             )
 
             if bg_err is not None and bg_err_type == "shaded":
@@ -554,6 +603,9 @@ def ratioHistPlot(
         rax.set_ylabel("Data / Bkg.")
         rax.set_ylim(ratio_ylims)
         rax.grid()
+        rax.margins(x=0)
+
+        ax.set_xlabel(None)
 
     if plot_significance:
         sigs = [pre_divide_hists[sig_key, :].values() for sig_key in sig_scale_dict]
@@ -594,6 +646,7 @@ def ratioHistPlot(
         mline = "\n" in region_label
         xpos = 0.29 if not mline else 0.24
         ypos = 0.915 if not mline else 0.87
+        xpos = 0.035 if not resonant else xpos
         ax.text(
             xpos,
             ypos,
@@ -639,7 +692,7 @@ def ratioLinePlot(
     plt.rcParams.update({"font.size": 24})
 
     fig, (ax, rax) = plt.subplots(
-        2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
+        2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0.1}, sharex=True
     )
 
     bg_tot = np.sum(hists[bg_keys, :].values(), axis=0)
@@ -674,9 +727,18 @@ def ratioLinePlot(
     if bg_err is not None:
         # Switch order so that uncertainty label comes at the end
         handles, labels = ax.get_legend_handles_labels()
+        # Reorder to put uncertainty at the end
         handles = handles[1:] + handles[:1]
         labels = labels[1:] + labels[:1]
-        ax.legend(handles, labels, ncol=2)
+        # Split into two columns with 5 and 6 items
+        left_handles = handles[:5]
+        left_labels = labels[:5]
+        right_handles = handles[5:]
+        right_labels = labels[5:]
+        # Combine back with None as separator
+        handles = left_handles + [None] + right_handles
+        labels = left_labels + [""] + right_labels
+        ax.legend(handles, labels, ncol=2, fontsize=24)
     else:
         ax.legend(ncol=2)
 
@@ -691,9 +753,7 @@ def ratioLinePlot(
             hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
             yerr=yerr,
             ax=rax,
-            histtype="errorbar",
-            color="black",
-            capsize=4,
+            **DATA_STYLE,
         )
 
         if bg_err is not None:
@@ -708,7 +768,7 @@ def ratioLinePlot(
                 linewidth=0,
             )
 
-        rax.set_ylabel("Data / Bkg.")
+        rax.set_ylabel("Data / Sim.")
         rax.set_ylim(0.5, 1.5)
         rax.grid()
     else:
@@ -720,8 +780,7 @@ def ratioLinePlot(
             yerr=yerr,
             ax=rax,
             histtype="errorbar",
-            color="black",
-            capsize=4,
+            **DATA_STYLE,
         )
         rax.set_ylabel("(Data - MC) / Data")
         rax.set_ylim(-0.5, 0.5)
@@ -747,13 +806,12 @@ def ratioLinePlotPrePost(
     bg_keys: list[str],
     year: str,
     bg_colours: dict[str, str] = None,
-    sig_colour: str = sig_colour,  # noqa: ARG001
     bg_err: np.ndarray | str = None,
     data_err: ArrayLike | bool | None = None,
     title: str = None,
+    chi2s: list = None,  # [pre, post reweighting chi2s, dofs]
     pulls: bool = False,
     name: str = "",
-    sig_scale: float = 1.0,  # noqa: ARG001
     preliminary: bool = True,
     show: bool = True,
 ):
@@ -767,7 +825,7 @@ def ratioLinePlotPrePost(
     plt.rcParams.update({"font.size": 24})
 
     fig, (ax, rax) = plt.subplots(
-        2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0}, sharex=True
+        2, 1, figsize=(12, 14), gridspec_kw={"height_ratios": [3, 1], "hspace": 0.1}, sharex=True
     )
 
     bg_tot = np.sum(hists[bg_keys, :].values(), axis=0)
@@ -781,14 +839,14 @@ def ratioLinePlotPrePost(
     for i, k in enumerate(bg_keys):
         if k == "Top Matched":
             plot_hists.append(pre_hists[k, :])
-            labels.append("Pre Top Matched")
+            labels.append("Uncorrected Top Matched")
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("--")
             alpha.append(0.5)
             markers.append(None)
 
             plot_hists.append(hists[k, :])
-            labels.append("Post Top Matched")
+            labels.append("Corrected Top Matched")
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
             alpha.append(1)
@@ -805,13 +863,12 @@ def ratioLinePlotPrePost(
         sum([pre_hists[sample, :] for sample in bg_keys]),
         sum([hists[sample, :] for sample in bg_keys]),
     ]
-    labels = labels + ["Pre Total", "Post Total"]
+    labels = labels + ["Uncorrected Total", "Corrected Total"]
     colors = colors + ["black", "black"]
     linestyles = linestyles + ["--", "-"]
     alpha = alpha + [0.5, 1]
     markers = markers + [None, None]
 
-    ax.set_ylabel("Events")
     hep.histplot(
         plot_hists,
         ax=ax,
@@ -822,6 +879,7 @@ def ratioLinePlotPrePost(
         # marker=markers,
         alpha=alpha,
         yerr=False,
+        flow="none",
     )
 
     hep.histplot(
@@ -835,6 +893,7 @@ def ratioLinePlotPrePost(
         markerfacecolor="none",
         alpha=alpha,
         yerr=False,
+        flow="none",
     )
 
     hep.histplot(
@@ -848,6 +907,7 @@ def ratioLinePlotPrePost(
         markerfacecolor="none",
         alpha=alpha,
         yerr=False,
+        flow="none",
     )
 
     if bg_err is not None:
@@ -859,24 +919,27 @@ def ratioLinePlotPrePost(
             alpha=0.2,
             hatch="//",
             linewidth=0,
-            label="Lund Plane Uncertainty",
+            label="LJP Uncertainty",
         )
 
     hep.histplot(
-        hists[data_key, :], ax=ax, yerr=data_err, histtype="errorbar", label=data_key, color="black"
+        hists[data_key, :], ax=ax, yerr=data_err, label=data_key, **DATA_STYLE, flow="none"
     )
 
     if bg_err is not None:
         # Switch order so that uncertainty label comes at the end
-        # handles, labels = ax.get_legend_handles_labels()
-        # handles = handles[1:] + handles[:1]
-        # labels = labels[1:] + labels[:1]
-        # ax.legend(handles, labels, ncol=2)
-        ax.legend(ncol=2)
+        handles, labels = ax.get_legend_handles_labels()
+        # Reorder to put uncertainty at the end
+        handles = handles[-1:] + handles[1:-1] + handles[:1]
+        labels = labels[-1:] + labels[1:-1] + labels[:1]
+        ax.legend(handles, labels, ncol=2, fontsize=24)
     else:
-        ax.legend(ncol=2)
+        ax.legend(ncol=2, fontsize=24)
 
     ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
+    ax.set_ylabel("Events")
+    ax.set_xlabel(None)
+    ax.margins(x=0)
 
     data_vals = hists[data_key, :].values()
 
@@ -891,21 +954,19 @@ def ratioLinePlotPrePost(
             ax=rax,
             histtype="errorbar",
             color=COLOURS["red"],
-            capsize=4,
-            # alpha=0.5,
-            label="Pre",
+            label="Uncorrected",
             markerfacecolor="none",
             marker="^",
+            flow="none",
         )
 
         hep.histplot(
             hists[data_key, :] / (sum([hists[sample, :] for sample in bg_keys]).values() + 1e-5),
             yerr=yerr,
             ax=rax,
-            histtype="errorbar",
-            color="black",
-            capsize=4,
-            label="Post",
+            label="Corrected",
+            **DATA_STYLE,
+            flow="none",
         )
 
         if bg_err is not None:
@@ -920,9 +981,9 @@ def ratioLinePlotPrePost(
                 linewidth=0,
             )
 
-        rax.set_ylabel("Data / Bkg.")
+        rax.set_ylabel("Data / Sim.")
         rax.set_ylim(0.5, 1.5)
-        rax.grid()
+        # rax.grid()
         rax.legend()
     else:
         bg_tot / (data_vals + 1e-5)
@@ -935,13 +996,35 @@ def ratioLinePlotPrePost(
             histtype="errorbar",
             color="black",
             capsize=4,
+            flow="none",
         )
         rax.set_ylabel("(Data - MC) / Data")
         rax.set_ylim(-0.5, 0.5)
-        rax.grid()
+        # rax.grid()
+
+    rax.margins(x=0)
 
     if title is not None:
         ax.set_title(title, y=1.08)
+
+    if chi2s is not None:
+        fs = 16
+        rax.text(
+            0.35,
+            0.12,
+            rf"$\chi^2$ / ndof = {chi2s[0]:.2f} / {chi2s[2]}",
+            transform=rax.transAxes,
+            fontsize=fs,
+            color=COLOURS["red"],
+        )
+        rax.text(
+            0.6,
+            0.12,
+            rf"$\chi^2$ / ndof = {chi2s[1]:.2f} / {chi2s[2]}",
+            transform=rax.transAxes,
+            fontsize=fs,
+            color="black",
+        )
 
     add_cms_label(ax, year, loc=0, label="Preliminary" if preliminary else None)
 
@@ -1243,14 +1326,31 @@ def multiROCCurveGrey(
         plt.close()
 
 
+th_colours = [
+    # "#36213E",
+    # "#9381FF",
+    "#1f78b4",
+    # "#a6cee3",
+    # "#32965D",
+    "#7CB518",
+    "#EDB458",
+    # "#ff7f00",
+    "#a70000",
+]
+
+
 def multiROCCurve(
     rocs: dict,
     thresholds=None,
     title=None,
     xlim=None,
     ylim=None,
+    log=True,
+    year="all",
+    kin_label=None,
     plot_dir="",
     name="",
+    prelim=True,
     show=False,
 ):
     if ylim is None:
@@ -1259,23 +1359,10 @@ def multiROCCurve(
         xlim = [0, 1]
     if thresholds is None:
         thresholds = [[0.9, 0.98, 0.995, 0.9965, 0.998], [0.99, 0.997, 0.998, 0.999, 0.9997]]
-    th_colours = [
-        # "#36213E",
-        # "#9381FF",
-        "#1f78b4",
-        # "#a6cee3",
-        # "#32965D",
-        "#7CB518",
-        "#EDB458",
-        # "#ff7f00",
-        "#a70000",
-    ]
 
-    roc_colours = ["#23CE6B", "#ff5252", "blue", "#ffbaba"]
+    plt.rcParams.update({"font.size": 32})
 
-    plt.rcParams.update({"font.size": 24})
-
-    plt.figure(figsize=(12, 12))
+    fig, ax = plt.subplots(figsize=(12, 12))
     for i, roc_sigs in enumerate(rocs.values()):
         for j, roc in enumerate(roc_sigs.values()):
             if len(np.array(thresholds).shape) > 1:
@@ -1283,12 +1370,13 @@ def multiROCCurve(
             else:
                 pthresholds = thresholds
 
-            plt.plot(
+            ax.plot(
                 roc["tpr"],
                 roc["fpr"],
                 label=roc["label"],
-                linewidth=2,
-                color=roc_colours[i * len(rocs) + j],
+                linewidth=3,
+                color=COLOURS[ROC_COLOURS[i * len(roc_sigs) + j]],
+                linestyle=LINESTYLES[i * len(roc_sigs) + j],
             )
 
             pths = {th: [[], []] for th in pthresholds}
@@ -1299,7 +1387,7 @@ def multiROCCurve(
                 print(roc["tpr"][idx])
 
             for k, th in enumerate(pthresholds):
-                plt.scatter(
+                ax.scatter(
                     *pths[th],
                     marker="o",
                     s=80,
@@ -1310,7 +1398,7 @@ def multiROCCurve(
                     zorder=100,
                 )
 
-                plt.vlines(
+                ax.vlines(
                     x=pths[th][0],
                     ymin=0,
                     ymax=pths[th][1],
@@ -1319,7 +1407,7 @@ def multiROCCurve(
                     alpha=0.5,
                 )
 
-                plt.hlines(
+                ax.hlines(
                     y=pths[th][1],
                     xmin=0,
                     xmax=pths[th][0],
@@ -1328,14 +1416,36 @@ def multiROCCurve(
                     alpha=0.5,
                 )
 
-    hep.cms.label(data=False, rlabel="")
-    plt.yscale("log")
-    plt.xlabel("Signal efficiency")
-    plt.ylabel("Background efficiency")
-    plt.xlim(*xlim)
-    plt.ylim(*ylim)
-    plt.legend(loc="lower right", fontsize=18)
-    plt.title(title)
+    add_cms_label(ax, year, data=False, label="Preliminary" if prelim else None, loc=1, lumi=False)
+
+    if log:
+        plt.yscale("log")
+
+    ax.set_xlabel("Signal efficiency")
+    ax.set_ylabel("Background efficiency")
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
+    ax.legend(loc="lower right", fontsize=24)
+
+    if title:
+        ax.text(
+            0.05,
+            0.83,
+            title,
+            transform=ax.transAxes,
+            fontsize=24,
+            fontproperties="Tex Gyre Heros:bold",
+        )
+
+    if kin_label:
+        ax.text(
+            0.05,
+            0.72,
+            kin_label,
+            transform=ax.transAxes,
+            fontsize=20,
+            fontproperties="Tex Gyre Heros",
+        )
 
     if len(name):
         plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
@@ -1809,7 +1919,7 @@ def XHYscatter2d(arr, label: str = None, name: str = "", show: bool = False):
 
     add_cms_label(ax, "all", loc=0)
 
-    if len(str(name)):
+    if str(name):
         plt.savefig(name, bbox_inches="tight")
 
     if show:
