@@ -26,7 +26,7 @@ def getParameters(mcstats: bool):
     """Get nuisance parameters from workspace"""
     print("Getting nuisance parameters")
     print(
-        "Remember to use an environment with Root 6.22 and run `ulimit -s unlimited` first to avoid memory issues!"
+        "Remember to use an environment with Root 6.22 and run `ulimit -s unlimited` first to avoid memory issues / seg faults!"
     )
     f = ROOT.TFile.Open("combined_withmasks.root", "READ")
     w = f.Get("w")

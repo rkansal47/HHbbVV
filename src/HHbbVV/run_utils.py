@@ -11,10 +11,10 @@ from string import Template
 from colorama import Fore, Style
 
 
-def add_bool_arg(parser, name, help, default=False, no_name=None):
+def add_bool_arg(parser, name, help, default=False, no_name=None, required=False):
     """Add a boolean command line argument for argparse"""
     varname = "_".join(name.split("-"))  # change hyphens to underscores
-    group = parser.add_mutually_exclusive_group(required=False)
+    group = parser.add_mutually_exclusive_group(required=required)
     group.add_argument("--" + name, dest=varname, action="store_true", help=help)
     if no_name is None:
         no_name = "no-" + name
