@@ -8,7 +8,6 @@ from pathlib import Path
 import awkward as ak
 import numpy as np
 import pandas as pd
-import utils
 from coffea.lookup_tools.dense_lookup import dense_lookup
 from coffea.nanoevents.methods import vector
 from coffea.nanoevents.methods.base import NanoEventsArray
@@ -17,6 +16,7 @@ from hist.intervals import clopper_pearson_interval
 from numpy.typing import ArrayLike
 
 from HHbbVV.hh_vars import data_key, qcd_key, txbb_wps
+from HHbbVV.postprocessing import utils
 
 ak.behavior.update(vector.behavior)
 

@@ -8,9 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from utils import CUT_MAX_VAL
-
 from HHbbVV.hh_vars import txbb_wps
+from HHbbVV.postprocessing.utils import CUT_MAX_VAL
 
 
 @dataclass

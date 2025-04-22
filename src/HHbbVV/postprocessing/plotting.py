@@ -1795,19 +1795,19 @@ def plot_lund_plane_six(
         plt.close()
 
 
-def XHYscatter2d(arr, year: str, title: str = None, name: str = "", show: bool = False):
+def XHYscatter2d(arr, label: str = None, name: str = "", show: bool = False):
     """Scatter plot of (mX, mY) plane for resonant analysis"""
     arr = np.array(arr)
     colours = np.ones(arr.shape[0]) if arr.shape[1] == 2 else arr[:, 2]
 
     fig, ax = plt.subplots(figsize=(14, 12))
     mappable = plt.scatter(arr[:, 0], arr[:, 1], s=150, c=colours, cmap="turbo")
-    plt.title(title)
+    # plt.title(title)
     plt.xlabel(r"$m_X$ (GeV)")
     plt.ylabel(r"$m_Y$ (GeV)")
-    plt.colorbar(mappable)
+    plt.colorbar(mappable, label=label)
 
-    hep.cms.label(data=False, year=year, ax=ax)
+    add_cms_label(ax, "all", loc=0)
 
     if len(str(name)):
         plt.savefig(name, bbox_inches="tight")
@@ -1891,10 +1891,20 @@ def colormesh(
     name: str = "",
     show: bool = False,
     preliminary: bool = True,
+    vmin=0.05,
+    vmax=1e4,
+    log: bool = True,
     figsize=(12, 8),
 ):
     fig, ax = plt.subplots(figsize=figsize)
-    _ = plt.pcolormesh(xx, yy, lims, norm=mpl.colors.LogNorm(vmin=0.05, vmax=1e4), cmap="viridis")
+
+    if log:
+        pmesh_args = {"norm": mpl.colors.LogNorm(vmin=vmin, vmax=vmax)}
+    else:
+        pmesh_args = {"vmin": vmin, "vmax": vmax}
+
+    _ = plt.pcolormesh(xx, yy, lims, cmap="viridis", **pmesh_args)
+
     # plt.title(title)
     plt.xlabel(r"$m_X$ (GeV)")
     plt.ylabel(r"$m_Y$ (GeV)")

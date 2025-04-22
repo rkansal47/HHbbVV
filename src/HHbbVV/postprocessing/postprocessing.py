@@ -24,24 +24,12 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import corrections
-
 # from pandas.errors import SettingWithCopyWarning
 import hist
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-import plotting
-import utils
-from corrections import get_lpsf, postprocess_lpsfs
 from hist import Hist
-from regions import (
-    Region,
-    get_nonres_selection_regions,
-    get_nonres_vbf_selection_regions,
-    get_res_selection_regions,
-)
-from utils import ShapeVar
 
 from HHbbVV import hh_vars
 from HHbbVV.hh_vars import (
@@ -59,6 +47,15 @@ from HHbbVV.hh_vars import (
     samples,
     years,
 )
+from HHbbVV.postprocessing import corrections, plotting, utils
+from HHbbVV.postprocessing.corrections import get_lpsf, postprocess_lpsfs
+from HHbbVV.postprocessing.regions import (
+    Region,
+    get_nonres_selection_regions,
+    get_nonres_vbf_selection_regions,
+    get_res_selection_regions,
+)
+from HHbbVV.postprocessing.utils import ShapeVar
 from HHbbVV.run_utils import add_bool_arg
 
 # ignore these because they don't seem to apply

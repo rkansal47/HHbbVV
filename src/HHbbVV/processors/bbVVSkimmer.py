@@ -545,15 +545,16 @@ class bbVVSkimmer(SkimmerABC):
         add_selection("met_filters", metfilters, *selection_args)
 
         # remove weird jets which have <4 particles (due to photon scattering?)
-        pfcands_sel = []
+        if self._inference or self._lp_sfs:
+            pfcands_sel = []
 
-        for i in range(num_jets):
-            ak8_pfcands = events.FatJetPFCands
-            ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == i]
-            pfcands = events.PFCands[ak8_pfcands.pFCandsIdx]
-            pfcands_sel.append(ak.count(pfcands.pdgId, axis=1) < 4)
+            for i in range(num_jets):
+                ak8_pfcands = events.FatJetPFCands
+                ak8_pfcands = ak8_pfcands[ak8_pfcands.jetIdx == i]
+                pfcands = events.PFCands[ak8_pfcands.pFCandsIdx]
+                pfcands_sel.append(ak.count(pfcands.pdgId, axis=1) < 4)
 
-        add_selection("photon_jets", ~np.sum(pfcands_sel, axis=0).astype(bool), *selection_args)
+            add_selection("photon_jets", ~np.sum(pfcands_sel, axis=0).astype(bool), *selection_args)
 
         #########################
         # Veto variables

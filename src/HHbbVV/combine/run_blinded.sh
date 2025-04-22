@@ -337,7 +337,7 @@ fi
 if [ $limits = 1 ]; then
     echo "Expected limits (MC Unblinded)"
     combine -M AsymptoticLimits -m 125 -n "" -d ${wsm_snapshot}.root --snapshotName MultiDimFit -v $verbose \
-    --saveWorkspace --saveToys --bypassFrequentistFit \
+    -t 1 --saveWorkspace --saveToys --bypassFrequentistFit \
     ${unblindedparams},r=0 -s "$seed" \
     --floatParameters "${freezeparamsblinded},r" --toysFrequentist --run blind 2>&1 | tee $outsdir/AsymptoticLimits.txt
 fi
