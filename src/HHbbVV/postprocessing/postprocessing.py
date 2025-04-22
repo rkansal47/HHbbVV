@@ -625,11 +625,11 @@ def _process_samples(args, BDT_sample_order: list[str] = None):
         # read all signal samples in directory
         sig_samples = OrderedDict()
         for sample in (Path(args.signal_data_dirs[0]) / args.year).iterdir():
-            if sample.startswith("NMSSM_XToYHTo2W2BTo4Q2B_MX-"):
-                mY = int(sample.split("-")[-1])
-                mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
+            if sample.name.startswith("NMSSM_XToYHTo2W2BTo4Q2B_MX-"):
+                mY = int(sample.name.split("-")[-1])
+                mX = int(sample.name.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
 
-                sig_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = sample
+                sig_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = sample.name
 
     if args.sig_samples is not None:
         for sig_key, sample in list(sig_samples.items()):
@@ -833,9 +833,7 @@ def load_samples(
     data_dir = Path(data_dir) / year
     # remove empty parquets, otherwise read_parquet fails
     utils.remove_empty_parquets(data_dir)
-    full_samples_list = [
-        d.name for d in data_dir.iterdir() if d.is_dir()
-    ]  # get all directories in data_dir
+    full_samples_list = [d.name for d in data_dir.iterdir() if d.is_dir()]
     events_dict = {}
 
     # label - key of sample in events_dict
