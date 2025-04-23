@@ -324,6 +324,7 @@ def ratioHistPlot(
     plot_ratio: bool = True,
     axrax: tuple = None,
     leg_args: dict = None,
+    reorder_legend: bool = True,
     cmslabel: str = None,
     cmsloc: int = 0,
 ):
@@ -407,7 +408,9 @@ def ratioHistPlot(
     pre_divide_bg_tot = bg_tot
 
     if divide_bin_width:
-        hists, data_err, bg_tot, bg_err = _divide_bin_widths(hists, data_err, bg_tot, bg_err)
+        hists, data_err, bg_tot, bg_err = _divide_bin_widths(
+            hists, data_err if plot_data else [], bg_tot, bg_err
+        )
 
     # set up plots
     if axrax is not None:
@@ -549,7 +552,7 @@ def ratioHistPlot(
         ax.set_yscale("log")
         # two column legend
         ax.legend(**leg_args)
-    else:
+    elif reorder_legend:
         if resonant:
             legend_order = [data_key] + list(sig_labels.values()) + bg_order[::-1] + [BG_UNC_LABEL]
         else:
@@ -562,6 +565,8 @@ def ratioHistPlot(
         ]
         ordered_labels = [label for label in legend_order if label in labels]
         ax.legend(ordered_handles, ordered_labels, **leg_args)
+    else:
+        ax.legend(**leg_args)
 
     y_lowlim = 0 if not log else 1e-5
     if ylim is not None:
