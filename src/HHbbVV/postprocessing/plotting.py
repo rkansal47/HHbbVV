@@ -121,6 +121,11 @@ LINESTYLES = [
     "-.",
     ":",
     (0, (3, 5, 1, 5, 1, 5)),
+    "-",
+    "--",
+    "-.",
+    ":",
+    (0, (3, 5, 1, 5, 1, 5)),
 ]
 
 
@@ -1384,7 +1389,7 @@ def multiROCCurve(
                 idx = _find_nearest(roc["thresholds"], th)
                 pths[th][0].append(roc["tpr"][idx])
                 pths[th][1].append(roc["fpr"][idx])
-                print(roc["tpr"][idx])
+                # print(roc["tpr"][idx])
 
             for k, th in enumerate(pthresholds):
                 ax.scatter(
@@ -2022,6 +2027,35 @@ def colormesh(
 
     add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
     plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def plot_tf(
+    tf: np.ndarray,
+    label: str = None,
+    vmax: float = None,
+    plot_dir: Path = None,
+    name: str = "",
+    data: bool = True,
+    prelim: bool = True,
+    show: bool = False,
+):
+    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+
+    h2d = hep.hist2dplot(tf, ax=ax, cmap="viridis", cmax=vmax, flow="none")
+    h2d.pcolormesh.set_edgecolor("face")
+    h2d.cbar.set_label(label)
+    add_cms_label(ax, year="all", data=data, loc=0, label="Preliminary" if prelim else None)
+
+    if name:
+        with (plot_dir / f"{name}.pkl").open("wb") as f:
+            pickle.dump(tf, f)
+
+        plt.savefig(plot_dir / f"{name}.pdf", bbox_inches="tight")
 
     if show:
         plt.show()

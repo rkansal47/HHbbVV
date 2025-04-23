@@ -56,5 +56,8 @@ fi
 for year in 2016APV 2016 2017 2018
 do
     python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG" --resonant \
-    --data-dir "$data_dir" --bg-data-dirs "$bg_data_dir" --sig-samples $sample --do-jshifts --no-plot-shifts  --signal-data-dirs "$signal_data_dir" --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" $extraargs
+    --data-dir "$data_dir" --bg-data-dirs "$bg_data_dir" --sig-samples $sample \
+    --signal-data-dirs "$signal_data_dir" --plot-dir "${MAIN_DIR}/plots/PostProcessing/$TAG" $extraargs \
+    --no-do-jshifts --plot-shifts
+    # --do-jshifts --no-plot-shifts
 done

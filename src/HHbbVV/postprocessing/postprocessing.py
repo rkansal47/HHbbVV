@@ -219,7 +219,7 @@ weight_shifts = {
     "muon_id": Syst(samples=fit_mcs, label="Muon ID"),
     # TODO: check which of these applies to resonant as well
     "scale": Syst(samples=nonres_sig_keys + ["TT"], label="QCDScaleAcc"),
-    "pdf": Syst(samples=nonres_sig_keys, label="PDFAcc"),
+    "pdf": Syst(samples=nonres_sig_keys + res_sig_keys, label="PDFAcc"),
     # "top_pt": ["TT"],
 }
 
@@ -2064,6 +2064,7 @@ def get_templates(
                                 syst=(wshift, wsyst.samples),
                                 title=f"{region.label} Region {wsyst.label} Unc.",
                                 name=f"{plot_name}_{wshift}.pdf",
+                                plot_ratio=False,
                             )
 
                             for skey, shift in [("Down", "down"), ("Up", "up")]:

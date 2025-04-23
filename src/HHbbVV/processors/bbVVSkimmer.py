@@ -908,14 +908,19 @@ class bbVVSkimmer(SkimmerABC):
         ###################### alpha_S and PDF variations ######################
 
         # alpha_s variations, only for HH and ttbar
-        if "GluGluToHHTobbVV" in dataset or "VBF_HHTobbVV" in dataset or dataset.startswith("TTTo"):
+        if (
+            "GluGluToHHTobbVV" in dataset
+            or "VBF_HHTobbVV" in dataset
+            or dataset.startswith("TTTo")
+            or "NMSSM_XToYH" in dataset
+        ):
             scale_weights = get_scale_weights(events)
             weights_dict["scale_weights"] = scale_weights * weights_dict["weight"][:, np.newaxis]
             totals_dict["np_scale_weights"] = np.sum(
                 (scale_weights * weight_np[:, np.newaxis])[gen_selected], axis=0
             )
 
-        if "GluGluToHHTobbVV" in dataset or "VBF_HHTobbVV" in dataset:
+        if "GluGluToHHTobbVV" in dataset or "VBF_HHTobbVV" in dataset or "NMSSM_XToYH" in dataset:
             pdf_weights = get_pdf_weights(events)
             weights_dict["pdf_weights"] = pdf_weights * weights_dict["weight"][:, np.newaxis]
             totals_dict["np_pdf_weights"] = np.sum(
