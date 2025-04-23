@@ -184,6 +184,7 @@ class bbVVSkimmer(SkimmerABC):
         inference=True,
         save_all=False,
         save_skims=True,
+        jme_presel=True,
     ):
         if xsecs is None:
             xsecs = {}
@@ -206,6 +207,9 @@ class bbVVSkimmer(SkimmerABC):
 
         # save skimmed files or not (e.g. if only to calculate Lund plane densities)
         self._save_skims = save_skims
+
+        # JME preselections (no bb-cut, mSD 30 cut)
+        self._jme_presel = jme_presel
 
         # for tagger model and preprocessing dict
         self.tagger_resources_path = Path(__file__).parent.resolve() / "tagger_resources"
@@ -442,18 +446,37 @@ class bbVVSkimmer(SkimmerABC):
         cuts = []
 
         for pts in jec_shifted_vars["pt"].values():
-            cut = np.prod(
-                pad_val(
-                    (pts > self.preselection["pt"])
-                    * (np.abs(fatjets.eta) < self.preselection["eta"])
-                    # tight ID
-                    * (fatjets.jetId & self.preselection["jetId"] == self.preselection["jetId"]),
-                    num_jets,
-                    False,
+            if self._jme_presel:
+                # require only one jet to pass the cuts
+                cut = np.any(
+                    pad_val(
+                        (pts > 250) * (np.abs(fatjets.eta) < 2.4)
+                        # tight ID
+                        * (
+                            fatjets.jetId & self.preselection["jetId"] == self.preselection["jetId"]
+                        ),
+                        num_jets,
+                        False,
+                        axis=1,
+                    ),
                     axis=1,
-                ),
-                axis=1,
-            )
+                )
+            else:
+                # normal analysis preselection - require both jets to pass the cuts
+                cut = np.prod(
+                    pad_val(
+                        (pts > self.preselection["pt"])
+                        * (np.abs(fatjets.eta) < self.preselection["eta"])
+                        # tight ID
+                        * (
+                            fatjets.jetId & self.preselection["jetId"] == self.preselection["jetId"]
+                        ),
+                        num_jets,
+                        False,
+                        axis=1,
+                    ),
+                    axis=1,
+                )
             cuts.append(cut)
 
         add_selection("ak8_pt_eta", np.any(cuts, axis=0), *selection_args)
@@ -465,7 +488,18 @@ class bbVVSkimmer(SkimmerABC):
             msds = jmsr_shifted_vars["msoftdrop"][shift]
             pnetms = jmsr_shifted_vars["particleNet_mass"][shift]
 
-            if self._save_all:
+            if self._jme_presel:
+                # require only one jet to pass mSD > 30
+                cut = np.any(
+                    pad_val(
+                        msds > 30,
+                        num_jets,
+                        False,
+                        axis=1,
+                    ),
+                    axis=1,
+                )
+            elif self._save_all:
                 cut = (
                     (pnetms[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
                     + (msds[~bb_mask] >= self.preselection["VVparticleNet_mass"][0])
@@ -488,12 +522,12 @@ class bbVVSkimmer(SkimmerABC):
         # TODO: dijet mass: check if dijet mass cut passes in any of the JEC or JMC variations
 
         # Txbb pre-selection cut
-
-        txbb_cut = (
-            ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"][bb_mask]
-            >= self.preselection["bbFatJetParticleNetMD_Txbb"]
-        )
-        add_selection("ak8bb_txbb", txbb_cut, *selection_args)
+        if not self._jme_presel:
+            txbb_cut = (
+                ak8FatJetVars["ak8FatJetParticleNetMD_Txbb"][bb_mask]
+                >= self.preselection["bbFatJetParticleNetMD_Txbb"]
+            )
+            add_selection("ak8bb_txbb", txbb_cut, *selection_args)
 
         # 2018 HEM cleaning
         # https://indico.cern.ch/event/1249623/contributions/5250491/attachments/2594272/4477699/HWW_0228_Draft.pdf
