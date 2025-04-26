@@ -9,7 +9,8 @@
 MAIN_DIR="../../.."
 # signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Jan29UpdateXHYLP"
 data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/24Mar14UpdateData"
-signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Feb6XHY"
+# signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Feb6XHY"
+signal_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/25Apr22PDFWeights"
 bg_data_dir="/ceph/cms/store/user/rkansal/bbVV/skimmer/24Mar6AllYearsBDTVars"
 TAG=""
 extraargs=""
@@ -53,7 +54,8 @@ if [[ -z $TAG ]]; then
 fi
 
 
-for year in 2016APV 2016 2017 2018
+# for year in 2016APV 2016 2017 2018
+for year in 2018
 do
     python -u postprocessing.py --templates --year $year --template-dir "templates/$TAG" --resonant \
     --data-dir "$data_dir" --bg-data-dirs "$bg_data_dir" --sig-samples $sample \

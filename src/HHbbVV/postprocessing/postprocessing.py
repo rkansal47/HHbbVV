@@ -218,7 +218,7 @@ weight_shifts = {
     "electron_id": Syst(samples=fit_mcs, label="Electron ID"),
     "muon_id": Syst(samples=fit_mcs, label="Muon ID"),
     # TODO: check which of these applies to resonant as well
-    "scale": Syst(samples=nonres_sig_keys + ["TT"], label="QCDScaleAcc"),
+    "scale": Syst(samples=nonres_sig_keys + res_sig_keys + ["TT"], label="QCDScaleAcc"),
     "pdf": Syst(samples=nonres_sig_keys + res_sig_keys, label="PDFAcc"),
     # "top_pt": ["TT"],
 }
@@ -390,6 +390,7 @@ def main(args):
                     jshift=jshift,
                     blind=args.blinded,
                     blind_pass=bool(args.resonant),
+                    plot_data=args.data,
                     resonant=args.resonant,
                     plot_shifts=args.plot_shifts,
                     show=False,
@@ -1793,6 +1794,7 @@ def get_templates(
     fail_ylim: int = None,
     blind: bool = True,
     blind_pass: bool = False,
+    plot_data: bool = True,
     resonant: bool = False,
     show: bool = False,
 ) -> dict[str, Hist]:
@@ -1826,7 +1828,7 @@ def get_templates(
     # txbb_samples = sig_keys + [key for key in bg_keys if key in hbb_bg_keys]
 
     for rname, region in selection_regions.items():
-        if region.lpsf:
+        if region.lpsf or region.prelpsf:
             continue
 
         pass_region = rname.startswith("pass")
@@ -1948,7 +1950,7 @@ def get_templates(
                                 shape_down = np.min(whists.values(), axis=0)
                             else:
                                 # pdf uncertainty is the norm of each variation (corresponding to 103 eigenvectors) - nominal
-                                nom_vals = h[sample, :].values()
+                                nom_vals = h[sample, ...].values()
                                 abs_unc = np.linalg.norm(
                                     (whists.values() - nom_vals), axis=0
                                 )  # / np.sqrt(103)
@@ -1958,10 +1960,10 @@ def get_templates(
                                 shape_down = nom_vals * (1 - rel_unc)
 
                             h.values()[
-                                utils.get_key_index(h, f"{sample}_{wshift}_up"), :
+                                utils.get_key_index(h, f"{sample}_{wshift}_up"), ...
                             ] = shape_up
                             h.values()[
-                                utils.get_key_index(h, f"{sample}_{wshift}_down"), :
+                                utils.get_key_index(h, f"{sample}_{wshift}_down"), ...
                             ] = shape_down
 
         print(f"Histograms: {time.time() - start:.2f}")
@@ -2035,7 +2037,7 @@ def get_templates(
                         "show": show,
                         "year": year,
                         "ylim": pass_ylim if pass_region else fail_ylim,
-                        "plot_data": not (rname == "pass" and blind_pass),
+                        "plot_data": (not (rname == "pass" and blind_pass)) and plot_data,
                         "divide_bin_width": resonant,
                     }
 
@@ -2050,6 +2052,7 @@ def get_templates(
                         bg_keys=p_bg_keys,
                         title=title,
                         name=f"{plot_name}{jlabel}.pdf",
+                        plot_ratio=plot_data,
                     )
 
                     if not do_jshift and plot_shifts:
@@ -2065,6 +2068,7 @@ def get_templates(
                                 title=f"{region.label} Region {wsyst.label} Unc.",
                                 name=f"{plot_name}_{wshift}.pdf",
                                 plot_ratio=False,
+                                reorder_legend=False,
                             )
 
                             for skey, shift in [("Down", "down"), ("Up", "up")]:
