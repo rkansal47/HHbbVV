@@ -2049,7 +2049,7 @@ def colormesh(
             2300,
             "Semi-resolved",
             color="white",
-            fontsize=16,
+            fontsize=18,
             ha="center",
             va="center",
             fontproperties="Tex Gyre Heros",
@@ -2059,13 +2059,13 @@ def colormesh(
             250,
             "Fully-merged",
             color="white",
-            fontsize=16,
+            fontsize=18,
             ha="center",
             va="center",
             fontproperties="Tex Gyre Heros",
         )
 
-    add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=cmsloc)
+    add_cms_label(ax, "all", data=True, label="Preliminary" if preliminary else "", loc=cmsloc)
     plt.savefig(name, bbox_inches="tight")
 
     if show:
