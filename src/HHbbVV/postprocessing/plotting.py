@@ -2009,6 +2009,7 @@ def colormesh(
     vmin=0.05,
     vmax=1e4,
     log: bool = True,
+    region_labels: bool = False,
     figsize=(12, 8),
 ):
     fig, ax = plt.subplots(figsize=figsize)
@@ -2018,14 +2019,48 @@ def colormesh(
     else:
         pmesh_args = {"vmin": vmin, "vmax": vmax}
 
-    _ = plt.pcolormesh(xx, yy, lims, cmap="viridis", **pmesh_args)
+    pcol = plt.pcolormesh(xx, yy, lims, cmap="viridis", **pmesh_args)
+    pcol.set_edgecolor("face")
 
     # plt.title(title)
     plt.xlabel(r"$m_X$ (GeV)")
     plt.ylabel(r"$m_Y$ (GeV)")
     plt.colorbar(label=label)
 
-    add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
+    if yy.max() > 2750:
+        plt.ylim(60, 2780)
+        cmsloc = 2
+    else:
+        cmsloc = 0
+
+    if region_labels:
+        # Draw diagonal line for signal region
+        x = np.array([900, 4000])  # Wide x range to ensure line spans plot
+        y = 0.1285 * x + 134.5
+        plt.plot(x, y, "--", color="white", alpha=0.8, linewidth=2)
+
+        plt.text(
+            3550,
+            2300,
+            "Semi-resolved",
+            color="white",
+            fontsize=16,
+            ha="center",
+            va="center",
+            fontproperties="Tex Gyre Heros",
+        )
+        plt.text(
+            3550,
+            250,
+            "Fully-merged",
+            color="white",
+            fontsize=16,
+            ha="center",
+            va="center",
+            fontproperties="Tex Gyre Heros",
+        )
+
+    add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=cmsloc)
     plt.savefig(name, bbox_inches="tight")
 
     if show:
