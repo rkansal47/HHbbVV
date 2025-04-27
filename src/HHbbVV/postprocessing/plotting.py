@@ -327,6 +327,7 @@ def ratioHistPlot(
     variation: str = None,
     region_label: str = None,
     bg_err_type: str = "shaded",
+    plot_signal: bool = True,
     plot_data: bool = True,
     bg_order: list[str] = bg_order,
     combine_other_bgs: bool = False,
@@ -475,7 +476,7 @@ def ratioHistPlot(
         )
 
     # signal samples
-    if len(sig_scale_dict):
+    if len(sig_scale_dict) and plot_signal:
         hep.histplot(
             [hists[sig_key, :] * sig_scale for sig_key, sig_scale in sig_scale_dict.items()],
             ax=ax,
@@ -631,9 +632,11 @@ def ratioHistPlot(
 
         rax.set_ylabel("Data / Bkg.")
         rax.set_ylim(ratio_ylims)
+
         rax.grid()
         rax.margins(x=0)
         ax.set_xlabel(None)
+        ax.set_xticklabels([])
 
     if plot_pulls:
         # pulls = (data - bkg) / sqrt( σ_data^2 - σ_fit^2 )
@@ -656,23 +659,26 @@ def ratioHistPlot(
         #     label=r"(Data - Bkg.) / $\sigma$",
         # )
 
-        hep.histplot(
-            [pre_divide_hists[sig_key, :] / sigma for sig_key in sig_scale_dict],
-            ax=rax,
-            color=sig_colours[: len(sig_keys)],
-            label=[
-                sample_label_map.get(sig_key, sig_key) + r" / $\sigma$"
-                for sig_key in sig_scale_dict
-            ],
-            linewidth=4,
-        )
+        if plot_signal:
+            hep.histplot(
+                [pre_divide_hists[sig_key, :] / sigma for sig_key in sig_scale_dict],
+                ax=rax,
+                color=sig_colours[: len(sig_keys)],
+                label=[
+                    sample_label_map.get(sig_key, sig_key) + r" / $\sigma$"
+                    for sig_key in sig_scale_dict
+                ],
+                linewidth=4,
+            )
 
         rax.legend(ncol=2, loc="lower right")
         rax.set_ylabel("Pull")
-        rax.set_ylim(-3, 3)
-        rax.grid()
+        rax.set_ylim(-3.5, 3.5)
+        # rax.grid()
         rax.margins(x=0)
+        rax.hlines(0, *rax.get_xlim(), color=COLOURS["gray"], linewidth=1)
         ax.set_xlabel(None)
+        ax.tick_params(axis="x", labelbottom=False)
 
     if plot_significance:
         sigs = [pre_divide_hists[sig_key, :].values() for sig_key in sig_scale_dict]
@@ -712,7 +718,7 @@ def ratioHistPlot(
     if region_label is not None:
         mline = "\n" in region_label
         xpos = 0.32 if not mline else 0.24
-        ypos = 0.915 if not mline else 0.87
+        ypos = 0.91 if not mline else 0.87
         xpos = 0.035 if not resonant else xpos
         ax.text(
             xpos,

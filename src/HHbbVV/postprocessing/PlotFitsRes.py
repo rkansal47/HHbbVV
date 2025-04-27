@@ -61,7 +61,7 @@ def plot_fits_combined(
                 3,
                 figsize=(25, 30),
                 gridspec_kw=dict(
-                    height_ratios=[3, 1, 0.6, 3, 1], width_ratios=[1, 0.12, 1], hspace=0, wspace=0
+                    height_ratios=[3, 1, 0.6, 3, 1], width_ratios=[1, 0.12, 1], hspace=0.1, wspace=0
                 ),
             )
 
@@ -89,11 +89,13 @@ def plot_fits_combined(
                     "year": "all",
                     "ylim": pass_ylims[i] * scale if pass_region else fail_ylims[i] * scale,
                     # "name": f"{plot_dir}/{shape}_{region}_{shape_var.var}.pdf",
+                    "region_label": region_label,
+                    "combine_other_bgs": True,
+                    "plot_pulls": True,
                     "divide_bin_width": True,
                     "axrax": (axs[row, col], axs[row + 1, col]),
                     "cmslabel": "Preliminary" if preliminary else None,
                     "cmsloc": 2,
-                    "region_label": region_label,
                 }
 
                 plotting.ratioHistPlot(**plot_params)
@@ -133,9 +135,11 @@ def plot_fits_separate(
                     "ylim": pass_ylims[i] * scale if pass_region else fail_ylims[i] * scale,
                     "name": f"{plot_dir}/{plabel}_{shape}_{region}_{shape_var.var}.pdf",
                     "divide_bin_width": True,
+                    "region_label": region_label,
+                    "combine_other_bgs": True,
+                    "plot_pulls": True,
                     "cmslabel": "Preliminary" if preliminary else None,
                     "cmsloc": 2,
-                    "region_label": region_label,
                 }
 
                 plotting.ratioHistPlot(**plot_params)
@@ -373,7 +377,7 @@ if __name__ == "__main__":
     parser.add_argument("--cards-tag", help="Cards directory", required=True, type=str)
     parser.add_argument("--plots-tag", help="plots directory", type=str, required=True)
     parser.add_argument("--mxmy", help="mX mY", type=int, required=True, nargs=2)
-    parser.add_argument("--sig-scale", help="optional signal scaling", default=10, type=float)
+    parser.add_argument("--sig-scale", help="optional signal scaling", default=2, type=float)
     add_bool_arg(parser, "b-only", "B-only fit or not", default=True)
     add_bool_arg(parser, "hists1d", "make 1D hists", default=True)
     add_bool_arg(parser, "slices", "1d slices", default=True)
