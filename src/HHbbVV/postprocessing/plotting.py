@@ -48,7 +48,7 @@ DATA_STYLE = {
 
 BG_UNC_LABEL = "Total Bkg. Uncertainty"
 
-bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "TT", "QCD"]
+bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "Other", "TT", "QCD"]
 
 sample_label_map = {
     "HHbbVV": r"ggF HH$\rightarrow b\overline{b}VV$",
@@ -59,6 +59,7 @@ sample_label_map = {
     "ST": r"Single-$t$",
     "TT": r"$t\bar{t}$",
     "Hbb": r"H$\rightarrow b\overline{b}$",
+    "X[900]->HY[80]": r"X[900]$\rightarrow$HY[80]",
 }
 
 COLOURS = {
@@ -132,6 +133,7 @@ LINESTYLES = [
 BG_COLOURS = {
     "QCD": "darkblue",
     "TT": "brown",
+    "Other": "yellow",
     # "V+Jets": "gray",
     "W+Jets": "orange",
     "Z+Jets": "yellow",
@@ -187,6 +189,17 @@ def _combine_hbb_bgs(hists, bg_keys):
     if "Hbb" not in bg_keys:
         bg_keys.append("Hbb")
 
+    return h, bg_keys
+
+
+def _combine_other_bgs(hists, bg_keys, keep_keys: list[str] = None):
+    """Combine all backgrounds except for ``keep_keys`` into a single "Other" background"""
+    if keep_keys is None:
+        keep_keys = ["QCD", "TT"]
+
+    combine_keys = [key for key in bg_keys if key not in keep_keys]
+    h = utils.combine_other_bgs(hists, combine_keys)
+    bg_keys = keep_keys + ["Other"]
     return h, bg_keys
 
 
@@ -316,12 +329,14 @@ def ratioHistPlot(
     bg_err_type: str = "shaded",
     plot_data: bool = True,
     bg_order: list[str] = bg_order,
+    combine_other_bgs: bool = False,
     log: bool = False,
     ratio_ylims: list[float] = None,
     divide_bin_width: bool = False,
     plot_significance: bool = False,
     significance_dir: str = "right",
     plot_ratio: bool = True,
+    plot_pulls: bool = False,
     axrax: tuple = None,
     leg_args: dict = None,
     reorder_legend: bool = True,
@@ -363,6 +378,7 @@ def ratioHistPlot(
         ratio_ylims (List[float]): y limits on the ratio plots
         divide_bin_width (bool): divide yields by the bin width (for resonant fit regions)
         plot_significance (bool): plot Asimov significance below ratio plot
+        plot_pulls (bool): plot pulls instead of data /bkg. ratio
         significance_dir (str): "Direction" for significance. i.e. a > cut ("right"), a < cut ("left"), or per-bin ("bin").
         axrax (Tuple): optionally input ax and rax instead of creating new ones
         ncol (int): # of legend columns. By default, it is 2 for log-plots and 1 for non-log-plots.
@@ -380,6 +396,8 @@ def ratioHistPlot(
     # copy hists and bg_keys so input objects are not changed
     hists, bg_keys = deepcopy(hists), deepcopy(bg_keys)
     hists, bg_keys = _combine_hbb_bgs(hists, bg_keys)
+    if combine_other_bgs:
+        hists, bg_keys = _combine_other_bgs(hists, bg_keys)
 
     bg_keys, bg_colours, bg_labels, sig_scale_dict, sig_labels = _process_samples(
         sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, syst, variation
@@ -406,6 +424,7 @@ def ratioHistPlot(
 
     pre_divide_hists = hists
     pre_divide_bg_tot = bg_tot
+    pre_divide_bg_err = bg_err
 
     if divide_bin_width:
         hists, data_err, bg_tot, bg_err = _divide_bin_widths(
@@ -577,7 +596,7 @@ def ratioHistPlot(
     ax.margins(x=0)
 
     # plot ratio below
-    if plot_ratio:
+    if plot_ratio and not plot_pulls:
         if plot_data:
             # new: plotting data errors (black lines) and background errors (shaded) separately
             yerr = np.nan_to_num(
@@ -614,7 +633,45 @@ def ratioHistPlot(
         rax.set_ylim(ratio_ylims)
         rax.grid()
         rax.margins(x=0)
+        ax.set_xlabel(None)
 
+    if plot_pulls:
+        # pulls = (data - bkg) / sqrt( σ_data^2 - σ_fit^2 )
+        sigma = np.sqrt(pre_divide_hists[data_key, :].values() + pre_divide_bg_err**2)
+        pulls = (pre_divide_hists[data_key, :] - pre_divide_bg_tot) / sigma
+
+        hep.histplot(
+            pulls,
+            yerr=np.ones_like(pulls),
+            xerr=divide_bin_width,
+            ax=rax,
+            **DATA_STYLE,
+            label=r"(Data - Bkg.) / $\sigma$",
+        )
+
+        # hep.histplot(
+        #     pulls,
+        #     ax=rax,
+        #     color=COLOURS["gray"],
+        #     label=r"(Data - Bkg.) / $\sigma$",
+        # )
+
+        hep.histplot(
+            [pre_divide_hists[sig_key, :] / sigma for sig_key in sig_scale_dict],
+            ax=rax,
+            color=sig_colours[: len(sig_keys)],
+            label=[
+                sample_label_map.get(sig_key, sig_key) + r" / $\sigma$"
+                for sig_key in sig_scale_dict
+            ],
+            linewidth=4,
+        )
+
+        rax.legend(ncol=2, loc="lower right")
+        rax.set_ylabel("Pull")
+        rax.set_ylim(-3, 3)
+        rax.grid()
+        rax.margins(x=0)
         ax.set_xlabel(None)
 
     if plot_significance:
@@ -654,7 +711,7 @@ def ratioHistPlot(
 
     if region_label is not None:
         mline = "\n" in region_label
-        xpos = 0.29 if not mline else 0.24
+        xpos = 0.32 if not mline else 0.24
         ypos = 0.915 if not mline else 0.87
         xpos = 0.035 if not resonant else xpos
         ax.text(

@@ -520,6 +520,27 @@ def combine_hbb_bgs(hists, systs: list[str] = ()):
     return h
 
 
+def combine_other_bgs(hists, combine_keys: list[str]):
+    """
+    Combine all backgrounds in ``combine_keys`` into a single "Other" background
+    """
+    keep_keys = [key for key in hists.axes[0] if key not in combine_keys]
+
+    h = Hist(
+        hist.axis.StrCategory(keep_keys + ["Other"], name="Sample"),
+        *hists.axes[1:],
+        storage="double" if hists.storage_type == hist.storage.Double else "weight",
+    )
+
+    for i, sample in enumerate(keep_keys):
+        h.view()[i] = hists[sample, ...].view()
+
+    nsamples = len(keep_keys)
+    h.view()[nsamples] = sum(hists[key, ...] for key in combine_keys).view()
+
+    return h
+
+
 def _var_selection(
     events: pd.DataFrame,
     bb_mask: pd.DataFrame,
