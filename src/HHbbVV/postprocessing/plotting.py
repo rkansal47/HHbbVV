@@ -322,7 +322,7 @@ def ratioHistPlot(
     name: str = "",
     sig_scale_dict: OrderedDict[str, float] = None,
     ylim: int = None,
-    show: bool = True,
+    show: bool = False,
     syst: tuple = None,
     variation: str = None,
     region_label: str = None,
