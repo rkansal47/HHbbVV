@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import mplhep as hep
 import numpy as np
+import scipy
 from hist import Hist
 from hist.intervals import poisson_interval, ratio_uncertainty
 from numpy.typing import ArrayLike
@@ -1211,6 +1212,113 @@ def hist2ds(
                 plt.show()
             else:
                 plt.close()
+
+
+def hist2dPullPlot(
+    hists: Hist,
+    bg_err: np.ArrayLike,
+    sig_key: str,
+    bg_keys: list[str],
+    region_label: str,
+    # zlim: float = None,
+    preliminary: bool = True,
+    name: str = "",
+    show: bool = False,
+):
+    """
+    2D pull plots.
+
+    Args:
+        hists (Dict[str, Hist]): dictionary of hists per region.
+        plot_dir (str): directory in which to save plots.
+        regions (List[str], optional): regions to plot. Defaults to None i.e. plot all in hists.
+        region_labels (Dict[str, str], optional): Optional labels for each region in hists.
+        fail_zlim (float, optional): fail region plots upper limit. Defaults to None.
+        pass_zlim (float, optional): pass region plots upper limit. Defaults to None.
+        show (bool, optional): show plot or close. Defaults to True.
+    """
+    bg_tot = np.maximum(sum([hists[sample, ...] for sample in bg_keys]).values(), 0.0)
+    sigma = np.sqrt(hists[data_key, ...].values() + bg_err.T**2)
+    pulls = (hists[data_key, ...] - bg_tot) / sigma
+
+    fig, ax = plt.subplots(figsize=(12, 12))
+
+    # 2D Pull plot
+    h2d = hep.hist2dplot(pulls, cmap="viridis", cmin=-3.5, cmax=3.0, ax=ax)
+    h2d.cbar.set_label(r"(Data - Bkg.) / $\sigma$")
+    h2d.pcolormesh.set_edgecolor("face")
+
+    # Plot signal contours
+    sig_hist = hists[sig_key, ...].values() / sigma
+    levels = np.array([0.05, 0.5, 0.95]) * np.max(sig_hist)
+
+    # Create interpolated grid with 4x more points
+    x = hists.axes[1].centers
+    y = hists.axes[2].centers
+    x_interp = np.linspace(x.min(), x.max(), len(x) * 4)
+    y_interp = np.linspace(y.min(), y.max(), len(y) * 4)
+
+    # Interpolate signal histogram with increased smoothing
+    sig_interp = scipy.interpolate.RectBivariateSpline(
+        y, x, sig_hist.T
+    )  # Added smoothing parameter
+
+    # Use edges instead of centers for interpolation range
+    x_edges = hists.axes[1].edges
+    y_edges = hists.axes[2].edges
+    x_interp = np.linspace(x_edges[0], x_edges[-1], len(x) * 4)
+    y_interp = np.linspace(y_edges[0], y_edges[-1], len(y) * 4)
+    X, Y = np.meshgrid(x_interp, y_interp)
+    Z = sig_interp(y_interp, x_interp)
+
+    sig_colour = COLOURS["red"]
+
+    cs = ax.contour(
+        X,
+        Y,
+        Z,
+        levels=levels,
+        colors=sig_colour,
+        # linestyles=["--", "-", "--"],
+        linewidths=3,
+    )
+    ax.clabel(cs, cs.levels, inline=True, fmt="%.2f", fontsize=12)
+
+    # Add legend for signal contours
+    handles, labels = ax.get_legend_handles_labels()
+    # Create proxy artist for contour lines
+    contour_proxy = plt.Line2D([], [], color=sig_colour, linestyle="-", linewidth=3)
+    handles.append(contour_proxy)
+    labels.append(sample_label_map.get(sig_key, sig_key) + r" / $\sigma$")
+    ax.legend(
+        handles,
+        labels,
+        loc="upper right",
+        bbox_to_anchor=(1.0, 0.98),  # Moved down from default 1.0
+        fontsize=24,
+        frameon=False,
+    )
+
+    add_cms_label(ax, "all", data=True, label="Preliminary" if preliminary else None, loc=2)
+
+    ax.text(
+        0.35,
+        0.92,
+        region_label,
+        transform=ax.transAxes,
+        fontsize=24,
+        fontproperties="Tex Gyre Heros:bold",
+    )
+
+    if len(name):
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+    return pulls
 
 
 def sigErrRatioPlot(
