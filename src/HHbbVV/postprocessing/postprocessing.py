@@ -297,7 +297,9 @@ def main(args):
         print("Plotting: ", [var.var for var in plot_vars])
         if args.resonant:
             p_sig_keys = sig_keys
-            sig_scale_dict = {"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | dict.fromkeys(res_sig_keys, 20000.0)
+            sig_scale_dict = {"HHbbVV": 1e5, "VBFHHbbVV": 2e6} | dict.fromkeys(
+                res_sig_keys, 20000.0
+            )
         else:
             p_sig_keys = plot_sig_keys_nonres
             sig_scale_dict = {
