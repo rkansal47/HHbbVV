@@ -36,7 +36,7 @@ selection_regions = OrderedDict(
     ]
 )
 
-pass_ylims = [50, 8]
+pass_ylims = [55, 9]
 fail_ylims = [14000, 1700]
 scale = 1  # optional scaling lims
 
