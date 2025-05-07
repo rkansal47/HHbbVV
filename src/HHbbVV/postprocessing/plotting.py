@@ -61,6 +61,11 @@ sample_label_map = {
     "TT": r"$t\bar{t}$",
     "Hbb": r"H$\rightarrow b\overline{b}$",
     "X[900]->HY[80]": r"X[900]$\rightarrow$HY[80]",
+    "Top Matched": r"Top matched",
+    "Top W Matched": r"Top W matched",
+    "Top Unmatched": r"Top unmatched",
+    "Corrected Top Matched": r"Corrected top matched",
+    "Uncorrected Top Matched": r"Uncorrected top matched",
 }
 
 COLOURS = {
@@ -913,21 +918,21 @@ def ratioLinePlotPrePost(
     for i, k in enumerate(bg_keys):
         if k == "Top Matched":
             plot_hists.append(pre_hists[k, :])
-            labels.append("Uncorrected Top Matched")
+            labels.append("Uncorrected top matched")
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("--")
             alpha.append(0.5)
             markers.append(None)
 
             plot_hists.append(hists[k, :])
-            labels.append("Corrected Top Matched")
+            labels.append("Corrected top matched")
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
             alpha.append(1)
             markers.append(None)
         else:
             plot_hists.append(hists[k, :])
-            labels.append(k)
+            labels.append(sample_label_map.get(k, k))
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
             markers.append(MARKERS[i])
@@ -937,7 +942,7 @@ def ratioLinePlotPrePost(
         sum([pre_hists[sample, :] for sample in bg_keys]),
         sum([hists[sample, :] for sample in bg_keys]),
     ]
-    labels = labels + ["Uncorrected Total", "Corrected Total"]
+    labels = labels + ["Uncorrected total", "Corrected total"]
     colors = colors + ["black", "black"]
     linestyles = linestyles + ["--", "-"]
     alpha = alpha + [0.5, 1]
@@ -993,7 +998,7 @@ def ratioLinePlotPrePost(
             alpha=0.2,
             hatch="//",
             linewidth=0,
-            label="LJP Uncertainty",
+            label="LJP uncertainty",
         )
 
     hep.histplot(
@@ -1011,7 +1016,7 @@ def ratioLinePlotPrePost(
         ax.legend(ncol=2, fontsize=24)
 
     ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
-    ax.set_ylabel("Events")
+    ax.set_ylabel("Events / 0.04 units")
     ax.set_xlabel(None)
     ax.margins(x=0)
 
@@ -1072,29 +1077,30 @@ def ratioLinePlotPrePost(
             capsize=4,
             flow="none",
         )
-        rax.set_ylabel("(Data - MC) / Data")
+        rax.set_ylabel("(Data - Sim.) / Data")
         rax.set_ylim(-0.5, 0.5)
         # rax.grid()
 
     rax.margins(x=0)
+    rax.hlines(1, *rax.get_xlim(), color=COLOURS["gray"], linewidth=1)
 
     if title is not None:
         ax.set_title(title, y=1.08)
 
     if chi2s is not None:
-        fs = 16
+        fs = 20
         rax.text(
             0.35,
             0.12,
-            rf"$\chi^2$ / ndof = {chi2s[0]:.2f} / {chi2s[2]}",
+            rf"$\chi^2$ / ndof = {chi2s[0]:.1f} / {chi2s[2]}",
             transform=rax.transAxes,
             fontsize=fs,
             color=COLOURS["red"],
         )
         rax.text(
-            0.6,
+            0.65,
             0.12,
-            rf"$\chi^2$ / ndof = {chi2s[1]:.2f} / {chi2s[2]}",
+            rf"$\chi^2$ / ndof = {chi2s[1]:.1f} / {chi2s[2]}",
             transform=rax.transAxes,
             fontsize=fs,
             color="black",
