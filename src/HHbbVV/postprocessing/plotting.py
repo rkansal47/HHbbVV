@@ -1301,7 +1301,7 @@ def hist2dPullPlot(
     fig, ax = plt.subplots(figsize=(12, 12))
 
     # 2D Pull plot
-    h2d = hep.hist2dplot(pulls, cmap="viridis", cmin=-3.5, cmax=3.0, ax=ax)
+    h2d = hep.hist2dplot(pulls, cmap="viridis", cmin=-3.5, cmax=3.5, ax=ax)
     h2d.cbar.set_label(r"(Data - Bkg.) / $\sigma$")
     h2d.pcolormesh.set_edgecolor("face")
 
@@ -1340,6 +1340,10 @@ def hist2dPullPlot(
         linewidths=3,
     )
     ax.clabel(cs, cs.levels, inline=True, fmt="%.2f", fontsize=12)
+
+    yticks = [900, 1100, 1300, 1600, 2000, 3000, 4400]
+    ax.set_yticks(yticks)
+    ax.set_yticklabels([f"{y:.0f}" for y in yticks])
 
     # Add legend for signal contours
     handles, labels = ax.get_legend_handles_labels()
