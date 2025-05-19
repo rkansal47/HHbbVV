@@ -68,6 +68,8 @@ def get_1d_plot_params(
         "plot_signal": pass_region and not vregion,
     }
 
+    # pprint(plot_params)
+
     return plot_params
 
 
@@ -106,6 +108,7 @@ def plot_fits_combined(
 
             for j, (region, region_label) in enumerate(selection_regions.items()):
                 print("\t\t\t\t", region_label)
+                # print(region)
                 row = (j // 2) * 3
                 col = (j % 2) * 2
 
