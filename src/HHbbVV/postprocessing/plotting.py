@@ -706,7 +706,26 @@ def ratioHistPlot(
 
         # put signal label in the top right
 
-        rax.legend(ncol=2, loc="lower right")
+        # Create two separate legends - one for signal in top right, one for others in lower right
+        handles, labels = rax.get_legend_handles_labels()
+        signal_handles = []
+        signal_labels = []
+        other_handles = []
+        other_labels = []
+
+        for handle, label in zip(handles, labels):
+            if any(sample_label_map.get(sig_key, sig_key) in label for sig_key in sig_scale_dict):
+                signal_handles.append(handle)
+                signal_labels.append(label)
+            else:
+                other_handles.append(handle)
+                other_labels.append(label)
+
+        if signal_handles:
+            rax.legend(signal_handles, signal_labels, ncol=1, loc="upper right")
+        if other_handles:
+            rax.legend(other_handles, other_labels, ncol=2, loc="lower right")
+
         rax.set_ylabel("Pull")
         rax.set_ylim(-ylim, ylim)
         # rax.grid()
