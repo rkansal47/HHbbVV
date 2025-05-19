@@ -68,6 +68,8 @@ def get_1d_plot_params(
         "plot_signal": pass_region and not vregion,
     }
 
+    # pprint(plot_params)
+
     return plot_params
 
 
@@ -83,6 +85,8 @@ def plot_fits_combined(
     plabel = "preliminary" if preliminary else "final"
     for shape in shapes:
         print("\t\t", shape)
+        # if shape == "prefit":
+        #     continue
         for i, shape_var in enumerate(shape_vars):
             print("\t\t\t", shape_var.var)
             # add "invisible" subplots between main plots to add spacing
@@ -104,6 +108,7 @@ def plot_fits_combined(
 
             for j, (region, region_label) in enumerate(selection_regions.items()):
                 print("\t\t\t\t", region_label)
+                # print(region)
                 row = (j // 2) * 3
                 col = (j % 2) * 2
 

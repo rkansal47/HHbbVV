@@ -660,7 +660,7 @@ def ratioHistPlot(
         else:
             sigma = np.sqrt(sigma_data_sqrd)
             slabel = r"$\sigma_\mathrm{Stat}$"
-            ylim = 5.0
+            ylim = 7.5
 
         pulls = (pre_divide_hists[data_key, :] - pre_divide_bg_tot) / sigma
 
