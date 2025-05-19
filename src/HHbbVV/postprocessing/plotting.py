@@ -344,6 +344,7 @@ def ratioHistPlot(
     significance_dir: str = "right",
     plot_ratio: bool = True,
     plot_pulls: bool = False,
+    pull_args: dict = None,
     axrax: tuple = None,
     leg_args: dict = None,
     reorder_legend: bool = True,
@@ -399,6 +400,9 @@ def ratioHistPlot(
         sig_colours = SIG_COLOURS
     if leg_args is None:
         leg_args = {"ncol": 2 if log else 1, "fontsize": 24}
+    if pull_args is None:
+        pull_args = {}
+    pull_args["combined_sigma"] = pull_args.get("combined_sigma", False)
 
     # copy hists and bg_keys so input objects are not changed
     hists, bg_keys = deepcopy(hists), deepcopy(bg_keys)
@@ -467,7 +471,7 @@ def ratioHistPlot(
     plt.rcParams.update({"font.size": 24})
 
     # plot histograms
-    y_label = r"Events / GeV" if divide_bin_width else "Events"
+    y_label = r"<Events / GeV>" if divide_bin_width else "Events / GeV"
     ax.set_ylabel(y_label)
 
     # background samples
@@ -645,8 +649,19 @@ def ratioHistPlot(
         ax.set_xticklabels([])
 
     if plot_pulls:
-        # pulls = (data - bkg) / sqrt( σ_data^2 - σ_fit^2 )
-        sigma = np.sqrt(pre_divide_hists[data_key, :].values() + pre_divide_bg_err**2)
+        # pulls = (data - bkg) / σ
+        # σ_data = np.sqrt(predicted_yield)
+        sigma_data_sqrd = pre_divide_bg_tot
+        if pull_args["combined_sigma"]:
+            # σ = np.sqrt(σ_data_sqrd + σ_fit_sqrd)
+            sigma = np.sqrt(sigma_data_sqrd + pre_divide_bg_err**2)
+            slabel = r"$\sigma$"
+            ylim = 3.5
+        else:
+            sigma = np.sqrt(sigma_data_sqrd)
+            slabel = r"$\sigma_\mathrm{Stat}$"
+            ylim = 5.0
+
         pulls = (pre_divide_hists[data_key, :] - pre_divide_bg_tot) / sigma
 
         hep.histplot(
@@ -655,8 +670,20 @@ def ratioHistPlot(
             xerr=divide_bin_width,
             ax=rax,
             **DATA_STYLE,
-            label=r"(Data - Bkg.) / $\sigma$",
+            label=r"(Data - Bkg.) / " + slabel,
         )
+
+        if not pull_args["combined_sigma"]:
+            rax.fill_between(
+                np.repeat(hists.axes[1].edges, 2)[1:-1],
+                np.repeat(-pre_divide_bg_err / sigma, 2),
+                np.repeat(pre_divide_bg_err / sigma, 2),
+                color="black",
+                alpha=0.2,
+                hatch="//",
+                linewidth=0,
+                label=r"$\sigma_\mathrm{Syst}$ / $\sigma_\mathrm{Stat}$",
+            )
 
         # hep.histplot(
         #     pulls,
@@ -671,15 +698,17 @@ def ratioHistPlot(
                 ax=rax,
                 color=sig_colours[: len(sig_keys)],
                 label=[
-                    sample_label_map.get(sig_key, sig_key) + r" / $\sigma$"
+                    sample_label_map.get(sig_key, sig_key) + " / " + slabel
                     for sig_key in sig_scale_dict
                 ],
                 linewidth=4,
             )
 
+        # put signal label in the top right
+
         rax.legend(ncol=2, loc="lower right")
         rax.set_ylabel("Pull")
-        rax.set_ylim(-3.5, 3.5)
+        rax.set_ylim(-ylim, ylim)
         # rax.grid()
         rax.margins(x=0)
         rax.hlines(0, *rax.get_xlim(), color=COLOURS["gray"], linewidth=1)

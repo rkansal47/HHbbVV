@@ -174,13 +174,13 @@ nonres_vbf_shape_vars = [
 res_shape_vars = [
     ShapeVar(
         "VVFatJetParticleNetMass",
-        r"$M_Y^{rec}$ [GeV]",
+        r"$m_Y^{rec}$ [GeV]",
         list(range(50, 110, 10)) + list(range(110, 200, 15)) + [200, 220, 250],
         reg=False,
     ),
     ShapeVar(
         "DijetMass",
-        r"$M_X^{rec}$ [GeV]",
+        r"$m_X^{rec}$ [GeV]",
         list(range(800, 1400, 100)) + [1400, 1600, 2000, 3000, 4400],
         reg=False,
     ),
