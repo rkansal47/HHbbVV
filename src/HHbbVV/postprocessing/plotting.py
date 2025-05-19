@@ -1339,7 +1339,7 @@ def hist2dPullPlot(
     )
     ax.clabel(cs, cs.levels, inline=True, fmt="%.2f", fontsize=12)
 
-    yticks = [900, 1100, 1300, 1600, 2000, 3000, 4400]
+    yticks = [1000, 1200, 1600, 2000, 3000, 4400]
     ax.set_yticks(yticks)
     ax.set_yticklabels([f"{y:.0f}" for y in yticks])
 
@@ -1353,19 +1353,19 @@ def hist2dPullPlot(
         handles,
         labels,
         loc="upper right",
-        bbox_to_anchor=(1.0, 0.98),  # Moved down from default 1.0
-        fontsize=24,
+        # bbox_to_anchor=(1.0, 0.98),  # Moved down from default 1.0
+        fontsize=28,
         frameon=False,
     )
 
     add_cms_label(ax, "all", data=True, label="Preliminary" if preliminary else None, loc=2)
 
     ax.text(
-        0.35,
+        0.3,
         0.92,
         region_label,
         transform=ax.transAxes,
-        fontsize=24,
+        fontsize=28,
         fontproperties="Tex Gyre Heros:bold",
     )
 
