@@ -397,22 +397,32 @@ def main(args):
                 sig_scale=args.sig_scale,
             )
 
-        if preliminary and args.hists2d:
+        if args.hists2d:
             print("\t 2d")
-            for shape in shapes:
-                samples = ["Data", "TT", "Z+Jets", "W+Jets", "QCD", "Hbb", "Diboson", sig_key]
-                if shape == "shapes_prefit":
-                    samples = samples[1:]  # no need to plot data again in post-fit
+            plotting.hist2dPullPlot(
+                hists["postfits"]["pass"],
+                bgerrs["postfits"]["pass"],
+                sig_key,
+                p_bg_keys,
+                "FM SP",
+                preliminary=preliminary,
+                name=f"{plot_dir}/{plabel}/pull2d.pdf",
+            )
 
-                plotting.hist2ds(
-                    hists[shape],
-                    plot_dir / plabel / shape,
-                    regions=["pass", "fail"],
-                    region_labels=selection_regions,
-                    samples=samples,
-                    fail_zlim=[1, 1e5],
-                    pass_zlim=[1e-4, 100],
-                )
+            # for shape in shapes:
+            #     samples = ["Data", "TT", "Z+Jets", "W+Jets", "QCD", "Hbb", "Diboson", sig_key]
+            #     if shape == "shapes_prefit":
+            #         samples = samples[1:]  # no need to plot data again in post-fit
+
+            #     plotting.hist2ds(
+            #         hists[shape],
+            #         plot_dir / plabel / shape,
+            #         regions=["pass", "fail"],
+            #         region_labels=selection_regions,
+            #         samples=samples,
+            #         fail_zlim=[1, 1e5],
+            #         pass_zlim=[1e-4, 100],
+            #     )
 
 
 if __name__ == "__main__":

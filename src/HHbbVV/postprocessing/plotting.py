@@ -1295,7 +1295,7 @@ def hist2dPullPlot(
         show (bool, optional): show plot or close. Defaults to True.
     """
     bg_tot = np.maximum(sum([hists[sample, ...] for sample in bg_keys]).values(), 0.0)
-    sigma = np.sqrt(hists[data_key, ...].values() + bg_err.T**2)
+    sigma = np.sqrt(bg_tot + bg_err.T**2)
     pulls = (hists[data_key, ...] - bg_tot) / sigma
 
     fig, ax = plt.subplots(figsize=(12, 12))
@@ -1316,9 +1316,7 @@ def hist2dPullPlot(
     y_interp = np.linspace(y.min(), y.max(), len(y) * 4)
 
     # Interpolate signal histogram with increased smoothing
-    sig_interp = scipy.interpolate.RectBivariateSpline(
-        y, x, sig_hist.T
-    )  # Added smoothing parameter
+    sig_interp = scipy.interpolate.RectBivariateSpline(y, x, sig_hist.T)
 
     # Use edges instead of centers for interpolation range
     x_edges = hists.axes[1].edges
