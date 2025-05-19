@@ -1301,13 +1301,21 @@ def hist2dPullPlot(
     fig, ax = plt.subplots(figsize=(12, 12))
 
     # 2D Pull plot
-    h2d = hep.hist2dplot(pulls, cmap="viridis", cmin=-3.5, cmax=3.5, ax=ax)
+    h2d = hep.hist2dplot(
+        pulls.values().T,
+        hists.axes[2].edges,
+        hists.axes[1].edges,
+        cmap="viridis",
+        cmin=-3.5,
+        cmax=3.5,
+        ax=ax,
+    )
     h2d.cbar.set_label(r"(Data - Bkg.) / $\sigma$")
     h2d.pcolormesh.set_edgecolor("face")
 
     # Plot signal contours
     sig_hist = hists[sig_key, ...].values() / sigma
-    levels = np.array([0.05, 0.5, 0.95]) * np.max(sig_hist)
+    levels = np.array([0.04, 0.5, 0.95]) * np.max(sig_hist)
 
     # Create interpolated grid with 4x more points
     x = hists.axes[1].centers
@@ -1329,9 +1337,9 @@ def hist2dPullPlot(
     sig_colour = COLOURS["red"]
 
     cs = ax.contour(
-        X,
-        Y,
-        Z,
+        Y.T,
+        X.T,
+        Z.T,
         levels=levels,
         colors=sig_colour,
         # linestyles=["--", "-", "--"],
@@ -1339,9 +1347,11 @@ def hist2dPullPlot(
     )
     ax.clabel(cs, cs.levels, inline=True, fmt="%.2f", fontsize=12)
 
-    yticks = [1000, 1200, 1600, 2000, 3000, 4400]
-    ax.set_yticks(yticks)
-    ax.set_yticklabels([f"{y:.0f}" for y in yticks])
+    xticks = [800, 1200, 1600, 2000, 3000, 4400]
+    ax.set_xticks(xticks)
+    ax.set_xticklabels([f"{x:.0f}" for x in xticks], rotation=45)
+    ax.set_ylabel(hists.axes[1].label)
+    ax.set_xlabel(hists.axes[2].label)
 
     # Add legend for signal contours
     handles, labels = ax.get_legend_handles_labels()
