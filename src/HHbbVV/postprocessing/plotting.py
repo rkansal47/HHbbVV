@@ -660,7 +660,7 @@ def ratioHistPlot(
         else:
             sigma = np.sqrt(sigma_data_sqrd)
             slabel = r"$\sigma_\mathrm{Stat}$"
-            ylim = 5.0
+            ylim = 5.5
 
         pulls = (pre_divide_hists[data_key, :] - pre_divide_bg_tot) / sigma
 
@@ -730,6 +730,7 @@ def ratioHistPlot(
             rax.legend(other_handles, other_labels, ncol=2, loc="lower right")
 
         rax.set_ylabel("Pull")
+        print(ylim)
         rax.set_ylim(-ylim, ylim)
         # rax.grid()
         rax.margins(x=0)
