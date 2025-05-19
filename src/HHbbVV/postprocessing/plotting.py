@@ -722,8 +722,11 @@ def ratioHistPlot(
                 other_labels.append(label)
 
         if signal_handles:
-            rax.legend(signal_handles, signal_labels, ncol=1, loc="upper right")
+            # Add first legend for signal in upper right
+            first_legend = rax.legend(signal_handles, signal_labels, ncol=1, loc="upper right")
+            rax.add_artist(first_legend)  # Add the first legend to the plot
         if other_handles:
+            # Add second legend for others in lower right
             rax.legend(other_handles, other_labels, ncol=2, loc="lower right")
 
         rax.set_ylabel("Pull")
