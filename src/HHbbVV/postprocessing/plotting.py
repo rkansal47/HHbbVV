@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import mplhep as hep
 import numpy as np
+import scipy
 from hist import Hist
 from hist.intervals import poisson_interval, ratio_uncertainty
 from numpy.typing import ArrayLike
@@ -60,6 +61,11 @@ sample_label_map = {
     "TT": r"$t\bar{t}$",
     "Hbb": r"H$\rightarrow b\overline{b}$",
     "X[900]->HY[80]": r"X[900]$\rightarrow$HY[80]",
+    "Top Matched": r"Top matched",
+    "Top W Matched": r"Top W matched",
+    "Top Unmatched": r"Top unmatched",
+    "Corrected Top Matched": r"Corrected top matched",
+    "Uncorrected Top Matched": r"Uncorrected top matched",
 }
 
 COLOURS = {
@@ -338,6 +344,7 @@ def ratioHistPlot(
     significance_dir: str = "right",
     plot_ratio: bool = True,
     plot_pulls: bool = False,
+    pull_args: dict = None,
     axrax: tuple = None,
     leg_args: dict = None,
     reorder_legend: bool = True,
@@ -393,6 +400,9 @@ def ratioHistPlot(
         sig_colours = SIG_COLOURS
     if leg_args is None:
         leg_args = {"ncol": 2 if log else 1, "fontsize": 24}
+    if pull_args is None:
+        pull_args = {}
+    pull_args["combined_sigma"] = pull_args.get("combined_sigma", False)
 
     # copy hists and bg_keys so input objects are not changed
     hists, bg_keys = deepcopy(hists), deepcopy(bg_keys)
@@ -461,7 +471,7 @@ def ratioHistPlot(
     plt.rcParams.update({"font.size": 24})
 
     # plot histograms
-    y_label = r"Events / GeV" if divide_bin_width else "Events"
+    y_label = r"<Events / GeV>" if divide_bin_width else "Events / GeV"
     ax.set_ylabel(y_label)
 
     # background samples
@@ -639,8 +649,19 @@ def ratioHistPlot(
         ax.set_xticklabels([])
 
     if plot_pulls:
-        # pulls = (data - bkg) / sqrt( σ_data^2 - σ_fit^2 )
-        sigma = np.sqrt(pre_divide_hists[data_key, :].values() + pre_divide_bg_err**2)
+        # pulls = (data - bkg) / σ
+        # σ_data = np.sqrt(predicted_yield)
+        sigma_data_sqrd = pre_divide_bg_tot
+        if pull_args["combined_sigma"]:
+            # σ = np.sqrt(σ_data_sqrd + σ_fit_sqrd)
+            sigma = np.sqrt(sigma_data_sqrd + pre_divide_bg_err**2)
+            slabel = r"$\sigma$"
+            ylim = 3.5
+        else:
+            sigma = np.sqrt(sigma_data_sqrd)
+            slabel = r"$\sigma_\mathrm{Stat}$"
+            ylim = 7.5
+
         pulls = (pre_divide_hists[data_key, :] - pre_divide_bg_tot) / sigma
 
         hep.histplot(
@@ -649,8 +670,20 @@ def ratioHistPlot(
             xerr=divide_bin_width,
             ax=rax,
             **DATA_STYLE,
-            label=r"(Data - Bkg.) / $\sigma$",
+            label=r"(Data - Bkg.) / " + slabel,
         )
+
+        if not pull_args["combined_sigma"]:
+            rax.fill_between(
+                np.repeat(hists.axes[1].edges, 2)[1:-1],
+                np.repeat(-pre_divide_bg_err / sigma, 2),
+                np.repeat(pre_divide_bg_err / sigma, 2),
+                color="black",
+                alpha=0.2,
+                hatch="//",
+                linewidth=0,
+                label=r"$\sigma_\mathrm{Syst}$ / $\sigma_\mathrm{Stat}$",
+            )
 
         # hep.histplot(
         #     pulls,
@@ -665,15 +698,39 @@ def ratioHistPlot(
                 ax=rax,
                 color=sig_colours[: len(sig_keys)],
                 label=[
-                    sample_label_map.get(sig_key, sig_key) + r" / $\sigma$"
+                    sample_label_map.get(sig_key, sig_key) + " / " + slabel
                     for sig_key in sig_scale_dict
                 ],
                 linewidth=4,
             )
 
-        rax.legend(ncol=2, loc="lower right")
+        # put signal label in the top right
+
+        # Create two separate legends - one for signal in top right, one for others in lower right
+        handles, labels = rax.get_legend_handles_labels()
+        signal_handles = []
+        signal_labels = []
+        other_handles = []
+        other_labels = []
+
+        for handle, label in zip(handles, labels):
+            if any(sample_label_map.get(sig_key, sig_key) in label for sig_key in sig_scale_dict):
+                signal_handles.append(handle)
+                signal_labels.append(label)
+            else:
+                other_handles.append(handle)
+                other_labels.append(label)
+
+        if signal_handles:
+            # Add first legend for signal in upper right
+            first_legend = rax.legend(signal_handles, signal_labels, ncol=1, loc="upper right")
+            rax.add_artist(first_legend)  # Add the first legend to the plot
+        if other_handles:
+            # Add second legend for others in lower right
+            rax.legend(other_handles, other_labels, ncol=2, loc="lower right")
+
         rax.set_ylabel("Pull")
-        rax.set_ylim(-3.5, 3.5)
+        rax.set_ylim(-ylim, ylim)
         # rax.grid()
         rax.margins(x=0)
         rax.hlines(0, *rax.get_xlim(), color=COLOURS["gray"], linewidth=1)
@@ -912,21 +969,21 @@ def ratioLinePlotPrePost(
     for i, k in enumerate(bg_keys):
         if k == "Top Matched":
             plot_hists.append(pre_hists[k, :])
-            labels.append("Uncorrected Top Matched")
+            labels.append("Uncorrected top matched")
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("--")
             alpha.append(0.5)
             markers.append(None)
 
             plot_hists.append(hists[k, :])
-            labels.append("Corrected Top Matched")
+            labels.append("Corrected top matched")
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
             alpha.append(1)
             markers.append(None)
         else:
             plot_hists.append(hists[k, :])
-            labels.append(k)
+            labels.append(sample_label_map.get(k, k))
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
             markers.append(MARKERS[i])
@@ -936,7 +993,7 @@ def ratioLinePlotPrePost(
         sum([pre_hists[sample, :] for sample in bg_keys]),
         sum([hists[sample, :] for sample in bg_keys]),
     ]
-    labels = labels + ["Uncorrected Total", "Corrected Total"]
+    labels = labels + ["Uncorrected total", "Corrected total"]
     colors = colors + ["black", "black"]
     linestyles = linestyles + ["--", "-"]
     alpha = alpha + [0.5, 1]
@@ -992,7 +1049,7 @@ def ratioLinePlotPrePost(
             alpha=0.2,
             hatch="//",
             linewidth=0,
-            label="LJP Uncertainty",
+            label="LJP uncertainty",
         )
 
     hep.histplot(
@@ -1010,7 +1067,7 @@ def ratioLinePlotPrePost(
         ax.legend(ncol=2, fontsize=24)
 
     ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
-    ax.set_ylabel("Events")
+    ax.set_ylabel("Events / 0.04 units")
     ax.set_xlabel(None)
     ax.margins(x=0)
 
@@ -1071,29 +1128,30 @@ def ratioLinePlotPrePost(
             capsize=4,
             flow="none",
         )
-        rax.set_ylabel("(Data - MC) / Data")
+        rax.set_ylabel("(Data - Sim.) / Data")
         rax.set_ylim(-0.5, 0.5)
         # rax.grid()
 
     rax.margins(x=0)
+    rax.hlines(1, *rax.get_xlim(), color=COLOURS["gray"], linewidth=1)
 
     if title is not None:
         ax.set_title(title, y=1.08)
 
     if chi2s is not None:
-        fs = 16
+        fs = 20
         rax.text(
             0.35,
             0.12,
-            rf"$\chi^2$ / ndof = {chi2s[0]:.2f} / {chi2s[2]}",
+            rf"$\chi^2$ / ndof = {chi2s[0]:.1f} / {chi2s[2]}",
             transform=rax.transAxes,
             fontsize=fs,
             color=COLOURS["red"],
         )
         rax.text(
-            0.6,
+            0.65,
             0.12,
-            rf"$\chi^2$ / ndof = {chi2s[1]:.2f} / {chi2s[2]}",
+            rf"$\chi^2$ / ndof = {chi2s[1]:.1f} / {chi2s[2]}",
             transform=rax.transAxes,
             fontsize=fs,
             color="black",
@@ -1211,6 +1269,125 @@ def hist2ds(
                 plt.show()
             else:
                 plt.close()
+
+
+def hist2dPullPlot(
+    hists: Hist,
+    bg_err: np.ArrayLike,
+    sig_key: str,
+    bg_keys: list[str],
+    region_label: str,
+    # zlim: float = None,
+    preliminary: bool = True,
+    name: str = "",
+    show: bool = False,
+):
+    """
+    2D pull plots.
+
+    Args:
+        hists (Dict[str, Hist]): dictionary of hists per region.
+        plot_dir (str): directory in which to save plots.
+        regions (List[str], optional): regions to plot. Defaults to None i.e. plot all in hists.
+        region_labels (Dict[str, str], optional): Optional labels for each region in hists.
+        fail_zlim (float, optional): fail region plots upper limit. Defaults to None.
+        pass_zlim (float, optional): pass region plots upper limit. Defaults to None.
+        show (bool, optional): show plot or close. Defaults to True.
+    """
+    bg_tot = np.maximum(sum([hists[sample, ...] for sample in bg_keys]).values(), 0.0)
+    sigma = np.sqrt(bg_tot + bg_err.T**2)
+    pulls = (hists[data_key, ...] - bg_tot) / sigma
+
+    fig, ax = plt.subplots(figsize=(12, 12))
+
+    # 2D Pull plot
+    h2d = hep.hist2dplot(
+        pulls.values().T,
+        hists.axes[2].edges,
+        hists.axes[1].edges,
+        cmap="viridis",
+        cmin=-3.5,
+        cmax=3.5,
+        ax=ax,
+    )
+    h2d.cbar.set_label(r"(Data - Bkg.) / $\sigma$")
+    h2d.pcolormesh.set_edgecolor("face")
+
+    # Plot signal contours
+    sig_hist = hists[sig_key, ...].values() / sigma
+    levels = np.array([0.04, 0.5, 0.95]) * np.max(sig_hist)
+
+    # Create interpolated grid with 4x more points
+    x = hists.axes[1].centers
+    y = hists.axes[2].centers
+    x_interp = np.linspace(x.min(), x.max(), len(x) * 4)
+    y_interp = np.linspace(y.min(), y.max(), len(y) * 4)
+
+    # Interpolate signal histogram with increased smoothing
+    sig_interp = scipy.interpolate.RectBivariateSpline(y, x, sig_hist.T)
+
+    # Use edges instead of centers for interpolation range
+    x_edges = hists.axes[1].edges
+    y_edges = hists.axes[2].edges
+    x_interp = np.linspace(x_edges[0], x_edges[-1], len(x) * 4)
+    y_interp = np.linspace(y_edges[0], y_edges[-1], len(y) * 4)
+    X, Y = np.meshgrid(x_interp, y_interp)
+    Z = sig_interp(y_interp, x_interp)
+
+    sig_colour = COLOURS["red"]
+
+    cs = ax.contour(
+        Y.T,
+        X.T,
+        Z.T,
+        levels=levels,
+        colors=sig_colour,
+        # linestyles=["--", "-", "--"],
+        linewidths=3,
+    )
+    ax.clabel(cs, cs.levels, inline=True, fmt="%.2f", fontsize=12)
+
+    xticks = [800, 1200, 1600, 2000, 3000, 4400]
+    ax.set_xticks(xticks)
+    ax.set_xticklabels([f"{x:.0f}" for x in xticks], rotation=45)
+    ax.set_ylabel(hists.axes[1].label)
+    ax.set_xlabel(hists.axes[2].label)
+
+    # Add legend for signal contours
+    handles, labels = ax.get_legend_handles_labels()
+    # Create proxy artist for contour lines
+    contour_proxy = plt.Line2D([], [], color=sig_colour, linestyle="-", linewidth=3)
+    handles.append(contour_proxy)
+    labels.append(sample_label_map.get(sig_key, sig_key) + r" / $\sigma$")
+    ax.legend(
+        handles,
+        labels,
+        loc="upper right",
+        # bbox_to_anchor=(1.0, 0.98),  # Moved down from default 1.0
+        fontsize=28,
+        frameon=False,
+    )
+
+    add_cms_label(ax, "all", data=True, label="Preliminary" if preliminary else None, loc=2)
+
+    ax.text(
+        0.3,
+        0.92,
+        region_label,
+        transform=ax.transAxes,
+        fontsize=28,
+        fontproperties="Tex Gyre Heros:bold",
+    )
+
+    if len(name):
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+    return pulls
 
 
 def sigErrRatioPlot(
