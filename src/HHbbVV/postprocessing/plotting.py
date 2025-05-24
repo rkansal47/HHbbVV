@@ -1698,6 +1698,10 @@ def multiROCCurve(
         )
 
     if len(name):
+        # save ROC as pickle
+        with Path(f"{plot_dir}/{name}.pkl").open("wb") as f:
+            pickle.dump(rocs, f)
+
         plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
 
     if show:
@@ -2315,7 +2319,7 @@ def colormesh(
 
 
 def plot_tf(
-    tf: np.ndarray,
+    tf: Hist,
     label: str = None,
     vmax: float = None,
     plot_dir: Path = None,
@@ -2324,12 +2328,38 @@ def plot_tf(
     prelim: bool = True,
     show: bool = False,
 ):
-    fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+    fig, ax = plt.subplots(1, 1, figsize=(11, 10))
 
-    h2d = hep.hist2dplot(tf, ax=ax, cmap="viridis", cmax=vmax, flow="none")
+    # h2d = hep.hist2dplot(
+    #     pulls.values().T,
+    #     hists.axes[2].edges,
+    #     hists.axes[1].edges,
+    #     cmap="viridis",
+    #     cmin=-3.5,
+    #     cmax=3.5,
+    #     ax=ax,
+    # )
+
+    h2d = hep.hist2dplot(
+        tf.values().T,
+        tf.axes[1].edges,
+        tf.axes[0].edges,
+        ax=ax,
+        cmap="viridis",
+        cmax=vmax,
+        flow="none",
+    )
     h2d.pcolormesh.set_edgecolor("face")
     h2d.cbar.set_label(label)
+    h2d.cbar.formatter.set_scientific(True)
+    h2d.cbar.formatter.set_powerlimits((0, 0))
     add_cms_label(ax, year="all", data=data, loc=0, label="Preliminary" if prelim else None)
+
+    xticks = [800, 1200, 1600, 2000, 3000, 4400]
+    ax.set_xticks(xticks)
+    ax.set_xticklabels([f"{x:.0f}" for x in xticks], rotation=45)
+    ax.set_xlabel(tf.axes[1].label)
+    ax.set_ylabel(tf.axes[0].label)
 
     if name:
         with (plot_dir / f"{name}.pkl").open("wb") as f:

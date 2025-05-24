@@ -399,6 +399,7 @@ def main(args):
 
         if args.hists2d:
             print("\t 2d")
+            pplabel = "plabel_" if preliminary else ""
             plotting.hist2dPullPlot(
                 hists["postfits"]["pass"],
                 bgerrs["postfits"]["pass"],
@@ -406,7 +407,7 @@ def main(args):
                 p_bg_keys,
                 "FM SP",
                 preliminary=preliminary,
-                name=f"{plot_dir}/{plabel}/pull2d.pdf",
+                name=f"{plot_dir}/{plabel}/{pplabel}pull2d.pdf",
             )
 
             # for shape in shapes:
