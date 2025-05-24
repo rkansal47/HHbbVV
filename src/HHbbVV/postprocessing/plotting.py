@@ -2272,8 +2272,8 @@ def colormesh(
     pcol.set_edgecolor("face")
 
     # plt.title(title)
-    plt.xlabel(r"$m_X$ (GeV)")
-    plt.ylabel(r"$m_Y$ (GeV)")
+    plt.xlabel(r"$m_X$ [GeV]")
+    plt.ylabel(r"$m_Y$ [GeV]")
     plt.colorbar(label=label)
 
     if yy.max() > 2750:
@@ -2287,23 +2287,24 @@ def colormesh(
         x = np.array([900, 4000])  # Wide x range to ensure line spans plot
         y = 0.1285 * x + 134.5
         plt.plot(x, y, "--", color="white", alpha=0.8, linewidth=2)
+        fs = 28
 
         plt.text(
-            3550,
+            3400,
             2300,
-            "Semi-resolved",
+            "Semi-merged",
             color="white",
-            fontsize=18,
+            fontsize=fs,
             ha="center",
             va="center",
             fontproperties="Tex Gyre Heros",
         )
         plt.text(
-            3550,
+            3400,
             250,
             "Fully-merged",
             color="white",
-            fontsize=18,
+            fontsize=fs,
             ha="center",
             va="center",
             fontproperties="Tex Gyre Heros",
