@@ -1675,25 +1675,25 @@ def multiROCCurve(
     ax.set_ylabel("Background efficiency")
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)
-    ax.legend(loc="lower right", fontsize=24)
+    ax.legend(loc="lower right", fontsize=28)
 
     if title:
         ax.text(
             0.05,
-            0.83,
+            0.82,
             title,
             transform=ax.transAxes,
-            fontsize=24,
+            fontsize=32,
             fontproperties="Tex Gyre Heros:bold",
         )
 
     if kin_label:
         ax.text(
             0.05,
-            0.72,
+            0.71,
             kin_label,
             transform=ax.transAxes,
-            fontsize=20,
+            fontsize=24,
             fontproperties="Tex Gyre Heros",
         )
 
