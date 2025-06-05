@@ -393,6 +393,7 @@ def parse_args():
     args = parser.parse_args()
     MAIN_DIR = "../../../"
     args.plot_dir = Path(f"{MAIN_DIR}/plots/XHY/Limits/{args.tag}")
+    args.cards_dir = Path(args.cards_dir)
 
     return args
 
