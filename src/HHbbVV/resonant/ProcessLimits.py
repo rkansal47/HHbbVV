@@ -386,9 +386,9 @@ def parse_args():
     )
     parser.add_argument("--tag", type=str, required=True, help="tag for the plots")
 
-    add_bool_arg(parser, "boosted", "Generate boosted plots")
-    add_bool_arg(parser, "semimerged-boosted", "Generate semimerged boosted plots")
-    add_bool_arg(parser, "combined", "Generate combined plots")
+    add_bool_arg(parser, "boosted", "Generate boosted plots", default=False)
+    add_bool_arg(parser, "semimerged-boosted", "Generate semimerged boosted plots", default=False)
+    add_bool_arg(parser, "combined", "Generate combined plots", default=False)
 
     args = parser.parse_args()
     MAIN_DIR = "../../../"
