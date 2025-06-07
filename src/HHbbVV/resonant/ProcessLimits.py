@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
@@ -13,16 +14,19 @@ from HHbbVV.postprocessing import plotting
 from HHbbVV.postprocessing.utils import mxmy
 from HHbbVV.run_utils import add_bool_arg
 
+FM_ZZ_SCALE = 0.7769652650822668
+SM_ZZ_SCALE = 0.73
+
 
 def label_map(key):
     if key == "50.0":
-        label = "Median expected 95% CL exclusion limits [fb]"
+        label = r"95% CL expected upper limit on $\sigma B(b\overline{b}WW)$ [fb]"
     elif key == "Observed":
-        label = "95% CL observed exclusion limits [fb]"
+        label = r"95% CL observed upper limit on $\sigma B(b\overline{b}WW)$ [fb]"
     elif key == "Significance":
         label = "Local Significance"
     else:
-        label = f"{key}% expected 95% CL exclusion limits [fb]"
+        label = rf"{key}% 95% CL expected upper limit on $\sigma B(b\overline{{b}}WW)$ [fb]"
 
     return label
 
@@ -170,8 +174,18 @@ def get_lim(limits: dict, mxy: tuple):
     return match, limits[match]
 
 
-def boosted_plots(limits: dict, plot_dir: Path):
-    (plot_dir / "boosted").mkdir(parents=True, exist_ok=True)
+def boosted_plots(limits: dict, plot_dir: Path, zz: bool = False, scatter: bool = True):
+    pdir = "boosted" if not zz else "boostedzz"
+    pdir = plot_dir / pdir
+    pdir.mkdir(parents=True, exist_ok=True)
+
+    if zz:
+        limits = deepcopy(limits)
+        for key, val in limits.items():
+            if key == "Significance":
+                val[:, 2] /= FM_ZZ_SCALE
+            else:
+                val[:, 2] *= FM_ZZ_SCALE
 
     mymax = 600
     mxs = np.logspace(np.log10(900), np.log10(3999), 100, base=10)
@@ -187,6 +201,10 @@ def boosted_plots(limits: dict, plot_dir: Path):
         grids[key] = np.exp(interpolated[key](xx, yy))
 
     for key, grid in grids.items():
+        klabel = label_map(key)
+        if zz:
+            klabel = klabel.replace("WW", "ZZ")
+
         if key == "Significance":
             vmin, vmax, log = 0, 5, False
         else:
@@ -196,23 +214,29 @@ def boosted_plots(limits: dict, plot_dir: Path):
             xx,
             yy,
             grid,
-            label_map(key),
-            f"{plot_dir}/boosted/upper{mymax}_mesh_{key}_turbo.pdf",
+            klabel,
+            f"{pdir}/{'zz' if zz else ''}upper{mymax}_mesh_{key}.pdf",
             vmin=vmin,
             vmax=vmax,
             log=log,
             show=False,
         )
 
-    for key, val in limits.items():
-        if key == "Significance":
-            vmin, vmax, log = 0, 5, False
-        else:
-            vmin, vmax, log = 0.05, 1e4, True
+    if scatter:
+        for key, val in limits.items():
+            print(key)
+            klabel = label_map(key)
+            if zz:
+                klabel = klabel.replace("WW", "ZZ")
 
-        plotting.XHYscatter2d(
-            val, label_map(key), name=f"{plot_dir}/boosted/scatter_{key}.pdf", show=False
-        )
+            if key == "Significance":
+                vmin, vmax, log = 0, 5, False
+            else:
+                vmin, vmax, log = 0.05, 1e4, True
+
+            plotting.XHYscatter2d(
+                val, klabel, name=f"{pdir}/{'zz' if zz else ''}scatter_{key}.pdf", show=False
+            )
 
 
 def semimerged_boosted_plots(limits: dict, alimits: dict, plot_dir: Path):
@@ -247,7 +271,7 @@ def semimerged_boosted_plots(limits: dict, alimits: dict, plot_dir: Path):
     )
 
 
-def get_combined_limits(limits: dict, alimits: dict, cards_dir: Path):
+def get_combined_limits(limits: dict, alimits: dict, cards_dir: Path, zz: bool = False):
     combined_limits = {
         " 2.5": [],
         "16.0": [],
@@ -286,10 +310,18 @@ def get_combined_limits(limits: dict, alimits: dict, cards_dir: Path):
             print(f"Skipping {mxy} because of missing from Amitav's limits!")
             continue
 
-        use_lims = alimits if alim < blim else limits
+        if alim < blim:
+            use_lims = alimits
+            zz_scale = SM_ZZ_SCALE
+        else:
+            use_lims = limits
+            zz_scale = FM_ZZ_SCALE
 
         for key, lims in combined_limits.items():
             umatch, lim = get_lim(use_lims[key], mxy)
+            if zz:
+                lim *= zz_scale
+
             if np.any(umatch):
                 lims.append([*mxy, use_lims[key][umatch][0, 2]])
             else:
@@ -316,15 +348,22 @@ def get_combined_limits(limits: dict, alimits: dict, cards_dir: Path):
     return combined_limits
 
 
-def combined_plots(combined_limits: dict, plot_dir: Path):
-    (plot_dir / "combined").mkdir(parents=True, exist_ok=True)
+def combined_plots(combined_limits: dict, plot_dir: Path, zz: bool = False, fast: bool = False):
+    pdir = "combined" if not zz else "combinedzz"
+    pdir = plot_dir / pdir
+    pdir.mkdir(parents=True, exist_ok=True)
 
     mxs = np.logspace(np.log10(900), np.log10(3999), 300, base=10)
     mys = np.logspace(np.log10(60), np.log10(2800), 300, base=10)
     cxx, cyy = np.meshgrid(mxs, mys)
 
     for key, val in combined_limits.items():
-        if key == "Significance":
+        print(key)
+        klabel = label_map(key)
+        if zz:
+            klabel = klabel.replace("WW", "ZZ")
+
+        if fast and key not in ["50.0", "Observed"]:
             continue
 
         if key == "Significance":
@@ -340,8 +379,8 @@ def combined_plots(combined_limits: dict, plot_dir: Path):
                 cxx,
                 cyy,
                 grid,
-                label_map(key),
-                f"{plot_dir}/combined/{plabel}combined_mesh_{key}.pdf",
+                klabel,
+                f"{pdir}/{plabel}{'zz' if zz else ''}combined_mesh_{key}.pdf",
                 vmin=vmin,
                 vmax=vmax,
                 log=log,
@@ -361,18 +400,34 @@ def combined_plots(combined_limits: dict, plot_dir: Path):
 
 
 def main(args):
+    print("Getting limits")
     limits = get_limits(args.cards_dir)
+
+    print("Getting Amitav's limits")
     alimits = get_limits_amitav()
-    combined_limits = get_combined_limits(limits, alimits, args.cards_dir)
 
     if args.boosted:
-        boosted_plots(limits, args.plot_dir)
+        print("Boosted plots")
+        boosted_plots(limits, args.plot_dir, zz=False, scatter=args.scatter)
+
+    if args.boostedzz:
+        print("Boosted ZZ plots")
+        boosted_plots(limits, args.plot_dir, zz=True, scatter=args.scatter)
 
     if args.semimerged_boosted:
+        print("Semimerged plots")
         semimerged_boosted_plots(limits, alimits, args.plot_dir)
 
     if args.combined:
+        print("Getting combined limits")
+        combined_limits = get_combined_limits(limits, alimits, args.cards_dir)
+        print("Combined plots")
         combined_plots(combined_limits, args.plot_dir)
+
+    if args.zz:
+        print("ZZ plots")
+        combined_limits = get_combined_limits(limits, alimits, args.cards_dir, zz=True)
+        combined_plots(combined_limits, args.plot_dir, zz=True)
 
 
 def parse_args():
@@ -389,6 +444,9 @@ def parse_args():
     add_bool_arg(parser, "boosted", "Generate boosted plots", default=False)
     add_bool_arg(parser, "semimerged-boosted", "Generate semimerged boosted plots", default=False)
     add_bool_arg(parser, "combined", "Generate combined plots", default=False)
+    add_bool_arg(parser, "zz", "ZZ plots", default=False)
+    add_bool_arg(parser, "scatter", "Generate scatter plots", default=False)
+    add_bool_arg(parser, "boostedzz", "Generate boosted ZZ plots", default=False)
 
     args = parser.parse_args()
     MAIN_DIR = "../../../"

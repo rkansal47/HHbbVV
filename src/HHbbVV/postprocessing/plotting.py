@@ -2290,9 +2290,9 @@ def colormesh(
         fs = 28
 
         plt.text(
-            3400,
+            3650,
             2300,
-            "Semi-merged",
+            "SM",
             color="white",
             fontsize=fs,
             ha="center",
@@ -2300,9 +2300,9 @@ def colormesh(
             fontproperties="Tex Gyre Heros",
         )
         plt.text(
-            3400,
+            3650,
             250,
-            "Fully-merged",
+            "FM",
             color="white",
             fontsize=fs,
             ha="center",
