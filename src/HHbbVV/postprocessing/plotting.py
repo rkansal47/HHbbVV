@@ -47,7 +47,7 @@ DATA_STYLE = {
 # plt.close()
 
 
-BG_UNC_LABEL = "Total Bkg. Uncertainty"
+BG_UNC_LABEL = "Total Bkg. Unc."
 
 bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "Other", "TT", "QCD"]
 
@@ -393,6 +393,7 @@ def ratioHistPlot(
         axrax (Tuple): optionally input ax and rax instead of creating new ones
         ncol (int): # of legend columns. By default, it is 2 for log-plots and 1 for non-log-plots.
     """
+    fs = 36
 
     if ratio_ylims is None:
         ratio_ylims = [0, 2]
@@ -401,7 +402,7 @@ def ratioHistPlot(
     if sig_colours is None:
         sig_colours = SIG_COLOURS
     if leg_args is None:
-        leg_args = {"ncol": 2 if log else 1, "fontsize": 24}
+        leg_args = {"ncol": 2 if log else 1, "fontsize": fs - 4}
     if pull_args is None:
         pull_args = {}
     pull_args["combined_sigma"] = pull_args.get("combined_sigma", False)
@@ -470,11 +471,11 @@ def ratioHistPlot(
     else:
         fig, ax = plt.subplots(1, 1, figsize=(12, 11))
 
-    plt.rcParams.update({"font.size": 24})
+    plt.rcParams.update({"font.size": fs})
 
     # plot histograms
     y_label = r"<Events / GeV>" if divide_bin_width else "Events / GeV"
-    ax.set_ylabel(y_label)
+    ax.set_ylabel(y_label, fontsize=fs)
 
     # background samples
     if len(bg_keys):
@@ -640,9 +641,9 @@ def ratioHistPlot(
                     linewidth=0,
                 )
         else:
-            rax.set_xlabel(hists.axes[1].label)
+            rax.set_xlabel(hists.axes[1].label, fontsize=fs)
 
-        rax.set_ylabel("Data / Bkg.")
+        rax.set_ylabel("Data / Bkg.", fontsize=fs)
         rax.set_ylim(ratio_ylims)
 
         rax.grid()
@@ -723,21 +724,38 @@ def ratioHistPlot(
                 other_handles.append(handle)
                 other_labels.append(label)
 
+        rax_fs = fs - 9
         if signal_handles:
             # Add first legend for signal in upper right
-            first_legend = rax.legend(signal_handles, signal_labels, ncol=1, loc="upper right")
+            first_legend = rax.legend(
+                signal_handles,
+                signal_labels,
+                ncol=1,
+                loc="upper right",
+                fontsize=rax_fs,
+                bbox_to_anchor=(1.0, 1.05),
+            )
             rax.add_artist(first_legend)  # Add the first legend to the plot
         if other_handles:
             # Add second legend for others in lower right
-            rax.legend(other_handles, other_labels, ncol=2, loc="lower right")
+            rax.legend(
+                other_handles,
+                other_labels,
+                ncol=2,
+                loc="lower right",
+                fontsize=rax_fs,
+                bbox_to_anchor=(1.0, -0.1),
+            )
 
-        rax.set_ylabel("Pull")
+        rax.set_ylabel("Pull", fontsize=fs)
         rax.set_ylim(-ylim, ylim)
         # rax.grid()
         rax.margins(x=0)
         rax.hlines(0, *rax.get_xlim(), color=COLOURS["gray"], linewidth=1)
         ax.set_xlabel(None)
         ax.tick_params(axis="x", labelbottom=False)
+        rax.tick_params(axis="both", which="major", labelsize=fs - 4)
+        rax.set_xlabel(hists.axes[1].label, fontsize=fs)
 
     if plot_significance:
         sigs = [pre_divide_hists[sig_key, :].values() for sig_key in sig_scale_dict]
@@ -769,26 +787,27 @@ def ratioHistPlot(
         sax.legend(fontsize=12)
         sax.set_yscale("log")
         sax.set_ylim([1e-7, 10])
-        sax.set_xlabel(hists.axes[1].label)
+        sax.set_xlabel(hists.axes[1].label, fontsize=fs)
 
     if title is not None:
         ax.set_title(title, y=1.08)
 
     if region_label is not None:
         mline = "\n" in region_label
-        xpos = 0.32 if not mline else 0.24
-        ypos = 0.91 if not mline else 0.87
+        xpos = 0.055
+        ypos = 0.88 if not mline else 0.87
         xpos = 0.035 if not resonant else xpos
         ax.text(
             xpos,
             ypos,
             region_label,
             transform=ax.transAxes,
-            fontsize=24,
+            fontsize=fs,
             fontproperties="Tex Gyre Heros:bold",
         )
 
-    add_cms_label(ax, year, label=cmslabel, loc=cmsloc)
+    ax.tick_params(axis="both", which="major", labelsize=fs - 4)
+    add_cms_label(ax, year, label=cmslabel, loc=cmsloc, fontsize=fs)
 
     if axrax is None:
         if len(name):
@@ -1296,6 +1315,9 @@ def hist2dPullPlot(
         pass_zlim (float, optional): pass region plots upper limit. Defaults to None.
         show (bool, optional): show plot or close. Defaults to True.
     """
+    fs = 36
+    plt.rcParams.update({"font.size": fs})
+
     bg_tot = np.maximum(sum([hists[sample, ...] for sample in bg_keys]).values(), 0.0)
     sigma = np.sqrt(bg_tot + bg_err.T**2)
     pulls = (hists[data_key, ...] - bg_tot) / sigma
@@ -1312,7 +1334,8 @@ def hist2dPullPlot(
         cmax=3.5,
         ax=ax,
     )
-    h2d.cbar.set_label(r"(Data - Bkg.) / $\sigma$")
+    h2d.cbar.set_label(r"(Data - Bkg.) / $\sigma$", fontsize=fs)
+    h2d.cbar.ax.tick_params(labelsize=fs)
     h2d.pcolormesh.set_edgecolor("face")
 
     # Plot signal contours
@@ -1336,9 +1359,9 @@ def hist2dPullPlot(
     X, Y = np.meshgrid(x_interp, y_interp)
     Z = sig_interp(y_interp, x_interp)
 
-    sig_colour = COLOURS["red"]
+    sig_colour = COLOURS["orange"]
 
-    cs = ax.contour(
+    ax.contour(
         Y.T,
         X.T,
         Z.T,
@@ -1347,13 +1370,14 @@ def hist2dPullPlot(
         # linestyles=["--", "-", "--"],
         linewidths=3,
     )
-    ax.clabel(cs, cs.levels, inline=True, fmt="%.2f", fontsize=12)
+    # ax.clabel(cs, cs.levels, inline=False, fmt="%.2f", fontsize=12)
 
-    xticks = [800, 1200, 1600, 2000, 3000, 4400]
+    xticks = [1000, 2000, 3000, 4400]
     ax.set_xticks(xticks)
-    ax.set_xticklabels([f"{x:.0f}" for x in xticks], rotation=45)
-    ax.set_ylabel(hists.axes[1].label)
-    ax.set_xlabel(hists.axes[2].label)
+    ax.set_xticklabels([f"{x:.0f}" for x in xticks], rotation=45, fontsize=fs)
+    ax.tick_params(axis="y", labelsize=fs)
+    ax.set_ylabel(hists.axes[1].label, fontsize=fs)
+    ax.set_xlabel(hists.axes[2].label, fontsize=fs)
 
     # Add legend for signal contours
     handles, labels = ax.get_legend_handles_labels()
@@ -1366,18 +1390,20 @@ def hist2dPullPlot(
         labels,
         loc="upper right",
         # bbox_to_anchor=(1.0, 0.98),  # Moved down from default 1.0
-        fontsize=28,
         frameon=False,
+        prop={"size": fs + 4},
     )
 
-    add_cms_label(ax, "all", data=True, label="Preliminary" if preliminary else None, loc=2)
+    add_cms_label(
+        ax, "all", data=True, label="Preliminary" if preliminary else None, loc=0, fontsize=fs + 4
+    )
 
     ax.text(
-        0.3,
-        0.92,
+        0.76,
+        0.78,
         region_label,
         transform=ax.transAxes,
-        fontsize=28,
+        fontsize=fs + 4,
         fontproperties="Tex Gyre Heros:bold",
     )
 

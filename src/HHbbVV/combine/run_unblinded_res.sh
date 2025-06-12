@@ -301,7 +301,7 @@ if [ $dfit = 1 ]; then
     --ignoreCovWarning -v $verbose 2>&1 | tee $outsdir/FitDiagnostics.txt
     # --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
 
-    python $CMSSW_BASE/src/HiggsAnalysis/CombinedLimit/test/diffNuisances.py fitDiagnostics.root -g nuisance_pulls.root --all --regex='^(?!.*mcstat)'  --vtol=0.3 --stol=0.1 --vtol2=2.0 --stol2=0.5
+    # python $CMSSW_BASE/src/HiggsAnalysis/CombinedLimit/test/diffNuisances.py fitDiagnostics.root -g nuisance_pulls.root --all --regex='^(?!.*mcstat)'  --vtol=0.3 --stol=0.1 --vtol2=2.0 --stol2=0.5
 
     # echo "Fit Shapes B"
     # PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapesB.root \
@@ -309,7 +309,7 @@ if [ $dfit = 1 ]; then
 
     echo "Fit Shapes S+B"
     PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapesS.root \
-    -m 125 -f fitDiagnostics.root:fit_s --postfit --print 2>&1 | tee $outsdir/FitShapesS.txt
+    -m 125 -f fitDiagnostics.root:fit_s --postfit --print --sampling 2>&1 | tee $outsdir/FitShapesS.txt
 fi
 
 

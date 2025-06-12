@@ -63,7 +63,7 @@ def get_1d_plot_params(
         "plot_pulls": True,
         "divide_bin_width": True,
         "cmslabel": "Preliminary" if preliminary else None,
-        "cmsloc": 2,
+        "cmsloc": 0,
         "resonant": True,
         "plot_signal": pass_region and not vregion,
     }
@@ -399,7 +399,7 @@ def main(args):
 
         if args.hists2d:
             print("\t 2d")
-            pplabel = "plabel_" if preliminary else ""
+            pplabel = "preliminary_" if preliminary else ""
             plotting.hist2dPullPlot(
                 hists["postfits"]["pass"],
                 bgerrs["postfits"]["pass"],
