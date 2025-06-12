@@ -20,13 +20,13 @@ SM_ZZ_SCALE = 0.73
 
 def label_map(key):
     if key == "50.0":
-        label = r"95% CL expected upper limit on $\sigma B(b\overline{b}WW)$ [fb]"
+        label = r"Exp. upper limit on $\sigma B(b\overline{b}WW)$ [fb]"
     elif key == "Observed":
-        label = r"95% CL observed upper limit on $\sigma B(b\overline{b}WW)$ [fb]"
+        label = r"Obs. upper limit on $\sigma B(b\overline{b}WW)$ [fb]"
     elif key == "Significance":
         label = "Local Significance"
     else:
-        label = rf"{key}% 95% CL expected upper limit on $\sigma B(b\overline{{b}}WW)$ [fb]"
+        label = rf"{key}% exp. upper limit on $\sigma B(b\overline{{b}}WW)$ [fb]"
 
     return label
 
@@ -348,7 +348,14 @@ def get_combined_limits(limits: dict, alimits: dict, cards_dir: Path, zz: bool =
     return combined_limits
 
 
-def combined_plots(combined_limits: dict, plot_dir: Path, zz: bool = False, fast: bool = False):
+def combined_plots(
+    combined_limits: dict,
+    plot_dir: Path,
+    zz: bool = False,
+    fast: bool = False,
+    earlybreak: bool = False,
+    show: bool = False,
+):
     pdir = "combined" if not zz else "combinedzz"
     pdir = plot_dir / pdir
     pdir.mkdir(parents=True, exist_ok=True)
@@ -387,15 +394,22 @@ def combined_plots(combined_limits: dict, plot_dir: Path, zz: bool = False, fast
                 region_labels=True,
                 figsize=(14, 10),
                 preliminary=prelim,
-                show=False,
+                show=show and prelim,
             )
+            if earlybreak:
+                break
+        if earlybreak:
+            break
+
+    if fast:
+        return
 
     for key, val in combined_limits.items():
         if key != "Significance":
             continue
 
         plotting.XHYscatter2d(
-            val, label_map(key), name=f"{plot_dir}/combined/combined_scatter_{key}.pdf", show=False
+            val, label_map(key), name=f"{plot_dir}/combined/combined_scatter_{key}.pdf", show=show
         )
 
 

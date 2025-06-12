@@ -292,7 +292,7 @@ def _asimov_significance(s, b):
     return np.sqrt(2 * ((s + b) * np.log(1 + (s / b)) - s))
 
 
-def add_cms_label(ax, year, data=True, label="Preliminary", loc=2, lumi=True):
+def add_cms_label(ax, year, data=True, label="Preliminary", loc=2, lumi=True, fontsize=None):
     if year == "all":
         hep.cms.label(
             label,
@@ -301,6 +301,7 @@ def add_cms_label(ax, year, data=True, label="Preliminary", loc=2, lumi=True):
             year=None,
             ax=ax,
             loc=loc,
+            fontsize=fontsize,
         )
     else:
         hep.cms.label(
@@ -310,6 +311,7 @@ def add_cms_label(ax, year, data=True, label="Preliminary", loc=2, lumi=True):
             year=year,
             ax=ax,
             loc=loc,
+            fontsize=fontsize,
         )
 
 
@@ -2262,6 +2264,7 @@ def colormesh(
     figsize=(12, 8),
 ):
     fig, ax = plt.subplots(figsize=figsize)
+    fs = 36
 
     if log:
         pmesh_args = {"norm": mpl.colors.LogNorm(vmin=vmin, vmax=vmax)}
@@ -2272,9 +2275,13 @@ def colormesh(
     pcol.set_edgecolor("face")
 
     # plt.title(title)
-    plt.xlabel(r"$m_X$ [GeV]")
-    plt.ylabel(r"$m_Y$ [GeV]")
-    plt.colorbar(label=label)
+    plt.xlabel(r"$m_X$ [GeV]", fontsize=fs)
+    plt.ylabel(r"$m_Y$ [GeV]", fontsize=fs)
+    plt.xticks([1000, 2000, 3000, 4000], fontsize=fs - 4)
+    plt.yticks(fontsize=fs - 4)
+    cbar = plt.colorbar(label=label)
+    cbar.ax.tick_params(labelsize=fs - 4)
+    cbar.ax.set_ylabel(label, fontsize=fs)
 
     if yy.max() > 2750:
         plt.ylim(60, 2780)
@@ -2287,7 +2294,6 @@ def colormesh(
         x = np.array([900, 4000])  # Wide x range to ensure line spans plot
         y = 0.1285 * x + 134.5
         plt.plot(x, y, "--", color="white", alpha=0.8, linewidth=2)
-        fs = 28
 
         plt.text(
             3650,
@@ -2310,7 +2316,14 @@ def colormesh(
             fontproperties="Tex Gyre Heros",
         )
 
-    add_cms_label(ax, "all", data=True, label="Preliminary" if preliminary else "", loc=cmsloc)
+    add_cms_label(
+        ax,
+        "all",
+        data=True,
+        label="Preliminary" if preliminary else "",
+        loc=cmsloc,
+        fontsize=fs - 4,
+    )
     plt.savefig(name, bbox_inches="tight")
 
     if show:
