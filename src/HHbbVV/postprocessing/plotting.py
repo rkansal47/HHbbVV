@@ -2368,6 +2368,9 @@ def plot_tf(
     prelim: bool = True,
     show: bool = False,
 ):
+    fs = 36
+    plt.rcParams.update({"font.size": fs})
+
     fig, ax = plt.subplots(1, 1, figsize=(11, 10))
 
     # h2d = hep.hist2dplot(
@@ -2393,13 +2396,22 @@ def plot_tf(
     h2d.cbar.set_label(label)
     h2d.cbar.formatter.set_scientific(True)
     h2d.cbar.formatter.set_powerlimits((0, 0))
-    add_cms_label(ax, year="all", data=data, loc=0, label="Preliminary" if prelim else None)
+    h2d.cbar.ax.tick_params(labelsize=fs - 4)
+    h2d.cbar.ax.set_ylabel(label, fontsize=fs + 4)
+    h2d.cbar.ax.yaxis.offsetText.set_x(1.2)
 
-    xticks = [800, 1200, 1600, 2000, 3000, 4400]
+    offset = 2 if label != r"$R^\mathrm{Data}$" else 2.5
+    h2d.cbar.ax.yaxis.set_label_coords(offset, 1)  # Shift ylabel further right
+
+    add_cms_label(
+        ax, year="all", data=data, loc=2, label="Preliminary" if prelim else None, fontsize=fs - 2
+    )
+
+    xticks = [1000, 2000, 3000, 4400]
     ax.set_xticks(xticks)
-    ax.set_xticklabels([f"{x:.0f}" for x in xticks], rotation=45)
-    ax.set_xlabel(tf.axes[1].label)
-    ax.set_ylabel(tf.axes[0].label)
+    ax.set_xticklabels([f"{x:.0f}" for x in xticks], rotation=45, fontsize=fs)
+    ax.set_xlabel(tf.axes[1].label, fontsize=fs)
+    ax.set_ylabel(tf.axes[0].label, fontsize=fs)
 
     if name:
         with (plot_dir / f"{name}.pkl").open("wb") as f:
