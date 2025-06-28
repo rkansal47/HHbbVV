@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import mplhep as hep
 import numpy as np
+import scipy
 from hist import Hist
 from hist.intervals import poisson_interval, ratio_uncertainty
 from numpy.typing import ArrayLike
@@ -46,9 +47,9 @@ DATA_STYLE = {
 # plt.close()
 
 
-BG_UNC_LABEL = "Total Bkg. Uncertainty"
+BG_UNC_LABEL = "Total Bkg. Unc."
 
-bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "TT", "QCD"]
+bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "Other", "TT", "QCD"]
 
 sample_label_map = {
     "HHbbVV": r"ggF HH$\rightarrow b\overline{b}VV$",
@@ -59,6 +60,12 @@ sample_label_map = {
     "ST": r"Single-$t$",
     "TT": r"$t\bar{t}$",
     "Hbb": r"H$\rightarrow b\overline{b}$",
+    "X[900]->HY[80]": r"X[900]$\rightarrow$HY[80]",
+    "Top Matched": r"Top matched",
+    "Top W Matched": r"Top W matched",
+    "Top Unmatched": r"Top unmatched",
+    "Corrected Top Matched": r"Corrected top matched",
+    "Uncorrected Top Matched": r"Uncorrected top matched",
 }
 
 COLOURS = {
@@ -121,12 +128,18 @@ LINESTYLES = [
     "-.",
     ":",
     (0, (3, 5, 1, 5, 1, 5)),
+    "-",
+    "--",
+    "-.",
+    ":",
+    (0, (3, 5, 1, 5, 1, 5)),
 ]
 
 
 BG_COLOURS = {
     "QCD": "darkblue",
     "TT": "brown",
+    "Other": "yellow",
     # "V+Jets": "gray",
     "W+Jets": "orange",
     "Z+Jets": "yellow",
@@ -182,6 +195,17 @@ def _combine_hbb_bgs(hists, bg_keys):
     if "Hbb" not in bg_keys:
         bg_keys.append("Hbb")
 
+    return h, bg_keys
+
+
+def _combine_other_bgs(hists, bg_keys, keep_keys: list[str] = None):
+    """Combine all backgrounds except for ``keep_keys`` into a single "Other" background"""
+    if keep_keys is None:
+        keep_keys = ["QCD", "TT"]
+
+    combine_keys = [key for key in bg_keys if key not in keep_keys]
+    h = utils.combine_other_bgs(hists, combine_keys)
+    bg_keys = keep_keys + ["Other"]
     return h, bg_keys
 
 
@@ -268,7 +292,7 @@ def _asimov_significance(s, b):
     return np.sqrt(2 * ((s + b) * np.log(1 + (s / b)) - s))
 
 
-def add_cms_label(ax, year, data=True, label="Preliminary", loc=2, lumi=True):
+def add_cms_label(ax, year, data=True, label="Preliminary", loc=2, lumi=True, fontsize=None):
     if year == "all":
         hep.cms.label(
             label,
@@ -277,6 +301,7 @@ def add_cms_label(ax, year, data=True, label="Preliminary", loc=2, lumi=True):
             year=None,
             ax=ax,
             loc=loc,
+            fontsize=fontsize,
         )
     else:
         hep.cms.label(
@@ -286,6 +311,7 @@ def add_cms_label(ax, year, data=True, label="Preliminary", loc=2, lumi=True):
             year=year,
             ax=ax,
             loc=loc,
+            fontsize=fontsize,
         )
 
 
@@ -304,21 +330,26 @@ def ratioHistPlot(
     name: str = "",
     sig_scale_dict: OrderedDict[str, float] = None,
     ylim: int = None,
-    show: bool = True,
+    show: bool = False,
     syst: tuple = None,
     variation: str = None,
     region_label: str = None,
     bg_err_type: str = "shaded",
+    plot_signal: bool = True,
     plot_data: bool = True,
     bg_order: list[str] = bg_order,
+    combine_other_bgs: bool = False,
     log: bool = False,
     ratio_ylims: list[float] = None,
     divide_bin_width: bool = False,
     plot_significance: bool = False,
     significance_dir: str = "right",
     plot_ratio: bool = True,
+    plot_pulls: bool = False,
+    pull_args: dict = None,
     axrax: tuple = None,
     leg_args: dict = None,
+    reorder_legend: bool = True,
     cmslabel: str = None,
     cmsloc: int = 0,
 ):
@@ -357,10 +388,12 @@ def ratioHistPlot(
         ratio_ylims (List[float]): y limits on the ratio plots
         divide_bin_width (bool): divide yields by the bin width (for resonant fit regions)
         plot_significance (bool): plot Asimov significance below ratio plot
+        plot_pulls (bool): plot pulls instead of data /bkg. ratio
         significance_dir (str): "Direction" for significance. i.e. a > cut ("right"), a < cut ("left"), or per-bin ("bin").
         axrax (Tuple): optionally input ax and rax instead of creating new ones
         ncol (int): # of legend columns. By default, it is 2 for log-plots and 1 for non-log-plots.
     """
+    fs = 36
 
     if ratio_ylims is None:
         ratio_ylims = [0, 2]
@@ -369,11 +402,16 @@ def ratioHistPlot(
     if sig_colours is None:
         sig_colours = SIG_COLOURS
     if leg_args is None:
-        leg_args = {"ncol": 2 if log else 1, "fontsize": 24}
+        leg_args = {"ncol": 2 if log else 1, "fontsize": fs - 4}
+    if pull_args is None:
+        pull_args = {}
+    pull_args["combined_sigma"] = pull_args.get("combined_sigma", False)
 
     # copy hists and bg_keys so input objects are not changed
     hists, bg_keys = deepcopy(hists), deepcopy(bg_keys)
     hists, bg_keys = _combine_hbb_bgs(hists, bg_keys)
+    if combine_other_bgs:
+        hists, bg_keys = _combine_other_bgs(hists, bg_keys)
 
     bg_keys, bg_colours, bg_labels, sig_scale_dict, sig_labels = _process_samples(
         sig_keys, bg_keys, bg_colours, sig_scale_dict, bg_order, syst, variation
@@ -400,9 +438,12 @@ def ratioHistPlot(
 
     pre_divide_hists = hists
     pre_divide_bg_tot = bg_tot
+    pre_divide_bg_err = bg_err
 
     if divide_bin_width:
-        hists, data_err, bg_tot, bg_err = _divide_bin_widths(hists, data_err, bg_tot, bg_err)
+        hists, data_err, bg_tot, bg_err = _divide_bin_widths(
+            hists, data_err if plot_data else [], bg_tot, bg_err
+        )
 
     # set up plots
     if axrax is not None:
@@ -430,11 +471,11 @@ def ratioHistPlot(
     else:
         fig, ax = plt.subplots(1, 1, figsize=(12, 11))
 
-    plt.rcParams.update({"font.size": 24})
+    plt.rcParams.update({"font.size": fs})
 
     # plot histograms
-    y_label = r"Events / GeV" if divide_bin_width else "Events"
-    ax.set_ylabel(y_label)
+    y_label = r"<Events / GeV>" if divide_bin_width else "Events / GeV"
+    ax.set_ylabel(y_label, fontsize=fs)
 
     # background samples
     if len(bg_keys):
@@ -448,7 +489,7 @@ def ratioHistPlot(
         )
 
     # signal samples
-    if len(sig_scale_dict):
+    if len(sig_scale_dict) and plot_signal:
         hep.histplot(
             [hists[sig_key, :] * sig_scale for sig_key, sig_scale in sig_scale_dict.items()],
             ax=ax,
@@ -544,7 +585,7 @@ def ratioHistPlot(
         ax.set_yscale("log")
         # two column legend
         ax.legend(**leg_args)
-    else:
+    elif reorder_legend:
         if resonant:
             legend_order = [data_key] + list(sig_labels.values()) + bg_order[::-1] + [BG_UNC_LABEL]
         else:
@@ -557,6 +598,8 @@ def ratioHistPlot(
         ]
         ordered_labels = [label for label in legend_order if label in labels]
         ax.legend(ordered_handles, ordered_labels, **leg_args)
+    else:
+        ax.legend(**leg_args)
 
     y_lowlim = 0 if not log else 1e-5
     if ylim is not None:
@@ -567,7 +610,7 @@ def ratioHistPlot(
     ax.margins(x=0)
 
     # plot ratio below
-    if plot_ratio:
+    if plot_ratio and not plot_pulls:
         if plot_data:
             # new: plotting data errors (black lines) and background errors (shaded) separately
             yerr = np.nan_to_num(
@@ -598,14 +641,121 @@ def ratioHistPlot(
                     linewidth=0,
                 )
         else:
-            rax.set_xlabel(hists.axes[1].label)
+            rax.set_xlabel(hists.axes[1].label, fontsize=fs)
 
-        rax.set_ylabel("Data / Bkg.")
+        rax.set_ylabel("Data / Bkg.", fontsize=fs)
         rax.set_ylim(ratio_ylims)
+
         rax.grid()
         rax.margins(x=0)
-
         ax.set_xlabel(None)
+        ax.set_xticklabels([])
+
+    if plot_pulls:
+        # pulls = (data - bkg) / σ
+        # σ_data = np.sqrt(predicted_yield)
+        sigma_data_sqrd = pre_divide_bg_tot
+        if pull_args["combined_sigma"]:
+            # σ = np.sqrt(σ_data_sqrd + σ_fit_sqrd)
+            sigma = np.sqrt(sigma_data_sqrd + pre_divide_bg_err**2)
+            slabel = r"$\sigma$"
+            ylim = 3.5
+        else:
+            sigma = np.sqrt(sigma_data_sqrd)
+            slabel = r"$\sigma_\mathrm{Stat}$"
+            ylim = 7.5
+
+        pulls = (pre_divide_hists[data_key, :] - pre_divide_bg_tot) / sigma
+
+        hep.histplot(
+            pulls,
+            yerr=np.ones_like(pulls),
+            xerr=divide_bin_width,
+            ax=rax,
+            **DATA_STYLE,
+            label=r"(Data - Bkg.) / " + slabel,
+        )
+
+        if not pull_args["combined_sigma"]:
+            rax.fill_between(
+                np.repeat(hists.axes[1].edges, 2)[1:-1],
+                np.repeat(-pre_divide_bg_err / sigma, 2),
+                np.repeat(pre_divide_bg_err / sigma, 2),
+                color="black",
+                alpha=0.2,
+                hatch="//",
+                linewidth=0,
+                label=r"$\sigma_\mathrm{Syst}$ / $\sigma_\mathrm{Stat}$",
+            )
+
+        # hep.histplot(
+        #     pulls,
+        #     ax=rax,
+        #     color=COLOURS["gray"],
+        #     label=r"(Data - Bkg.) / $\sigma$",
+        # )
+
+        if plot_signal:
+            hep.histplot(
+                [pre_divide_hists[sig_key, :] / sigma for sig_key in sig_scale_dict],
+                ax=rax,
+                color=sig_colours[: len(sig_keys)],
+                label=[
+                    sample_label_map.get(sig_key, sig_key) + " / " + slabel
+                    for sig_key in sig_scale_dict
+                ],
+                linewidth=4,
+            )
+
+        # put signal label in the top right
+
+        # Create two separate legends - one for signal in top right, one for others in lower right
+        handles, labels = rax.get_legend_handles_labels()
+        signal_handles = []
+        signal_labels = []
+        other_handles = []
+        other_labels = []
+
+        for handle, label in zip(handles, labels):
+            if any(sample_label_map.get(sig_key, sig_key) in label for sig_key in sig_scale_dict):
+                signal_handles.append(handle)
+                signal_labels.append(label)
+            else:
+                other_handles.append(handle)
+                other_labels.append(label)
+
+        rax_fs = fs - 9
+        if signal_handles:
+            # Add first legend for signal in upper right
+            first_legend = rax.legend(
+                signal_handles,
+                signal_labels,
+                ncol=1,
+                loc="upper right",
+                fontsize=rax_fs,
+                bbox_to_anchor=(1.0, 1.05),
+            )
+            rax.add_artist(first_legend)  # Add the first legend to the plot
+        if other_handles:
+            # Add second legend for others in lower right
+            rax.legend(
+                other_handles,
+                other_labels,
+                ncol=2,
+                loc="lower right",
+                fontsize=rax_fs,
+                bbox_to_anchor=(1.0, -0.1),
+            )
+
+        rax.set_ylabel("Pull", fontsize=fs)
+        rax.set_ylim(-ylim, ylim)
+        # rax.grid()
+        rax.margins(x=0)
+        rax.hlines(0, *rax.get_xlim(), color=COLOURS["gray"], linewidth=1)
+        ax.set_xlabel(None)
+        ax.tick_params(axis="x", labelbottom=False)
+        rax.tick_params(axis="both", which="major", labelsize=fs - 4)
+        rax.set_xlabel(hists.axes[1].label, fontsize=fs)
 
     if plot_significance:
         sigs = [pre_divide_hists[sig_key, :].values() for sig_key in sig_scale_dict]
@@ -637,26 +787,27 @@ def ratioHistPlot(
         sax.legend(fontsize=12)
         sax.set_yscale("log")
         sax.set_ylim([1e-7, 10])
-        sax.set_xlabel(hists.axes[1].label)
+        sax.set_xlabel(hists.axes[1].label, fontsize=fs)
 
     if title is not None:
         ax.set_title(title, y=1.08)
 
     if region_label is not None:
         mline = "\n" in region_label
-        xpos = 0.29 if not mline else 0.24
-        ypos = 0.915 if not mline else 0.87
+        xpos = 0.055
+        ypos = 0.88 if not mline else 0.87
         xpos = 0.035 if not resonant else xpos
         ax.text(
             xpos,
             ypos,
             region_label,
             transform=ax.transAxes,
-            fontsize=24,
+            fontsize=fs,
             fontproperties="Tex Gyre Heros:bold",
         )
 
-    add_cms_label(ax, year, label=cmslabel, loc=cmsloc)
+    ax.tick_params(axis="both", which="major", labelsize=fs - 4)
+    add_cms_label(ax, year, label=cmslabel, loc=cmsloc, fontsize=fs)
 
     if axrax is None:
         if len(name):
@@ -839,21 +990,21 @@ def ratioLinePlotPrePost(
     for i, k in enumerate(bg_keys):
         if k == "Top Matched":
             plot_hists.append(pre_hists[k, :])
-            labels.append("Uncorrected Top Matched")
+            labels.append("Uncorrected top matched")
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("--")
             alpha.append(0.5)
             markers.append(None)
 
             plot_hists.append(hists[k, :])
-            labels.append("Corrected Top Matched")
+            labels.append("Corrected top matched")
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
             alpha.append(1)
             markers.append(None)
         else:
             plot_hists.append(hists[k, :])
-            labels.append(k)
+            labels.append(sample_label_map.get(k, k))
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
             markers.append(MARKERS[i])
@@ -863,7 +1014,7 @@ def ratioLinePlotPrePost(
         sum([pre_hists[sample, :] for sample in bg_keys]),
         sum([hists[sample, :] for sample in bg_keys]),
     ]
-    labels = labels + ["Uncorrected Total", "Corrected Total"]
+    labels = labels + ["Uncorrected total", "Corrected total"]
     colors = colors + ["black", "black"]
     linestyles = linestyles + ["--", "-"]
     alpha = alpha + [0.5, 1]
@@ -919,7 +1070,7 @@ def ratioLinePlotPrePost(
             alpha=0.2,
             hatch="//",
             linewidth=0,
-            label="LJP Uncertainty",
+            label="LJP uncertainty",
         )
 
     hep.histplot(
@@ -937,7 +1088,7 @@ def ratioLinePlotPrePost(
         ax.legend(ncol=2, fontsize=24)
 
     ax.set_ylim(0, ax.get_ylim()[1] * 1.5)
-    ax.set_ylabel("Events")
+    ax.set_ylabel("Events / 0.04 units")
     ax.set_xlabel(None)
     ax.margins(x=0)
 
@@ -998,29 +1149,30 @@ def ratioLinePlotPrePost(
             capsize=4,
             flow="none",
         )
-        rax.set_ylabel("(Data - MC) / Data")
+        rax.set_ylabel("(Data - Sim.) / Data")
         rax.set_ylim(-0.5, 0.5)
         # rax.grid()
 
     rax.margins(x=0)
+    rax.hlines(1, *rax.get_xlim(), color=COLOURS["gray"], linewidth=1)
 
     if title is not None:
         ax.set_title(title, y=1.08)
 
     if chi2s is not None:
-        fs = 16
+        fs = 20
         rax.text(
             0.35,
             0.12,
-            rf"$\chi^2$ / ndof = {chi2s[0]:.2f} / {chi2s[2]}",
+            rf"$\chi^2$ / ndof = {chi2s[0]:.1f} / {chi2s[2]}",
             transform=rax.transAxes,
             fontsize=fs,
             color=COLOURS["red"],
         )
         rax.text(
-            0.6,
+            0.65,
             0.12,
-            rf"$\chi^2$ / ndof = {chi2s[1]:.2f} / {chi2s[2]}",
+            rf"$\chi^2$ / ndof = {chi2s[1]:.1f} / {chi2s[2]}",
             transform=rax.transAxes,
             fontsize=fs,
             color="black",
@@ -1138,6 +1290,132 @@ def hist2ds(
                 plt.show()
             else:
                 plt.close()
+
+
+def hist2dPullPlot(
+    hists: Hist,
+    bg_err: np.ArrayLike,
+    sig_key: str,
+    bg_keys: list[str],
+    region_label: str,
+    # zlim: float = None,
+    preliminary: bool = True,
+    name: str = "",
+    show: bool = False,
+):
+    """
+    2D pull plots.
+
+    Args:
+        hists (Dict[str, Hist]): dictionary of hists per region.
+        plot_dir (str): directory in which to save plots.
+        regions (List[str], optional): regions to plot. Defaults to None i.e. plot all in hists.
+        region_labels (Dict[str, str], optional): Optional labels for each region in hists.
+        fail_zlim (float, optional): fail region plots upper limit. Defaults to None.
+        pass_zlim (float, optional): pass region plots upper limit. Defaults to None.
+        show (bool, optional): show plot or close. Defaults to True.
+    """
+    fs = 36
+    plt.rcParams.update({"font.size": fs})
+
+    bg_tot = np.maximum(sum([hists[sample, ...] for sample in bg_keys]).values(), 0.0)
+    sigma = np.sqrt(bg_tot + bg_err.T**2)
+    pulls = (hists[data_key, ...] - bg_tot) / sigma
+
+    fig, ax = plt.subplots(figsize=(12, 12))
+
+    # 2D Pull plot
+    h2d = hep.hist2dplot(
+        pulls.values().T,
+        hists.axes[2].edges,
+        hists.axes[1].edges,
+        cmap="viridis",
+        cmin=-3.5,
+        cmax=3.5,
+        ax=ax,
+    )
+    h2d.cbar.set_label(r"(Data - Bkg.) / $\sigma$", fontsize=fs)
+    h2d.cbar.ax.tick_params(labelsize=fs)
+    h2d.pcolormesh.set_edgecolor("face")
+
+    # Plot signal contours
+    sig_hist = hists[sig_key, ...].values() / sigma
+    levels = np.array([0.04, 0.5, 0.95]) * np.max(sig_hist)
+
+    # Create interpolated grid with 4x more points
+    x = hists.axes[1].centers
+    y = hists.axes[2].centers
+    x_interp = np.linspace(x.min(), x.max(), len(x) * 4)
+    y_interp = np.linspace(y.min(), y.max(), len(y) * 4)
+
+    # Interpolate signal histogram with increased smoothing
+    sig_interp = scipy.interpolate.RectBivariateSpline(y, x, sig_hist.T)
+
+    # Use edges instead of centers for interpolation range
+    x_edges = hists.axes[1].edges
+    y_edges = hists.axes[2].edges
+    x_interp = np.linspace(x_edges[0], x_edges[-1], len(x) * 4)
+    y_interp = np.linspace(y_edges[0], y_edges[-1], len(y) * 4)
+    X, Y = np.meshgrid(x_interp, y_interp)
+    Z = sig_interp(y_interp, x_interp)
+
+    sig_colour = COLOURS["orange"]
+
+    ax.contour(
+        Y.T,
+        X.T,
+        Z.T,
+        levels=levels,
+        colors=sig_colour,
+        # linestyles=["--", "-", "--"],
+        linewidths=3,
+    )
+    # ax.clabel(cs, cs.levels, inline=False, fmt="%.2f", fontsize=12)
+
+    xticks = [1000, 2000, 3000, 4400]
+    ax.set_xticks(xticks)
+    ax.set_xticklabels([f"{x:.0f}" for x in xticks], rotation=45, fontsize=fs)
+    ax.tick_params(axis="y", labelsize=fs)
+    ax.set_ylabel(hists.axes[1].label, fontsize=fs)
+    ax.set_xlabel(hists.axes[2].label, fontsize=fs)
+
+    # Add legend for signal contours
+    handles, labels = ax.get_legend_handles_labels()
+    # Create proxy artist for contour lines
+    contour_proxy = plt.Line2D([], [], color=sig_colour, linestyle="-", linewidth=3)
+    handles.append(contour_proxy)
+    labels.append(sample_label_map.get(sig_key, sig_key) + r" / $\sigma$")
+    ax.legend(
+        handles,
+        labels,
+        loc="upper right",
+        # bbox_to_anchor=(1.0, 0.98),  # Moved down from default 1.0
+        frameon=False,
+        prop={"size": fs + 4},
+    )
+
+    add_cms_label(
+        ax, "all", data=True, label="Preliminary" if preliminary else None, loc=0, fontsize=fs + 4
+    )
+
+    ax.text(
+        0.76,
+        0.78,
+        region_label,
+        transform=ax.transAxes,
+        fontsize=fs + 4,
+        fontproperties="Tex Gyre Heros:bold",
+    )
+
+    if len(name):
+        plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+    return pulls
 
 
 def sigErrRatioPlot(
@@ -1384,7 +1662,7 @@ def multiROCCurve(
                 idx = _find_nearest(roc["thresholds"], th)
                 pths[th][0].append(roc["tpr"][idx])
                 pths[th][1].append(roc["fpr"][idx])
-                print(roc["tpr"][idx])
+                # print(roc["tpr"][idx])
 
             for k, th in enumerate(pthresholds):
                 ax.scatter(
@@ -1425,29 +1703,33 @@ def multiROCCurve(
     ax.set_ylabel("Background efficiency")
     ax.set_xlim(*xlim)
     ax.set_ylim(*ylim)
-    ax.legend(loc="lower right", fontsize=24)
+    ax.legend(loc="lower right", fontsize=28)
 
     if title:
         ax.text(
             0.05,
-            0.83,
+            0.82,
             title,
             transform=ax.transAxes,
-            fontsize=24,
+            fontsize=32,
             fontproperties="Tex Gyre Heros:bold",
         )
 
     if kin_label:
         ax.text(
             0.05,
-            0.72,
+            0.71,
             kin_label,
             transform=ax.transAxes,
-            fontsize=20,
+            fontsize=24,
             fontproperties="Tex Gyre Heros",
         )
 
     if len(name):
+        # save ROC as pickle
+        with Path(f"{plot_dir}/{name}.pkl").open("wb") as f:
+            pickle.dump(rocs, f)
+
         plt.savefig(f"{plot_dir}/{name}.pdf", bbox_inches="tight")
 
     if show:
@@ -1905,19 +2187,19 @@ def plot_lund_plane_six(
         plt.close()
 
 
-def XHYscatter2d(arr, year: str, title: str = None, name: str = "", show: bool = False):
+def XHYscatter2d(arr, label: str = None, name: str = "", show: bool = False):
     """Scatter plot of (mX, mY) plane for resonant analysis"""
     arr = np.array(arr)
     colours = np.ones(arr.shape[0]) if arr.shape[1] == 2 else arr[:, 2]
 
     fig, ax = plt.subplots(figsize=(14, 12))
     mappable = plt.scatter(arr[:, 0], arr[:, 1], s=150, c=colours, cmap="turbo")
-    plt.title(title)
+    # plt.title(title)
     plt.xlabel(r"$m_X$ (GeV)")
     plt.ylabel(r"$m_Y$ (GeV)")
-    plt.colorbar(mappable)
+    plt.colorbar(mappable, label=label)
 
-    hep.cms.label(data=False, year=year, ax=ax)
+    add_cms_label(ax, "all", loc=0)
 
     if str(name):
         plt.savefig(name, bbox_inches="tight")
@@ -2001,17 +2283,141 @@ def colormesh(
     name: str = "",
     show: bool = False,
     preliminary: bool = True,
+    vmin=0.05,
+    vmax=1e4,
+    log: bool = True,
+    region_labels: bool = False,
     figsize=(12, 8),
 ):
     fig, ax = plt.subplots(figsize=figsize)
-    _ = plt.pcolormesh(xx, yy, lims, norm=mpl.colors.LogNorm(vmin=0.05, vmax=1e4), cmap="viridis")
-    # plt.title(title)
-    plt.xlabel(r"$m_X$ (GeV)")
-    plt.ylabel(r"$m_Y$ (GeV)")
-    plt.colorbar(label=label)
+    fs = 36
 
-    add_cms_label(ax, "all", "Preliminary" if preliminary else None, loc=0)
+    if log:
+        pmesh_args = {"norm": mpl.colors.LogNorm(vmin=vmin, vmax=vmax)}
+    else:
+        pmesh_args = {"vmin": vmin, "vmax": vmax}
+
+    pcol = plt.pcolormesh(xx, yy, lims, cmap="viridis", **pmesh_args)
+    pcol.set_edgecolor("face")
+
+    # plt.title(title)
+    plt.xlabel(r"$m_X$ [GeV]", fontsize=fs)
+    plt.ylabel(r"$m_Y$ [GeV]", fontsize=fs)
+    plt.xticks([1000, 2000, 3000, 4000], fontsize=fs - 4)
+    plt.yticks(fontsize=fs - 4)
+    cbar = plt.colorbar(label=label)
+    cbar.ax.tick_params(labelsize=fs - 4)
+    cbar.ax.set_ylabel(label, fontsize=fs)
+
+    if yy.max() > 2750:
+        plt.ylim(60, 2780)
+        cmsloc = 2
+    else:
+        cmsloc = 0
+
+    if region_labels:
+        # Draw diagonal line for signal region
+        x = np.array([900, 4000])  # Wide x range to ensure line spans plot
+        y = 0.1285 * x + 134.5
+        plt.plot(x, y, "--", color="white", alpha=0.8, linewidth=2)
+
+        plt.text(
+            3650,
+            2300,
+            "SM",
+            color="white",
+            fontsize=fs,
+            ha="center",
+            va="center",
+            fontproperties="Tex Gyre Heros",
+        )
+        plt.text(
+            3650,
+            250,
+            "FM",
+            color="white",
+            fontsize=fs,
+            ha="center",
+            va="center",
+            fontproperties="Tex Gyre Heros",
+        )
+
+    add_cms_label(
+        ax,
+        "all",
+        data=True,
+        label="Preliminary" if preliminary else "",
+        loc=cmsloc,
+        fontsize=fs - 4,
+    )
     plt.savefig(name, bbox_inches="tight")
+
+    if show:
+        plt.show()
+    else:
+        plt.close()
+
+
+def plot_tf(
+    tf: Hist,
+    label: str = None,
+    vmax: float = None,
+    plot_dir: Path = None,
+    name: str = "",
+    data: bool = True,
+    prelim: bool = True,
+    show: bool = False,
+):
+    fs = 36
+    plt.rcParams.update({"font.size": fs})
+
+    fig, ax = plt.subplots(1, 1, figsize=(11, 10))
+
+    # h2d = hep.hist2dplot(
+    #     pulls.values().T,
+    #     hists.axes[2].edges,
+    #     hists.axes[1].edges,
+    #     cmap="viridis",
+    #     cmin=-3.5,
+    #     cmax=3.5,
+    #     ax=ax,
+    # )
+
+    h2d = hep.hist2dplot(
+        tf.values().T,
+        tf.axes[1].edges,
+        tf.axes[0].edges,
+        ax=ax,
+        cmap="viridis",
+        cmax=vmax,
+        flow="none",
+    )
+    h2d.pcolormesh.set_edgecolor("face")
+    h2d.cbar.set_label(label)
+    h2d.cbar.formatter.set_scientific(True)
+    h2d.cbar.formatter.set_powerlimits((0, 0))
+    h2d.cbar.ax.tick_params(labelsize=fs - 4)
+    h2d.cbar.ax.set_ylabel(label, fontsize=fs + 4)
+    h2d.cbar.ax.yaxis.offsetText.set_x(1.2)
+
+    offset = 2 if label != r"$R^\mathrm{Data}$" else 2.5
+    h2d.cbar.ax.yaxis.set_label_coords(offset, 1)  # Shift ylabel further right
+
+    add_cms_label(
+        ax, year="all", data=data, loc=2, label="Preliminary" if prelim else None, fontsize=fs - 2
+    )
+
+    xticks = [1000, 2000, 3000, 4400]
+    ax.set_xticks(xticks)
+    ax.set_xticklabels([f"{x:.0f}" for x in xticks], rotation=45, fontsize=fs)
+    ax.set_xlabel(tf.axes[1].label, fontsize=fs)
+    ax.set_ylabel(tf.axes[0].label, fontsize=fs)
+
+    if name:
+        with (plot_dir / f"{name}.pkl").open("wb") as f:
+            pickle.dump(tf, f)
+
+        plt.savefig(plot_dir / f"{name}.pdf", bbox_inches="tight")
 
     if show:
         plt.show()

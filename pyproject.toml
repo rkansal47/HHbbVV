@@ -145,6 +145,7 @@ ignore = [
   "PLE1205", # logging format string
   "E722",   # bare except
   "E741",   # ambiguous variable name
+  "RUF003", # ambiguous sigma
   "RUF005", # iterable unpacking
   "RUF013", # implicit 'Optional' type
   "PGH001", # eval

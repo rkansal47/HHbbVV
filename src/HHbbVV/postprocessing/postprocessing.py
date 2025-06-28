@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import itertools
 import json
-import os
 import pickle
 import sys
 import warnings
@@ -24,24 +23,12 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import corrections
-
 # from pandas.errors import SettingWithCopyWarning
 import hist
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-import plotting
-import utils
-from corrections import get_lpsf, postprocess_lpsfs
 from hist import Hist
-from regions import (
-    Region,
-    get_nonres_selection_regions,
-    get_nonres_vbf_selection_regions,
-    get_res_selection_regions,
-)
-from utils import ShapeVar
 
 from HHbbVV import hh_vars
 from HHbbVV.hh_vars import (
@@ -59,6 +46,15 @@ from HHbbVV.hh_vars import (
     samples,
     years,
 )
+from HHbbVV.postprocessing import corrections, plotting, utils
+from HHbbVV.postprocessing.corrections import get_lpsf, postprocess_lpsfs
+from HHbbVV.postprocessing.regions import (
+    Region,
+    get_nonres_selection_regions,
+    get_nonres_vbf_selection_regions,
+    get_res_selection_regions,
+)
+from HHbbVV.postprocessing.utils import ShapeVar
 from HHbbVV.run_utils import add_bool_arg
 
 # ignore these because they don't seem to apply
@@ -178,13 +174,13 @@ nonres_vbf_shape_vars = [
 res_shape_vars = [
     ShapeVar(
         "VVFatJetParticleNetMass",
-        r"$M_Y^{rec}$ [GeV]",
+        r"$m_Y^{rec}$ [GeV]",
         list(range(50, 110, 10)) + list(range(110, 200, 15)) + [200, 220, 250],
         reg=False,
     ),
     ShapeVar(
         "DijetMass",
-        r"$M_X^{rec}$ [GeV]",
+        r"$m_X^{rec}$ [GeV]",
         list(range(800, 1400, 100)) + [1400, 1600, 2000, 3000, 4400],
         reg=False,
     ),
@@ -222,8 +218,8 @@ weight_shifts = {
     "electron_id": Syst(samples=fit_mcs, label="Electron ID"),
     "muon_id": Syst(samples=fit_mcs, label="Muon ID"),
     # TODO: check which of these applies to resonant as well
-    "scale": Syst(samples=nonres_sig_keys + ["TT"], label="QCDScaleAcc"),
-    "pdf": Syst(samples=nonres_sig_keys, label="PDFAcc"),
+    "scale": Syst(samples=nonres_sig_keys + res_sig_keys + ["TT"], label="QCDScaleAcc"),
+    "pdf": Syst(samples=nonres_sig_keys + res_sig_keys, label="PDFAcc"),
     # "top_pt": ["TT"],
 }
 
@@ -242,7 +238,7 @@ def main(args):
     _make_dirs(args, scan, scan_cuts, scan_wps)  # make plot, template dirs if needed
     cutflow = pd.DataFrame(index=all_samples)  # save cutflow as pandas table
 
-    if args.lpsfs or args.templates:
+    if (args.lpsfs or args.templates) and not args.skip_lpsfs:
         if len(sig_keys):
             _lpsfs(args, filters, scan, scan_cuts, scan_wps, sig_keys, sig_samples)
         if not (args.templates or args.bdt_plots or args.control_plots):
@@ -394,8 +390,10 @@ def main(args):
                     jshift=jshift,
                     blind=args.blinded,
                     blind_pass=bool(args.resonant),
-                    show=False,
+                    plot_data=args.data,
+                    resonant=args.resonant,
                     plot_shifts=args.plot_shifts,
+                    show=False,
                 )
                 templates = {**templates, **temps}
 
@@ -478,7 +476,9 @@ def _get_scan_regions(args, scan, scan_cuts, wps):
 
     cutargs = {f"{cut}_wp": wp for cut, wp in zip(scan_cuts, wps)}
     if args.resonant:
-        selection_regions = get_res_selection_regions(args.year, **cutargs)
+        selection_regions = get_res_selection_regions(
+            args.year, mass_window=args.res_mass_window, **cutargs
+        )
     elif args.vbf:
         selection_regions = get_nonres_vbf_selection_regions(args.year, **cutargs)
     else:
@@ -621,14 +621,13 @@ def _process_samples(args, BDT_sample_order: list[str] = None):
 
     if args.read_sig_samples:
         # read all signal samples in directory
-        read_samples = os.listdir(f"{args.signal_data_dirs[0]}/{args.year}")
         sig_samples = OrderedDict()
-        for sample in read_samples:
-            if sample.startswith("NMSSM_XToYHTo2W2BTo4Q2B_MX-"):
-                mY = int(sample.split("-")[-1])
-                mX = int(sample.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
+        for sample in (Path(args.signal_data_dirs[0]) / args.year).iterdir():
+            if sample.name.startswith("NMSSM_XToYHTo2W2BTo4Q2B_MX-"):
+                mY = int(sample.name.split("-")[-1])
+                mX = int(sample.name.split("NMSSM_XToYHTo2W2BTo4Q2B_MX-")[1].split("_")[0])
 
-                sig_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = sample
+                sig_samples[f"X[{mX}]->H(bb)Y[{mY}](VV)"] = sample.name
 
     if args.sig_samples is not None:
         for sig_key, sample in list(sig_samples.items()):
@@ -832,7 +831,7 @@ def load_samples(
     data_dir = Path(data_dir) / year
     # remove empty parquets, otherwise read_parquet fails
     utils.remove_empty_parquets(data_dir)
-    full_samples_list = os.listdir(data_dir)  # get all directories in data_dir
+    full_samples_list = [d.name for d in data_dir.iterdir() if d.is_dir()]
     events_dict = {}
 
     # label - key of sample in events_dict
@@ -951,7 +950,9 @@ def _load_samples(args, samples, sig_samples, cutflow, variations=True):
             ),
         }
 
-    utils.add_to_cutflow(events_dict, "Pre-selection", "finalWeight", cutflow)
+    utils.add_to_cutflow(events_dict, "Pre-selection", "weight_noTrigEffs", cutflow)
+    utils.add_to_cutflow(events_dict, "Triggers", "finalWeight", cutflow)
+    print("TESTINGING")
     print(cutflow)
 
     return events_dict
@@ -1506,6 +1507,7 @@ def control_plots(
     control_plot_vars: list[ShapeVar],
     plot_dir: Path,
     year: str,
+    resonant: bool,
     weight_key: str = "finalWeight",
     hists: dict = None,
     cutstr: str = "",
@@ -1587,6 +1589,7 @@ def control_plots(
                     year,
                     plot_sig_keys,
                     bg_keys,
+                    resonant,
                     name=name,
                     title=title,
                     sig_scale_dict=tsig_scale_dict if not log else None,
@@ -1791,6 +1794,8 @@ def get_templates(
     fail_ylim: int = None,
     blind: bool = True,
     blind_pass: bool = False,
+    plot_data: bool = True,
+    resonant: bool = False,
     show: bool = False,
 ) -> dict[str, Hist]:
     """
@@ -1823,7 +1828,7 @@ def get_templates(
     # txbb_samples = sig_keys + [key for key in bg_keys if key in hbb_bg_keys]
 
     for rname, region in selection_regions.items():
-        if region.lpsf:
+        if region.lpsf or region.prelpsf:
             continue
 
         pass_region = rname.startswith("pass")
@@ -1945,7 +1950,7 @@ def get_templates(
                                 shape_down = np.min(whists.values(), axis=0)
                             else:
                                 # pdf uncertainty is the norm of each variation (corresponding to 103 eigenvectors) - nominal
-                                nom_vals = h[sample, :].values()
+                                nom_vals = h[sample, ...].values()
                                 abs_unc = np.linalg.norm(
                                     (whists.values() - nom_vals), axis=0
                                 )  # / np.sqrt(103)
@@ -1955,10 +1960,10 @@ def get_templates(
                                 shape_down = nom_vals * (1 - rel_unc)
 
                             h.values()[
-                                utils.get_key_index(h, f"{sample}_{wshift}_up"), :
+                                utils.get_key_index(h, f"{sample}_{wshift}_up"), ...
                             ] = shape_up
                             h.values()[
-                                utils.get_key_index(h, f"{sample}_{wshift}_down"), :
+                                utils.get_key_index(h, f"{sample}_{wshift}_down"), ...
                             ] = shape_down
 
         print(f"Histograms: {time.time() - start:.2f}")
@@ -2021,6 +2026,7 @@ def get_templates(
                 for j, p_sig_keys in enumerate(sig_splits):
                     split_str = "" if len(sig_splits) == 1 else f"sigs{j}_"
                     plot_params = {
+                        "resonant": resonant,
                         "hists": h.project(0, i + 1),
                         "sig_keys": p_sig_keys,
                         "sig_scale_dict": (
@@ -2031,8 +2037,8 @@ def get_templates(
                         "show": show,
                         "year": year,
                         "ylim": pass_ylim if pass_region else fail_ylim,
-                        "plot_data": not (rname == "pass" and blind_pass),
-                        "divide_bin_width": args.resonant,
+                        "plot_data": (not (rname == "pass" and blind_pass)) and plot_data,
+                        "divide_bin_width": resonant,
                     }
 
                     plot_name = (
@@ -2046,6 +2052,7 @@ def get_templates(
                         bg_keys=p_bg_keys,
                         title=title,
                         name=f"{plot_name}{jlabel}.pdf",
+                        plot_ratio=plot_data,
                     )
 
                     if not do_jshift and plot_shifts:
@@ -2060,6 +2067,8 @@ def get_templates(
                                 syst=(wshift, wsyst.samples),
                                 title=f"{region.label} Region {wsyst.label} Unc.",
                                 name=f"{plot_name}_{wshift}.pdf",
+                                plot_ratio=False,
+                                reorder_legend=False,
                             )
 
                             for skey, shift in [("Down", "down"), ("Up", "up")]:
@@ -2192,7 +2201,13 @@ def parse_args(parser=None):
     add_bool_arg(parser, "bdt-plots", "make bdt sculpting plots", default=False)
     add_bool_arg(parser, "mass-sculpting-plots", "make mass sculpting plots", default=False)
     add_bool_arg(parser, "lpsfs", "measure LP SFs for given WPs", default=False)
-    add_bool_arg(parser, "templates", "save m_bb templates using bdt cut", default=False)
+    add_bool_arg(
+        parser,
+        "skip-lpsfs",
+        "skip LP SFs for templates - temp argument - will result in an error during templates...",
+        default=False,
+    )
+    add_bool_arg(parser, "templates", "save m_bb templates using - bdt cut", default=False)
     add_bool_arg(
         parser, "overwrite-template", "if template file already exists, overwrite it", default=False
     )
@@ -2305,6 +2320,14 @@ def parse_args(parser=None):
         help="pT cut for sub-leading AK8 jet (resonant only)",
         default=[350],
         nargs="*",
+        type=float,
+    )
+
+    parser.add_argument(
+        "--res-mass-window",
+        help="bb masswindow for resonant signal region",
+        default=[110, 145],
+        nargs=2,
         type=float,
     )
 

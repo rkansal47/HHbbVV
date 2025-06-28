@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import pickle
 from collections import OrderedDict
 from pathlib import Path
@@ -28,16 +29,48 @@ shape_vars = res_shape_vars
 
 selection_regions = OrderedDict(
     [
-        ("fail", "SR Fail"),
-        ("pass", "SR Pass"),
-        ("failBlinded", "VR Fail"),
-        ("passBlinded", "VR Pass"),
+        ("fail", "FM SF"),
+        ("pass", "FM SP"),
+        ("failBlinded", "FM VF"),
+        ("passBlinded", "FM VP"),
     ]
 )
 
-pass_ylims = [50, 10]
+pass_ylims = [55, 9]
 fail_ylims = [14000, 1700]
 scale = 1  # optional scaling lims
+
+
+def get_1d_plot_params(
+    i, region, bgerrs, shape, hists, sig_key, p_bg_keys, sig_scale, region_label, preliminary
+):
+    pass_region = region.startswith("pass")
+    vregion = "Blinded" in region
+
+    bgerr = np.linalg.norm(bgerrs[shape][region], axis=i)
+
+    plot_params = {
+        "hists": hists[shape][region].project(0, i + 1),
+        "sig_keys": [sig_key],
+        "bg_keys": p_bg_keys,
+        "bg_err": bgerr,
+        "sig_scale_dict": {sig_key: sig_scale},
+        "year": "all",
+        "ylim": pass_ylims[i] * scale if pass_region else fail_ylims[i] * scale,
+        # "name": f"{plot_dir}/{shape}_{region}_{shape_var.var}.pdf",
+        "region_label": region_label,
+        "combine_other_bgs": True,
+        "plot_pulls": True,
+        "divide_bin_width": True,
+        "cmslabel": "Preliminary" if preliminary else None,
+        "cmsloc": 0,
+        "resonant": True,
+        "plot_signal": pass_region and not vregion,
+    }
+
+    # pprint(plot_params)
+
+    return plot_params
 
 
 def plot_fits_combined(
@@ -52,6 +85,8 @@ def plot_fits_combined(
     plabel = "preliminary" if preliminary else "final"
     for shape in shapes:
         print("\t\t", shape)
+        # if shape == "prefit":
+        #     continue
         for i, shape_var in enumerate(shape_vars):
             print("\t\t\t", shape_var.var)
             # add "invisible" subplots between main plots to add spacing
@@ -61,7 +96,7 @@ def plot_fits_combined(
                 3,
                 figsize=(25, 30),
                 gridspec_kw=dict(
-                    height_ratios=[3, 1, 0.6, 3, 1], width_ratios=[1, 0.12, 1], hspace=0, wspace=0
+                    height_ratios=[3, 1, 0.3, 3, 1], width_ratios=[1, 0.12, 1], hspace=0.1, wspace=0
                 ),
             )
 
@@ -72,29 +107,24 @@ def plot_fits_combined(
                 ax.set_visible(False)
 
             for j, (region, region_label) in enumerate(selection_regions.items()):
-                # print("\t\t\t\t", region_label)
+                print("\t\t\t\t", region_label)
+                # print(region)
                 row = (j // 2) * 3
                 col = (j % 2) * 2
-                pass_region = region.startswith("pass")
 
-                bgerr = np.linalg.norm(bgerrs[shape][region], axis=i)
-
-                plot_params = {
-                    "hists": hists[shape][region].project(0, i + 1),
-                    "sig_keys": [sig_key],
-                    "bg_keys": p_bg_keys,
-                    "bg_err": bgerr,
-                    "sig_scale_dict": {sig_key: sig_scale},
-                    "show": False,
-                    "year": "all",
-                    "ylim": pass_ylims[i] * scale if pass_region else fail_ylims[i] * scale,
-                    # "name": f"{plot_dir}/{shape}_{region}_{shape_var.var}.pdf",
-                    "divide_bin_width": True,
-                    "axrax": (axs[row, col], axs[row + 1, col]),
-                    "cmslabel": "Preliminary" if preliminary else None,
-                    "cmsloc": 2,
-                    "region_label": region_label,
-                }
+                plot_params = get_1d_plot_params(
+                    i,
+                    region,
+                    bgerrs,
+                    shape,
+                    hists,
+                    sig_key,
+                    p_bg_keys,
+                    sig_scale,
+                    region_label,
+                    preliminary,
+                )
+                plot_params["axrax"] = (axs[row, col], axs[row + 1, col])
 
                 plotting.ratioHistPlot(**plot_params)
 
@@ -118,25 +148,20 @@ def plot_fits_separate(
         for i, shape_var in enumerate(shape_vars):
             print("\t\t\t", shape_var.var)
             for _j, (region, region_label) in enumerate(selection_regions.items()):
-                pass_region = region.startswith("pass")
 
-                bgerr = np.linalg.norm(bgerrs[shape][region], axis=i)
-
-                plot_params = {
-                    "hists": hists[shape][region].project(0, i + 1),
-                    "sig_keys": [sig_key],
-                    "bg_keys": p_bg_keys,
-                    "bg_err": bgerr,
-                    "sig_scale_dict": {sig_key: sig_scale},
-                    "show": False,
-                    "year": "all",
-                    "ylim": pass_ylims[i] * scale if pass_region else fail_ylims[i] * scale,
-                    "name": f"{plot_dir}/{plabel}_{shape}_{region}_{shape_var.var}.pdf",
-                    "divide_bin_width": True,
-                    "cmslabel": "Preliminary" if preliminary else None,
-                    "cmsloc": 2,
-                    "region_label": region_label,
-                }
+                plot_params = get_1d_plot_params(
+                    i,
+                    region,
+                    bgerrs,
+                    shape,
+                    hists,
+                    sig_key,
+                    p_bg_keys,
+                    sig_scale,
+                    region_label,
+                    preliminary,
+                )
+                plot_params["name"] = f"{plot_dir}/{plabel}_{shape}_{region}_{shape_var.var}.pdf"
 
                 plotting.ratioHistPlot(**plot_params)
 
@@ -158,32 +183,53 @@ def plot_fits_slices(
             pdir = plot_dir / shape / region
             pdir.mkdir(parents=True, exist_ok=True)
             for i in range(10):
-                pass_region = region.startswith("pass")
                 mxbin = hists[shape][region].axes[2][i]
-                plot_params = {
-                    "hists": hists[shape][region][:, :, i],
-                    "sig_keys": [sig_key],
-                    "bg_keys": p_bg_keys,
-                    "bg_err": bgerrs[shape][region][i],
-                    "sig_scale_dict": {sig_key: sig_scale},
-                    "show": False,
-                    "year": "all",
-                    "ylim": (
-                        (pass_ylims[0] * scale / 5.0)
-                        if pass_region
-                        else (fail_ylims[0] * scale / 5.0)
-                    ),
-                    "name": f"{pdir}/mXbin{i}_{plabel}.pdf",
-                    "divide_bin_width": True,
-                    "cmslabel": "Preliminary" if preliminary else None,
-                    "cmsloc": 2,
-                    "region_label": "\n"
+                plot_params = get_1d_plot_params(
+                    0,
+                    region,
+                    bgerrs,
+                    shape,
+                    hists,
+                    sig_key,
+                    p_bg_keys,
+                    sig_scale,
+                    region_label,
+                    preliminary,
+                )
+                plot_params["hists"] = hists[shape][region][:, :, i]
+                plot_params["bg_err"] = bgerrs[shape][region][i]
+                plot_params["name"] = f"{pdir}/mXbin{i}_{plabel}.pdf"
+                plot_params["ylim"] = plot_params["ylim"] / 4.5
+                plot_params["region_label"] = (
+                    "\n"
                     + region_label
                     + "\n"
-                    + rf"$M^{{rec}}_X \in [{mxbin[0]:.0f}, {mxbin[1]:.0f}]$",
-                }
-
+                    + rf"$M^{{rec}}_X \in [{mxbin[0]:.0f}, {mxbin[1]:.0f}]$"
+                )
                 plotting.ratioHistPlot(**plot_params)
+
+                # plot_params = {
+                #     "hists": hists[shape][region][:, :, i],
+                #     "sig_keys": [sig_key],
+                #     "bg_keys": p_bg_keys,
+                #     "bg_err": bgerrs[shape][region][i],
+                #     "sig_scale_dict": {sig_key: sig_scale},
+                #     "show": False,
+                #     "year": "all",
+                #     "ylim": (
+                #         (pass_ylims[0] * scale / 5.0)
+                #         if pass_region
+                #         else (fail_ylims[0] * scale / 5.0)
+                #     ),
+                #     "name": f"{pdir}/mXbin{i}_{plabel}.pdf",
+                #     "divide_bin_width": True,
+                #     "cmslabel": "Preliminary" if preliminary else None,
+                #     "cmsloc": 2,
+                #     "region_label": "\n"
+                #     + region_label
+                #     + "\n"
+                #     + rf"$M^{{rec}}_X \in [{mxbin[0]:.0f}, {mxbin[1]:.0f}]$",
+                # }
 
 
 def main(args):
@@ -225,6 +271,10 @@ def main(args):
         if args.hists2d:
             for shape in shapes:
                 (plot_dir / p / shape).mkdir(parents=True, exist_ok=True)
+
+    # save args as json in plot_dir
+    with (plot_dir / "args.json").open("w") as f:
+        json.dump(args.__dict__, f, indent=4)
 
     file = uproot.open(cards_dir / file_name)
 
@@ -347,22 +397,33 @@ def main(args):
                 sig_scale=args.sig_scale,
             )
 
-        if preliminary and args.hists2d:
+        if args.hists2d:
             print("\t 2d")
-            for shape in shapes:
-                samples = ["Data", "TT", "Z+Jets", "W+Jets", "QCD", "Hbb", "Diboson", sig_key]
-                if shape == "shapes_prefit":
-                    samples = samples[1:]  # no need to plot data again in post-fit
+            pplabel = "preliminary_" if preliminary else ""
+            plotting.hist2dPullPlot(
+                hists["postfits"]["pass"],
+                bgerrs["postfits"]["pass"],
+                sig_key,
+                p_bg_keys,
+                "FM SP",
+                preliminary=preliminary,
+                name=f"{plot_dir}/{plabel}/{pplabel}pull2d.pdf",
+            )
 
-                plotting.hist2ds(
-                    hists[shape],
-                    plot_dir / plabel / shape,
-                    regions=["pass", "fail"],
-                    region_labels=selection_regions,
-                    samples=samples,
-                    fail_zlim=[1, 1e5],
-                    pass_zlim=[1e-4, 100],
-                )
+            # for shape in shapes:
+            #     samples = ["Data", "TT", "Z+Jets", "W+Jets", "QCD", "Hbb", "Diboson", sig_key]
+            #     if shape == "shapes_prefit":
+            #         samples = samples[1:]  # no need to plot data again in post-fit
+
+            #     plotting.hist2ds(
+            #         hists[shape],
+            #         plot_dir / plabel / shape,
+            #         regions=["pass", "fail"],
+            #         region_labels=selection_regions,
+            #         samples=samples,
+            #         fail_zlim=[1, 1e5],
+            #         pass_zlim=[1e-4, 100],
+            #     )
 
 
 if __name__ == "__main__":
@@ -373,8 +434,8 @@ if __name__ == "__main__":
     parser.add_argument("--cards-tag", help="Cards directory", required=True, type=str)
     parser.add_argument("--plots-tag", help="plots directory", type=str, required=True)
     parser.add_argument("--mxmy", help="mX mY", type=int, required=True, nargs=2)
-    parser.add_argument("--sig-scale", help="optional signal scaling", default=10, type=float)
-    add_bool_arg(parser, "b-only", "B-only fit or not", default=True)
+    parser.add_argument("--sig-scale", help="optional signal scaling", default=2, type=float)
+    add_bool_arg(parser, "b-only", "B-only fit or not", default=False)
     add_bool_arg(parser, "hists1d", "make 1D hists", default=True)
     add_bool_arg(parser, "slices", "1d slices", default=True)
     add_bool_arg(parser, "hists2d", "make 2D hists", default=True)

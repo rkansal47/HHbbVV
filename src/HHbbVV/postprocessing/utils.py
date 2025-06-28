@@ -13,7 +13,6 @@ import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass
-from os import listdir
 from pathlib import Path
 
 import hist
@@ -28,6 +27,7 @@ from HHbbVV.hh_vars import (
     jec_vars,
     jmsr_shifts,
     jmsr_vars,
+    res_sigs,
 )
 
 MAIN_DIR = "./"
@@ -74,7 +74,7 @@ def timer():
 
 
 def remove_empty_parquets(samples_dir):
-    full_samples_list = listdir(samples_dir)
+    full_samples_list = [f.name for f in Path(samples_dir).iterdir()]
     print("Checking for empty parquets")
 
     for sample in full_samples_list:
@@ -86,7 +86,7 @@ def remove_empty_parquets(samples_dir):
             continue
 
         print(f"\tChecking {sample}")
-        parquet_files = listdir(f"{samples_dir}/{sample}/parquet")
+        parquet_files = [f.name for f in Path(f"{samples_dir}/{sample}/parquet").iterdir()]
         for f in parquet_files:
             file_path = Path(f"{samples_dir}/{sample}/parquet/{f}")
 
@@ -111,7 +111,7 @@ def remove_variation_suffix(var: str):
 
 def get_nevents(pickles_path, year, sample_name):
     """Adds up nevents over all pickles in ``pickles_path`` directory"""
-    out_pickles = listdir(pickles_path)
+    out_pickles = [f.name for f in Path(pickles_path).iterdir()]
 
     file_name = out_pickles[0]
     with Path(f"{pickles_path}/{file_name}").open("rb") as file:
@@ -130,7 +130,7 @@ def get_cutflow(pickles_path, year, sample_name):
     """Accumulates cutflow over all pickles in ``pickles_path`` directory"""
     from coffea.processor.accumulator import accumulate
 
-    out_pickles = [f for f in listdir(pickles_path) if f != ".DS_Store"]
+    out_pickles = [f.name for f in Path(pickles_path).iterdir() if f.name != ".DS_Store"]
 
     file_name = out_pickles[0]
     with Path(f"{pickles_path}/{file_name}").open("rb") as file:
@@ -149,7 +149,7 @@ def get_pickles(pickles_path, year, sample_name):
     """Accumulates all pickles in ``pickles_path`` directory"""
     from coffea.processor.accumulator import accumulate
 
-    out_pickles = [f for f in listdir(pickles_path) if f != ".DS_Store"]
+    out_pickles = [f.name for f in Path(pickles_path).iterdir() if f.name != ".DS_Store"]
 
     file_name = out_pickles[0]
     with Path(f"{pickles_path}/{file_name}").open("rb") as file:
@@ -171,7 +171,13 @@ def check_selector(sample: str, selector: str | list[str]):
         selector = [selector]
 
     for s in selector:
-        if s.startswith("*"):
+        if s in res_sigs:
+            if s == sample:
+                return True
+        elif s.endswith("?"):
+            if s[:-1] == sample:
+                return True
+        elif s.startswith("*"):
             if s[1:] in sample:
                 return True
         else:
@@ -390,7 +396,8 @@ def singleVarHist(
             fill_var = var
 
         fill_data = {var: get_feat(events, fill_var, bb_mask)}
-        weight = events[weight_key].to_numpy().squeeze()
+        wkey = weight_key if sample != data_key else "finalWeight"
+        weight = events[wkey].to_numpy().squeeze()
 
         if selection is not None:
             sel = selection[sample]
@@ -509,6 +516,27 @@ def combine_hbb_bgs(hists, systs: list[str] = ()):
     h.view()[nsamples] = hbb_hist.view()
     for i, (_syst, hbbhist) in enumerate(hbb_systs.items()):
         h.view()[nsamples + 1 + i] = hbbhist.view()
+
+    return h
+
+
+def combine_other_bgs(hists, combine_keys: list[str]):
+    """
+    Combine all backgrounds in ``combine_keys`` into a single "Other" background
+    """
+    keep_keys = [key for key in hists.axes[0] if key not in combine_keys]
+
+    h = Hist(
+        hist.axis.StrCategory(keep_keys + ["Other"], name="Sample"),
+        *hists.axes[1:],
+        storage="double" if hists.storage_type == hist.storage.Double else "weight",
+    )
+
+    for i, sample in enumerate(keep_keys):
+        h.view()[i] = hists[sample, ...].view()
+
+    nsamples = len(keep_keys)
+    h.view()[nsamples] = sum(hists[key, ...] for key in combine_keys).view()
 
     return h
 
