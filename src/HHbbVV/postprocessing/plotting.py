@@ -47,7 +47,7 @@ DATA_STYLE = {
 # plt.close()
 
 
-BG_UNC_LABEL = "Total Bkg. Unc."
+BG_UNC_LABEL = "Total bkg. unc."
 
 bg_order = ["Diboson", "HH", "HWW", "Hbb", "ST", "W+Jets", "Z+Jets", "Other", "TT", "QCD"]
 
@@ -334,6 +334,7 @@ def ratioHistPlot(
     syst: tuple = None,
     variation: str = None,
     region_label: str = None,
+    bin_label: str = None,
     bg_err_type: str = "shaded",
     plot_signal: bool = True,
     plot_data: bool = True,
@@ -747,7 +748,7 @@ def ratioHistPlot(
                 bbox_to_anchor=(1.0, -0.1),
             )
 
-        rax.set_ylabel("Pull", fontsize=fs)
+        # rax.set_ylabel("Pull", fontsize=fs)
         rax.set_ylim(-ylim, ylim)
         # rax.grid()
         rax.margins(x=0)
@@ -793,16 +794,26 @@ def ratioHistPlot(
         ax.set_title(title, y=1.08)
 
     if region_label is not None:
-        mline = "\n" in region_label
-        xpos = 0.055
-        ypos = 0.88 if not mline else 0.87
-        xpos = 0.035 if not resonant else xpos
+        xpos = 0.055 if (resonant and bin_label is None) else 0.034
+        ypos = 0.9
         ax.text(
             xpos,
             ypos,
             region_label,
             transform=ax.transAxes,
             fontsize=fs,
+            fontproperties="Tex Gyre Heros:bold",
+        )
+
+    if bin_label is not None:
+        xpos = 0.034
+        ypos = 0.83
+        ax.text(
+            xpos,
+            ypos,
+            bin_label,
+            transform=ax.transAxes,
+            fontsize=fs - 8,
             fontproperties="Tex Gyre Heros:bold",
         )
 
@@ -1359,7 +1370,7 @@ def hist2dPullPlot(
     X, Y = np.meshgrid(x_interp, y_interp)
     Z = sig_interp(y_interp, x_interp)
 
-    sig_colour = COLOURS["orange"]
+    sig_colour = "white"
 
     ax.contour(
         Y.T,
@@ -1368,7 +1379,7 @@ def hist2dPullPlot(
         levels=levels,
         colors=sig_colour,
         # linestyles=["--", "-", "--"],
-        linewidths=3,
+        linewidths=5,
     )
     # ax.clabel(cs, cs.levels, inline=False, fmt="%.2f", fontsize=12)
 
@@ -1382,7 +1393,7 @@ def hist2dPullPlot(
     # Add legend for signal contours
     handles, labels = ax.get_legend_handles_labels()
     # Create proxy artist for contour lines
-    contour_proxy = plt.Line2D([], [], color=sig_colour, linestyle="-", linewidth=3)
+    contour_proxy = plt.Line2D([], [], color=sig_colour, linestyle="-", linewidth=5)
     handles.append(contour_proxy)
     labels.append(sample_label_map.get(sig_key, sig_key) + r" / $\sigma$")
     ax.legend(
