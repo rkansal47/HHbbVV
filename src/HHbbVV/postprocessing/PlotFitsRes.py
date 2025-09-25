@@ -223,6 +223,57 @@ def plot_fits_slices(
                 plotting.ratioHistPlot(**plot_params)
 
 
+def load_toy_uncs(cards_dir: Path):
+    if (cards_dir / "bgerrstoys_std.pkl").exists():
+        with (cards_dir / "bgerrstoys_std.pkl").open("rb") as f:
+            bgerrstoys_std = pickle.load(f)
+        return bgerrstoys_std
+
+    print("Loading toy uncertainties from FitDiagnostics")
+    from tqdm import tqdm
+
+    bgerrstoys = {shape: {region: [] for region in selection_regions} for shape in shapes}
+
+    # mapping PostFitShapes keys to FitDiagnostics keys
+    shape_map = {
+        "prefit": "shapes_prefit",
+        "postfits": "shapes_fit_s",
+        "postfitb": "shapes_fit_b",
+    }
+
+    # get binsize for mX bins to rescale yields from FitDiagnostics
+    bins = list(shape_vars[0].axis)
+    binsize = np.array([b[1] - b[0] for b in bins])
+
+    for t in tqdm(range(1000, 1200)):
+        f = uproot.open(cards_dir / f"fitDiagnosticsToys{t}.root")
+        for shape in shapes:
+            if shape_map[shape] not in f:
+                continue
+            # for region in ["pass", "fail"]:
+            for region in selection_regions:
+                twodarray = []
+                for i in range(len(shape_vars[1].axis)):  # mX bins
+                    twodarray.append(
+                        f[shape_map[shape]][f"mXbin{i}{region}/total_background"].values() * binsize
+                    )
+
+                bgerrstoys[shape][region].append(twodarray)
+
+    bgerrstoys_std = {
+        shape: {region: np.std(bgerrstoys[shape][region], axis=0) for region in selection_regions}
+        for shape in shapes
+    }
+
+    with (cards_dir / "bgerrstoys_std.pkl").open("wb") as f:
+        pickle.dump(bgerrstoys_std, f)
+
+    with (cards_dir / "bgerrstoys.pkl").open("wb") as f:
+        pickle.dump(bgerrstoys, f)
+
+    return bgerrstoys_std
+
+
 def main(args):
     cards_dir = Path("/uscms/home/rkansal/hhcombine/cards")
     plot_dir = Path("/uscms/home/rkansal/nobackup/HHbbVV/plots/PostFit")
@@ -356,6 +407,9 @@ def main(args):
             bgtots[shape][region] = np.array(bgtots[shape][region])
             bgerrs[shape][region] = np.minimum(bgerrs[shape][region], bgtots[shape][region])
 
+    if args.toy_uncs:
+        bgerrs = load_toy_uncs(cards_dir)
+
     for preliminary, plabel in zip([True, False], ["Preliminary", "Final"]):
         print(plabel)
         if args.hists1d:
@@ -435,5 +489,8 @@ if __name__ == "__main__":
     add_bool_arg(parser, "hists1d", "make 1D hists", default=False)
     add_bool_arg(parser, "slices", "1d slices", default=False)
     add_bool_arg(parser, "hists2d", "make 2D hists", default=False)
+    add_bool_arg(
+        parser, "toy-uncs", "use bkg uncertainties from toys rather than FitShapes", default=False
+    )
     args = parser.parse_args()
     main(args)

@@ -34,6 +34,7 @@ toylimits=0
 significance=0
 dfit=0
 dfit_asimov=0
+binuncs=0
 dnll=0
 resonant=0
 gofdata=0
@@ -51,7 +52,7 @@ bias=-1
 mintol=0.1  # --cminDefaultMinimizerTolerance
 # maxcalls=1000000000  # --X-rtd MINIMIZER_MaxCalls
 
-options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,dfitasimov,toylimits,resonant,noggf,novbf,gofdata,goftoys,gentoys,dnll,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:,toysname:,toysfile:,verbose:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,dfitasimov,toylimits,resonant,noggf,novbf,gofdata,goftoys,gentoys,dnll,binuncs,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:,toysname:,toysfile:,verbose:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -97,6 +98,9 @@ while true; do
             ;;
         --dnll)
             dnll=1
+            ;;
+        --binuncs)
+            binuncs=1
             ;;
         -i|--impactsi)
             impactsi=1
@@ -298,7 +302,7 @@ if [ $dfit = 1 ]; then
     combine -M FitDiagnostics -m 125 -d ${wsm}.root -n "" \
     ${unblindedparams} --setParameterRanges r=-2,20 \
     --cminDefaultMinimizerStrategy 1  --cminDefaultMinimizerTolerance "$mintol" --X-rtd MINIMIZER_MaxCalls=400000 \
-    --ignoreCovWarning -v $verbose 2>&1 | tee $outsdir/FitDiagnostics.txt
+    --ignoreCovWarning -v $verbose --robustHesse 2>&1 | tee $outsdir/FitDiagnostics.txt
     # --saveShapes --saveNormalizations --saveWithUncertainties --saveOverallShapes \
 
     # python $CMSSW_BASE/src/HiggsAnalysis/CombinedLimit/test/diffNuisances.py fitDiagnostics.root -g nuisance_pulls.root --all --regex='^(?!.*mcstat)'  --vtol=0.3 --stol=0.1 --vtol2=2.0 --stol2=0.5
@@ -310,6 +314,17 @@ if [ $dfit = 1 ]; then
     echo "Fit Shapes S+B"
     PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapesS.root \
     -m 125 -f fitDiagnostics.root:fit_s --postfit --print --sampling 2>&1 | tee $outsdir/FitShapesS.txt
+fi
+
+
+if [ $binuncs = 1 ]; then
+    echo "Fit diagnostics on toys for bin uncertainties"
+    for i in {1001..1199}; do
+        combine -M FitDiagnostics -m 125 -d ${wsm_snapshot}.root -n "Toys${i}" --snapshotName MultiDimFit \
+        ${unblindedparams} --setParameterRanges r=-5,20 --bypassFrequentistFit --toysFrequentist --skipBOnlyFit --minos none \
+        --cminDefaultMinimizerStrategy 1 --cminDefaultMinimizerTolerance "$mintol" --X-rtd MINIMIZER_MaxCalls=400000 \
+        -v $verbose --saveShapes --saveOverallShapes -t 1 -s ${i} 2>&1 | tee -a $outsdir/ToysFitDiagnostics.txt
+    done
 fi
 
 
