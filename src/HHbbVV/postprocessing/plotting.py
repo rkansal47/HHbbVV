@@ -1015,7 +1015,7 @@ def ratioLinePlotPrePost(
         sum([hists[sample, :] for sample in bg_keys]),
     ]
     labels = labels + ["Uncorrected total", "Corrected total"]
-    colors = colors + ["black", "black"]
+    colors = colors + ["blue", "blue"]
     linestyles = linestyles + ["--", "-"]
     alpha = alpha + [0.5, 1]
     markers = markers + [None, None]
@@ -1067,7 +1067,7 @@ def ratioLinePlotPrePost(
             np.repeat(bg_tot - bg_err, 2),
             np.repeat(bg_tot + bg_err, 2),
             color="black",
-            alpha=0.2,
+            alpha=0.1,
             hatch="//",
             linewidth=0,
             label="LJP uncertainty",
