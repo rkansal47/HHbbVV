@@ -42,7 +42,17 @@ scale = 1  # optional scaling lims
 
 
 def get_1d_plot_params(
-    i, region, bgerrs, shape, hists, sig_key, p_bg_keys, sig_scale, region_label, preliminary
+    i,
+    region,
+    bgerrs,
+    shape,
+    hists,
+    sig_key,
+    p_bg_keys,
+    sig_scale,
+    region_label,
+    preliminary,
+    supplementary: bool = False,
 ):
     pass_region = region.startswith("pass")
     vregion = "Blinded" in region
@@ -62,7 +72,11 @@ def get_1d_plot_params(
         "combine_other_bgs": True,
         "plot_pulls": True,
         "divide_bin_width": True,
-        "cmslabel": "Preliminary" if preliminary else None,
+        "cmslabel": (
+            "Preliminary"
+            if preliminary
+            else "Supplementary" if (supplementary or not pass_region) else None
+        ),
         "cmsloc": 0,
         "resonant": True,
         "plot_signal": pass_region and not vregion,
@@ -177,6 +191,8 @@ def plot_fits_slices(
 ):
     plabel = "preliminary" if preliminary else "final"
     for shape in shapes:
+        if shape == "prefit":
+            continue
         print("\t\t", shape)
         for _j, (region, region_label) in enumerate(selection_regions.items()):
             print("\t\t\t", region_label)
@@ -195,41 +211,67 @@ def plot_fits_slices(
                     sig_scale,
                     region_label,
                     preliminary,
+                    supplementary=True,
                 )
                 plot_params["hists"] = hists[shape][region][:, :, i]
                 plot_params["bg_err"] = bgerrs[shape][region][i]
                 plot_params["name"] = f"{pdir}/mXbin{i}_{plabel}.pdf"
                 plot_params["ylim"] = plot_params["ylim"] / 4.5
-                plot_params["region_label"] = (
-                    "\n"
-                    + region_label
-                    + "\n"
-                    + rf"$M^{{rec}}_X \in [{mxbin[0]:.0f}, {mxbin[1]:.0f}]$"
+                plot_params["bin_label"] = (
+                    rf"$m^{{rec}}_X \in [{mxbin[0]:.0f}, {mxbin[1]:.0f}] GeV$"
                 )
                 plotting.ratioHistPlot(**plot_params)
 
-                # plot_params = {
-                #     "hists": hists[shape][region][:, :, i],
-                #     "sig_keys": [sig_key],
-                #     "bg_keys": p_bg_keys,
-                #     "bg_err": bgerrs[shape][region][i],
-                #     "sig_scale_dict": {sig_key: sig_scale},
-                #     "show": False,
-                #     "year": "all",
-                #     "ylim": (
-                #         (pass_ylims[0] * scale / 5.0)
-                #         if pass_region
-                #         else (fail_ylims[0] * scale / 5.0)
-                #     ),
-                #     "name": f"{pdir}/mXbin{i}_{plabel}.pdf",
-                #     "divide_bin_width": True,
-                #     "cmslabel": "Preliminary" if preliminary else None,
-                #     "cmsloc": 2,
-                #     "region_label": "\n"
-                #     + region_label
-                #     + "\n"
-                #     + rf"$M^{{rec}}_X \in [{mxbin[0]:.0f}, {mxbin[1]:.0f}]$",
-                # }
+
+def load_toy_uncs(cards_dir: Path):
+    if (cards_dir / "bgerrstoys_std.pkl").exists():
+        with (cards_dir / "bgerrstoys_std.pkl").open("rb") as f:
+            bgerrstoys_std = pickle.load(f)
+        return bgerrstoys_std
+
+    print("Loading toy uncertainties from FitDiagnostics")
+    from tqdm import tqdm
+
+    bgerrstoys = {shape: {region: [] for region in selection_regions} for shape in shapes}
+
+    # mapping PostFitShapes keys to FitDiagnostics keys
+    shape_map = {
+        "prefit": "shapes_prefit",
+        "postfits": "shapes_fit_s",
+        "postfitb": "shapes_fit_b",
+    }
+
+    # get binsize for mX bins to rescale yields from FitDiagnostics
+    bins = list(shape_vars[0].axis)
+    binsize = np.array([b[1] - b[0] for b in bins])
+
+    for t in tqdm(range(1000, 1200)):
+        f = uproot.open(cards_dir / f"fitDiagnosticsToys{t}.root")
+        for shape in shapes:
+            if shape_map[shape] not in f:
+                continue
+            # for region in ["pass", "fail"]:
+            for region in selection_regions:
+                twodarray = []
+                for i in range(len(shape_vars[1].axis)):  # mX bins
+                    twodarray.append(
+                        f[shape_map[shape]][f"mXbin{i}{region}/total_background"].values() * binsize
+                    )
+
+                bgerrstoys[shape][region].append(twodarray)
+
+    bgerrstoys_std = {
+        shape: {region: np.std(bgerrstoys[shape][region], axis=0) for region in selection_regions}
+        for shape in shapes
+    }
+
+    with (cards_dir / "bgerrstoys_std.pkl").open("wb") as f:
+        pickle.dump(bgerrstoys_std, f)
+
+    with (cards_dir / "bgerrstoys.pkl").open("wb") as f:
+        pickle.dump(bgerrstoys, f)
+
+    return bgerrstoys_std
 
 
 def main(args):
@@ -277,6 +319,10 @@ def main(args):
         json.dump(args.__dict__, f, indent=4)
 
     file = uproot.open(cards_dir / file_name)
+    if not args.b_only:
+        fitd_file = uproot.open(cards_dir / "higgsCombine.FitDiagnostics.mH125.root")
+        sig_strength = fitd_file["limit"]["limit"].array()[0]
+        print(f"Best-fit signal strength: {sig_strength}")
 
     templates_dir = Path("templates/25Feb6ResBackgrounds")
 
@@ -361,6 +407,9 @@ def main(args):
             bgtots[shape][region] = np.array(bgtots[shape][region])
             bgerrs[shape][region] = np.minimum(bgerrs[shape][region], bgtots[shape][region])
 
+    if args.toy_uncs:
+        bgerrs = load_toy_uncs(cards_dir)
+
     for preliminary, plabel in zip([True, False], ["Preliminary", "Final"]):
         print(plabel)
         if args.hists1d:
@@ -385,7 +434,7 @@ def main(args):
                 sig_scale=args.sig_scale,
             )
 
-        if preliminary and args.slices:
+        if args.slices:
             print("\t", "Slices")
             plot_fits_slices(
                 hists,
@@ -394,7 +443,8 @@ def main(args):
                 sig_key,
                 p_bg_keys,
                 preliminary,
-                sig_scale=args.sig_scale,
+                # sig_scale=args.sig_scale,
+                sig_scale=1,
             )
 
         if args.hists2d:
@@ -436,8 +486,11 @@ if __name__ == "__main__":
     parser.add_argument("--mxmy", help="mX mY", type=int, required=True, nargs=2)
     parser.add_argument("--sig-scale", help="optional signal scaling", default=2, type=float)
     add_bool_arg(parser, "b-only", "B-only fit or not", default=False)
-    add_bool_arg(parser, "hists1d", "make 1D hists", default=True)
-    add_bool_arg(parser, "slices", "1d slices", default=True)
-    add_bool_arg(parser, "hists2d", "make 2D hists", default=True)
+    add_bool_arg(parser, "hists1d", "make 1D hists", default=False)
+    add_bool_arg(parser, "slices", "1d slices", default=False)
+    add_bool_arg(parser, "hists2d", "make 2D hists", default=False)
+    add_bool_arg(
+        parser, "toy-uncs", "use bkg uncertainties from toys rather than FitShapes", default=False
+    )
     args = parser.parse_args()
     main(args)
