@@ -5,6 +5,7 @@ Splits the total fileset and creates condor job submission files for the specifi
 
 Author(s): Cristina Mantilla Suarez, Raghav Kansal
 """
+
 from __future__ import annotations
 
 import argparse

@@ -836,11 +836,11 @@ def tagger_gen_matching(
 
     if "H_" in label:
         matched_mask, GenVars = tagger_gen_H_matching(
-            genparts, fatjets, genlabels, jet_dR, match_dR, decays=label.split("_")[-1]
+            genparts, fatjets, genlabels, jet_dR, match_dR, decays=label.rsplit("_", maxsplit=1)[-1]
         )
     elif "Y_" in label:
         matched_mask, GenVars = tagger_gen_H_matching(
-            genparts, fatjets, genlabels, jet_dR, match_dR, decays=label.split("_")[-1], h_pdgid=35
+            genparts, fatjets, genlabels, jet_dR, match_dR, decays=label.rsplit("_", maxsplit=1)[-1], h_pdgid=35
         )
     elif "QCD" in label:
         matched_mask, GenVars = tagger_gen_QCD_matching(

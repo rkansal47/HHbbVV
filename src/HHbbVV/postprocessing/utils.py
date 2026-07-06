@@ -103,9 +103,9 @@ def remove_empty_parquets(samples_dir):
 def remove_variation_suffix(var: str):
     """removes the variation suffix from the variable name"""
     if var.endswith("Down"):
-        return var.split("Down")[0]
+        return var.split("Down", maxsplit=1)[0]
     elif var.endswith("Up"):
-        return var.split("Up")[0]
+        return var.split("Up", maxsplit=1)[0]
     return var
 
 

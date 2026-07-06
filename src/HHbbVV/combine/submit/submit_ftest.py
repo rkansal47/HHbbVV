@@ -5,6 +5,7 @@ Splits toy generation into separate condor jobs and fits lowest order + 1 models
 
 Author(s): Raghav Kansal
 """
+
 from __future__ import annotations
 
 import argparse

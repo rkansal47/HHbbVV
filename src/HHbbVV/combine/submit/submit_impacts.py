@@ -5,6 +5,7 @@ Splits impacts for each nuisance into separate jobs.
 
 Author(s): Raghav Kansal
 """
+
 from __future__ import annotations
 
 import argparse

@@ -373,8 +373,7 @@ def get_effect_updown(values_nominal, values_up, values_down, mask, logger, epsi
 #################################################
 
 
-abcd_datacard_template = Template(
-    """
+abcd_datacard_template = Template("""
 imax $num_bins
 jmax $num_bgs
 kmax *
@@ -392,8 +391,7 @@ single_A    rateParam       $binA     $qcdlabel       (@0*@1/@2)       single_B,
 single_B    rateParam       $binB     $qcdlabel       $dataqcdB
 single_C    rateParam       $binC     $qcdlabel       $dataqcdC
 single_D    rateParam       $binD     $qcdlabel       $dataqcdD
-"""
-)
+""")
 
 
 def join_with_padding(items, padding: int = 40):

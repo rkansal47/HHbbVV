@@ -423,12 +423,8 @@ def get_templates(
             )
 
             # cutstrn = cutstr + "\n" if cutstr != "" else ""
-            print(
-                cleandoc(
-                    f"""Pass region signal yield: {pass_sig_yield}
-                    background yield from data in sidebands: {pass_bg_yield}"""
-                )
-            )
+            print(cleandoc(f"""Pass region signal yield: {pass_sig_yield}
+                    background yield from data in sidebands: {pass_bg_yield}"""))
 
         selections[label] = sel
         cutflows[label] = cf
