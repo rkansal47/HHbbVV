@@ -40,6 +40,7 @@ toylimits=0
 significance=0
 dfit=0
 dfit_asimov=0
+binuncs=0
 dnll=0
 resonant=0
 gofdata=0
@@ -59,7 +60,7 @@ mintol=0.1  # --cminDefaultMinimizerTolerance
 nonresggf=1
 nonresvbf=1
 
-options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,dfitasimov,toylimits,resonant,noggf,novbf,gofdata,goftoys,gentoys,dnll,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:,toysname:,toysfile:,verbose:" -- "$@")
+options=$(getopt -o "wblsdrgti" --long "workspace,bfit,limits,significance,dfit,binuncs,dfitasimov,toylimits,resonant,noggf,novbf,gofdata,goftoys,gentoys,dnll,impactsi,impactsf:,impactsc:,bias:,seed:,numtoys:,mintol:,toysname:,toysfile:,verbose:" -- "$@")
 eval set -- "$options"
 
 while true; do
@@ -81,6 +82,9 @@ while true; do
             ;;
         -d|--dfit)
             dfit=1
+            ;;
+        --binuncs)
+            binuncs=1
             ;;
         --dfitasimov)
             dfit_asimov=1
@@ -378,6 +382,19 @@ if [ $dfit = 1 ]; then
     echo "Fit Shapes"
     PostFitShapesFromWorkspace --dataset "$dataset" -w ${wsm}.root --output FitShapes.root \
     -m 125 -f fitDiagnosticsBlinded.root:fit_b --postfit --print 2>&1 | tee $outsdir/FitShapes.txt
+fi
+
+
+if [ $binuncs = 1 ]; then
+    echo "Fit diagnostics on toys for bin uncertainties"
+    for i in {1000..1199}; do
+        combine -M FitDiagnostics -m 125 -d ${wsm_snapshot}.root -n "Toys${i}" --snapshotName MultiDimFit \
+        --setParameters "${maskunblindedargs},${setparamsblinded}" \
+        --freezeParameters "${freezeparamsblinded}" \
+        --bypassFrequentistFit --toysFrequentist --skipSBFit --minos none --expectSignal 1 \
+        --cminDefaultMinimizerStrategy 1 --cminDefaultMinimizerTolerance "$mintol" --X-rtd MINIMIZER_MaxCalls=400000 \
+        -v $verbose --saveShapes --saveOverallShapes -t 1 -s ${i} 2>&1 | tee -a $outsdir/ToysFitDiagnostics.txt
+    done
 fi
 
 
