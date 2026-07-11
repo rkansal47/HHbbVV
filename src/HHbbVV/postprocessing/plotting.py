@@ -58,14 +58,16 @@ sample_label_map = {
     "qqHH_CV_1_C2V_0_kl_1_HHbbVV": r"VBF HH$\rightarrow b\overline{b}VV$ ($\kappa_{2V} = 0$)",
     "qqHH_CV_1_C2V_2_kl_1_HHbbVV": r"VBF HH$\rightarrow b\overline{b}VV$ ($\kappa_{2V} = 2$)",
     "ST": r"Single-$t$",
-    "TT": r"$t\bar{t}$",
+    "TT": r"$t\overline{t}$",
+    "W+Jets": "W+jets",
+    "Z+Jets": "Z+jets",
     "Hbb": r"H$\rightarrow b\overline{b}$",
     "X[900]->HY[80]": r"X[900]$\rightarrow$HY[80]",
-    "Top Matched": r"Top matched",
-    "Top W Matched": r"Top W matched",
-    "Top Unmatched": r"Top unmatched",
-    "Corrected Top Matched": r"Corrected top matched",
-    "Uncorrected Top Matched": r"Uncorrected top matched",
+    "Top Matched": r"t-matched",
+    "Top W Matched": r"W-matched",
+    "Top Unmatched": r"t- and W-unmatched",
+    "Corrected Top Matched": r"Corrected t-matched",
+    "Uncorrected Top Matched": r"Uncorrected t-matched",
 }
 
 COLOURS = {
@@ -990,14 +992,14 @@ def ratioLinePlotPrePost(
     for i, k in enumerate(bg_keys):
         if k == "Top Matched":
             plot_hists.append(pre_hists[k, :])
-            labels.append("Uncorrected top matched")
+            labels.append("Uncorrected t-matched")
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("--")
             alpha.append(0.5)
             markers.append(None)
 
             plot_hists.append(hists[k, :])
-            labels.append("Corrected top matched")
+            labels.append("Corrected t-matched")
             colors.append(COLOURS[bg_colours[k]])
             linestyles.append("-")
             alpha.append(1)
